@@ -215,6 +215,8 @@ test('semanaPregunta cuenta dias distintos en la semana ISO actual', async () =>
       findUnique: async () => null,
       aggregate: async () => ({ _avg: { rachaActual: 3 } }),
     },
+    // obtener() cuenta duelos; sin mock el test cae en findMany undefined.
+    retoAmigo: { findMany: async () => [] },
     respuestaPregunta: {
       findMany: async ({
         where,
@@ -316,6 +318,7 @@ test('comparacionCampus calcula promedioRacha del campus y si tuRacha esta por e
     },
     userBadge: { findMany: async () => [] },
     respuestaPregunta: { findMany: async () => [] },
+    retoAmigo: { findMany: async () => [] },
   };
 
   const svc = crearServicio(prisma as unknown as PrismaService);

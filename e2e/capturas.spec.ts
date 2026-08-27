@@ -1,6 +1,7 @@
-import { execSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import { expect, test } from '@playwright/test';
+
+import { psql } from './helpers/db';
 
 /**
  * Genera capturas de las pantallas principales para revisar el diseno.
@@ -9,12 +10,6 @@ import { expect, test } from '@playwright/test';
  * una forma de ver la app renderizada de verdad, con las fuentes cargadas y la
  * paleta aplicada, sin depender de que el panel del navegador este visible.
  */
-
-const psql = (sql: string): string =>
-  execSync(
-    `docker exec agora-postgres psql -U agora -d agora -t -A -c "${sql.replace(/"/g, '\\"')}"`,
-    { encoding: 'utf8' },
-  ).trim();
 
 // Codigo maestro de desarrollo: deterministico y sin gastar cuota de OTP.
 const CODIGO = '424242';

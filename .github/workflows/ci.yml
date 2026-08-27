@@ -128,9 +128,9 @@ jobs:
             fi
             sleep 2
           done
-          echo "=== API ===" && cat /tmp/agora-api.log || true
-          echo "=== WEB ===" && cat /tmp/agora-web.log || true
-          echo "=== ADMIN ===" && cat /tmp/agora-admin.log || true
+          echo "=== API ===" && cat /tmp/agora-api.log
+          echo "=== WEB ===" && cat /tmp/agora-web.log
+          echo "=== ADMIN ===" && cat /tmp/agora-admin.log
           exit 1
 
       - name: E2E Playwright (8 specs)
@@ -139,6 +139,6 @@ jobs:
       - name: Logs si falló e2e
         if: failure()
         run: |
-          echo "=== API ===" && tail -n 200 /tmp/agora-api.log || true
-          echo "=== WEB ===" && tail -n 200 /tmp/agora-web.log || true
-          echo "=== ADMIN ===" && tail -n 200 /tmp/agora-admin.log || true
+          echo "=== API ===" && tail -n 200 /tmp/agora-api.log
+          echo "=== WEB ===" && tail -n 200 /tmp/agora-web.log
+          echo "=== ADMIN ===" && tail -n 200 /tmp/agora-admin.log
