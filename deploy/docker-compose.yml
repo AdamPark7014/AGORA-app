@@ -75,11 +75,16 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    # Solo lectura publica de objetos (GetObject). Sin ListBucket ni Put anonimo.
+    # Politica versionada en deploy/minio/bucket-policy.json.
+    volumes:
+      - ./minio/bucket-policy.json:/policy/bucket-policy.json:ro
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
-      mc mb -p local/$$S3_BUCKET || true &&
-      mc anonymous set download local/$$S3_BUCKET
+      (mc ls local/$$S3_BUCKET >/dev/null 2>&1 || mc mb -p local/$$S3_BUCKET) &&
+      sed \"s/BUCKET_NAME/$$S3_BUCKET/g\" /policy/bucket-policy.json > /tmp/policy.json &&
+      mc anonymous set-json local/$$S3_BUCKET /tmp/policy.json
       "
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -117,7 +122,9 @@ services:
       NEXT_PUBLIC_ADMIN_URL: ${NEXT_PUBLIC_ADMIN_URL:-}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
       TRUST_PROXY: 'true'
-      MODERACION_OPCIONAL: ${MODERACION_OPCIONAL:-true}
+      # Sin default true: el bypass de IA debe ser explicito en deploy/.env.
+      # Si falta OPENAI_API_KEY y no hay MODERACION_OPCIONAL=true, la API no arranca.
+      MODERACION_OPCIONAL: ${MODERACION_OPCIONAL:-}
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: ${S3_BUCKET}
       S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}

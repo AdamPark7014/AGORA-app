@@ -28,11 +28,13 @@ TZ=America/Mexico_City
 SESSION_SECRET=${SESSION_SECRET}
 MAIL_PROVIDER=brevo
 BREVO_API_KEY=${BREVO_KEY}
-MAIL_FROM=Ágora <${BREVO_EMAIL:-contacto@nexara.com.mx}>
+MAIL_FROM=Ágora <${BREVO_EMAIL:-contacto@udlagora.com}>
 
 NEXT_PUBLIC_WEB_URL=https://udlagora.com
 COOKIE_DOMAIN=.udlagora.com
-MODERACION_OPCIONAL=true
+# Sin bypass silencioso: rellena OPENAI_API_KEY o pon MODERACION_OPCIONAL=true.
+OPENAI_API_KEY=
+MODERACION_OPCIONAL=
 
 MINIO_ROOT_USER=${MINIO_ROOT_USER}
 MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
@@ -40,7 +42,7 @@ S3_BUCKET=agora-media
 S3_PUBLIC_URL=https://udlagora.com/media/agora-media
 VAPID_PUBLIC_KEY=${VAPID_PUBLIC}
 VAPID_PRIVATE_KEY=${VAPID_PRIVATE}
-VAPID_SUBJECT=mailto:${BREVO_EMAIL:-contacto@nexara.com.mx}
+VAPID_SUBJECT=mailto:${BREVO_EMAIL:-contacto@udlagora.com}
 EOF
 
 cp "$APP/deploy/traefik/udlagora.yml" /opt/traefik/config/udlagora.yml

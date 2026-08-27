@@ -23,17 +23,18 @@ Plan completo: `C:\Users\adpoz\.claude\plans\ve-todos-mis-proyectos-drifting-new
 | Ítem | % | Estado en disco |
 |---|---:|---|
 | A6-1 Custodia git local | 100 | ✅ primer commit + relevo |
-| A6-2 CI formal (`.github/workflows/`) | 0 | ❌ no existe; solo `pnpm ci:verify` local |
-| A6-3 `packages/core` y `packages/ui` | 0 | ❌ 0 archivos; workspace `packages/*` los declara vacíos |
-| A6-4 Retirar `apps/mobile` (Expo) | 0 | ❌ sigue; exige matriz de paridad completa primero |
-| A6-5 Hardening MinIO + moderación | 0 | ❌ sin tests de rechazo nuevos en este carril |
-| A6-6 Docs operativas (comunidad, moderación, runbook) | ~30 | 🟡 hay arquitectura/Firebase/parity; faltan guías operativas |
+| A6-2 CI formal (`.github/workflows/`) | 100 | ✅ `ci.yml`: Postgres 17 + Redis, migrate, lint, types, unit, 8 e2e |
+| A6-3 `packages/core` y `packages/ui` | 100 | ✅ carpetas vacías **retiradas** (nadie las importaba) |
+| A6-4 Retirar `apps/mobile` (Expo) | ~90 | 🟡 matriz actualizada; Expo **sigue** (push prod / AASA aún 🟡) |
+| A6-5 Hardening MinIO + moderación | 100 | ✅ policy wiring + tests de rechazo MIME/tope/path + entorno |
+| A6-6 Docs operativas (comunidad, moderación, runbook) | 100 | ✅ `docs/comunidad.md`, `docs/moderacion.md`, `docs/runbook.md` |
 | A6-7 Deploy `udlagora.com` | 0 | ⏸ `deploy/` listo; lo ejecuta Adam |
-| Remoto GitHub privado | 0 | ⏸ lo autoriza Adam |
+| Remoto GitHub privado | 0 | ⏸ lo autoriza Adam — **SIN REMOTO** |
 | Marca MARCANET/IMPI | 0 | ⏸ trámite legal de Adam |
 
-**Siguiente fase entera = A6-2 → A6-6 en `mejora/ci-y-blindaje`.** Producto
-funcional (fases 0–7 del README abajo) ≠ listo para operar en producción.
+**Siguiente fase = A6-7 (deploy) + remoto privado + MARCANET**, todo con
+autorización explícita de Adam. Producto funcional (fases 0–7 del README abajo)
+≠ listo para operar en producción hasta A6-7.
 
 ---
 
@@ -105,11 +106,13 @@ packages/
   rbac/         roles y permisos                      ✅
   db/           Prisma: esquema, migraciones, seed    ✅
   moderation/   política de contenido                 ✅
-  core/         reglas de dominio                     [pendiente]
-  ui/           design system                         [pendiente]
 infra/      docker-compose
 scripts/    arrancar.ps1
 ```
+
+> `packages/core` y `packages/ui` se retiraron en A6-3: estaban vacíos y ningún
+> app los importaba. El design system vive en cada cliente; las reglas de
+> dominio en `shared` / `contracts` / `moderation`.
 
 **Levantar todo en local:**
 
@@ -605,6 +608,8 @@ la API durante desarrollo; no es la app de tienda.
 Plan maestro por fases: [`docs/super-app-plan.md`](docs/super-app-plan.md).
 Matriz pantalla por pantalla: [`docs/native-parity-matrix.md`](docs/native-parity-matrix.md).
 Mapa de plataforma: [`docs/architecture.md`](docs/architecture.md).
+Comunidad / moderación / ops: [`docs/comunidad.md`](docs/comunidad.md) ·
+[`docs/moderacion.md`](docs/moderacion.md) · [`docs/runbook.md`](docs/runbook.md).
 
 | Fase | Alcance | Android | iOS |
 |---|---|---|---|

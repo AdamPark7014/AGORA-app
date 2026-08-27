@@ -31,7 +31,7 @@ export const copy = {
       botonVerificando: 'Verificando…',
       cambiarCorreo: 'Cambiar correo',
       avisoOutlook:
-        'Si no lo ves en la bandeja principal, busca "Ágora" o "nexara" y revisa Correo no deseado, la pestaña Otros y Cuarentena en Outlook.',
+        'Si no lo ves en la bandeja principal, busca "Ágora" o "udlagora" y revisa Correo no deseado, la pestaña Otros y Cuarentena en Outlook.',
       pie: 'Vence en 10 minutos y solo sirve una vez.',
     },
     ventajas: [

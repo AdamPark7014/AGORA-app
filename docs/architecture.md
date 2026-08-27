@@ -66,8 +66,8 @@ Mapa de la plataforma: qué vive dónde, cómo se conectan los clientes y qué e
 | `db` | Prisma: esquema, migraciones, seed idempotente |
 | `correo` | Proveedores Brevo / Resend / console |
 | `moderation` | Política de línea roja + clasificador OpenAI |
-| `core` | Reglas de dominio (pendiente) |
-| `ui` | Design system compartido (pendiente) |
+
+> A6-3: se retiraron `packages/core` y `packages/ui` (vacíos, sin consumidores).
 
 ---
 

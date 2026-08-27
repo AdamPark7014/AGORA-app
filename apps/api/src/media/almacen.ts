@@ -49,6 +49,40 @@ export const MAX_BYTES = MAX_BYTES_VIDEO;
 export const topeDe = (mime: string): number =>
   esVideo(mime) ? MAX_BYTES_VIDEO : MAX_BYTES_IMAGEN;
 
+/**
+ * Nombre que genera el servidor para disco local. Rechaza path traversal y
+ * extensiones inventadas: un `../` aqui seria leer cualquier archivo.
+ */
+export const nombreArchivoLocalValido = (nombre: string): boolean =>
+  /^[a-f0-9]{24}\.(jpg|png|webp|gif|mp4|webm|mov)$/.test(nombre);
+
+/**
+ * Validacion pura de una subida (magic bytes + MIME + tope).
+ * El controlador solo traduce el rechazo a HTTP 400.
+ */
+export type ValidacionSubida =
+  | { ok: true; mime: string }
+  | { ok: false; motivo: string };
+
+export const validarSubida = (datos: Buffer, size: number): ValidacionSubida => {
+  const mime = detectarMime(datos);
+  if (!mime || !MIMES_PERMITIDOS.has(mime)) {
+    return {
+      ok: false,
+      motivo:
+        'Solo se aceptan imagenes (JPG, PNG, WEBP, GIF) o videos (MP4, WEBM, MOV).',
+    };
+  }
+  const tope = topeDe(mime);
+  if (size > tope) {
+    return {
+      ok: false,
+      motivo: `${esVideo(mime) ? 'El video' : 'La imagen'} pasa de ${Math.round(tope / 1024 / 1024)} MB.`,
+    };
+  }
+  return { ok: true, mime };
+};
+
 const EXTENSIONES: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',

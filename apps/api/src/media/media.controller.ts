@@ -37,11 +37,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import {
   AlmacenLocal,
   MAX_BYTES,
-  MIMES_PERMITIDOS,
   crearAlmacen,
-  detectarMime,
   esVideo,
-  topeDe,
+  nombreArchivoLocalValido,
+  validarSubida,
   type Almacen,
 } from './almacen.js';
 
@@ -65,23 +64,10 @@ export class MediaController {
   async subir(@Req() req: RequestConSesion, @UploadedFile() archivo?: ArchivoMulter) {
     if (!archivo) throw new BadRequestException('No llego ningun archivo.');
 
-    // El tipo real, no el que dice el cliente.
-    const mime = detectarMime(archivo.buffer);
-    if (!mime || !MIMES_PERMITIDOS.has(mime)) {
-      throw new BadRequestException(
-        'Solo se aceptan imagenes (JPG, PNG, WEBP, GIF) o videos (MP4, WEBM, MOV).',
-      );
-    }
-
-    // El tope se comprueba DESPUES de saber que es: un video puede pesar mucho
-    // mas que una foto, y aplicarles el mismo limite dejaria fuera casi
-    // cualquier grabacion de telefono.
-    const tope = topeDe(mime);
-    if (archivo.size > tope) {
-      throw new BadRequestException(
-        `${esVideo(mime) ? 'El video' : 'La imagen'} pasa de ${Math.round(tope / 1024 / 1024)} MB.`,
-      );
-    }
+    // El tipo real (magic bytes), no el Content-Type que manda el cliente.
+    const validacion = validarSubida(archivo.buffer, archivo.size);
+    if (!validacion.ok) throw new BadRequestException(validacion.motivo);
+    const { mime } = validacion;
 
     const guardado = await this.almacen.guardar(archivo.buffer, mime);
 
@@ -109,7 +95,7 @@ export class MediaController {
 
     // El nombre lo genera el servidor, pero igual se valida: un `..` aqui
     // seria leer cualquier archivo del disco.
-    if (!/^[a-f0-9]{24}\.(jpg|png|webp|gif|mp4|webm|mov)$/.test(nombre)) {
+    if (!nombreArchivoLocalValido(nombre)) {
       throw new NotFoundException('No existe.');
     }
 
