@@ -1,5 +1,6 @@
-import { execSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
+
+import { psql } from './helpers/db';
 
 /**
  * Capturas del panel de moderación.
@@ -14,12 +15,6 @@ const ADMIN = process.env.ADMIN_URL ?? 'http://localhost:3300';
 const MODERADOR = 'adam.delpozoos@udlap.mx';
 // Codigo maestro de desarrollo: deterministico y sin gastar cuota de OTP.
 const CODIGO = '123456';
-
-const psql = (sql: string): string =>
-  execSync(
-    `docker exec agora-postgres psql -U agora -d agora -t -A -c "${sql.replace(/"/g, '\\"')}"`,
-    { encoding: 'utf8' },
-  ).trim();
 
 test('capturas del panel de moderacion', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });

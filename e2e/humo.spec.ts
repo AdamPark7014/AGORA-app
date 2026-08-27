@@ -1,7 +1,8 @@
-import { execSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 
 import { expect, test, type Page } from '@playwright/test';
+
+import { psql } from './helpers/db';
 
 /**
  * Prueba de humo: cada ruta de la web carga de verdad.
@@ -16,12 +17,6 @@ import { expect, test, type Page } from '@playwright/test';
  * responde, que no aparece el dialogo "Build Error" de Next y que no hay
  * errores de consola. Es barata y cubre justo el hueco por donde se colo.
  */
-
-const psql = (sql: string): string =>
-  execSync(
-    `docker exec agora-postgres psql -U agora -d agora -t -A -c "${sql.replace(/"/g, '\\"')}"`,
-    { encoding: 'utf8' },
-  ).trim();
 
 const CODIGO = '424242';
 

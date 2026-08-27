@@ -1,5 +1,6 @@
-import { execSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
+
+import { psql } from './helpers/db';
 
 /**
  * El panel de moderacion vive en su propio origen (puerto 3300 en desarrollo,
@@ -10,12 +11,6 @@ import { expect, test } from '@playwright/test';
  */
 
 const ADMIN = process.env.ADMIN_URL ?? 'http://localhost:3300';
-
-const psql = (sql: string): string =>
-  execSync(
-    `docker exec agora-postgres psql -U agora -d agora -t -A -c "${sql.replace(/"/g, '\\"')}"`,
-    { encoding: 'utf8' },
-  ).trim();
 
 test('la API de moderacion exige sesion', async ({ request }) => {
   for (const ruta of ['/api/moderacion/cola', '/api/moderacion/resumen', '/api/moderacion/historial']) {

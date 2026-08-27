@@ -1,7 +1,8 @@
-import { execSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 
 import { expect, test } from '@playwright/test';
+
+import { psql } from './helpers/db';
 
 /**
  * El contrato de sesion de la app nativa.
@@ -19,12 +20,6 @@ import { expect, test } from '@playwright/test';
 const API = process.env.API_URL ?? 'http://localhost:4200';
 const CODIGO_FIJO = '515151';
 const CORREO = 'prueba.nativa@udlap.mx';
-
-const psql = (sql: string): string =>
-  execSync(
-    `docker exec agora-postgres psql -U agora -d agora -t -A -c "${sql.replace(/"/g, '\\"')}"`,
-    { encoding: 'utf8' },
-  ).trim();
 
 function hashDe(codigo: string, email: string): string {
   const secreto = process.env.SESSION_SECRET;

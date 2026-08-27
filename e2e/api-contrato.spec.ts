@@ -1,7 +1,8 @@
-import { execSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 
 import { expect, test, type APIRequestContext } from '@playwright/test';
+
+import { psql } from './helpers/db';
 
 /**
  * El contrato HTTP de la API, probado contra la API de verdad.
@@ -16,12 +17,6 @@ import { expect, test, type APIRequestContext } from '@playwright/test';
  */
 
 const API = process.env.API_URL ?? 'http://localhost:4200';
-
-const psql = (sql: string): string =>
-  execSync(
-    `docker exec agora-postgres psql -U agora -d agora -t -A -c "${sql.replace(/"/g, '\\"')}"`,
-    { encoding: 'utf8' },
-  ).trim();
 
 /** Abre una sesion nueva y devuelve su token. */
 async function entrar(request: APIRequestContext, email: string): Promise<string> {

@@ -1,5 +1,6 @@
-import { execSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
+
+import { psql } from './helpers/db';
 
 /**
  * Recorrido completo: entrar con correo institucional, crear perfil, caer en
@@ -10,12 +11,6 @@ import { expect, test, type Page } from '@playwright/test';
  * sirve porque es un HMAC irreversible. Lo que si se puede es sembrar un
  * codigo conocido, que es justo lo que hace `sembrarCodigo`.
  */
-
-const psql = (sql: string): string =>
-  execSync(
-    `docker exec agora-postgres psql -U agora -d agora -t -A -c "${sql.replace(/"/g, '\\"')}"`,
-    { encoding: 'utf8' },
-  ).trim();
 
 /**
  * Fuerza un codigo conocido para un correo.
