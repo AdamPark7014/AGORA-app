@@ -34,12 +34,12 @@ Plan completo: `C:\Users\adpoz\.claude\plans\ve-todos-mis-proyectos-drifting-new
 
 **Siguiente fase técnica (sin Adam) — A6-B calidad local**
 
-| Ítem | Objetivo |
-|---|---|
-| A6-B1 | Correr los 8 e2e cuando Docker Desktop esté encendido (`pnpm test:e2e`) |
-| A6-B2 | Cerrar filas ⬜/🟡 de `docs/native-parity-matrix.md` que sean código (iOS hub/secundarios), no FCM/APNs reales |
-| A6-B3 | Más tests de rechazo en moderación/media si quedan huecos |
-| A6-B4 | `pnpm ci:verify` / `ci:verify:sin-turbo` verde en local sin depender de Actions |
+| Ítem | % | Estado en disco |
+|---|---:|---|
+| A6-B1 e2e ×8 (Docker) | 0 | ⏭ saltado — Docker Desktop apagado (`dockerDesktopLinuxEngine` ausente) |
+| A6-B2 Paridad código (hub/sesión/legales) | 100 | ✅ Mas→`perfil-yo`, `SessionExpiredHost` iOS, Términos/Privacidad desde Más Android; push/AASA siguen 🟡 (credenciales) |
+| A6-B3 Tests rechazo mod/media | 100 | ✅ +4 media, +2 moderación API, +2 política (umbral/self-harm); API unit **73**/73 |
+| A6-B4 `ci:verify:sin-turbo` | 100 | ✅ lint + types + unit + build verde (fix: `Avatar` `tamano="chico"`) |
 
 **Bloqueado en Adam (no lo hace un agente):** A6-7 deploy, remoto GitHub, MARCANET, credenciales Firebase/APNs reales.
 

@@ -33,7 +33,7 @@ function RetoHistorialTarjeta({
     <div className="reto-historial-tarjeta" role="listitem">
       <p className="reto-historial-etiqueta">{etiquetaTipoReto(reto.tipo, true)}</p>
       <div className="reto-historial-rival">
-        <Avatar nombre={rival.nombre} fotoUrl={null} tamano={32} />
+        <Avatar nombre={rival.nombre} fotoUrl={null} tamano="chico" />
         <Link href={`/perfil/${rival.handle}`}>@{rival.handle}</Link>
       </div>
       <p className="reto-historial-resultado">{resultado}</p>
