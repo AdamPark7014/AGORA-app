@@ -130,4 +130,15 @@ class DeepLinkParserTest {
             DeepLinkParser.toAgoraUri("https://udlagora.com/publicacion/xyz").toString(),
         )
     }
+
+    @Test
+    fun `hub secondary routes map`() {
+        assertEquals(AgoraRoutes.AVENTONES, DeepLinkParser.parse("/aventones"))
+        assertEquals(AgoraRoutes.AVENTONES, DeepLinkParser.parse("agora://aventones"))
+        assertEquals(AgoraRoutes.ANONIMO, DeepLinkParser.parse("https://udlagora.com/anonimo"))
+        assertEquals(AgoraRoutes.GUARDADOS, DeepLinkParser.parse("/guardados"))
+        assertEquals(AgoraRoutes.DIRECTORIO, DeepLinkParser.parse("agora://directorio"))
+        assertEquals(AgoraRoutes.BUSCAR, DeepLinkParser.parse("/buscar"))
+        assertEquals(AgoraRoutes.NOTIFICACIONES, DeepLinkParser.parse("/notificaciones"))
+    }
 }

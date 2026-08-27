@@ -56,4 +56,14 @@ final class DeepLinkParserTests: XCTestCase {
         XCTAssertEqual(DeepLinkParser.parse("/marketplace"), "marketplace")
         XCTAssertEqual(DeepLinkParser.parse("agora://marketplace/anuncio-1"), "marketplace/anuncio-1")
     }
+
+    func testHubSecondaryRoutesMap() {
+        XCTAssertEqual(DeepLinkParser.parse("/aventones"), "aventones")
+        XCTAssertEqual(DeepLinkParser.parse("agora://aventones"), "aventones")
+        XCTAssertEqual(DeepLinkParser.parse("https://udlagora.com/anonimo"), "anonimo")
+        XCTAssertEqual(DeepLinkParser.parse("/guardados"), "guardados")
+        XCTAssertEqual(DeepLinkParser.parse("agora://directorio"), "directorio")
+        XCTAssertEqual(DeepLinkParser.parse("/buscar"), "buscar")
+        XCTAssertEqual(DeepLinkParser.parse("/notificaciones"), "notificaciones")
+    }
 }

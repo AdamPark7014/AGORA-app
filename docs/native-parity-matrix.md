@@ -167,7 +167,7 @@ Siguen 🟡 solo por credenciales: push FCM/APNs y AASA TEAMID.
 | Android `moderacion` deep link | Ruta top-level `MODERACION` + `ModeracionScreen` (antes solo anidada en perfil; el parser no la mapeaba) |
 | Android `eventos/crear` | Ya no cae en `evento/crear`; mapea a `EVENTOS_CREAR` (paridad iOS) |
 | Tests deep link | Android: moderación, feed, marketplace, eventos/crear. iOS: marketplace + eventos/crear |
-| API unit | Stream SSE (reconnect/destroy/orden), MIME GIF/WEBP/WEBM/MOV, badges/retos edge → **89**/89 |
+| API unit | Stream SSE, MIME GIF/WEBP/WEBM/MOV, badges/retos, auth/aventones/marketplace/mensajes/moderación → **123**/123 |
 
 Siguen 🟡 solo por credenciales: push FCM/APNs y AASA TEAMID. Tests instrumentados Android siguen ⬜ (Gradle unit OK).
 
