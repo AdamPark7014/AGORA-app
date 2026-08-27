@@ -49,3 +49,33 @@ test('con llave y sin bypass la moderacion previa esta activa', () => {
     else process.env.MODERACION_OPCIONAL = prevOpt;
   }
 });
+
+test('OPENAI_API_KEY vacia no activa la moderacion previa', () => {
+  const prevKey = process.env.OPENAI_API_KEY;
+  const prevOpt = process.env.MODERACION_OPCIONAL;
+  try {
+    process.env.OPENAI_API_KEY = '';
+    delete process.env.MODERACION_OPCIONAL;
+    assert.equal(moderacionPreviaActiva(), false);
+  } finally {
+    if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = prevKey;
+    if (prevOpt === undefined) delete process.env.MODERACION_OPCIONAL;
+    else process.env.MODERACION_OPCIONAL = prevOpt;
+  }
+});
+
+test('MODERACION_OPCIONAL=false no apaga el filtro si hay llave', () => {
+  const prevKey = process.env.OPENAI_API_KEY;
+  const prevOpt = process.env.MODERACION_OPCIONAL;
+  try {
+    process.env.OPENAI_API_KEY = 'sk-test';
+    process.env.MODERACION_OPCIONAL = 'false';
+    assert.equal(moderacionPreviaActiva(), true);
+  } finally {
+    if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = prevKey;
+    if (prevOpt === undefined) delete process.env.MODERACION_OPCIONAL;
+    else process.env.MODERACION_OPCIONAL = prevOpt;
+  }
+});

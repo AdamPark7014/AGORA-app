@@ -152,6 +152,12 @@ final class ApiClient {
             }
             guard (200..<300).contains(http.statusCode) else {
                 let msg = String(data: data, encoding: .utf8)
+                if http.statusCode == 401 {
+                    let path = req.url?.path ?? ""
+                    if !path.contains("/auth/") {
+                        SessionEvents.notifyExpired()
+                    }
+                }
                 throw ApiError.http(http.statusCode, msg)
             }
             return data

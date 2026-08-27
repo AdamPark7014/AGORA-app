@@ -90,6 +90,8 @@ object DeepLinkParser {
             "marketplace" -> segments.getOrNull(1)?.let { AgoraRoutes.marketplaceDetalle(it) }
                 ?: AgoraRoutes.MARKETPLACE
             "ajustes" -> AgoraRoutes.AJUSTES
+            "terminos" -> AgoraRoutes.TERMINOS
+            "privacidad" -> AgoraRoutes.PRIVACIDAD
             "notificaciones" -> AgoraRoutes.NOTIFICACIONES
             "aventones" -> AgoraRoutes.AVENTONES
             "anonimo" -> AgoraRoutes.ANONIMO

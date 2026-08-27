@@ -95,6 +95,12 @@ enum DeepLinkParser {
             return "mas"
         case "perfil-yo":
             return "perfil-yo"
+        case "moderacion":
+            return "moderacion"
+        case "terminos":
+            return "terminos"
+        case "privacidad":
+            return "privacidad"
         case "feed":
             return "main"
         default:

@@ -83,6 +83,12 @@ class DeepLinkParserTest {
     }
 
     @Test
+    fun `terminos and privacidad map to legal routes`() {
+        assertEquals(AgoraRoutes.TERMINOS, DeepLinkParser.parse("/terminos"))
+        assertEquals(AgoraRoutes.PRIVACIDAD, DeepLinkParser.parse("https://udlagora.com/privacidad"))
+    }
+
+    @Test
     fun `toAgoraUri normalizes web path`() {
         assertEquals(
             "agora://publicacion/xyz",

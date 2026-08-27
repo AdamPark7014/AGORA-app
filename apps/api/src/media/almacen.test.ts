@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import {
   MAX_BYTES_IMAGEN,
+  MAX_BYTES_VIDEO,
   detectarMime,
   nombreArchivoLocalValido,
   validarSubida,
@@ -60,4 +61,41 @@ test('rechaza path traversal en nombres de archivo locales', () => {
   assert.equal(nombreArchivoLocalValido('not-a-hash.jpg'), false);
   assert.equal(nombreArchivoLocalValido('abcdef0123456789abcdef01.svg'), false);
   assert.equal(nombreArchivoLocalValido('abcdef0123456789abcdef01.jpg'), true);
+});
+
+test('rechaza buffer demasiado corto para magic bytes', () => {
+  const corto = Buffer.from([0xff, 0xd8, 0xff]);
+  assert.equal(detectarMime(corto), null);
+  const v = validarSubida(corto, corto.length);
+  assert.equal(v.ok, false);
+});
+
+test('rechaza video por encima del tope de 60 MB', () => {
+  // ftyp + isom → video/mp4; el tope se aplica aunque el buffer sea pequeño.
+  const mp4Cabecera = Buffer.alloc(32, 0);
+  mp4Cabecera.write('ftyp', 4, 'ascii');
+  mp4Cabecera.write('isom', 8, 'ascii');
+  assert.equal(detectarMime(mp4Cabecera), 'video/mp4');
+  const v = validarSubida(mp4Cabecera, MAX_BYTES_VIDEO + 1);
+  assert.equal(v.ok, false);
+  if (!v.ok) assert.match(v.motivo, /pasa de 60 MB/);
+});
+
+test('acepta MP4 con magic bytes ftyp', () => {
+  const mp4Cabecera = Buffer.alloc(32, 0);
+  mp4Cabecera.write('ftyp', 4, 'ascii');
+  mp4Cabecera.write('isom', 8, 'ascii');
+  const v = validarSubida(mp4Cabecera, mp4Cabecera.length);
+  assert.equal(v.ok, true);
+  if (v.ok) assert.equal(v.mime, 'video/mp4');
+});
+
+test('acepta PNG con magic bytes reales', () => {
+  const png = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+  ]);
+  assert.equal(detectarMime(png), 'image/png');
+  const v = validarSubida(png, png.length);
+  assert.equal(v.ok, true);
+  if (v.ok) assert.equal(v.mime, 'image/png');
 });

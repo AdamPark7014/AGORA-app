@@ -82,6 +82,8 @@ fun MasScreen(
     auth: AuthRepository,
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
+    onTerminos: () -> Unit = {},
+    onPrivacidad: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var yo by remember { mutableStateOf<YoResponse?>(null) }
@@ -102,7 +104,7 @@ fun MasScreen(
 
         yo?.handle?.let { handle ->
             Card(
-                onClick = { onNavigate("perfil/$handle") },
+                onClick = { onNavigate("perfil-yo") },
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = AgoraColors.SurfaceElevated),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -192,9 +194,17 @@ fun MasScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
         ) {
-            Text("Términos", color = AgoraColors.Naranja)
+            Text(
+                "Términos",
+                color = AgoraColors.Naranja,
+                modifier = Modifier.clickable(onClick = onTerminos),
+            )
             Text(" · ", color = AgoraColors.TextMuted)
-            Text("Privacidad", color = AgoraColors.Naranja)
+            Text(
+                "Privacidad",
+                color = AgoraColors.Naranja,
+                modifier = Modifier.clickable(onClick = onPrivacidad),
+            )
         }
 
         OutlinedButton(

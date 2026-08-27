@@ -52,6 +52,17 @@ test('la amenaza de violencia se retira', () => {
   }
 });
 
+test('instrucciones de autolesion se retiran como amenaza de violencia', () => {
+  const veredicto = decidir({ 'self-harm/instructions': 0.9 });
+  assert.equal(veredicto.decision, DECISIONES.RETIRAR);
+  assert.equal(veredicto.lineaRoja, LINEAS_ROJAS.AMENAZA_VIOLENCIA);
+});
+
+test('justo en el umbral de linea roja se retira', () => {
+  const veredicto = decidir({ 'harassment/threatening': 0.85 });
+  assert.equal(veredicto.decision, DECISIONES.RETIRAR);
+});
+
 test('toda retirada trae motivo visible para el autor', () => {
   const veredicto = decidir({ 'sexual/minors': 0.99 });
   assert.ok(veredicto.motivo && veredicto.motivo.length > 0, 'sin motivo no hay apelacion posible');

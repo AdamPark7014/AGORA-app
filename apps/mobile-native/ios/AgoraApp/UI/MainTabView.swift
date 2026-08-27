@@ -228,6 +228,9 @@ struct MainTabView: View {
             "directorio": .directorio,
             "guardados": .guardados,
             "ajustes": .ajustes,
+            "terminos": .terminos,
+            "privacidad": .privacidad,
+            "moderacion": .moderacion,
         ]
 
         if let destino = masRoutes[route] {

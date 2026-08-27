@@ -41,6 +41,8 @@ import mx.agora.mobile.nativeapp.ui.screens.NotificacionesScreen
 import mx.agora.mobile.nativeapp.ui.screens.PerfilAjenoScreen
 import mx.agora.mobile.nativeapp.ui.screens.PostDetailScreen
 import mx.agora.mobile.nativeapp.ui.screens.ProfileScreen
+import mx.agora.mobile.nativeapp.ui.screens.PrivacidadScreen
+import mx.agora.mobile.nativeapp.ui.screens.TerminosScreen
 
 object AgoraRoutes {
     const val MAIN = "main"
@@ -51,6 +53,8 @@ object AgoraRoutes {
     const val PERFIL_YO = "perfil-yo"
     const val BUSCAR = "buscar"
     const val AJUSTES = "ajustes"
+    const val TERMINOS = "terminos"
+    const val PRIVACIDAD = "privacidad"
     const val MAS = "mas"
     const val DIRECTORIO = "directorio"
     const val GUARDADOS = "guardados"
@@ -212,6 +216,8 @@ fun AgoraNavHost(
                             else -> if (route.startsWith("perfil/")) navController.navigate(route)
                         }
                     },
+                    onTerminos = { navController.navigate(AgoraRoutes.TERMINOS) },
+                    onPrivacidad = { navController.navigate(AgoraRoutes.PRIVACIDAD) },
                     onLogout = {
                         auth.logout()
                         onLogout()
@@ -335,6 +341,14 @@ fun AgoraNavHost(
             SecondaryScaffold(title = "Ajustes", onBack = { navController.popBackStack() }) { padding ->
                 AjustesScreen(auth = auth, modifier = Modifier.padding(padding))
             }
+        }
+
+        composable(AgoraRoutes.TERMINOS) {
+            TerminosScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(AgoraRoutes.PRIVACIDAD) {
+            PrivacidadScreen(onBack = { navController.popBackStack() })
         }
 
         composable(AgoraRoutes.EVENTOS_CREAR) {

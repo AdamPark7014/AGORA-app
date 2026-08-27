@@ -133,7 +133,8 @@ struct MasView: View {
 
     private func tarjetaPerfil(handle: String) -> some View {
         Button {
-            onNavigate("perfil/\(handle)")
+            // Hub propio: ProfileView (moderación, ajustes, legal), no PerfilAjeno.
+            onNavigate("perfil-yo")
         } label: {
             HStack(spacing: 14) {
                 avatarConAnillo(nombre: perfil?.nombre ?? handle)

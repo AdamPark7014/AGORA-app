@@ -58,8 +58,10 @@ struct RootView: View {
                     PendingDeepLink.flush()
                 })
             } else {
-                MainTabView()
-                    .onAppear { PendingDeepLink.flush() }
+                SessionExpiredHost {
+                    MainTabView()
+                        .onAppear { PendingDeepLink.flush() }
+                }
             }
         }
         .animation(.easeInOut(duration: 0.2), value: session.currentUser?.tienePerfil)

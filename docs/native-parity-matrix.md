@@ -18,7 +18,7 @@ Objetivo: reemplazar `apps/mobile` (Expo, solo prototipo) por `apps/mobile-nativ
 |---|---|---|---|---|---|
 | Login OTP `@udlap.mx` | ✅ `/auth/otp/*` | ✅ | ✅ `LoginScreen` | ✅ `LoginView` | ✅ `e2e/sesion-nativa`, `packages/auth` |
 | Onboarding welcome (3 páginas) | — | — | ✅ `WelcomeScreen` | ✅ `WelcomeScreen` | ⬜ |
-| Sesión Bearer (no cookies) | ✅ `modo: token` | — (cookie) | ✅ `SessionStore` + `SessionExpiredHost` (401 global) | ✅ `SessionStore` | ✅ `e2e/sesion-nativa` |
+| Sesión Bearer (no cookies) | ✅ `modo: token` | — (cookie) | ✅ `SessionStore` + `SessionExpiredHost` (401 global) | ✅ `SessionStore` + `SessionExpiredHost` (401 global) | ✅ `e2e/sesion-nativa` |
 | Registro perfil | ✅ `/perfil` | ✅ | ✅ `RegistroScreen` | ✅ `RegistroView` | ✅ `e2e/registro-y-feed` |
 | Feed + paginación | ✅ `/posts/feed` | ✅ | ✅ `FeedScreen` | ✅ `FeedView` | ✅ `e2e/registro-y-feed`, `e2e/humo` |
 | Detalle publicación | ✅ `/posts/:id` | ✅ | ✅ `PostDetailScreen` | ✅ `PostDetailView` | 🟡 e2e web only |
@@ -40,17 +40,17 @@ Objetivo: reemplazar `apps/mobile` (Expo, solo prototipo) por `apps/mobile-nativ
 | Guardados | ✅ `/guardados/*` | ✅ | ✅ `GuardadosScreen` | ✅ `GuardadosView` | ⬜ |
 | Hashtags | ✅ `/hashtags/:tag` | ✅ | ✅ `HashtagScreen` | ✅ `HashtagView` | ⬜ |
 | Buscar global | ✅ `/buscar` | ✅ | ✅ `BuscarScreen` | ✅ `BuscarView` | ⬜ |
-| Más (hub) | — | ✅ | ✅ `MasScreen` | ✅ `MasView` | ⬜ |
+| Más (hub) | — | ✅ | ✅ `MasScreen` (perfil-yo + Términos/Privacidad) | ✅ `MasView` (perfil-yo + Términos/Privacidad) | ⬜ |
 | Guardar post | ✅ `POST/DELETE posts/:id/guardar` | ✅ | ✅ `GuardarButton` en `PostCard` | ✅ `GuardarButton` en feed + detalle | ⬜ |
 | Push (FCM/APNs) | ✅ `/push/suscribir-fcm` | Web Push | 🟡 Cliente listo (`PushRegistration`, `AgoraFirebaseService`, `ic_notification`); falta `google-services.json` real + `FIREBASE_SERVICE_ACCOUNT_JSON` en API | 🟡 Cliente listo (`PushRegistration`, `AppDelegate`); falta credenciales APNs `.p8` prod | 🟡 `DeepLinkParserTest` (unit Android + iOS) |
-| Moderación staff | ✅ `/moderacion/*` | ✅ admin | 🟡 `ModeracionScreen` | ✅ `ModeracionView` | ✅ `e2e/moderacion` |
+| Moderación staff | ✅ `/moderacion/*` | ✅ admin | ✅ `ModeracionScreen` | ✅ `ModeracionView` | ✅ `e2e/moderacion` |
 | Design system | — | ✅ | ✅ `AgoraColors` + components | ✅ `AgoraDesign` | ⬜ |
 | Nav / deep links | — | — | ✅ `AgoraNavHost` + `agora://` + App Links `udlagora.com` + `PendingDeepLink` | ✅ `DeepLinkParser` + `agora://` + `PendingDeepLink` + Associated Domains (AASA con TEAMID pendiente) | 🟡 unit tests |
 | Tab bar | — | — | ✅ Material nav bar | ✅ `MainTabView` | ⬜ |
 
-**Paridad Android:** ~**98 %** de filas core (26 ✅, 2 🟡: push prod credentials, moderación parcial).
+**Paridad Android:** ~**99 %** de filas core (27 ✅, 1 🟡: push prod credentials).
 
-**Paridad iOS:** ~**93 %** de filas core (31 ✅, 2 🟡: push APNs prod, AASA TEAMID) — pendiente credenciales Apple/Firebase en prod.
+**Paridad iOS:** ~**96 %** de filas core (32 ✅, 2 🟡: push APNs prod, AASA TEAMID) — pendiente credenciales Apple/Firebase en prod.
 
 ## Gamificación / Delight (Wave 6)
 
@@ -146,6 +146,19 @@ Ping diario: `POST /gamificacion/ping` (idempotente) en los tres clientes al abr
 Hasta cerrar push prod (o aceptar explícitamente ship sin push), Expo queda
 como prototipo de referencia (`pnpm --filter @agora/mobile dev`). Destino de
 producción: solo `apps/mobile-native`.
+
+## A6-B2 (2026-08-27) — hub / sesión / legales
+
+Cerrado en código (sin FCM/APNs reales):
+
+| Cambio | Detalle |
+|---|---|
+| iOS `SessionExpiredHost` | 401 global → diálogo + logout (paridad Android) |
+| Hub «Más» | Tarjeta de perfil → `perfil-yo` (ProfileView / ProfileScreen) en iOS y Android |
+| Android legales desde Más | Términos / Privacidad clickables + rutas `TERMINOS` / `PRIVACIDAD` |
+| Deep links | `terminos`, `privacidad`, `moderacion` en parsers + tests unitarios |
+
+Siguen 🟡 solo por credenciales: push FCM/APNs y AASA TEAMID.
 
 ## Documentos relacionados
 
