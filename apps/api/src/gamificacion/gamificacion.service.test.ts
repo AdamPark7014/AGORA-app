@@ -370,3 +370,142 @@ test('leaderboard devuelve miPosicion 1-based entre campus', async () => {
   assert.equal(resultado.miPosicion, 2);
   assert.equal(resultado.entradas.length, 2);
 });
+
+test('salto de exactamente dos dias reinicia la racha (no es consecutivo)', async () => {
+  const hoy = hoyMexico();
+  const anteayer = new Date(hoy.getTime() - 2 * 86_400_000);
+  const mock = crearPrismaStreakMock();
+  mock.seed({ userId: 'u1', rachaActual: 9, rachaMaxima: 9, ultimoDiaActivo: anteayer });
+
+  const svc = crearServicio(mock.prisma);
+  await svc.registrarActividad('u1');
+
+  const streak = mock.getStreak('u1');
+  assert.equal(streak?.rachaActual, 1);
+  assert.equal(streak?.rachaMaxima, 9);
+});
+
+test('evaluarBadges otorga AVENTONERO SOCIAL y EARLY_BIRD con umbrales exactos', async () => {
+  const badges = new Map<string, { userId: string; codigo: string }>();
+  let creates = 0;
+
+  const prisma = {
+    respuestaPregunta: { findMany: async () => [] },
+    aventon: { count: async () => 3 },
+    post: { count: async () => 10 },
+    userStreak: {
+      findUnique: async () => ({
+        userId: 'u1',
+        rachaActual: 7,
+        rachaMaxima: 7,
+        ultimoDiaActivo: hoyMexico(),
+      }),
+    },
+    userBadge: {
+      findMany: async ({ where }: { where: { userId: string; codigo: { in: string[] } } }) =>
+        [...badges.values()].filter(
+          (b) => b.userId === where.userId && where.codigo.in.includes(b.codigo),
+        ),
+      create: async ({ data }: { data: { userId: string; codigo: string } }) => {
+        creates += 1;
+        badges.set(`${data.userId}:${data.codigo}`, data);
+        return data;
+      },
+    },
+  };
+
+  const svc = crearServicio(prisma as unknown as PrismaService);
+  const nuevas = await svc.evaluarBadges('u1');
+
+  assert.ok(nuevas.includes('AVENTONERO'));
+  assert.ok(nuevas.includes('SOCIAL'));
+  assert.ok(nuevas.includes('EARLY_BIRD'));
+  assert.equal(creates, 3);
+});
+
+test('retoSemanal queda completado con 7 dias distintos en la semana ISO', async () => {
+  const { inicio } = semanaIsoRango();
+  const diasSemana = Array.from({ length: 7 }, (_, i) => ({
+    pregunta: { fecha: new Date(inicio.getTime() + i * 86_400_000) },
+  }));
+
+  const prisma = {
+    userBadge: { findMany: async () => [] },
+    user: { findUnique: async () => ({ universityId: 'udlap' }) },
+    userStreak: {
+      findUnique: async () => null,
+      aggregate: async () => ({ _avg: { rachaActual: 0 } }),
+    },
+    retoAmigo: { findMany: async () => [] },
+    respuestaPregunta: {
+      findMany: async ({
+        where,
+      }: {
+        where: {
+          userId: string;
+          pregunta?: { fecha?: { gte?: Date; lt?: Date } };
+        };
+      }) => {
+        if (where.pregunta?.fecha) {
+          const { gte, lt } = where.pregunta.fecha;
+          return diasSemana.filter(
+            (r) =>
+              (!gte || r.pregunta.fecha.getTime() >= gte.getTime()) &&
+              (!lt || r.pregunta.fecha.getTime() < lt.getTime()),
+          );
+        }
+        return [];
+      },
+    },
+  };
+
+  const svc = crearServicio(prisma as unknown as PrismaService);
+  const resultado = await svc.obtener('u1');
+
+  assert.equal(resultado.retoSemanal?.completado, true);
+  assert.equal(resultado.retoSemanal?.progreso, 7);
+  assert.equal(resultado.semanaPregunta?.respondidas, 7);
+});
+
+test('puntajeReto RACHA lee rachaActual y SEMANA_PREGUNTA cuenta dias de la semana', async () => {
+  const { inicio } = semanaIsoRango();
+  const dias = [
+    { pregunta: { fecha: inicio } },
+    { pregunta: { fecha: new Date(inicio.getTime() + 86_400_000) } },
+  ];
+
+  const prisma = {
+    userStreak: {
+      findUnique: async ({ where }: { where: { userId: string } }) =>
+        where.userId === 'u1'
+          ? {
+              userId: 'u1',
+              rachaActual: 11,
+              rachaMaxima: 11,
+              ultimoDiaActivo: hoyMexico(),
+            }
+          : null,
+    },
+    respuestaPregunta: {
+      findMany: async ({
+        where,
+      }: {
+        where: { userId?: string; pregunta?: { fecha?: { gte?: Date; lt?: Date } } };
+      }) => {
+        if (where.userId && where.userId !== 'u1') return [];
+        if (!where.pregunta?.fecha) return [];
+        const { gte, lt } = where.pregunta.fecha;
+        return dias.filter(
+          (r) =>
+            (!gte || r.pregunta.fecha.getTime() >= gte.getTime()) &&
+            (!lt || r.pregunta.fecha.getTime() < lt.getTime()),
+        );
+      },
+    },
+  };
+
+  const svc = crearServicio(prisma as unknown as PrismaService);
+  assert.equal(await svc.puntajeReto('u1', 'RACHA'), 11);
+  assert.equal(await svc.puntajeReto('u1', 'SEMANA_PREGUNTA'), 2);
+  assert.equal(await svc.puntajeReto('fantasma', 'RACHA'), 0);
+});

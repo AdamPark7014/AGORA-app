@@ -169,3 +169,110 @@ test('historial: incluye rechazados y duelos activos de semanas pasadas', async 
   assert.equal(resultado.items[1]?.resultado, 'ganaste');
   assert.equal(resultado.siguienteCursor, null);
 });
+
+test('historial: empate y perdiste desde el punto de vista del retador', async () => {
+  const semanaPasada = new Date(INICIO_SEMANA.getTime() - 86400000);
+  const rows = [
+    {
+      id: 'r-empate',
+      retadorId: 'u1',
+      retadoId: 'u2',
+      tipo: 'RACHA' as const,
+      estado: 'ACTIVO' as const,
+      createdAt: semanaPasada,
+      activadoAt: semanaPasada,
+      retador: { profile: { handle: 'ana', nombre: 'Ana', apellidos: 'X' } },
+      retado: { profile: { handle: 'luis', nombre: 'Luis', apellidos: 'Y' } },
+    },
+    {
+      id: 'r-perdida',
+      retadorId: 'u1',
+      retadoId: 'u3',
+      tipo: 'RACHA' as const,
+      estado: 'ACTIVO' as const,
+      createdAt: semanaPasada,
+      activadoAt: semanaPasada,
+      retador: { profile: { handle: 'ana', nombre: 'Ana', apellidos: 'X' } },
+      retado: { profile: { handle: 'bea', nombre: 'Bea', apellidos: 'Z' } },
+    },
+  ];
+
+  const prismaMock = {
+    retoAmigo: { findMany: async () => rows },
+  } as unknown as PrismaService;
+
+  const gamificacion = {
+    inicioSemanaIso: () => INICIO_SEMANA,
+    puntajeReto: async (userId: string) => {
+      if (userId === 'u1') return 5;
+      if (userId === 'u2') return 5; // empate
+      return 9; // u3 gana
+    },
+  } as unknown as GamificacionService;
+
+  const servicio = new RetosService(prismaMock, gamificacion, notificacionesMock);
+  const resultado = await servicio.historial('u1', undefined, 10);
+
+  assert.equal(resultado.items[0]?.resultado, 'empate');
+  assert.equal(resultado.items[1]?.resultado, 'perdiste');
+});
+
+test('historial: pagina con cursor cuando hay mas resultados', async () => {
+  const semanaPasada = new Date(INICIO_SEMANA.getTime() - 86400000);
+  const rows = [
+    {
+      id: 'r-a',
+      retadorId: 'u1',
+      retadoId: 'u2',
+      tipo: 'RACHA' as const,
+      estado: 'RECHAZADO' as const,
+      createdAt: new Date('2026-08-21T12:00:00Z'),
+      activadoAt: null,
+      retador: { profile: { handle: 'ana', nombre: 'Ana', apellidos: 'X' } },
+      retado: { profile: { handle: 'luis', nombre: 'Luis', apellidos: 'Y' } },
+    },
+    {
+      id: 'r-b',
+      retadorId: 'u1',
+      retadoId: 'u3',
+      tipo: 'RACHA' as const,
+      estado: 'ACTIVO' as const,
+      createdAt: semanaPasada,
+      activadoAt: semanaPasada,
+      retador: { profile: { handle: 'ana', nombre: 'Ana', apellidos: 'X' } },
+      retado: { profile: { handle: 'bea', nombre: 'Bea', apellidos: 'Z' } },
+    },
+  ];
+
+  const prismaMock = {
+    retoAmigo: { findMany: async () => rows },
+  } as unknown as PrismaService;
+
+  const gamificacion = {
+    inicioSemanaIso: () => INICIO_SEMANA,
+    puntajeReto: async () => 1,
+  } as unknown as GamificacionService;
+
+  const servicio = new RetosService(prismaMock, gamificacion, notificacionesMock);
+  const resultado = await servicio.historial('u1', undefined, 1);
+
+  assert.equal(resultado.items.length, 1);
+  assert.equal(resultado.siguienteCursor, 'r-a');
+});
+
+test('rankingSemanal: sin usuario conocido devuelve entradas vacias', async () => {
+  const prismaMock = {
+    user: { findUnique: async () => null },
+    retoAmigo: { findMany: async () => [] },
+    profile: { findMany: async () => [] },
+  } as unknown as PrismaService;
+
+  const gamificacion = {
+    inicioSemanaIso: () => INICIO_SEMANA,
+    puntajeReto: async () => 0,
+  } as unknown as GamificacionService;
+
+  const servicio = new RetosService(prismaMock, gamificacion, notificacionesMock);
+  const resultado = await servicio.rankingSemanal('desconocido', 5);
+  assert.deepEqual(resultado.entradas, []);
+});

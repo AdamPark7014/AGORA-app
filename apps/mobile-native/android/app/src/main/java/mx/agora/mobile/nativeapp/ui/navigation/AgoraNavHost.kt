@@ -37,6 +37,7 @@ import mx.agora.mobile.nativeapp.ui.screens.MarketplaceDetailScreen
 import mx.agora.mobile.nativeapp.ui.screens.MarketplaceListScreen
 import mx.agora.mobile.nativeapp.ui.screens.MensajeDetalleScreen
 import mx.agora.mobile.nativeapp.ui.screens.MensajesListScreen
+import mx.agora.mobile.nativeapp.ui.screens.ModeracionScreen
 import mx.agora.mobile.nativeapp.ui.screens.NotificacionesScreen
 import mx.agora.mobile.nativeapp.ui.screens.PerfilAjenoScreen
 import mx.agora.mobile.nativeapp.ui.screens.PostDetailScreen
@@ -55,6 +56,7 @@ object AgoraRoutes {
     const val AJUSTES = "ajustes"
     const val TERMINOS = "terminos"
     const val PRIVACIDAD = "privacidad"
+    const val MODERACION = "moderacion"
     const val MAS = "mas"
     const val DIRECTORIO = "directorio"
     const val GUARDADOS = "guardados"
@@ -349,6 +351,13 @@ fun AgoraNavHost(
 
         composable(AgoraRoutes.PRIVACIDAD) {
             PrivacidadScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(AgoraRoutes.MODERACION) {
+            ModeracionScreen(
+                tokenProvider = { auth.token() },
+                onBack = { navController.popBackStack() },
+            )
         }
 
         composable(AgoraRoutes.EVENTOS_CREAR) {

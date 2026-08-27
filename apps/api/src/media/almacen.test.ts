@@ -99,3 +99,57 @@ test('acepta PNG con magic bytes reales', () => {
   assert.equal(v.ok, true);
   if (v.ok) assert.equal(v.mime, 'image/png');
 });
+
+test('acepta GIF87a y GIF89a', () => {
+  const gif87 = Buffer.from('GIF87a........', 'ascii');
+  const gif89 = Buffer.from('GIF89a........', 'ascii');
+  assert.equal(detectarMime(gif87), 'image/gif');
+  assert.equal(detectarMime(gif89), 'image/gif');
+  const v = validarSubida(gif89, gif89.length);
+  assert.equal(v.ok, true);
+  if (v.ok) assert.equal(v.mime, 'image/gif');
+});
+
+test('acepta WEBP con cabecera RIFF....WEBP', () => {
+  const webp = Buffer.alloc(12, 0);
+  webp.write('RIFF', 0, 'ascii');
+  webp.write('WEBP', 8, 'ascii');
+  assert.equal(detectarMime(webp), 'image/webp');
+  const v = validarSubida(webp, webp.length);
+  assert.equal(v.ok, true);
+  if (v.ok) assert.equal(v.mime, 'image/webp');
+});
+
+test('acepta WEBM por cabecera EBML', () => {
+  const webm = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+  assert.equal(detectarMime(webm), 'video/webm');
+  const v = validarSubida(webm, webm.length);
+  assert.equal(v.ok, true);
+  if (v.ok) assert.equal(v.mime, 'video/webm');
+});
+
+test('acepta QuickTime MOV (ftyp qt)', () => {
+  const mov = Buffer.alloc(32, 0);
+  mov.write('ftyp', 4, 'ascii');
+  mov.write('qt  ', 8, 'ascii');
+  assert.equal(detectarMime(mov), 'video/quicktime');
+  const v = validarSubida(mov, mov.length);
+  assert.equal(v.ok, true);
+  if (v.ok) assert.equal(v.mime, 'video/quicktime');
+});
+
+test('nombres locales aceptan extensiones gif webp webm mov', () => {
+  assert.equal(nombreArchivoLocalValido('abcdef0123456789abcdef01.gif'), true);
+  assert.equal(nombreArchivoLocalValido('abcdef0123456789abcdef01.webp'), true);
+  assert.equal(nombreArchivoLocalValido('abcdef0123456789abcdef01.webm'), true);
+  assert.equal(nombreArchivoLocalValido('abcdef0123456789abcdef01.mov'), true);
+});
+
+test('rechaza imagen WEBP por encima del tope de 8 MB', () => {
+  const webp = Buffer.alloc(12, 0);
+  webp.write('RIFF', 0, 'ascii');
+  webp.write('WEBP', 8, 'ascii');
+  const v = validarSubida(webp, MAX_BYTES_IMAGEN + 1);
+  assert.equal(v.ok, false);
+  if (!v.ok) assert.match(v.motivo, /pasa de 8 MB/);
+});

@@ -86,3 +86,57 @@ test('las dos conexiones de la misma persona reciben el mismo evento', () => {
   a.unsubscribe();
   b.unsubscribe();
 });
+
+test('tras soltar el canal, una nueva suscripcion vuelve a recibir eventos', () => {
+  const servicio = new NotificacionesStreamService();
+  const primera: unknown[] = [];
+  const segunda: unknown[] = [];
+
+  const vieja = servicio.canal('u1').subscribe((e) => primera.push(e));
+  vieja.unsubscribe();
+  assert.equal(servicio.conectados, 0);
+
+  const nueva = servicio.canal('u1').subscribe((e) => segunda.push(e));
+  servicio.emitir('u1', { tipo: 'actualizacion', total: 2 });
+
+  assert.deepEqual(primera, []);
+  assert.deepEqual(segunda, [{ data: { tipo: 'actualizacion', total: 2 } }]);
+  assert.equal(servicio.conectados, 1);
+
+  nueva.unsubscribe();
+});
+
+test('onModuleDestroy cierra todos los canales y deja conectados en 0', () => {
+  const servicio = new NotificacionesStreamService();
+  const a = servicio.canal('u1').subscribe();
+  const b = servicio.canal('u2').subscribe();
+  assert.equal(servicio.conectados, 2);
+
+  servicio.onModuleDestroy();
+  assert.equal(servicio.conectados, 0);
+
+  // Emitir tras destroy no debe reabrir entradas fantasma.
+  servicio.emitir('u1', { tipo: 'actualizacion', total: 1 });
+  assert.equal(servicio.conectados, 0);
+
+  a.unsubscribe();
+  b.unsubscribe();
+});
+
+test('varios emit consecutivos llegan en orden al mismo destinatario', () => {
+  const servicio = new NotificacionesStreamService();
+  const recibidos: unknown[] = [];
+  const sub = servicio.canal('u1').subscribe((e) => recibidos.push(e));
+
+  servicio.emitir('u1', { tipo: 'actualizacion', total: 1 });
+  servicio.emitir('u1', { tipo: 'actualizacion', total: 2 });
+  servicio.emitir('u1', { tipo: 'actualizacion', total: 3 });
+
+  assert.deepEqual(recibidos, [
+    { data: { tipo: 'actualizacion', total: 1 } },
+    { data: { tipo: 'actualizacion', total: 2 } },
+    { data: { tipo: 'actualizacion', total: 3 } },
+  ]);
+
+  sub.unsubscribe();
+});

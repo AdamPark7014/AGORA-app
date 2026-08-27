@@ -85,13 +85,18 @@ object DeepLinkParser {
             }
             "perfil-yo" -> AgoraRoutes.PERFIL_YO
             "mensajes" -> segments.getOrNull(1)?.let { AgoraRoutes.mensaje(it) } ?: AgoraRoutes.MENSAJES
-            "evento", "eventos" -> segments.getOrNull(1)?.let { AgoraRoutes.evento(it) }
+            "evento", "eventos" -> when (segments.getOrNull(1)?.lowercase()) {
+                "crear" -> AgoraRoutes.EVENTOS_CREAR
+                null -> null
+                else -> AgoraRoutes.evento(segments[1])
+            }
             "hashtag" -> segments.getOrNull(1)?.let { AgoraRoutes.hashtag(it) }
             "marketplace" -> segments.getOrNull(1)?.let { AgoraRoutes.marketplaceDetalle(it) }
                 ?: AgoraRoutes.MARKETPLACE
             "ajustes" -> AgoraRoutes.AJUSTES
             "terminos" -> AgoraRoutes.TERMINOS
             "privacidad" -> AgoraRoutes.PRIVACIDAD
+            "moderacion" -> AgoraRoutes.MODERACION
             "notificaciones" -> AgoraRoutes.NOTIFICACIONES
             "aventones" -> AgoraRoutes.AVENTONES
             "anonimo" -> AgoraRoutes.ANONIMO

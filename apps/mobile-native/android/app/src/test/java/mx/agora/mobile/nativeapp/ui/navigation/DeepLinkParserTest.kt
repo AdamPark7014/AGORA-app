@@ -89,6 +89,41 @@ class DeepLinkParserTest {
     }
 
     @Test
+    fun `moderacion maps to moderacion route`() {
+        assertEquals(AgoraRoutes.MODERACION, DeepLinkParser.parse("agora://moderacion"))
+        assertEquals(AgoraRoutes.MODERACION, DeepLinkParser.parse("/moderacion"))
+        assertEquals(
+            AgoraRoutes.MODERACION,
+            DeepLinkParser.parse("https://udlagora.com/moderacion"),
+        )
+    }
+
+    @Test
+    fun `feed maps to main`() {
+        assertEquals(AgoraRoutes.MAIN, DeepLinkParser.parse("/feed"))
+        assertEquals(AgoraRoutes.MAIN, DeepLinkParser.parse("agora://feed"))
+    }
+
+    @Test
+    fun `eventos crear maps to create route not evento id`() {
+        assertEquals(AgoraRoutes.EVENTOS_CREAR, DeepLinkParser.parse("/eventos/crear"))
+        assertEquals(AgoraRoutes.EVENTOS_CREAR, DeepLinkParser.parse("agora://eventos/crear"))
+        assertEquals(
+            AgoraRoutes.EVENTOS_CREAR,
+            DeepLinkParser.parse("https://udlagora.com/eventos/crear"),
+        )
+    }
+
+    @Test
+    fun `marketplace list and detalle`() {
+        assertEquals(AgoraRoutes.MARKETPLACE, DeepLinkParser.parse("/marketplace"))
+        assertEquals(
+            AgoraRoutes.marketplaceDetalle("anuncio-1"),
+            DeepLinkParser.parse("agora://marketplace/anuncio-1"),
+        )
+    }
+
+    @Test
     fun `toAgoraUri normalizes web path`() {
         assertEquals(
             "agora://publicacion/xyz",

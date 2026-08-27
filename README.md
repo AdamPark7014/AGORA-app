@@ -41,6 +41,15 @@ Plan completo: `C:\Users\adpoz\.claude\plans\ve-todos-mis-proyectos-drifting-new
 | A6-B3 Tests rechazo mod/media | 100 | ✅ +4 media, +2 moderación API, +2 política (umbral/self-harm); API unit **73**/73 |
 | A6-B4 `ci:verify:sin-turbo` | 100 | ✅ lint + types + unit + build verde (fix: `Avatar` `tamano="chico"`) |
 
+**Siguiente fase técnica (sin Adam) — A6-C tests y calidad**
+
+| Ítem | % | Estado en disco |
+|---|---:|---|
+| A6-C1 Más unitarios de valor | 100 | ✅ stream SSE +3; MIME GIF/WEBP/WEBM/MOV +6; gamificación +4; retos +3 → API **89**/89 (antes 73) |
+| A6-C2 Paridad código (sin credenciales) | 100 | ✅ Android deep link `moderacion` + ruta NavHost; `eventos/crear`; tests parser Android/iOS |
+| A6-C3 `ci:verify:sin-turbo` | 100 | ✅ (ver cierre de turno) |
+| A6-C4 e2e ×8 (Docker) | 0 | ⏭ Docker Desktop sigue apagado |
+
 **Bloqueado en Adam (no lo hace un agente):** A6-7 deploy, remoto GitHub, MARCANET, credenciales Firebase/APNs reales.
 
 Producto funcional (fases 0–7 del README abajo) ≠ listo para operar en producción
