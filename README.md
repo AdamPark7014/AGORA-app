@@ -32,9 +32,19 @@ Plan completo: `C:\Users\adpoz\.claude\plans\ve-todos-mis-proyectos-drifting-new
 | Remoto GitHub privado | 0 | ⏸ lo autoriza Adam — **SIN REMOTO** |
 | Marca MARCANET/IMPI | 0 | ⏸ trámite legal de Adam |
 
-**Siguiente fase = A6-7 (deploy) + remoto privado + MARCANET**, todo con
-autorización explícita de Adam. Producto funcional (fases 0–7 del README abajo)
-≠ listo para operar en producción hasta A6-7.
+**Siguiente fase técnica (sin Adam) — A6-B calidad local**
+
+| Ítem | Objetivo |
+|---|---|
+| A6-B1 | Correr los 8 e2e cuando Docker Desktop esté encendido (`pnpm test:e2e`) |
+| A6-B2 | Cerrar filas ⬜/🟡 de `docs/native-parity-matrix.md` que sean código (iOS hub/secundarios), no FCM/APNs reales |
+| A6-B3 | Más tests de rechazo en moderación/media si quedan huecos |
+| A6-B4 | `pnpm ci:verify` / `ci:verify:sin-turbo` verde en local sin depender de Actions |
+
+**Bloqueado en Adam (no lo hace un agente):** A6-7 deploy, remoto GitHub, MARCANET, credenciales Firebase/APNs reales.
+
+Producto funcional (fases 0–7 del README abajo) ≠ listo para operar en producción
+hasta A6-7.
 
 ---
 
