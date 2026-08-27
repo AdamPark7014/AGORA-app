@@ -160,6 +160,17 @@ Cerrado en código (sin FCM/APNs reales):
 
 Siguen 🟡 solo por credenciales: push FCM/APNs y AASA TEAMID.
 
+## A6-C (2026-08-27) — tests + deep link Android
+
+| Cambio | Detalle |
+|---|---|
+| Android `moderacion` deep link | Ruta top-level `MODERACION` + `ModeracionScreen` (antes solo anidada en perfil; el parser no la mapeaba) |
+| Android `eventos/crear` | Ya no cae en `evento/crear`; mapea a `EVENTOS_CREAR` (paridad iOS) |
+| Tests deep link | Android: moderación, feed, marketplace, eventos/crear. iOS: marketplace + eventos/crear |
+| API unit | Stream SSE (reconnect/destroy/orden), MIME GIF/WEBP/WEBM/MOV, badges/retos edge → **89**/89 |
+
+Siguen 🟡 solo por credenciales: push FCM/APNs y AASA TEAMID. Tests instrumentados Android siguen ⬜ (Gradle unit OK).
+
 ## Documentos relacionados
 
 - [`docs/architecture.md`](architecture.md) — mapa de plataforma
