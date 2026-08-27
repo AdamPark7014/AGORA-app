@@ -1,0 +1,8 @@
+# Copia a local.properties (no commitear). Android Studio crea sdk.dir automáticamente.
+sdk.dir=C\:\\Users\\YOU\\AppData\\Local\\Android\\Sdk
+
+# Release signing (Play Store) — rellena cuando tengas el keystore
+RELEASE_STORE_FILE=../keystore/agora-release.jks
+RELEASE_STORE_PASSWORD=
+RELEASE_KEY_ALIAS=agora
+RELEASE_KEY_PASSWORD=

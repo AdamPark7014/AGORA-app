@@ -1,0 +1,1100 @@
+// Agora — modelo de datos.
+//
+// Alcance: Fases 0 a 2 del plan (identidad, directorio, comunidades, feed,
+// moderacion). Mensajeria (Fase 5), marketplace (Fase 6) y zona pseudonima
+// (Fase 7) entran despues por migracion; el modelo esta preparado para
+// recibirlas sin reescritura.
+//
+// Feed: fan-out on read. Con ~9,000 usuarios un SELECT indexado por
+// (communityId, createdAt) es instantaneo. No hay timelines precomputados
+// porque serian semanas de trabajo para un problema que no existe a esta
+// escala.
+
+// Sin `output` personalizado a proposito: en un monorepo pnpm, apuntar la
+// salida a packages/db/node_modules rompe la resolucion desde @prisma/client,
+// que vive en el store enlazado. La ruta por defecto funciona en todos los
+// workspaces.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Multi-tenant
+// ---------------------------------------------------------------------------
+
+/// Raiz de todo. Hoy solo existe la UDLAP, pero tenerla desde el dia 1 cuesta
+/// horas y evita una reescritura completa el dia que entre otra universidad.
+/// El techo de la UDLAP son ~9,000 personas; no hay a donde crecer sin esto.
+model University {
+  id           String   @id @default(cuid())
+  slug         String   @unique /// "udlap"
+  nombre       String
+  /// Dominio institucional que habilita el registro. Unica puerta de entrada.
+  emailDomain  String   @unique /// "udlap.mx"
+  activa       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users        User[]
+  communities  Community[]
+  escuelas     Escuela[]
+
+  @@map("universities")
+  aventones Aventon[]
+  anuncios  Anuncio[]
+  preguntas PreguntaDelDia[]
+  aliasAnonimos AliasAnonimo[]
+  eventos Evento[]
+  hashtags Hashtag[]
+}
+
+// ---------------------------------------------------------------------------
+// Catalogo academico — el grafo social ya existe en la realidad, se copia
+// ---------------------------------------------------------------------------
+
+model Escuela {
+  id           String   @id @default(cuid())
+  universityId String
+  slug         String
+  nombre       String
+
+  university    University     @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  departamentos Departamento[]
+  carreras      Carrera[]
+
+  @@unique([universityId, slug])
+  @@map("escuelas")
+}
+
+model Departamento {
+  id        String @id @default(cuid())
+  escuelaId String
+  slug      String
+  nombre    String
+
+  escuela  Escuela   @relation(fields: [escuelaId], references: [id], onDelete: Cascade)
+  perfiles Profile[]
+  carreras Carrera[]
+
+  @@unique([escuelaId, slug])
+  @@map("departamentos")
+}
+
+model Carrera {
+  id        String @id @default(cuid())
+  escuelaId String
+  /// El departamento se deriva de la carrera, no se le pregunta al alumno.
+  departamentoId String?
+  slug      String
+  nombre    String
+
+  escuela      Escuela       @relation(fields: [escuelaId], references: [id], onDelete: Cascade)
+  departamento Departamento? @relation(fields: [departamentoId], references: [id], onDelete: SetNull)
+  perfiles     Profile[]
+
+  @@unique([escuelaId, slug])
+  @@map("carreras")
+}
+
+model ColegioResidencial {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  nombre   String
+  perfiles Profile[]
+
+  @@map("colegios_residenciales")
+}
+
+// ---------------------------------------------------------------------------
+// Identidad
+// ---------------------------------------------------------------------------
+
+enum EstadoUsuario {
+  PENDIENTE /// verifico correo, aun sin perfil completo
+  ACTIVO
+  SUSPENDIDO
+  BAJA
+}
+
+model User {
+  id           String        @id @default(cuid())
+  universityId String
+  /// Siempre normalizado a minusculas. Ver esCorreoUdlap en @agora/shared:
+  /// el dominio se compara completo, nunca por sufijo.
+  email        String        @unique
+  emailVerifiedAt DateTime?
+  estado       EstadoUsuario @default(PENDIENTE)
+  /// Roles de @agora/rbac. Array para permitir moderador + miembro.
+  roles        String[]      @default(["miembro"])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  lastSeenAt   DateTime?
+
+  university      University       @relation(fields: [universityId], references: [id])
+  profile         Profile?
+  sessions        Session[]
+  otpCodes        OtpCode[]
+  memberships     Membership[]
+  posts           Post[]
+  comments        Comment[]
+  reactions       Reaction[]
+  pollVotes       PollVote[]
+  siguiendo       Follow[]         @relation("seguidor")
+  seguidores      Follow[]         @relation("seguido")
+  bloqueosHechos  Block[]          @relation("bloqueador")
+  bloqueosSufridos Block[]         @relation("bloqueado")
+  reportesHechos  Report[]         @relation("reportante")
+  reportesSufridos Report[]        @relation("reportado")
+  accionesModeracion ModerationAction[] @relation("moderador")
+  auditLogs       AuditLog[]
+
+  @@index([universityId, estado])
+  @@map("users")
+  conversaciones ConversationParticipant[]
+  mensajes       Message[]
+  aventones      Aventon[]        @relation("conductor")
+  asientos       AsientoAventon[]
+  anuncios       Anuncio[]
+  respuestasPregunta RespuestaPregunta[]
+  notificaciones     Notificacion[]     @relation("destinatario")
+  notificacionesHechas Notificacion[]   @relation("actor")
+  aliasAnonimo AliasAnonimo?
+  eventos     Evento[]
+  asistencias AsistenciaEvento[]
+  guardados   Guardado[]
+  pushSubscriptions PushSubscription[]
+  preferenciasNotificacion PreferenciaNotificacion[]
+  analyticsEvents AnalyticsEvent[]
+  userStreak      UserStreak?
+  userBadges      UserBadge[]
+  retosEnviados   RetoAmigo[]      @relation("retosEnviados")
+  retosRecibidos  RetoAmigo[]      @relation("retosRecibidos")
+}
+
+/// Alcance de un perfil dentro de la red.
+enum VisibilidadPerfil {
+  /// Cualquiera con correo @udlap.mx.
+  UNIVERSIDAD
+  /// Solo quien comparta alguna comunidad contigo.
+  COMUNIDADES
+}
+
+model Profile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  /// Identificador publico corto y unico, tipo @adampozo.
+  handle         String   @unique
+  nombre         String
+  apellidos      String
+  bio            String?  @db.VarChar(280)
+  fotoUrl        String?
+  /// Ano de ingreso. Se pide, no se adivina de la matricula.
+  generacion     Int?
+  /// Cumpleanos sin ano, a proposito: sirve para felicitar, no para deducir la
+  /// edad de nadie. Ambos van juntos o ninguno.
+  cumpleMes      Int?
+  cumpleDia      Int?
+  /// Imagen de portada del perfil.
+  portadaUrl     String?
+  /// De donde eres. Texto libre: media UDLAP es foranea y "Veracruz" dice mas
+  /// que cualquier catalogo de municipios.
+  ciudadOrigen   String?  @db.VarChar(80)
+  /// Usuario de Instagram, sin arroba. Es la red donde de verdad esta la
+  /// comunidad, y enlazarla da continuidad en vez de competir con ella.
+  instagram      String?  @db.VarChar(30)
+  /// Intereses libres: "futbol", "anime", "trading", "cafe de especialidad".
+  /// Son el material con el que dos desconocidos encuentran de que hablar.
+  intereses      String[]
+  /// Lo que busca ahora mismo. Sale del hallazgo de que "buscar companero de
+  /// equipo" es una necesidad real y sin cubrir en el campus.
+  busco          String?  @db.VarChar(120)
+  /// Quien puede ver el perfil completo. Por omision toda la UDLAP: la red es
+  /// cerrada de por si, y un directorio donde nadie se deja ver no sirve.
+  visibilidad    VisibilidadPerfil @default(UNIVERSIDAD)
+  carreraId      String?
+  departamentoId String?
+  colegioId      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  carrera      Carrera?            @relation(fields: [carreraId], references: [id])
+  departamento Departamento?       @relation(fields: [departamentoId], references: [id])
+  colegio      ColegioResidencial? @relation(fields: [colegioId], references: [id])
+
+  @@index([carreraId, generacion])
+  /// Para "quien cumple hoy" sin recorrer toda la tabla.
+  @@index([cumpleMes, cumpleDia])
+  @@map("profiles")
+}
+
+// ---------------------------------------------------------------------------
+// Autenticacion — OTP al correo institucional (plan 1.4, camino B)
+// ---------------------------------------------------------------------------
+
+/// Codigo de un solo uso enviado al buzon @udlap.mx.
+/// Se guarda HASHEADO: si la base se filtra, los codigos vivos no sirven.
+model OtpCode {
+  id          String    @id @default(cuid())
+  userId      String
+  codeHash    String
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  /// Contador de intentos fallidos: frena la fuerza bruta sobre 6 digitos.
+  intentos    Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("otp_codes")
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  userId      String
+  tokenHash   String   @unique
+  userAgent   String?
+  ip          String?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Comunidades — derivadas del perfil, no creadas a mano
+// ---------------------------------------------------------------------------
+
+enum TipoComunidad {
+  UNIVERSIDAD /// plaza general del campus
+  ESCUELA
+  DEPARTAMENTO
+  CARRERA
+  GENERACION
+  COLEGIO
+  ORGANIZACION
+  ABIERTA /// creada por usuarios
+  ANONIMA /// la zona pseudonima: una por universidad
+}
+
+model Community {
+  id           String        @id @default(cuid())
+  universityId String
+  /// Slug canonico y estable: "carrera:ing-sistemas-computacionales".
+  /// Lo genera slugComunidad() en @agora/shared.
+  slug         String
+  tipo         TipoComunidad
+  nombre       String
+  descripcion  String?
+  /// Las derivadas del catalogo no se pueden borrar ni renombrar.
+  esDerivada   Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  university  University   @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  memberships Membership[]
+  posts       Post[]
+
+  @@unique([universityId, slug])
+  @@index([universityId, tipo])
+  @@map("communities")
+  eventos Evento[]
+}
+
+model Membership {
+  id          String   @id @default(cuid())
+  userId      String
+  communityId String
+  /// true cuando entro por el perfil y no por eleccion propia.
+  automatica  Boolean  @default(false)
+  silenciada  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, communityId])
+  @@index([userId])
+  @@index([communityId])
+  @@map("memberships")
+}
+
+// ---------------------------------------------------------------------------
+// Contenido
+// ---------------------------------------------------------------------------
+
+enum EstadoContenido {
+  PUBLICADO
+  EN_REVISION /// marcado por IA o reporte, sigue visible salvo linea roja
+  RETIRADO
+  BORRADO_POR_AUTOR
+}
+
+model Post {
+  id          String          @id @default(cuid())
+  /// SIEMPRE se guarda el autor real, incluso en la zona pseudonima.
+  ///
+  /// El anonimato es frente a otros usuarios, nunca frente al operador ni
+  /// frente a una autoridad. En Mexico no existe safe harbor: quien aloja
+  /// comparte responsabilidad, y un contenido que cruza la Ley Olimpia tiene
+  /// que poder rastrearse. Los terminos lo dicen por escrito.
+  authorId    String
+  communityId String
+  /// Si es true, la API omite el autor al devolver la publicacion y en su
+  /// lugar entrega el alias. El filtrado ocurre en el servidor: mandar el
+  /// autor al cliente y esconderlo ahi seria anonimato de mentira.
+  anonimo     Boolean         @default(false)
+  texto       String          @db.VarChar(2000)
+  estado      EstadoContenido @default(PUBLICADO)
+  /// Denormalizados: a esta escala evitan un COUNT por publicacion en el feed.
+  numComments Int             @default(0)
+  numReactions Int            @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  community Community  @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  media     Media[]
+  poll      Poll?
+  comments  Comment[]
+  reactions Reaction[]
+  reports   Report[]
+  moderaciones ModerationAction[]
+  guardados Guardado[]
+  hashtags  PostHashtag[]
+
+  /// El indice del feed. Todo el rendimiento de la Fase 2 depende de este.
+  @@index([communityId, createdAt(sort: Desc)])
+  @@index([authorId, createdAt(sort: Desc)])
+  @@map("posts")
+}
+
+/// Imagen subida. Sirve a publicaciones y a anuncios del marketplace, de ahi
+/// que ambas relaciones sean opcionales: una imagen pertenece a una cosa o a
+/// la otra, nunca a las dos.
+model Media {
+  id        String   @id @default(cuid())
+  postId    String?
+  anuncioId String?
+  url       String
+  thumbUrl  String?
+  ancho     Int?
+  alto      Int?
+  bytes     Int?
+  mime      String
+  createdAt DateTime @default(now())
+
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  anuncio Anuncio? @relation(fields: [anuncioId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([anuncioId])
+  @@map("media")
+}
+
+model Poll {
+  id        String   @id @default(cuid())
+  postId    String   @unique
+  pregunta  String   @db.VarChar(200)
+  cierraAt  DateTime?
+
+  post    Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  options PollOption[]
+
+  @@map("polls")
+}
+
+model PollOption {
+  id     String @id @default(cuid())
+  pollId String
+  texto  String @db.VarChar(100)
+  orden  Int
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+  @@map("poll_options")
+}
+
+model PollVote {
+  id           String   @id @default(cuid())
+  pollOptionId String
+  userId       String
+  createdAt    DateTime @default(now())
+
+  option PollOption @relation(fields: [pollOptionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Un voto por persona y por opcion. La unicidad por encuesta se valida en
+  /// la capa de dominio, que es donde se conoce la encuesta completa.
+  @@unique([pollOptionId, userId])
+  @@map("poll_votes")
+}
+
+model Comment {
+  id        String          @id @default(cuid())
+  postId    String
+  authorId  String
+  texto     String          @db.VarChar(1000)
+  estado    EstadoContenido @default(PUBLICADO)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  post    Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reports Report[]
+  moderaciones ModerationAction[]
+
+  @@index([postId, createdAt])
+  @@map("comments")
+}
+
+enum TipoReaccion {
+  ME_LATE
+  ME_RIO
+  APOYO
+  NO_MAMES
+}
+
+model Reaction {
+  id        String       @id @default(cuid())
+  postId    String
+  userId    String
+  tipo      TipoReaccion
+  createdAt DateTime     @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@map("reactions")
+}
+
+// ---------------------------------------------------------------------------
+// Zona pseudonima
+// ---------------------------------------------------------------------------
+
+/// Alias estable de una persona dentro de la zona pseudonima.
+///
+/// Estable y no aleatorio por publicacion, a proposito: permite que una
+/// conversacion tenga hilo y que alguien construya (o pierda) reputacion. El
+/// anonimato total de Yik Yak fue justo lo que lo volvio ingobernable.
+///
+/// El precio es que un alias constante se puede des-anonimizar juntando
+/// detalles a lo largo del tiempo. Por eso la zona prohibe imagenes y avisa al
+/// usuario de que no cuente cosas que solo el podria saber.
+model AliasAnonimo {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  /// Dos palabras, tipo "Quetzal 372". Unico por universidad.
+  alias     String
+  universityId String
+  createdAt DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@unique([universityId, alias])
+  @@map("alias_anonimos")
+}
+
+// ---------------------------------------------------------------------------
+// Pregunta del dia
+// ---------------------------------------------------------------------------
+
+/// Una pregunta al dia para toda la universidad.
+///
+/// Es la mecanica de habito: da un motivo para abrir la app **hoy**, cuesta un
+/// toque responder, y genera contexto compartido — el "todos contestamos lo
+/// mismo" que hace que valga la pena comentar. Fizz y Sidechat viven de esto.
+model PreguntaDelDia {
+  id           String   @id @default(cuid())
+  universityId String
+  texto        String   @db.VarChar(200)
+  /// Opciones en orden. Se guardan como arreglo porque nunca se editan por
+  /// separado ni se consultan sueltas: siempre se leen con su pregunta.
+  opciones     String[]
+  /// Dia al que corresponde, a medianoche. Unica por universidad y dia.
+  fecha        DateTime @db.Date
+  createdAt    DateTime @default(now())
+
+  university  University          @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  respuestas  RespuestaPregunta[]
+
+  @@unique([universityId, fecha])
+  @@index([fecha])
+  @@map("preguntas_del_dia")
+}
+
+model RespuestaPregunta {
+  id         String   @id @default(cuid())
+  preguntaId String
+  userId     String
+  /// Indice dentro de `opciones`. Se valida contra su longitud al responder.
+  opcion     Int
+  createdAt  DateTime @default(now())
+
+  pregunta PreguntaDelDia @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([preguntaId, userId])
+  @@index([preguntaId])
+  @@map("respuestas_pregunta")
+}
+
+// ---------------------------------------------------------------------------
+// Notificaciones
+// ---------------------------------------------------------------------------
+
+enum TipoNotificacion {
+  COMENTARIO
+  REACCION
+  MENSAJE
+  EVENTO_NUEVO
+  AVENTON_APARTADO
+  MODERACION
+  MENCION
+  SEGUIDOR
+  INSIGNIA
+  RETO
+}
+
+/// Notificacion dentro de la app.
+///
+/// Solo se crean por hechos **dirigidos** a la persona: te comentaron, te
+/// reaccionaron, tomaron tu aventon. Nada de "mira lo nuevo del feed": los
+/// datos de 2026 dicen que una sola notificacion generica a la semana ya hace
+/// que 10% las desactive, y de 2 a 5 semanales el riesgo sube a 46%.
+model Notificacion {
+  id        String           @id @default(cuid())
+  userId    String
+  tipo      TipoNotificacion
+  texto     String           @db.VarChar(300)
+  /// A donde lleva al tocarla.
+  url       String           @db.VarChar(300)
+  /// Quien la provoco, para pintar su avatar.
+  actorId   String?
+  leidoAt   DateTime?
+  createdAt DateTime         @default(now())
+
+  user  User  @relation("destinatario", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("actor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, leidoAt])
+  @@map("notificaciones")
+}
+
+/// Publicacion guardada para ver despues.
+model Guardado {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("guardados")
+}
+
+/// Suscripcion Web Push del navegador.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique @db.VarChar(500)
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+/// Hashtag indexado por universidad.
+model Hashtag {
+  id           String   @id @default(cuid())
+  universityId String
+  tag          String
+  lastUsedAt   DateTime @default(now())
+
+  university University    @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  posts      PostHashtag[]
+
+  @@unique([universityId, tag])
+  @@index([universityId, lastUsedAt(sort: Desc)])
+  @@map("hashtags")
+}
+
+model PostHashtag {
+  postId    String
+  hashtagId String
+  createdAt DateTime @default(now())
+
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtag Hashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, hashtagId])
+  @@index([hashtagId, createdAt(sort: Desc)])
+  @@map("post_hashtags")
+}
+
+/// Preferencias de notificacion por tipo.
+model PreferenciaNotificacion {
+  userId String
+  tipo   TipoNotificacion
+  inApp  Boolean @default(true)
+  push   Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, tipo])
+  @@map("preferencias_notificacion")
+}
+
+// ---------------------------------------------------------------------------
+// Mensajeria directa
+// ---------------------------------------------------------------------------
+
+/// Conversacion entre dos o mas personas.
+///
+/// `claveDirecta` guarda los dos ids ordenados y unidos por ":" cuando la
+/// conversacion es de dos personas. Sirve para que abrir el chat con alguien
+/// dos veces no cree dos conversaciones: sin esa clave hace falta una consulta
+/// por interseccion de participantes, que es lenta y facil de equivocar.
+model Conversation {
+  id           String   @id @default(cuid())
+  claveDirecta String?  @unique
+  createdAt    DateTime @default(now())
+  ultimoAt     DateTime @default(now())
+
+  participantes ConversationParticipant[]
+  mensajes      Message[]
+
+  @@index([ultimoAt])
+  @@map("conversaciones")
+}
+
+model ConversationParticipant {
+  id             String    @id @default(cuid())
+  conversationId String
+  userId         String
+  /// Hasta donde leyo. Con esto se calcula el contador de no leidos.
+  leidoAt        DateTime?
+  salioAt        DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversacion_participantes")
+}
+
+model Message {
+  id             String          @id @default(cuid())
+  conversationId String
+  autorId        String
+  texto          String          @db.VarChar(4000)
+  estado         EstadoContenido @default(PUBLICADO)
+  createdAt      DateTime        @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  autor        User         @relation(fields: [autorId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("mensajes")
+}
+
+// ---------------------------------------------------------------------------
+// Aventones
+// ---------------------------------------------------------------------------
+
+enum SentidoAventon {
+  /// De casa hacia el campus.
+  A_CAMPUS
+  /// Del campus hacia casa.
+  DESDE_CAMPUS
+}
+
+/// Un aventon ofrecido para un dia y hora concretos.
+///
+/// Existe porque el transporte de la UDLAP cuesta $16 por viaje, solo corre de
+/// lunes a viernes, y el estacionamiento pasa de $1,000 al semestre en una
+/// comunidad donde 80% tiene beca. Es el dolor con cifras del campus.
+model Aventon {
+  id           String         @id @default(cuid())
+  conductorId  String
+  universityId String
+  sentido      SentidoAventon
+  /// Zona o colonia. Texto libre: "Angelopolis", "La Paz", "Centro de Cholula".
+  origen       String         @db.VarChar(120)
+  destino      String         @db.VarChar(120)
+  salidaAt     DateTime
+  lugares      Int
+  /// Cooperacion por persona en pesos. 0 = gratis.
+  cuotaMxn     Int            @default(0)
+  nota         String?        @db.VarChar(500)
+  estado       EstadoContenido @default(PUBLICADO)
+  createdAt    DateTime       @default(now())
+
+  conductor  User            @relation("conductor", fields: [conductorId], references: [id], onDelete: Cascade)
+  university University      @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  asientos   AsientoAventon[]
+
+  @@index([universityId, salidaAt])
+  @@map("aventones")
+}
+
+model AsientoAventon {
+  id        String   @id @default(cuid())
+  aventonId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  aventon Aventon @relation(fields: [aventonId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([aventonId, userId])
+  @@map("asientos_aventon")
+}
+
+// ---------------------------------------------------------------------------
+// Marketplace
+// ---------------------------------------------------------------------------
+
+enum CategoriaAnuncio {
+  LIBROS
+  ELECTRONICA
+  MUEBLES
+  ROPA
+  CUARTO
+  SERVICIOS
+  OTRO
+}
+
+enum EstadoAnuncio {
+  DISPONIBLE
+  APARTADO
+  VENDIDO
+}
+
+model Anuncio {
+  id           String           @id @default(cuid())
+  vendedorId   String
+  universityId String
+  titulo       String           @db.VarChar(120)
+  descripcion  String           @db.VarChar(2000)
+  categoria    CategoriaAnuncio @default(OTRO)
+  precioMxn    Int
+  estadoVenta  EstadoAnuncio    @default(DISPONIBLE)
+  estado       EstadoContenido  @default(PUBLICADO)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  vendedor   User       @relation(fields: [vendedorId], references: [id], onDelete: Cascade)
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  imagenes   Media[]
+
+  @@index([universityId, createdAt(sort: Desc)])
+  @@index([categoria, createdAt(sort: Desc)])
+  @@map("anuncios")
+}
+
+// ---------------------------------------------------------------------------
+// Eventos
+// ---------------------------------------------------------------------------
+
+enum TipoEvento {
+  FIESTA
+  ACADEMICO
+  DEPORTIVO
+  CULTURAL
+  ORGANIZACION
+  OTRO
+}
+
+enum RespuestaAsistencia {
+  VOY
+  ME_INTERESA
+}
+
+/// Un evento del campus: fiesta, torneo, conferencia, junta de organizacion.
+///
+/// El lugar es texto libre a proposito. La mitad de lo que pasa en un campus
+/// ocurre en sitios que ningun catalogo tiene ("atras de la biblioteca", "casa
+/// de Regina en Lomas"), y obligar a elegir de una lista mataria justo los
+/// eventos que la gente quiere anunciar.
+model Evento {
+  id          String     @id @default(cuid())
+  autorId     String
+  /// Si es null, el evento es visible para toda la universidad.
+  communityId String?
+  universityId String
+  titulo      String     @db.VarChar(120)
+  descripcion String     @db.VarChar(2000)
+  tipo        TipoEvento @default(OTRO)
+  lugar       String     @db.VarChar(200)
+  inicioAt    DateTime
+  finAt       DateTime?
+  /// Costo en pesos. 0 = gratis. Null = no especificado.
+  costoMxn    Int?
+  cupo        Int?
+  estado      EstadoContenido @default(PUBLICADO)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  autor       User         @relation(fields: [autorId], references: [id], onDelete: Cascade)
+  community   Community?   @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  university  University   @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  asistencias AsistenciaEvento[]
+
+  /// El indice del calendario: casi toda consulta es "proximos por fecha".
+  @@index([universityId, inicioAt])
+  @@index([communityId, inicioAt])
+  @@map("eventos")
+}
+
+model AsistenciaEvento {
+  id        String              @id @default(cuid())
+  eventoId  String
+  userId    String
+  respuesta RespuestaAsistencia
+  createdAt DateTime            @default(now())
+
+  evento Evento @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventoId, userId])
+  @@index([eventoId])
+  @@map("asistencias_evento")
+}
+
+// ---------------------------------------------------------------------------
+// Grafo social
+// ---------------------------------------------------------------------------
+
+model Follow {
+  id         String   @id @default(cuid())
+  seguidorId String
+  seguidoId  String
+  createdAt  DateTime @default(now())
+
+  seguidor User @relation("seguidor", fields: [seguidorId], references: [id], onDelete: Cascade)
+  seguido  User @relation("seguido", fields: [seguidoId], references: [id], onDelete: Cascade)
+
+  @@unique([seguidorId, seguidoId])
+  @@index([seguidoId])
+  @@map("follows")
+}
+
+/// Bloquear y silenciar estan a un toque. La herramienta contra el contenido
+/// que no te gusta es dejar de verlo, no que lo borren (plan 2.1).
+model Block {
+  id           String   @id @default(cuid())
+  bloqueadorId String
+  bloqueadoId  String
+  /// true = silenciar (no lo veo), false = bloquear (no nos vemos).
+  soloSilencio Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  bloqueador User @relation("bloqueador", fields: [bloqueadorId], references: [id], onDelete: Cascade)
+  bloqueado  User @relation("bloqueado", fields: [bloqueadoId], references: [id], onDelete: Cascade)
+
+  @@unique([bloqueadorId, bloqueadoId])
+  @@index([bloqueadoId])
+  @@map("blocks")
+}
+
+// ---------------------------------------------------------------------------
+// Moderacion — linea roja, no sensibilidad (plan 2.1)
+// ---------------------------------------------------------------------------
+
+enum MotivoReporte {
+  INTIMIDAD_SEXUAL /// Ley Olimpia: delito penal, retirada automatica
+  DATOS_PERSONALES /// doxxing
+  AMENAZA_VIOLENCIA
+  ACOSO_DIRIGIDO
+  SUPLANTACION
+  OTRO
+}
+
+enum EstadoReporte {
+  ABIERTO
+  EN_REVISION
+  RESUELTO_RETIRADO
+  RESUELTO_SIN_ACCION
+}
+
+model Report {
+  id           String        @id @default(cuid())
+  reportanteId String
+  reportadoId  String?
+  postId       String?
+  commentId    String?
+  motivo       MotivoReporte
+  detalle      String?       @db.VarChar(500)
+  estado       EstadoReporte @default(ABIERTO)
+  createdAt    DateTime      @default(now())
+  /// Cuando se cerro. Sin esto no se puede medir cuanto tarda la cola, que es
+  /// la unica metrica que dice si la moderacion esta al dia o desbordada.
+  resueltoAt   DateTime?
+
+  reportante User     @relation("reportante", fields: [reportanteId], references: [id], onDelete: Cascade)
+  reportado  User?    @relation("reportado", fields: [reportadoId], references: [id])
+  post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment    Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  acciones   ModerationAction[]
+
+  @@index([estado, createdAt])
+  @@map("reports")
+}
+
+enum AccionModeracion {
+  /// La disparo el clasificador: el contenido se publica pero va a la cola.
+  MARCAR_REVISION
+  RETIRAR_CONTENIDO
+  RESTAURAR_CONTENIDO
+  ADVERTIR_USUARIO
+  SUSPENDER_USUARIO
+  LEVANTAR_SUSPENSION
+  SIN_ACCION
+}
+
+/// Toda accion de moderacion queda registrada con motivo y autor. El usuario
+/// tiene derecho a ver por que se retiro su contenido y a apelar; sin este
+/// registro esa promesa no se puede cumplir.
+model ModerationAction {
+  id          String           @id @default(cuid())
+  reportId    String?
+  moderadorId String?
+  /// A que contenido afecta. Sin esto, una retirada automatica no se puede
+  /// ligar a la publicacion, y la promesa de "puedes ver por que y apelar"
+  /// queda sin forma de cumplirse.
+  postId      String?
+  commentId   String?
+  accion      AccionModeracion
+  /// Motivo visible para el usuario afectado. Obligatorio, no opcional.
+  motivo      String           @db.VarChar(500)
+  /// true cuando la disparo el filtro automatico y no una persona.
+  automatica  Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  report    Report?  @relation(fields: [reportId], references: [id])
+  moderador User?    @relation("moderador", fields: [moderadorId], references: [id])
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([postId])
+  @@map("moderation_actions")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  accion    String
+  entidad   String
+  entidadId String?
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entidad, entidadId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+/// Eventos de producto (analytics interno). Sin SDK externo: los clientes
+/// envían fire-and-forget a `/analytics/evento`.
+model AnalyticsEvent {
+  id              String    @id @default(cuid())
+  userId          String
+  nombre          String
+  propiedades     Json?
+  clientTimestamp DateTime?
+  createdAt       DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([nombre, createdAt])
+  @@index([userId, createdAt])
+  @@map("analytics_events")
+}
+
+// ---------------------------------------------------------------------------
+// Gamificacion — rachas y badges de campus
+// ---------------------------------------------------------------------------
+
+model UserStreak {
+  userId          String    @id
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rachaActual     Int       @default(0)
+  rachaMaxima     Int       @default(0)
+  ultimoDiaActivo DateTime? @db.Date
+  updatedAt       DateTime  @updatedAt
+
+  @@map("user_streaks")
+}
+
+model UserBadge {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codigo     String
+  otorgadoAt DateTime @default(now())
+
+  @@unique([userId, codigo])
+  @@index([userId])
+  @@map("user_badges")
+}
+
+// ---------------------------------------------------------------------------
+// Retos entre amigos
+// ---------------------------------------------------------------------------
+
+enum TipoRetoAmigo {
+  RACHA
+  SEMANA_PREGUNTA
+}
+
+enum EstadoRetoAmigo {
+  PENDIENTE
+  ACTIVO
+  RECHAZADO
+}
+
+model RetoAmigo {
+  id         String          @id @default(cuid())
+  retadorId  String
+  retadoId   String
+  tipo       TipoRetoAmigo
+  estado     EstadoRetoAmigo @default(PENDIENTE)
+  createdAt  DateTime        @default(now())
+  activadoAt DateTime?
+
+  retador User @relation("retosEnviados", fields: [retadorId], references: [id], onDelete: Cascade)
+  retado  User @relation("retosRecibidos", fields: [retadoId], references: [id], onDelete: Cascade)
+
+  @@index([retadoId, estado])
+  @@index([retadorId])
+  @@map("retos_amigo")
+}

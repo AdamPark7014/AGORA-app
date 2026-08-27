@@ -1,0 +1,8 @@
+{
+  "extends": "@agora/config/tsconfig.nest.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts"]
+}

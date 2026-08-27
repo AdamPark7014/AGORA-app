@@ -1,0 +1,145 @@
+import { strict as assert } from 'node:assert';
+import { test } from 'node:test';
+
+import {
+  buscarDirectorioSchema,
+  crearPerfilSchema,
+  crearPostSchema,
+  crearReporteSchema,
+  handleSchema,
+  solicitarOtpSchema,
+  verificarOtpSchema,
+} from './index.js';
+
+test('solicitar OTP normaliza el correo y solo acepta @udlap.mx', () => {
+  const ok = solicitarOtpSchema.parse({ email: '  ADAM.POZO@UDLAP.MX ' });
+  assert.equal(ok.email, 'adam.pozo@udlap.mx');
+
+  for (const email of ['alguien@gmail.com', 'alguien@udlap.mx.attacker.com', 'x@falsoudlap.mx']) {
+    assert.equal(solicitarOtpSchema.safeParse({ email }).success, false, `deberia rechazar ${email}`);
+  }
+});
+
+test('el codigo OTP son exactamente 6 digitos', () => {
+  const base = { email: 'a@udlap.mx' };
+  assert.equal(verificarOtpSchema.safeParse({ ...base, codigo: '123456' }).success, true);
+  for (const codigo of ['12345', '1234567', 'abcdef', '12 34 56', '']) {
+    assert.equal(
+      verificarOtpSchema.safeParse({ ...base, codigo }).success,
+      false,
+      `deberia rechazar ${JSON.stringify(codigo)}`,
+    );
+  }
+});
+
+test('el handle acepta lo razonable y rechaza lo peligroso', () => {
+  for (const h of ['adampozo', 'adam.pozo', 'adam_p7']) {
+    assert.equal(handleSchema.safeParse(h).success, true, `deberia aceptar ${h}`);
+  }
+  const malos: Array<[string, string]> = [
+    ['ab', 'muy corto'],
+    ['7adam', 'empieza con numero'],
+    ['160910', 'parece matricula'],
+    ['adam pozo', 'espacio'],
+    ['adam-pozo', 'guion medio'],
+    ['admin', 'reservado'],
+    ['moderacion', 'reservado'],
+    ['udlap', 'reservado — no confundir con la institucion'],
+  ];
+  for (const [h, razon] of malos) {
+    assert.equal(handleSchema.safeParse(h).success, false, `deberia rechazar ${h} (${razon})`);
+  }
+});
+
+test('el handle se normaliza a minusculas', () => {
+  assert.equal(handleSchema.parse('AdamPozo'), 'adampozo');
+});
+
+test('crear perfil exige lo minimo para caer en comunidades', () => {
+  const valido = crearPerfilSchema.safeParse({
+    handle: 'adampozo',
+    nombre: 'Adam',
+    apellidos: 'Pozo',
+    generacion: 2024,
+    carreraSlug: 'ing-sistemas-computacionales',
+  });
+  assert.equal(valido.success, true);
+
+  // Sin carrera no hay comunidad de carrera ni de escuela: perfil inutil.
+  assert.equal(
+    crearPerfilSchema.safeParse({
+      handle: 'adampozo',
+      nombre: 'Adam',
+      apellidos: 'Pozo',
+      generacion: 2024,
+    }).success,
+    false,
+  );
+});
+
+test('la generacion no puede ser del futuro lejano', () => {
+  const base = {
+    handle: 'adampozo',
+    nombre: 'Adam',
+    apellidos: 'Pozo',
+    carreraSlug: 'derecho',
+  };
+  assert.equal(crearPerfilSchema.safeParse({ ...base, generacion: 2050 }).success, false);
+  assert.equal(crearPerfilSchema.safeParse({ ...base, generacion: 1990 }).success, false);
+});
+
+test('una encuesta necesita al menos dos opciones distintas', () => {
+  const base = { comunidadSlug: 'carrera:derecho', texto: 'que opinan' };
+  assert.equal(
+    crearPostSchema.safeParse({
+      ...base,
+      encuesta: { pregunta: 'cual?', opciones: ['a', 'b'] },
+    }).success,
+    true,
+  );
+  assert.equal(
+    crearPostSchema.safeParse({
+      ...base,
+      encuesta: { pregunta: 'cual?', opciones: ['a'] },
+    }).success,
+    false,
+    'una sola opcion no es encuesta',
+  );
+  assert.equal(
+    crearPostSchema.safeParse({
+      ...base,
+      encuesta: { pregunta: 'cual?', opciones: ['a', 'a'] },
+    }).success,
+    false,
+    'opciones repetidas',
+  );
+});
+
+test('un post vacio o de puros espacios se rechaza', () => {
+  assert.equal(
+    crearPostSchema.safeParse({ comunidadSlug: 'carrera:derecho', texto: '   ' }).success,
+    false,
+  );
+});
+
+test('un reporte apunta a una publicacion o a un comentario, nunca a ambos', () => {
+  assert.equal(
+    crearReporteSchema.safeParse({ postId: 'p1', motivo: 'ACOSO_DIRIGIDO' }).success,
+    true,
+  );
+  assert.equal(
+    crearReporteSchema.safeParse({ commentId: 'c1', motivo: 'OTRO' }).success,
+    true,
+  );
+  assert.equal(
+    crearReporteSchema.safeParse({ postId: 'p1', commentId: 'c1', motivo: 'OTRO' }).success,
+    false,
+  );
+  assert.equal(crearReporteSchema.safeParse({ motivo: 'OTRO' }).success, false);
+});
+
+test('el directorio trae limite por defecto y lo acota', () => {
+  assert.equal(buscarDirectorioSchema.parse({}).limite, 20);
+  assert.equal(buscarDirectorioSchema.parse({ limite: '35' }).limite, 35);
+  assert.equal(buscarDirectorioSchema.safeParse({ limite: 500 }).success, false);
+});

@@ -1,0 +1,164 @@
+# Ágora — udlagora.com
+#   docker compose -f deploy/docker-compose.yml up -d --build
+
+name: agora
+
+networks:
+  internal:
+    name: agora_internal
+  proxy:
+    external: true
+    name: proxy
+
+volumes:
+  agora_pg:
+  agora_redis:
+  agora_minio:
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: agora-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ:-America/Mexico_City}
+    volumes:
+      - agora_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: agora-redis
+    restart: unless-stopped
+    command: ['redis-server', '--save', '60', '1', '--loglevel', 'warning']
+    volumes:
+      - agora_redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - internal
+
+  minio:
+    image: minio/minio:latest
+    container_name: agora-minio
+    restart: unless-stopped
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - agora_minio:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+      - proxy
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: agora-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+      mc mb -p local/$$S3_BUCKET || true &&
+      mc anonymous set download local/$$S3_BUCKET
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET}
+    networks:
+      - internal
+    restart: 'no'
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    image: agora-api:latest
+    container_name: agora-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --dns-result-order=ipv4first
+      API_PORT: '4200'
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      REDIS_URL: redis://redis:6379
+      SESSION_SECRET: ${SESSION_SECRET}
+      MAIL_PROVIDER: ${MAIL_PROVIDER}
+      BREVO_API_KEY: ${BREVO_API_KEY}
+      MAIL_FROM: ${MAIL_FROM}
+      NEXT_PUBLIC_WEB_URL: ${NEXT_PUBLIC_WEB_URL}
+      NEXT_PUBLIC_ADMIN_URL: ${NEXT_PUBLIC_ADMIN_URL:-}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN}
+      TRUST_PROXY: 'true'
+      MODERACION_OPCIONAL: ${MODERACION_OPCIONAL:-true}
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_REGION: auto
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:contacto@udlagora.com}
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+      - proxy
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    image: agora-web:latest
+    container_name: agora-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_INTERNA: http://agora-api:4200
+      PORT: '3200'
+      HOSTNAME: 0.0.0.0
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+      - proxy

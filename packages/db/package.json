@@ -1,0 +1,29 @@
+{
+  "name": "@agora/db",
+  "version": "0.1.0",
+  "description": "Esquema Prisma y cliente de Agora",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:seed": "tsx --env-file=../../.env prisma/seed.ts",
+    "prisma:studio": "prisma studio",
+    "prisma:reset": "prisma migrate reset",
+    "prisma:validate": "prisma validate"
+  },
+  "dependencies": {
+    "@agora/shared": "workspace:*",
+    "@prisma/client": "^6.19.3"
+  },
+  "devDependencies": {
+    "@agora/config": "workspace:*",
+    "@types/node": "^22.10.0",
+    "prisma": "^6.19.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.2"
+  }
+}

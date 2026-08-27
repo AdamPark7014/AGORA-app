@@ -1,0 +1,66 @@
+## Traefik — udlagora.com (Ágora)
+## La web reenvía /api/* a la API interna; Traefik solo expone el front y el bucket de media.
+
+http:
+  routers:
+    udlagora-http:
+      rule: Host(`udlagora.com`)
+      entryPoints: [web]
+      middlewares: [redirect-https-udlagora]
+      service: dummy-udlagora
+
+    udlagora-api:
+      rule: Host(`udlagora.com`) && PathPrefix(`/api`)
+      entryPoints: [websecure]
+      service: agora-api
+      priority: 200
+      tls:
+        certResolver: letsencrypt
+
+    udlagora-https:
+      rule: Host(`udlagora.com`)
+      service: agora-web
+      entryPoints: [websecure]
+      priority: 50
+      tls:
+        certResolver: letsencrypt
+
+    udlagora-media:
+      rule: Host(`udlagora.com`) && PathPrefix(`/media`)
+      service: agora-minio
+      entryPoints: [websecure]
+      middlewares: [strip-media-prefix]
+      priority: 200
+      tls:
+        certResolver: letsencrypt
+
+  middlewares:
+    redirect-https-udlagora:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+    strip-media-prefix:
+      stripPrefix:
+        prefixes: ['/media']
+
+  services:
+    agora-api:
+      loadBalancer:
+        servers:
+          - url: 'http://agora-api:4200'
+
+    agora-web:
+      loadBalancer:
+        servers:
+          - url: 'http://agora-web:3200'
+
+    agora-minio:
+      loadBalancer:
+        servers:
+          - url: 'http://agora-minio:9000'
+
+    dummy-udlagora:
+      loadBalancer:
+        servers:
+          - url: 'http://localhost'

@@ -1,0 +1,384 @@
+/*
+ * Panel de moderación.
+ *
+ * Identidad visual deliberadamente distinta de la red: densa, sobria y oscura
+ * por defecto. Un moderador pasa horas leyendo lo peor del campus, y la
+ * interfaz cálida y redondeada de Ágora sería tonalmente equivocada aquí.
+ * Además, que no se parezcan evita el error de creer que estás en la app
+ * pública cuando estás a un clic de suspender a alguien.
+ */
+
+:root {
+  color-scheme: dark;
+
+  --fondo: #14161a;
+  --superficie: #1b1e24;
+  --superficie-2: #232730;
+  --borde: #2e333d;
+  --borde-fuerte: #414855;
+
+  --texto: #e8eaee;
+  --texto-medio: #a8afbb;
+  --texto-tenue: #767d8a;
+
+  /* Naranja UDLAP solo como acento de acción, no como ambiente. */
+  --acento: #e35205;
+  --acento-claro: #ff7a33;
+  --peligro: #e05252;
+  --exito: #2fa37f;
+  --aviso: #d99b28;
+
+  --radio: 10px;
+  --radio-chico: 7px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 1.05rem;
+  margin: 0 0 12px;
+}
+
+a {
+  color: var(--acento-claro);
+}
+
+.envoltura {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px 80px;
+}
+
+/* --- Barra superior --------------------------------------------------- */
+
+.barra {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--borde);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--texto);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+
+.marca-punto {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--acento);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.pestanas {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pestana {
+  padding: 6px 13px;
+  border-radius: 999px;
+  color: var(--texto-medio);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.pestana:hover {
+  background: var(--superficie-2);
+  color: var(--texto);
+}
+
+.pestana[aria-current='page'] {
+  background: var(--acento);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* --- Métricas --------------------------------------------------------- */
+
+.metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.metrica {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 14px 16px;
+}
+
+.metrica-valor {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.metrica-etiqueta {
+  font-size: 0.78rem;
+  color: var(--texto-tenue);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 3px;
+}
+
+/* La cola pendiente en rojo cuando hay trabajo: es la única métrica que
+   exige acción, y debe destacar sobre las demás. */
+.metrica.urgente .metrica-valor {
+  color: var(--peligro);
+}
+
+.metrica.bien .metrica-valor {
+  color: var(--exito);
+}
+
+/* --- Tarjetas de la cola ---------------------------------------------- */
+
+.caso {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-left: 3px solid var(--borde-fuerte);
+  border-radius: var(--radio);
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.caso.grave {
+  border-left-color: var(--peligro);
+}
+
+.caso.ia {
+  border-left-color: var(--aviso);
+}
+
+.caso-cabeza {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.chapa {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--superficie-2);
+  color: var(--texto-medio);
+  border: 1px solid var(--borde);
+}
+
+.chapa.roja {
+  background: color-mix(in srgb, var(--peligro) 18%, transparent);
+  color: #ff9b9b;
+  border-color: color-mix(in srgb, var(--peligro) 40%, transparent);
+}
+
+.chapa.ambar {
+  background: color-mix(in srgb, var(--aviso) 18%, transparent);
+  color: #f0c274;
+  border-color: color-mix(in srgb, var(--aviso) 40%, transparent);
+}
+
+/* El contenido denunciado va en monoespaciada y sobre fondo distinto: hay que
+   poder leerlo con precisión, incluidos espacios y caracteres raros. */
+.contenido {
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-chico);
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 10px 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.motivos {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  border-top: 1px solid var(--borde);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+/* --- Formularios y botones -------------------------------------------- */
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--texto);
+  background: var(--fondo);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-chico);
+  padding: 8px 11px;
+  width: 100%;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--acento);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 20%, transparent);
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 8px 15px;
+  border-radius: var(--radio-chico);
+  border: 1px solid var(--borde-fuerte);
+  background: var(--superficie-2);
+  color: var(--texto);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--texto-tenue);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button.retirar {
+  background: color-mix(in srgb, var(--peligro) 20%, transparent);
+  border-color: color-mix(in srgb, var(--peligro) 45%, transparent);
+  color: #ffb0b0;
+}
+
+button.suspender {
+  background: var(--peligro);
+  border-color: var(--peligro);
+  color: #fff;
+}
+
+button.dejar {
+  background: color-mix(in srgb, var(--exito) 18%, transparent);
+  border-color: color-mix(in srgb, var(--exito) 45%, transparent);
+  color: #8fe0c6;
+}
+
+.motivo-campo {
+  flex: 1;
+  min-width: 190px;
+}
+
+/* --- Estados ---------------------------------------------------------- */
+
+.vacio {
+  text-align: center;
+  padding: 60px 24px;
+  border: 1px dashed var(--borde-fuerte);
+  border-radius: var(--radio);
+  color: var(--texto-tenue);
+}
+
+.vacio strong {
+  display: block;
+  color: var(--texto);
+  font-size: 1.1rem;
+  margin-bottom: 5px;
+}
+
+.error {
+  background: color-mix(in srgb, var(--peligro) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--peligro) 35%, transparent);
+  color: #ffb0b0;
+  border-radius: var(--radio-chico);
+  padding: 11px 14px;
+  margin: 12px 0;
+  font-size: 0.9rem;
+}
+
+.tenue {
+  color: var(--texto-tenue);
+  font-size: 0.86rem;
+}
+
+.entradilla {
+  color: var(--texto-medio);
+  margin: 0 0 22px;
+}
+
+.registro {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.88rem;
+}
+
+.registro th {
+  text-align: left;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--texto-tenue);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.registro td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--borde);
+  vertical-align: top;
+}
+
+.registro tr:hover td {
+  background: var(--superficie);
+}

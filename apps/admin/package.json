@@ -1,0 +1,27 @@
+{
+  "name": "@agora/admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3300",
+    "build": "next build",
+    "start": "next start -p 3300",
+    "check-types": "tsc --noEmit",
+    "test": "echo \"(admin) pruebas via e2e\""
+  },
+  "dependencies": {
+    "@agora/contracts": "workspace:*",
+    "@agora/rbac": "workspace:*",
+    "@agora/shared": "workspace:*",
+    "next": "^15.5.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@agora/config": "workspace:*",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.2"
+  }
+}

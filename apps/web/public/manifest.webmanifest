@@ -1,0 +1,29 @@
+{
+  "name": "Ágora",
+  "short_name": "Ágora",
+  "description": "La red verificada de la comunidad UDLAP.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8f9",
+  "theme_color": "#e35205",
+  "icons": [
+    {
+      "src": "/icono.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icono-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icono-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

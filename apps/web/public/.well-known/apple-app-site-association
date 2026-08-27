@@ -1,0 +1,20 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.mx.agora.mobile.AgoraApp",
+        "paths": [
+          "/publicacion/*",
+          "/post/*",
+          "/evento/*",
+          "/eventos/*",
+          "/perfil/*",
+          "/mensajes/*",
+          "/marketplace/*",
+          "/hashtag/*"
+        ]
+      }
+    ]
+  }
+}

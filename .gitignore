@@ -1,0 +1,53 @@
+# dependencias
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+.next/
+out/
+.turbo/
+
+# entorno — NUNCA subir. Ver .env.example para los nombres.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# prisma
+packages/db/prisma/*.db
+packages/db/prisma/*.db-journal
+
+# pruebas
+playwright-report/
+test-results/
+coverage/
+
+# Android / Gradle
+apps/mobile-native/android/local.properties
+apps/mobile-native/android/.gradle/
+apps/mobile-native/android/.gradle-isolated/
+apps/mobile-native/android/**/build/
+Thumbs.db
+*.log
+
+# Capturas de revision visual: se regeneran con `npx playwright test capturas`
+capturas/
+test-results/
+
+# artefactos de despliegue empaquetados — el control de versiones los sustituye
+*.tar
+*.tar.gz
+*.tgz
+
+# binarios y firmas Android (nunca al repo)
+*.apk
+*.aab
+*.keystore
+*.jks
+.gradle/
+
+# sistema operativo / editores
+.DS_Store

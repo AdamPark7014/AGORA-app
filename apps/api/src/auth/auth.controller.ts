@@ -1,0 +1,123 @@
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
+import { solicitarOtpSchema, verificarOtpSchema } from '@agora/contracts';
+import { algunRolTienePermiso, esStaff, PERMISSIONS } from '@agora/rbac';
+
+import { ZodPipe } from '../comun/zod.pipe.js';
+import {
+  COOKIE_SESION,
+  SesionGuard,
+  type RequestConSesion,
+} from '../comun/sesion.guard.js';
+import { AuthService } from './auth.service.js';
+
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly auth: AuthService) {}
+
+  /**
+   * Pide un codigo. Responde 204 siempre que el correo sea @udlap.mx, exista
+   * la cuenta o no: no se puede usar este endpoint para descubrir quien esta
+   * registrado.
+   *
+   * Limite propio y mas estrecho que el general: aqui no hay sesion todavia,
+   * asi que se cuenta por IP, y este es el unico endpoint donde el abuso
+   * cuesta dinero — cada llamada manda un correo de verdad.
+   *
+   * El numero sale de la tension entre dos cosas reales: el campus sale por
+   * un NAT compartido, asi que en la primera semana de clases muchas altas
+   * llegan desde la misma IP; y a la vez hay que cortar a quien recorra
+   * direcciones. 60/min aguanta un arranque de curso y sigue siendo un tope.
+   * La defensa de verdad contra machacar un buzon es el limite por correo de
+   * `@agora/auth` (1/min, 10/dia), que no depende de la IP.
+   */
+  @Post('otp/solicitar')
+  @Throttle({ corto: { ttl: 60_000, limit: 60 }, largo: { ttl: 3_600_000, limit: 1_200 } })
+  @HttpCode(204)
+  async solicitar(
+    @Body(new ZodPipe(solicitarOtpSchema)) cuerpo: { email: string },
+  ): Promise<void> {
+    await this.auth.solicitarCodigo(cuerpo.email);
+  }
+
+  /** Mismo motivo que arriba: sin sesion, y adivinar codigos se hace aqui. */
+  @Post('otp/verificar')
+  @Throttle({ corto: { ttl: 60_000, limit: 60 }, largo: { ttl: 3_600_000, limit: 1_200 } })
+  async verificar(
+    @Body(new ZodPipe(verificarOtpSchema))
+    cuerpo: { email: string; codigo: string; modo: 'cookie' | 'token' },
+    @Req() req: RequestConSesion,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ tienePerfil: boolean; token?: string; expiraEn?: Date }> {
+    const { token, expiraEn, tienePerfil } = await this.auth.verificarCodigo(
+      cuerpo.email,
+      cuerpo.codigo,
+      { userAgent: req.headers['user-agent'], ip: req.ip },
+    );
+
+    // La app nativa recibe el token y NO la cookie: guardarla no le serviria y
+    // dejarla puesta seria una copia de la sesion viviendo de mas.
+    if (cuerpo.modo === 'token') {
+      return { tienePerfil, token, expiraEn };
+    }
+
+    res.cookie(COOKIE_SESION, token, {
+      httpOnly: true, // fuera del alcance de cualquier script en la pagina
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      expires: expiraEn,
+      path: '/',
+      // Con COOKIE_DOMAIN=".agora.mx" la sesion vale igual en agora.mx y en
+      // admin.agora.mx, que es lo que hace posible el panel en un subdominio
+      // sin un segundo inicio de sesion. En desarrollo se omite: poner un
+      // dominio con "localhost" hace que el navegador descarte la cookie.
+      ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
+    });
+
+    return { tienePerfil };
+  }
+
+  @Get('yo')
+  @UseGuards(SesionGuard)
+  async yo(@Req() req: RequestConSesion) {
+    const usuario = req.usuario!;
+    const perfil = usuario.perfilId
+      ? await this.auth.resumenPerfil(usuario.perfilId)
+      : null;
+    return {
+      id: usuario.id,
+      email: usuario.email,
+      roles: usuario.roles,
+      handle: usuario.handle,
+      tienePerfil: usuario.perfilId !== null,
+      nombre: perfil ? `${perfil.nombre} ${perfil.apellidos}` : null,
+      fotoUrl: perfil?.fotoUrl ?? null,
+      esStaff: esStaff(usuario.roles),
+      puedeModerar: algunRolTienePermiso(usuario.roles, PERMISSIONS.MODERACION_COLA_VER),
+    };
+  }
+
+  @Post('salir')
+  @HttpCode(204)
+  @UseGuards(SesionGuard)
+  async salir(
+    @Req() req: RequestConSesion,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    if (req.tokenSesion) await this.auth.cerrarSesion(req.tokenSesion);
+    res.clearCookie(COOKIE_SESION, {
+      path: '/',
+      ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
+    });
+  }
+}

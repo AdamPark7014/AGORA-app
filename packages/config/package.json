@@ -1,0 +1,15 @@
+{
+  "name": "@agora/config",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "tsconfig.base.json",
+    "tsconfig.node.json",
+    "tsconfig.react.json",
+    "tsconfig.nest.json"
+  ],
+  "scripts": {
+    "lint": "echo \"(config) sin lint\"",
+    "check-types": "echo \"(config) sin tipos\""
+  }
+}
