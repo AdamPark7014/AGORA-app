@@ -131,6 +131,22 @@ Ping diario: `POST /gamificacion/ping` (idempotente) en los tres clientes al abr
 - **Misma API** (`apps/api`), mismos contratos Zod en `packages/contracts`.
 - **Auth nativa**: siempre `modo: "token"` + header Bearer.
 
+## Decisión A6-4 — `apps/mobile` (Expo)
+
+**No se retira en este turno.** La paridad de pantallas core en
+`mobile-native` es alta (~98 % Android / ~93 % iOS), pero siguen abiertos:
+
+| Hueco | Por qué bloquea borrar Expo |
+|---|---|
+| Push prod Android | `google-services.json` es placeholder; falta `FIREBASE_SERVICE_ACCOUNT_JSON` |
+| Push prod iOS | falta clave APNs `.p8` + TEAMID AASA |
+| Tests instrumentados Android | ⬜ |
+| Varias filas core con tests solo web/Expo | p.ej. pregunta del día, encuestas |
+
+Hasta cerrar push prod (o aceptar explícitamente ship sin push), Expo queda
+como prototipo de referencia (`pnpm --filter @agora/mobile dev`). Destino de
+producción: solo `apps/mobile-native`.
+
 ## Documentos relacionados
 
 - [`docs/architecture.md`](architecture.md) — mapa de plataforma

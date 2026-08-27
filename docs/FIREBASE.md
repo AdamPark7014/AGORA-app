@@ -6,6 +6,14 @@ Guía de configuración para push en Android nativo y el servidor API.
 
 El proyecto incluye `app/google-services.json` **placeholder** para que Gradle compile sin credenciales reales de Firebase.
 
+### Decisión A6-6 (custodia)
+
+- **Se versiona el placeholder** (`agora-placeholder`, 682 B). Sin él,
+  `assembleDebug` falla en CI/local de quien no tiene consola Firebase.
+- **No** se versionan service accounts ni el JSON real de producción.
+- Antes de Play Store / push FCM real: reemplazar el archivo y **no** revertir
+  al placeholder en la rama de release.
+
 ### Reemplazar `google-services.json` (producción)
 
 1. Abre [Firebase Console](https://console.firebase.google.com/) y crea o selecciona el proyecto de producción.
