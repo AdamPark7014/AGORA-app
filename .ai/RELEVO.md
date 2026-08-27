@@ -1,79 +1,54 @@
 # RELEVO
 
-- **Último turno:** claude-code
+- **Último turno:** cursor
 - **Fecha:** 2026-08-27
-- **Rama:** master
+- **Rama:** mejora/ci-y-blindaje
 
 ## Hecho en este turno
 
-Carril A6-1: **dar custodia local a AGORA-app**. El proyecto llevaba
-hasta hoy sin ningún control de versiones — 26 módulos, 19 migraciones
-Prisma y 23 tests colgando de un único disco.
+Retoma desde WIP rescatado (`68263dd`: `ci.yml`, `bucket-policy.json`, e2e helpers).
+**SIN REMOTO** — no se creó ni se empujó nada a GitHub.
 
-- `git init` sobre `C:\dev\apps\AGORA-app` (rama `master`). No existía
-  `.git` previo: el repo nace aquí.
-- Se **amplió** el `.gitignore` que ya había (edición por anexado, no se
-  reescribió nada de lo anterior). Añadido: `*.tar`, `*.tar.gz`, `*.tgz`,
-  `*.apk`, `*.aab`, `*.keystore`, `*.jks`, `.gradle/`, `.DS_Store`.
-  Las reglas de Gradle/Android **ya estaban** (`build/`, `.gradle/`,
-  `.gradle-isolated/`, `local.properties`).
-- `agora-deploy.tar` (6 366 720 B), que hacía de control de versiones
-  artesanal, **se movió** a `C:\dev\_scratch\agora-deploy.tar`. No se
-  borró: está ahí si alguien lo necesita.
-- Primer commit `afea257` — **537 archivos, 1.06 MiB**. Árbol limpio.
-- Alta del protocolo de relevo (`.ai/`, `AGENTS.md`, `.cursor/rules/`).
+| Ítem | Resultado |
+|---|---|
+| **A6-2 CI** | Workflow verificado (Postgres 17 + Redis, migrate, lint, types, build, unit, 8 e2e). Sin `\|\| true` en pasos de fallo. `capturas.spec.ts` usa `e2e/helpers/db.ts`. |
+| **A6-3 core/ui** | Carpetas vacías **retiradas**. README + `docs/architecture.md` actualizados. |
+| **A6-5 MinIO/mod** | `minio-init` aplica `deploy/minio/bucket-policy.json` (solo GetObject). Deploy sin bypass IA por defecto. Tests rechazo: `almacen.test.ts` (SVG/exe/tope/path), `entorno.test.ts`, `moderacion.test.ts`. |
+| **A6-4 Expo** | Matriz actualizada con decisión: **NO se borra** `apps/mobile` (push prod / AASA / instrumented 🟡). |
+| **A6-6 docs** | `docs/comunidad.md`, `docs/moderacion.md`, `docs/runbook.md`. Remitente `contacto@udlagora.com` (antes nexara). `google-services.json` = placeholder versionado (decisión documentada en FIREBASE.md). |
+| **Tests** | API unit: **67/67** pass (antes fallaban 2 mocks `retoAmigo`). Lint local OK. |
 
-Verificado antes de commitear: `.env`, `node_modules/`, `capturas/`,
-`test-results/`, `.turbo/`, `.next/`, `dist/` y los ~18 800 artefactos
-Gradle quedan fuera. Sólo entran `.env.example` y
-`local.properties.example`, que son plantillas.
+Commits de este turno: `31932d1`, `d09fa15`, `5a381cb` (+ este cierre).
 
 ## A medias - CUIDADO
 
-- **FALTA CREAR EL REMOTO.** Esto es lo importante: la custodia hoy es
-  **sólo local**. Un fallo de disco todavía se lleva el proyecto entero.
-  El turno tenía alcance explícito de sólo-local.
-- **Adam tiene que autorizar** la creación del remoto en GitHub y el
-  primer push. **No lo hagas por tu cuenta.** Cuando lo autorice: repo
-  **privado** (es una red social cerrada de la comunidad UDLAP, con
-  datos y configuración de despliegue).
+- **SIN REMOTO EN MAYÚSCULAS.** Custodia solo local. Adam autoriza repo privado + push.
+- **A6-7 Deploy `udlagora.com`** — `deploy/` listo; lo ejecuta Adam (rellenar `OPENAI_API_KEY` o `MODERACION_OPCIONAL=true` en `deploy/.env`).
+- **MARCANET / IMPI** — trámite legal de Adam.
+- E2E Playwright **no corridos en este turno**: Docker Desktop apagado (`dockerDesktopLinuxEngine` no disponible). El workflow CI los tiene; falta validar cuando haya daemon o remoto+Actions.
 
 ## Siguiente paso
 
-1. Pedir a Adam autorización para el remoto privado + push inicial.
-2. Decidir qué hacer con `packages/core/` y `packages/ui/`: están
-   **vacíos** (0 archivos) y por eso no existen en el commit. O se
-   rellenan o se borran del `pnpm-workspace.yaml`.
-3. Valorar si `apps/mobile-native/android/app/google-services.json`
-   (682 B, config Firebase de cliente) debe seguir versionado. Hoy **sí
-   está en el commit**. No se tocó por decisión propia.
-4. No hay CI. Si algún día hay remoto, `pnpm ci:verify` es el candidato
-   natural para un workflow.
+1. Adam: autorizar remoto privado GitHub + primer push de `mejora/ci-y-blindaje` (o merge a `master` primero).
+2. Adam: A6-7 — `bash deploy/setup-server-env.sh` + OpenAI o bypass explícito + `docker compose up`.
+3. Cuando haya push/Firebase reales: reemplazar `google-services.json` placeholder; APNs `.p8`.
+4. Tras push prod nativo: re-evaluar borrar `apps/mobile` (Expo).
 
 ## No tocar
 
-- **`.env`** (945 B, secretos reales). Está ignorado. No lo commitees, no
-  lo leas, no lo muevas. `.env.example` es el que viaja.
-- **`C:\dev\_scratch\agora-deploy.tar`** — copia de seguridad del tar de
-  despliegue. Bórralo sólo si Adam lo dice.
-- **`capturas/`** y **`test-results/`** — se regeneran con Playwright.
-  Ignorados a propósito.
-- Los cuatro comandos prohibidos por protocolo: `git reset --hard`,
-  `git checkout --`, `git clean`, `git stash drop`.
+- **`.env`** (secretos reales). Ignorado. No leerlo, no commitearlo.
+- **`C:\dev\_scratch\agora-deploy.tar`** — backup del tar de despliegue.
+- **`capturas/`** y **`test-results/`** — regenerables; ignorados.
+- Comandos prohibidos: `git reset --hard`, `git checkout --`, `git clean`, `git stash drop`.
+- Carpetas ajenas: `NO TOCAR LIBREMENTE`, `SOFTWARE PERSONAL`.
 
 ## Mapa rápido del proyecto
 
 Monorepo pnpm 10.30.3 + turbo, Node >= 22. `agora-platform`.
 
-- **apps/**: `web` (Next), `admin` (Next), `api` (Nest, puerto 4200),
-  `mobile` (Expo), `mobile-native` (Android nativo, Kotlin/Compose).
-- **packages/**: `auth`, `config`, `contracts`, `correo`, `db`,
-  `moderation`, `rbac`, `shared` — más `core` y `ui`, **vacíos**.
-- **Tests (23):** 15 unitarios `.test.ts` (`node --test` sobre `dist/`,
-  no vitest) + 8 e2e Playwright `.spec.ts` en `e2e/`.
-  Comandos: `pnpm test` (turbo), `pnpm test:e2e`, `pnpm ci:verify`.
-- **BD:** Prisma, 19 migraciones en `packages/db/prisma/migrations/`.
-- **Despliegue:** `deploy/` — docker-compose + Traefik. Dominio
-  **`udlagora.com`** (web y API tras el mismo host; `/api` y `/media`
-  con PathPrefix, MinIO para media, Let's Encrypt).
-- **CI:** no hay `.github/workflows/`. Verificación local `pnpm ci:verify`.
+- **apps/**: `web`, `admin`, `api` (:4200), `mobile` (Expo prototipo), `mobile-native` (prod).
+- **packages/**: `auth`, `config`, `contracts`, `correo`, `db`, `moderation`, `rbac`, `shared`.
+- **Tests:** unit `node --test` sobre `dist/` + 8 e2e Playwright. `pnpm ci:verify` / `.github/workflows/ci.yml`.
+- **BD:** Prisma, 19 migraciones.
+- **Despliegue:** `deploy/` — Traefik + MinIO + Postgres 17 + Redis. Dominio **`udlagora.com`**.
+- **CI:** `.github/workflows/ci.yml` listo; **no corre en Actions hasta que exista remoto**.
