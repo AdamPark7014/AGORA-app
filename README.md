@@ -45,10 +45,20 @@ Plan completo: `C:\Users\adpoz\.claude\plans\ve-todos-mis-proyectos-drifting-new
 
 | Ítem | % | Estado en disco |
 |---|---:|---|
-| A6-C1 Más unitarios de valor | 100 | ✅ stream/MIME/gamificación/retos + auth/aventones/marketplace/mensajes/moderación → API **123**/123 (antes 73) |
+| A6-C1 Más unitarios de valor | 100 | ✅ stream SSE + MIME + gamificación/retos → API **89**/89 (antes 73) |
 | A6-C2 Paridad código (sin credenciales) | 100 | ✅ Android deep link `moderacion` + ruta NavHost; `eventos/crear`; tests parser Android/iOS |
-| A6-C3 `ci:verify:sin-turbo` | 100 | ✅ lint + types + unit + build verde |
+| A6-C3 `ci:verify:sin-turbo` | 100 | ✅ lint + types + unit + build verde al cierre |
 | A6-C4 e2e ×8 (Docker) | 0 | ⏭ Docker Desktop sigue apagado |
+
+**Siguiente fase técnica (sin Adam) — A6-D más cobertura**
+
+| Ítem | % | Estado en disco |
+|---|---:|---|
+| A6-D1 Mensajería / marketplace / aventones | 100 | ✅ stream chat + edges abrirCon; marketplace ownership; aventones cupo/toggle |
+| A6-D2 Moderación + auth OTP edge | 100 | ✅ auto-reporte, duplicado, cerrado; OTP dominio/429/intentos |
+| A6-D3 Native deep link hub | 100 | ✅ aventones/anonimo/guardados/directorio/buscar/notificaciones (Android+iOS) |
+| A6-D4 `ci:verify:sin-turbo` | 100 | ✅ API unit **123**/123 (antes A6-C: 89) |
+| A6-D5 e2e ×8 (Docker) | 0 | ⏭ Docker Desktop sigue apagado |
 
 **Bloqueado en Adam (no lo hace un agente):** A6-7 deploy, remoto GitHub, MARCANET, credenciales Firebase/APNs reales.
 

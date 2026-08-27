@@ -167,9 +167,23 @@ Siguen 🟡 solo por credenciales: push FCM/APNs y AASA TEAMID.
 | Android `moderacion` deep link | Ruta top-level `MODERACION` + `ModeracionScreen` (antes solo anidada en perfil; el parser no la mapeaba) |
 | Android `eventos/crear` | Ya no cae en `evento/crear`; mapea a `EVENTOS_CREAR` (paridad iOS) |
 | Tests deep link | Android: moderación, feed, marketplace, eventos/crear. iOS: marketplace + eventos/crear |
-| API unit | Stream SSE, MIME GIF/WEBP/WEBM/MOV, badges/retos, auth/aventones/marketplace/mensajes/moderación → **123**/123 |
+| API unit | Stream SSE (reconnect/destroy/orden), MIME GIF/WEBP/WEBM/MOV, badges/retos edge → **89**/89 |
 
 Siguen 🟡 solo por credenciales: push FCM/APNs y AASA TEAMID. Tests instrumentados Android siguen ⬜ (Gradle unit OK).
+
+## A6-D (2026-08-27) — más unitarios sin Docker
+
+| Cambio | Detalle |
+|---|---|
+| Mensajería | SSE chat + edges `abrirCon` (self/bloqueo/reuso) / participante / noLeidos |
+| Marketplace | media ya ligada, ownership actualizar/borrar, detalle cross-uni |
+| Aventones | salida pasada, conductor, cupo lleno, toggle asiento, cancelar |
+| Moderación | auto-reporte, duplicado, resolver cerrado, retirar/decidirMarcado |
+| Auth OTP | dominio, 429 minuto/día, mensaje uniforme, incremento de intentos |
+| Deep link hub | aventones, anonimo, guardados, directorio, buscar, notificaciones |
+| API unit | **89 → 123** |
+
+Siguen 🟡 solo por credenciales: push FCM/APNs y AASA TEAMID.
 
 ## Documentos relacionados
 
