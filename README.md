@@ -15,6 +15,28 @@ Plan completo: `C:\Users\adpoz\.claude\plans\ve-todos-mis-proyectos-drifting-new
 
 ---
 
+## Fase operativa actual — A6 blindaje (no producto)
+
+**A6-1 (custodia local) está cerrada.** El repo ya es git (`master` + rama
+`mejora/ci-y-blindaje`), sin remoto hasta que Adam lo autorice.
+
+| Ítem | % | Estado en disco |
+|---|---:|---|
+| A6-1 Custodia git local | 100 | ✅ primer commit + relevo |
+| A6-2 CI formal (`.github/workflows/`) | 0 | ❌ no existe; solo `pnpm ci:verify` local |
+| A6-3 `packages/core` y `packages/ui` | 0 | ❌ 0 archivos; workspace `packages/*` los declara vacíos |
+| A6-4 Retirar `apps/mobile` (Expo) | 0 | ❌ sigue; exige matriz de paridad completa primero |
+| A6-5 Hardening MinIO + moderación | 0 | ❌ sin tests de rechazo nuevos en este carril |
+| A6-6 Docs operativas (comunidad, moderación, runbook) | ~30 | 🟡 hay arquitectura/Firebase/parity; faltan guías operativas |
+| A6-7 Deploy `udlagora.com` | 0 | ⏸ `deploy/` listo; lo ejecuta Adam |
+| Remoto GitHub privado | 0 | ⏸ lo autoriza Adam |
+| Marca MARCANET/IMPI | 0 | ⏸ trámite legal de Adam |
+
+**Siguiente fase entera = A6-2 → A6-6 en `mejora/ci-y-blindaje`.** Producto
+funcional (fases 0–7 del README abajo) ≠ listo para operar en producción.
+
+---
+
 ## Arranque
 
 ```powershell
