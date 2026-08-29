@@ -8,7 +8,7 @@ autorice: hoy la custodia es solo disco + git local.
 | Pieza | Contenedor / ruta |
 |---|---|
 | Compose | `deploy/docker-compose.yml` |
-| Traefik | `deploy/traefik/udlagora.yml` → `/opt/traefik/config/` |
+| Traefik | `deploy/traefik/udlagora.yml` **debe vivir también** en `/opt/traefik/config/` (symlink → `/var/www/nexara-app/deploy/traefik/`) |
 | Postgres 17 | `agora-db` |
 | Redis 7 | `agora-redis` |
 | MinIO | `agora-minio` + init `agora-minio-init` |
@@ -25,6 +25,18 @@ docker compose -f deploy/docker-compose.yml up -d --build
 ```
 
 Health: Traefik enruta `udlagora.com` → web; `/api` → API; `/media` → MinIO.
+
+**Importante — ruta Traefik compartida:** en el VPS, `/opt/traefik/config` apunta a
+`/var/www/nexara-app/deploy/traefik/`. Si `udlagora.yml` solo está en
+`/var/www/udlagora-app/deploy/traefik/`, Traefik no lo carga y el dominio
+devuelve `404 page not found` (texto plano). Tras un deploy o reboot:
+
+```bash
+cp /var/www/udlagora-app/deploy/traefik/udlagora.yml \
+   /var/www/nexara-app/deploy/traefik/udlagora.yml
+# Traefik recarga el file provider solo; si no: docker restart traefik-main
+curl -skI --resolve udlagora.com:443:127.0.0.1 https://udlagora.com/
+```
 
 ## MinIO
 
@@ -79,6 +91,7 @@ Ver `docs/FIREBASE.md`. No commitear service accounts.
 |---|---|
 | OTP no llega | Brevo/Resend, DKIM, spam Outlook; logs API con `MAIL_PROVIDER=console` solo en dev |
 | 404 en fotos | MinIO sano + `S3_PUBLIC_URL`; Traefik PathPrefix `/media` |
+| `404 page not found` texto plano en `udlagora.com` | Falta `udlagora.yml` en `/opt/traefik/config/` (ver arriba); contenedores `agora-*` en red `proxy` |
 | API no arranca en prod | `revisarEntorno`: SESSION_SECRET ≥ 32, MAIL no console, OPENAI o bypass, sin DEV_OTP |
 | Panel admin sin sesión | `COOKIE_DOMAIN` con punto; HTTPS |
 | E2E local sin Docker postgres | Contenedor `agora-postgres` (infra/) o `AGORA_PSQL_DIRECT=1` |
@@ -86,6 +99,6 @@ Ver `docs/FIREBASE.md`. No commitear service accounts.
 ## Pendiente Adam (fuera de este runbook)
 
 1. **SIN REMOTO** — crear repo privado GitHub + primer push.
-2. **A6-7** — ejecutar deploy real a `udlagora.com`.
+2. **A6-7** — stack ya corría; ruta Traefik restaurada 2026-08-29. Redeploy de código cuando haga falta.
 3. **MARCANET / IMPI** — trámite de marca.
 4. Credenciales Firebase/APNs de producción.
