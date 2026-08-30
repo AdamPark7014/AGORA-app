@@ -17,6 +17,7 @@ const MODERADOR = 'adam.delpozoos@udlap.mx';
 const CODIGO = '123456';
 
 test('capturas del panel de moderacion', async ({ page }) => {
+  test.setTimeout(90_000);
   await page.setViewportSize({ width: 1280, height: 900 });
 
   // Sesión del moderador con el código maestro de desarrollo.

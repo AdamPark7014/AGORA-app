@@ -85,11 +85,12 @@ test('registro completo deja al usuario en sus comunidades y pudiendo publicar',
   await expect(page).toHaveURL(/\/feed$/);
 
   // Las comunidades automaticas son la razon de que el feed no nazca vacio.
+  // Perfil e2e (escuela+depto via carrera+carrera+gen+colegio) + campus UDLAP = 6.
   const comunidades = psql(
     `select count(*) from memberships m join users u on u.id = m."userId" ` +
       `where u.email = '${email}' and m.automatica`,
   );
-  expect(Number(comunidades)).toBe(5);
+  expect(Number(comunidades)).toBe(6);
 
   const texto = `Publicacion de prueba ${sufijo}`;
   await page.getByLabel('Qué estás pensando').fill(texto);

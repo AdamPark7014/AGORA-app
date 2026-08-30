@@ -27,7 +27,7 @@
     "db:studio": "pnpm --filter @agora/db prisma:studio",
     "db:reset": "pnpm --filter @agora/db prisma:reset",
     "test": "turbo run test",
-    "test:e2e": "playwright test -c e2e/playwright.config.ts",
+    "test:e2e": "playwright test -c playwright.config.ts",
     "docker:up": "docker compose -f infra/docker-compose.yml up -d --wait postgres redis",
     "docker:down": "docker compose -f infra/docker-compose.yml down",
     "docker:reset": "docker compose -f infra/docker-compose.yml down --volumes --remove-orphans",

@@ -6,46 +6,51 @@
 
 ## Hecho en este turno
 
-**Ola R2 — seguridad / blindaje API** (plan `sistema_super_robusto`).
+**Ola R3 + fix crítico minio-init** (plan `sistema_super_robusto`).
 
-### Redis throttle
-- Paquete: `@nest-lab/throttler-storage-redis` + `ioredis`.
-- `apps/api/src/comun/almacen-limite.ts`: ping Redis al arrancar; si falla o no hay `REDIS_URL` → storage in-memory + log (API no se tumba).
-- `ThrottlerModule.forRootAsync` en `app.module.ts`.
+### minio-init (paridad VPS)
+- Local `deploy/docker-compose.yml` ya no usa `sed` + `mc anonymous set-json` (imagen `minio/mc` **no trae sed**).
+- Ahora: `mc anonymous set download local/$$S3_BUCKET` con escape Compose `$$VAR`.
+- Se quitó el volume mount de `bucket-policy.json` (queda como referencia en disco).
+- Tag pin se mantiene: `minio/mc:RELEASE.2025-08-13T08-35-41Z` (VPS aún puede tener `:latest` hasta próximo sync).
 
-### OTP `@Throttle` alineado a caps de negocio (`@agora/auth` 1/min, 10/día por buzón)
-- `solicitar`: **20/min**, **200/h** (antes 60 / 1200).
-- `verificar`: **30/min**, **300/h** (antes 60 / 1200).
-- Holgura NAT campus documentada en comentarios.
+### R3 calidad
+- `pnpm ci:verify:sin-turbo` → **verde** (API unit **140**/0 fail).
+- `pnpm test:e2e` → **25 pass / 1 skip** (Docker Desktop Linux engine presente).
+- Fix `package.json` `test:e2e`: config real es `playwright.config.ts` (raíz), no `e2e/playwright.config.ts`.
+- DB local: `pnpm db:migrate:deploy` aplicó 7 migraciones pendientes (rachas/badges/reto) — causaban 500 en `/api/gamificacion/*` y rompían humo.
+- e2e: expectativa membresías automáticas **6** (escuela+depto+carrera+gen+colegio+campus).
+- Admin `Guardia`: acepta rol `super_admin` (antes solo moderador/admin → panel atascado en “Comprobando permisos…”).
+- `capturas-admin`: timeout 90s.
 
-### `revisarEntorno` estricto en prod
-- Exige: `COOKIE_DOMAIN`, `REDIS_URL`, `S3_*` (endpoint/bucket/keys/public URL), `MAIL_FROM`, API key según `MAIL_PROVIDER` (brevo/resend).
-- Tests ampliados en `entorno.test.ts` + `almacen-limite.test.ts`.
-- `pnpm --filter @agora/api test` → **140 pass / 0 fail**.
+### Docs
+- `README.md` A6-7 / R1–R3: Traefik durable, smoke, backup cron, Redis throttle, RETO en prod, e2e verde.
 
-### MinIO pin
-- `minio/minio:RELEASE.2025-09-07T16-13-09Z`
-- `minio/mc:RELEASE.2025-08-13T08-35-41Z`
+### Verificado en VPS (solo lectura)
+- `/opt/traefik/config/udlagora.yml` presente; `https://udlagora.com/` 200; `/api/salud` ok.
+- Cron backup: `/etc/cron.d/udlagora-backup` (15 3 * * *); dumps en `/var/backups/udlagora/`.
+- Enum `RETO` presente en BD prod.
 
 ## A medias - CUIDADO
 
 - **SIN REMOTO EN MAYÚSCULAS.** Custodia solo local.
-- Código local puede ir más adelante que el deploy en `/var/www/udlagora-app`.
-- **A6-B1 e2e** — Docker Desktop local apagado (Ola R3).
-- Ola R1 (Traefik durable / backup / smoke) y R4 Wave13 nativo — pendientes del plan.
-- MARCANET / Firebase/APNs reales — Adam.
+- Código local **adelantado** al deploy en `/var/www/udlagora-app` (Redis throttle, minio pin/init, Guardia, etc.). **No sync sin OK de Adam.**
+- R4 Wave13: prefs RETO/INSIGNIA y push respetan `url`; deep link `/retos` → feed nativo (sin pantalla dedicada). Cierre fino opcional.
+- VPS `minio-init` ya usa `anonymous set download` pero imagen puede seguir en `:latest` hasta sync.
+- Firebase / APNs / AASA TEAMID / MARCANET — Adam.
 
 ## Siguiente paso
 
-1. Ola R1 restante o R3 e2e cuando Docker esté arriba.
-2. Sync VPS solo con OK explícito de Adam.
-3. Remoto GitHub cuando Adam autorice.
+1. Sync VPS (rsync + compose + `install-traefik-route.sh` + smoke) **solo con OK explícito**.
+2. Remoto GitHub cuando Adam autorice.
+3. Opcional: pantalla nativa `/retos` o dejar deep link→feed documentado.
 
 ## No tocar
 
 - **`.env`** (secretos). No leerlo ni commitearlo.
 - Remoto / secretos FCM sin pedido explícito.
 - `git reset --hard`, `git checkout --`, `git clean`, `git stash drop`.
+- No regenerar secretos prod con `setup-server-env.sh`.
 
 ## Mapa rápido del proyecto
 

@@ -25,7 +25,9 @@ export function Guardia({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     api<Yo>('/auth/yo')
       .then((yo) => {
-        const puede = yo.roles.some((r) => r === 'moderador' || r === 'admin');
+        const puede = yo.roles.some(
+          (r) => r === 'moderador' || r === 'admin' || r === 'super_admin',
+        );
         setEstado(puede ? 'ok' : 'sin-permiso');
       })
       .catch((e) => {

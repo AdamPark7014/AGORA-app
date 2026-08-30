@@ -28,7 +28,7 @@ Plan completo: `C:\Users\adpoz\.claude\plans\ve-todos-mis-proyectos-drifting-new
 | A6-4 Retirar `apps/mobile` (Expo) | ~90 | 🟡 matriz actualizada; Expo **sigue** (push prod / AASA aún 🟡) |
 | A6-5 Hardening MinIO + moderación | 100 | ✅ policy wiring + tests de rechazo MIME/tope/path + entorno |
 | A6-6 Docs operativas (comunidad, moderación, runbook) | 100 | ✅ `docs/comunidad.md`, `docs/moderacion.md`, `docs/runbook.md` |
-| A6-7 Deploy `udlagora.com` | 0 | ⏸ `deploy/` listo; lo ejecuta Adam |
+| A6-7 Deploy `udlagora.com` | ~95 | ✅ en prod: Traefik durable (`install-traefik-route.sh` + `/opt/traefik/config/udlagora.yml`), smoke `scripts/smoke-udlagora.sh`, backup cron `/etc/cron.d/udlagora-backup` (03:15 UTC), Redis throttle API, enum `RETO` en BD. ⏸ sync código VPS solo con OK de Adam |
 | Remoto GitHub privado | 0 | ⏸ lo autoriza Adam — **SIN REMOTO** |
 | Marca MARCANET/IMPI | 0 | ⏸ trámite legal de Adam |
 
@@ -36,7 +36,7 @@ Plan completo: `C:\Users\adpoz\.claude\plans\ve-todos-mis-proyectos-drifting-new
 
 | Ítem | % | Estado en disco |
 |---|---:|---|
-| A6-B1 e2e ×8 (Docker) | 0 | ⏭ saltado — Docker Desktop apagado (`dockerDesktopLinuxEngine` ausente) |
+| A6-B1 e2e ×8 (Docker) | 100 | ✅ Playwright **25 pass / 1 skip** (Docker Desktop arriba; migraciones locales al día) |
 | A6-B2 Paridad código (hub/sesión/legales) | 100 | ✅ Mas→`perfil-yo`, `SessionExpiredHost` iOS, Términos/Privacidad desde Más Android; push/AASA siguen 🟡 (credenciales) |
 | A6-B3 Tests rechazo mod/media | 100 | ✅ +4 media, +2 moderación API, +2 política (umbral/self-harm); API unit **73**/73 |
 | A6-B4 `ci:verify:sin-turbo` | 100 | ✅ lint + types + unit + build verde (fix: `Avatar` `tamano="chico"`) |
@@ -48,7 +48,7 @@ Plan completo: `C:\Users\adpoz\.claude\plans\ve-todos-mis-proyectos-drifting-new
 | A6-C1 Más unitarios de valor | 100 | ✅ stream SSE + MIME + gamificación/retos → API **89**/89 (antes 73) |
 | A6-C2 Paridad código (sin credenciales) | 100 | ✅ Android deep link `moderacion` + ruta NavHost; `eventos/crear`; tests parser Android/iOS |
 | A6-C3 `ci:verify:sin-turbo` | 100 | ✅ lint + types + unit + build verde al cierre |
-| A6-C4 e2e ×8 (Docker) | 0 | ⏭ Docker Desktop sigue apagado |
+| A6-C4 e2e ×8 (Docker) | 100 | ✅ cubierto en A6-B1 / Ola R3 |
 
 **Siguiente fase técnica (sin Adam) — A6-D más cobertura**
 
@@ -57,13 +57,21 @@ Plan completo: `C:\Users\adpoz\.claude\plans\ve-todos-mis-proyectos-drifting-new
 | A6-D1 Mensajería / marketplace / aventones | 100 | ✅ stream chat + edges abrirCon; marketplace ownership; aventones cupo/toggle |
 | A6-D2 Moderación + auth OTP edge | 100 | ✅ auto-reporte, duplicado, cerrado; OTP dominio/429/intentos |
 | A6-D3 Native deep link hub | 100 | ✅ aventones/anonimo/guardados/directorio/buscar/notificaciones (Android+iOS) |
-| A6-D4 `ci:verify:sin-turbo` | 100 | ✅ API unit **123**/123 (antes A6-C: 89) |
-| A6-D5 e2e ×8 (Docker) | 0 | ⏭ Docker Desktop sigue apagado |
+| A6-D4 `ci:verify:sin-turbo` | 100 | ✅ API unit **140**/140 (R2 Redis/entorno) |
+| A6-D5 e2e ×8 (Docker) | 100 | ✅ cubierto en Ola R3 |
 
-**Bloqueado en Adam (no lo hace un agente):** A6-7 deploy, remoto GitHub, MARCANET, credenciales Firebase/APNs reales.
+**Ola R1–R3 (plan `sistema_super_robusto`) — ops / seguridad / calidad**
 
-Producto funcional (fases 0–7 del README abajo) ≠ listo para operar en producción
-hasta A6-7.
+| Ítem | % | Estado |
+|---|---:|---|
+| R1 Traefik durable + healthchecks + smoke + backup | 100 | ✅ scripts en repo; VPS: ruta Traefik, cron backup, home/salud 200 |
+| R2 Redis throttle + OTP techos + `revisarEntorno` + MinIO pin | 100 | ✅ API; minio-init local = `mc anonymous set download` (paridad VPS, sin `sed`) |
+| R3 `ci:verify:sin-turbo` + e2e | 100 | ✅ CI verde; e2e 25/1 skip |
+| R4 Wave13 nativo (push RETO / prefs) | ~90 | 🟡 prefs + push respetan `url`; deep link `/retos` → feed (sin pantalla nativa dedicada) |
+
+**Bloqueado en Adam (no lo hace un agente):** sync completo código→VPS, remoto GitHub, MARCANET, credenciales Firebase/APNs reales.
+
+Producto funcional (fases 0–7 del README abajo) opera en **udlagora.com**; queda sync de código local adelantado y remoto GitHub.
 
 ---
 
