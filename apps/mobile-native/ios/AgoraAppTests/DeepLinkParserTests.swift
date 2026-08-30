@@ -41,6 +41,12 @@ final class DeepLinkParserTests: XCTestCase {
         XCTAssertEqual(DeepLinkParser.parse("/feed"), "main")
     }
 
+    func testRetosPathMapsToMain() {
+        XCTAssertEqual(DeepLinkParser.parse("/retos"), "main")
+        XCTAssertEqual(DeepLinkParser.parse("agora://retos"), "main")
+        XCTAssertEqual(DeepLinkParser.parse("https://udlagora.com/retos"), "main")
+    }
+
     func testTerminosPrivacidadYModeracionRoutes() {
         XCTAssertEqual(DeepLinkParser.parse("/terminos"), "terminos")
         XCTAssertEqual(DeepLinkParser.parse("https://udlagora.com/privacidad"), "privacidad")

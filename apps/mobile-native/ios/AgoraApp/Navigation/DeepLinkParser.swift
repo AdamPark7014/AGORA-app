@@ -103,6 +103,9 @@ enum DeepLinkParser {
             return "privacidad"
         case "feed":
             return "main"
+        // Nativo muestra retos en el feed (sin pantalla /retos dedicada).
+        case "retos":
+            return "main"
         default:
             return nil
         }

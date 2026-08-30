@@ -1,42 +1,45 @@
 # RELEVO
 
 - **Último turno:** cursor
-- **Fecha:** 2026-08-29
+- **Fecha:** 2026-08-30
 - **Rama:** mejora/ci-y-blindaje
 
 ## Hecho en este turno
 
-**Incidente prod `udlagora.com` → 404.** SSH al VPS Hetzner (`root@5.78.215.109:2222`).
+**Ola R2 — seguridad / blindaje API** (plan `sistema_super_robusto`).
 
-### Causa
+### Redis throttle
+- Paquete: `@nest-lab/throttler-storage-redis` + `ioredis`.
+- `apps/api/src/comun/almacen-limite.ts`: ping Redis al arrancar; si falla o no hay `REDIS_URL` → storage in-memory + log (API no se tumba).
+- `ThrottlerModule.forRootAsync` en `app.module.ts`.
 
-- Contenedores `agora-web` / `agora-api` / `agora-minio` **estaban UP** (tras reboot del VPS, uptime ~0 min).
-- Traefik **no tenía router** para `udlagora.com`: `/opt/traefik/config` → symlink a `/var/www/nexara-app/deploy/traefik/` y ahí **faltaba** `udlagora.yml` (solo existía en `/var/www/udlagora-app/deploy/traefik/`).
+### OTP `@Throttle` alineado a caps de negocio (`@agora/auth` 1/min, 10/día por buzón)
+- `solicitar`: **20/min**, **200/h** (antes 60 / 1200).
+- `verificar`: **30/min**, **300/h** (antes 60 / 1200).
+- Holgura NAT campus documentada en comentarios.
 
-### Arreglo
+### `revisarEntorno` estricto en prod
+- Exige: `COOKIE_DOMAIN`, `REDIS_URL`, `S3_*` (endpoint/bucket/keys/public URL), `MAIL_FROM`, API key según `MAIL_PROVIDER` (brevo/resend).
+- Tests ampliados en `entorno.test.ts` + `almacen-limite.test.ts`.
+- `pnpm --filter @agora/api test` → **140 pass / 0 fail**.
 
-```bash
-cp /var/www/udlagora-app/deploy/traefik/udlagora.yml \
-   /var/www/nexara-app/deploy/traefik/udlagora.yml
-```
-
-Verificado: `https://udlagora.com` → **200** HTML Ágora; `/api/` llega a Nest (404 JSON de ruta vacía = routing OK).
-
-Docs: `docs/runbook.md` actualizado con el gotcha de Traefik compartido.
+### MinIO pin
+- `minio/minio:RELEASE.2025-09-07T16-13-09Z`
+- `minio/mc:RELEASE.2025-08-13T08-35-41Z`
 
 ## A medias - CUIDADO
 
 - **SIN REMOTO EN MAYÚSCULAS.** Custodia solo local.
-- Código local puede ir más adelante que el deploy en `/var/www/udlagora-app` (deploy de ago-22).
-- **A6-B1 e2e** — Docker Desktop local apagado.
+- Código local puede ir más adelante que el deploy en `/var/www/udlagora-app`.
+- **A6-B1 e2e** — Docker Desktop local apagado (Ola R3).
+- Ola R1 (Traefik durable / backup / smoke) y R4 Wave13 nativo — pendientes del plan.
 - MARCANET / Firebase/APNs reales — Adam.
 
 ## Siguiente paso
 
-1. Recargar `udlagora.com` en el navegador (Ctrl+F5).
-2. Si hace falta código nuevo en prod: sync + `docker compose -f deploy/docker-compose.yml up -d --build` en el VPS.
+1. Ola R1 restante o R3 e2e cuando Docker esté arriba.
+2. Sync VPS solo con OK explícito de Adam.
 3. Remoto GitHub cuando Adam autorice.
-4. Wave 13 (tipo RETO / historial / duelos ganados) quedó a medias en disco local de sesiones previas — verificar antes de seguir.
 
 ## No tocar
 

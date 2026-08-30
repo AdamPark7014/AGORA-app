@@ -46,6 +46,7 @@ import { PushController } from './push/push.controller.js';
 import { HashtagsService } from './hashtags/hashtags.service.js';
 import { HashtagsController } from './hashtags/hashtags.controller.js';
 import { LimiteGuard } from './comun/limite.guard.js';
+import { opcionesLimite } from './comun/almacen-limite.js';
 import { MantenimientoService } from './mantenimiento/mantenimiento.service.js';
 import { AnalyticsController } from './analytics/analytics.controller.js';
 import { AnalyticsService, PrismaAnalyticsSink } from './analytics/analytics.service.js';
@@ -70,14 +71,16 @@ import { RetosService } from './retos/retos.service.js';
      * horario esta al mismo ritmo para no castigar una sesion larga de las de
      * epoca de finales.
      *
+     * Storage: Redis si REDIS_URL responde al arrancar; si no, memoria + log
+     * (la API no se tumba). Contadores compartidos entre replicas solo con Redis.
+     *
      * Antes esto era 60/min **por IP** y estaba roto de raiz para una red de
      * campus: miles de alumnos salen por el NAT de la UDLAP, asi que el
      * campus entero compartia el cupo de una persona.
      */
-    ThrottlerModule.forRoot([
-      { name: 'corto', ttl: 60_000, limit: 240 },
-      { name: 'largo', ttl: 3_600_000, limit: 6_000 },
-    ]),
+    ThrottlerModule.forRootAsync({
+      useFactory: () => opcionesLimite(),
+    }),
   ],
   controllers: [
     AuthController,

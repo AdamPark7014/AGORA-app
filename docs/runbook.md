@@ -18,25 +18,70 @@ autorice: hoy la custodia es solo disco + git local.
 
 ```bash
 cd /var/www/udlagora-app
-# Generar deploy/.env la primera vez (pide BREVO_API_KEY del .env raíz):
+# Generar deploy/.env la primera vez (pide BREVO_API_KEY del .env raíz).
+# Si deploy/.env ya existe: NO regenera SESSION_SECRET / DB / MinIO; solo completa claves faltantes.
 bash deploy/setup-server-env.sh
 # Rellenar OPENAI_API_KEY=…  O  MODERACION_OPCIONAL=true
 docker compose -f deploy/docker-compose.yml up -d --build
+# Obligatorio tras compose up: instalar + verificar ruta Traefik (copia atómica + curl --resolve)
+bash deploy/install-traefik-route.sh
+bash scripts/smoke-udlagora.sh
+# Desde el VPS (loopback):
+# RESOLVE=udlagora.com:443:127.0.0.1 bash scripts/smoke-udlagora.sh
 ```
 
 Health: Traefik enruta `udlagora.com` → web; `/api` → API; `/media` → MinIO.
+Compose healthchecks: `api` (`/api/salud`), `web` (`/`). Traefik `healthCheck` en
+`agora-web` (`/`) y `agora-api` (`/api/salud`).
 
 **Importante — ruta Traefik compartida:** en el VPS, `/opt/traefik/config` apunta a
 `/var/www/nexara-app/deploy/traefik/`. Si `udlagora.yml` solo está en
 `/var/www/udlagora-app/deploy/traefik/`, Traefik no lo carga y el dominio
-devuelve `404 page not found` (texto plano). Tras un deploy o reboot:
+devuelve `404 page not found` (texto plano). No uses `cp` a mano salvo emergencia:
+usa el script (copia atómica + verificación):
 
 ```bash
-cp /var/www/udlagora-app/deploy/traefik/udlagora.yml \
-   /var/www/nexara-app/deploy/traefik/udlagora.yml
+bash deploy/install-traefik-route.sh
+# Equivalente manual de emergencia:
+# cp /var/www/udlagora-app/deploy/traefik/udlagora.yml \
+#    /var/www/nexara-app/deploy/traefik/udlagora.yml
 # Traefik recarga el file provider solo; si no: docker restart traefik-main
 curl -skI --resolve udlagora.com:443:127.0.0.1 https://udlagora.com/
 ```
+
+## Backup / restore Postgres
+
+Dumps gzip diarios en `/var/backups/udlagora/` (retención 7 días por defecto).
+
+```bash
+# Manual
+bash scripts/backup-pg.sh
+# Cron ejemplo (diario 03:15, retención 7 días):
+# 15 3 * * * root cd /var/www/udlagora-app && bash scripts/backup-pg.sh >> /var/log/udlagora-backup.log 2>&1
+
+# Restore (destructivo: el dump lleva --clean). Requiere confirmación:
+RESTORE_CONFIRM=1 bash scripts/restore-pg.sh /var/backups/udlagora/agora-YYYYMMDD-HHMMSS.sql.gz
+```
+
+No commitear dumps ni tocar `deploy/.env` en el repo.
+
+## Smoke post-deploy
+
+```bash
+bash scripts/smoke-udlagora.sh
+# o desde el VPS:
+RESOLVE=udlagora.com:443:127.0.0.1 bash scripts/smoke-udlagora.sh
+```
+
+Espera: `200` en `/`; JSON `estado` `ok` o `degradado` en `/api/salud`; aviso no bloqueante en media.
+
+## Checklist post-reboot VPS
+
+1. `docker ps` — `agora-web`, `agora-api`, `agora-db`, `agora-redis`, `agora-minio` UP.
+2. `ls -l /opt/traefik/config/udlagora.yml` — existe (si no: `bash deploy/install-traefik-route.sh`).
+3. `bash scripts/smoke-udlagora.sh` (o con `RESOLVE=…` en el VPS).
+4. Si smoke falla en `/` con `404 page not found` plano → falta ruta Traefik (paso 2).
+5. Si `/api/salud` → `degradado` → mirar `docker logs agora-db` / `agora-api`.
 
 ## MinIO
 
@@ -91,10 +136,11 @@ Ver `docs/FIREBASE.md`. No commitear service accounts.
 |---|---|
 | OTP no llega | Brevo/Resend, DKIM, spam Outlook; logs API con `MAIL_PROVIDER=console` solo en dev |
 | 404 en fotos | MinIO sano + `S3_PUBLIC_URL`; Traefik PathPrefix `/media` |
-| `404 page not found` texto plano en `udlagora.com` | Falta `udlagora.yml` en `/opt/traefik/config/` (ver arriba); contenedores `agora-*` en red `proxy` |
+| `404 page not found` texto plano en `udlagora.com` | Falta `udlagora.yml` en `/opt/traefik/config/` → `bash deploy/install-traefik-route.sh`; contenedores `agora-*` en red `proxy` |
 | API no arranca en prod | `revisarEntorno`: SESSION_SECRET ≥ 32, MAIL no console, OPENAI o bypass, sin DEV_OTP |
 | Panel admin sin sesión | `COOKIE_DOMAIN` con punto; HTTPS |
 | E2E local sin Docker postgres | Contenedor `agora-postgres` (infra/) o `AGORA_PSQL_DIRECT=1` |
+| Tras reboot todo UP pero dominio 404 | Misma causa Traefik compartida; checklist post-reboot arriba |
 
 ## Pendiente Adam (fuera de este runbook)
 

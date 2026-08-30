@@ -15,13 +15,29 @@ export interface ProblemaEntorno {
 const SIEMPRE = ['DATABASE_URL', 'SESSION_SECRET'] as const;
 
 /** Lo que ademas se exige cuando NODE_ENV=production. */
-const SOLO_PRODUCCION = ['NEXT_PUBLIC_WEB_URL'] as const;
+const SOLO_PRODUCCION = [
+  'NEXT_PUBLIC_WEB_URL',
+  'COOKIE_DOMAIN',
+  'REDIS_URL',
+  'S3_ENDPOINT',
+  'S3_BUCKET',
+  'S3_ACCESS_KEY_ID',
+  'S3_SECRET_ACCESS_KEY',
+  'S3_PUBLIC_URL',
+  'MAIL_FROM',
+] as const;
 
 /**
  * Un secreto corto es un secreto roto: el HMAC del OTP depende por completo de
  * que SESSION_SECRET no se pueda adivinar ni forzar.
  */
 const LARGO_MINIMO_SECRETO = 32;
+
+const llaveMailDeProveedor = (proveedor: string): string | null => {
+  if (proveedor === 'brevo') return 'BREVO_API_KEY';
+  if (proveedor === 'resend') return 'RESEND_API_KEY';
+  return null;
+};
 
 export const revisarEntorno = (
   entorno: NodeJS.ProcessEnv = process.env,
@@ -46,12 +62,26 @@ export const revisarEntorno = (
       if (!entorno[variable]) problemas.push({ variable, motivo: 'falta en produccion' });
     }
 
-    if ((entorno.MAIL_PROVIDER ?? 'console') === 'console') {
+    const mailProvider = entorno.MAIL_PROVIDER ?? 'console';
+    if (mailProvider === 'console') {
       problemas.push({
         variable: 'MAIL_PROVIDER',
         motivo:
           'no puede ser "console" en produccion: los codigos saldrian en el log. Usa "brevo" o "resend"',
       });
+    } else {
+      const llave = llaveMailDeProveedor(mailProvider);
+      if (!llave) {
+        problemas.push({
+          variable: 'MAIL_PROVIDER',
+          motivo: `valor desconocido "${mailProvider}": usa "brevo" o "resend"`,
+        });
+      } else if (!entorno[llave]) {
+        problemas.push({
+          variable: llave,
+          motivo: `falta en produccion (MAIL_PROVIDER=${mailProvider})`,
+        });
+      }
     }
 
     // Sin llave de moderacion se publica sin filtro previo. Es una decision

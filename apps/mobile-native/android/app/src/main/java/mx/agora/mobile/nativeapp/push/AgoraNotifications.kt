@@ -70,11 +70,13 @@ object AgoraNotifications {
         }
     }
 
-    /** INSIGNIA y `/perfil/mio` abren la pestaña «Yo», no un handle literal «mio». */
+    /**
+     * Respeta `url` del payload (p. ej. RETO → `/retos`).
+     * INSIGNIA y `/perfil/mio` abren la pestaña «Yo», no un handle literal «mio».
+     */
     private fun resolveDeepLinkUrl(data: Map<String, String>): String? {
         val raw = data["url"]?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         if (data["tipo"] == "INSIGNIA") return "/perfil-yo"
-        if (data["tipo"] == "RETO") return "/feed"
         if (raw.contains("/perfil/mio", ignoreCase = true) ||
             raw.equals("agora://perfil/mio", ignoreCase = true) ||
             raw.equals("agora://perfil-yo", ignoreCase = true)

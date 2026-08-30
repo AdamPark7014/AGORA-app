@@ -63,6 +63,8 @@ private val etiquetasPreferencia = mapOf(
     "MODERACION" to "Moderación",
     "MENCION" to "Menciones",
     "SEGUIDOR" to "Nuevos seguidores",
+    "INSIGNIA" to "Insignias",
+    "RETO" to "Retos y duelos",
 )
 
 @Composable

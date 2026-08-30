@@ -105,6 +105,16 @@ class DeepLinkParserTest {
     }
 
     @Test
+    fun `retos maps to main feed`() {
+        assertEquals(AgoraRoutes.MAIN, DeepLinkParser.parse("/retos"))
+        assertEquals(AgoraRoutes.MAIN, DeepLinkParser.parse("agora://retos"))
+        assertEquals(
+            AgoraRoutes.MAIN,
+            DeepLinkParser.parse("https://udlagora.com/retos"),
+        )
+    }
+
+    @Test
     fun `eventos crear maps to create route not evento id`() {
         assertEquals(AgoraRoutes.EVENTOS_CREAR, DeepLinkParser.parse("/eventos/crear"))
         assertEquals(AgoraRoutes.EVENTOS_CREAR, DeepLinkParser.parse("agora://eventos/crear"))

@@ -105,6 +105,8 @@ object DeepLinkParser {
             "buscar" -> AgoraRoutes.BUSCAR
             "mas" -> AgoraRoutes.MAS
             "feed" -> AgoraRoutes.MAIN
+            // Nativo muestra retos en el feed (sin pantalla /retos dedicada).
+            "retos" -> AgoraRoutes.MAIN
             else -> null
         }
     }

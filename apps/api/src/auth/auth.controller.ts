@@ -13,6 +13,10 @@ import type { Response } from 'express';
 import { solicitarOtpSchema, verificarOtpSchema } from '@agora/contracts';
 import { algunRolTienePermiso, esStaff, PERMISSIONS } from '@agora/rbac';
 
+import {
+  LIMITE_OTP_SOLICITAR,
+  LIMITE_OTP_VERIFICAR,
+} from '../comun/almacen-limite.js';
 import { ZodPipe } from '../comun/zod.pipe.js';
 import {
   COOKIE_SESION,
@@ -34,15 +38,13 @@ export class AuthController {
    * asi que se cuenta por IP, y este es el unico endpoint donde el abuso
    * cuesta dinero — cada llamada manda un correo de verdad.
    *
-   * El numero sale de la tension entre dos cosas reales: el campus sale por
-   * un NAT compartido, asi que en la primera semana de clases muchas altas
-   * llegan desde la misma IP; y a la vez hay que cortar a quien recorra
-   * direcciones. 60/min aguanta un arranque de curso y sigue siendo un tope.
-   * La defensa de verdad contra machacar un buzon es el limite por correo de
-   * `@agora/auth` (1/min, 10/dia), que no depende de la IP.
+   * Techos (20/min, 200/h) alineados con los caps de negocio de `@agora/auth`
+   * (1/min y 10/dia **por buzon**) sin ahogar el NAT del campus: muchas altas
+   * comparten IP. El tope por correo es la defensa real; este es el cortafuegos
+   * por IP.
    */
   @Post('otp/solicitar')
-  @Throttle({ corto: { ttl: 60_000, limit: 60 }, largo: { ttl: 3_600_000, limit: 1_200 } })
+  @Throttle(LIMITE_OTP_SOLICITAR)
   @HttpCode(204)
   async solicitar(
     @Body(new ZodPipe(solicitarOtpSchema)) cuerpo: { email: string },
@@ -50,9 +52,9 @@ export class AuthController {
     await this.auth.solicitarCodigo(cuerpo.email);
   }
 
-  /** Mismo motivo que arriba: sin sesion, y adivinar codigos se hace aqui. */
+  /** Mismo motivo: sin sesion; adivinar codigos se hace aqui (30/min, 300/h). */
   @Post('otp/verificar')
-  @Throttle({ corto: { ttl: 60_000, limit: 60 }, largo: { ttl: 3_600_000, limit: 1_200 } })
+  @Throttle(LIMITE_OTP_VERIFICAR)
   async verificar(
     @Body(new ZodPipe(verificarOtpSchema))
     cuerpo: { email: string; codigo: string; modo: 'cookie' | 'token' },

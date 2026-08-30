@@ -11,6 +11,8 @@ private let etiquetasPreferencia: [String: String] = [
     "MODERACION": "Moderación",
     "MENCION": "Menciones",
     "SEGUIDOR": "Nuevos seguidores",
+    "INSIGNIA": "Insignias",
+    "RETO": "Retos y duelos",
 ]
 
 /// Ajustes de perfil y notificaciones — paridad con `AjustesScreen.kt`.

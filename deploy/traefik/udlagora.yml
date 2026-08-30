@@ -47,11 +47,19 @@ http:
   services:
     agora-api:
       loadBalancer:
+        healthCheck:
+          path: /api/salud
+          interval: 10s
+          timeout: 3s
         servers:
           - url: 'http://agora-api:4200'
 
     agora-web:
       loadBalancer:
+        healthCheck:
+          path: /
+          interval: 10s
+          timeout: 3s
         servers:
           - url: 'http://agora-web:3200'
 

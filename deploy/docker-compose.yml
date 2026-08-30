@@ -51,7 +51,8 @@ services:
       - internal
 
   minio:
-    image: minio/minio:latest
+    # Tag concreto (no :latest). Ultimo push oficial a Docker Hub; IAM dedicado = fase siguiente.
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: agora-minio
     restart: unless-stopped
     command: server /data --console-address ':9001'
@@ -70,7 +71,7 @@ services:
       - proxy
 
   minio-init:
-    image: minio/mc:latest
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
     container_name: agora-minio-init
     depends_on:
       minio:
@@ -134,6 +135,18 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:contacto@udlagora.com}
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4200/api/salud').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m
@@ -159,6 +172,18 @@ services:
       API_INTERNA: http://agora-api:4200
       PORT: '3200'
       HOSTNAME: 0.0.0.0
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3200/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m

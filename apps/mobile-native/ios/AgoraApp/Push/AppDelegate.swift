@@ -53,11 +53,11 @@ extension Notification.Name {
 }
 
 private extension AppDelegate {
+    /// Respeta `url` del payload (p. ej. RETO → `/retos`).
     /// INSIGNIA y `/perfil/mio` abren la pestaña «Yo», no un handle literal «mio».
     static func resolveDeepLinkUrl(_ userInfo: [AnyHashable: Any]) -> String? {
         guard let raw = userInfo["url"] as? String, !raw.isEmpty else { return nil }
         if userInfo["tipo"] as? String == "INSIGNIA" { return "agora://perfil-yo" }
-        if userInfo["tipo"] as? String == "RETO" { return "agora://feed" }
         let lower = raw.lowercased()
         if lower.contains("/perfil/mio") || lower == "agora://perfil/mio" || lower == "agora://perfil-yo" {
             return "agora://perfil-yo"
