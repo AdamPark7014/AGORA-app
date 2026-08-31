@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0d1210" />
+    <title>Sin conexión · Ágora</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --fondo: #0d1210;
+        --texto: #e7e9ea;
+        --tenue: #9aa4af;
+        --naranja: #ff6b26;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        background:
+          radial-gradient(ellipse 80% 50% at 50% -20%, rgb(227 82 5 / 14%), transparent 70%),
+          var(--fondo);
+        color: var(--texto);
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        text-align: center;
+      }
+      .marca {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 1.25rem;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #e35205, #b83f02);
+        color: #fff;
+        font-size: 2rem;
+        font-weight: 800;
+        display: grid;
+        place-items: center;
+      }
+      h1 {
+        margin: 0 0 0.5rem;
+        font-size: 1.75rem;
+        letter-spacing: -0.03em;
+      }
+      p {
+        margin: 0 auto 1.5rem;
+        max-width: 28rem;
+        color: var(--tenue);
+        line-height: 1.5;
+      }
+      button {
+        min-height: 44px;
+        padding: 0 1.25rem;
+        border: 0;
+        border-radius: 999px;
+        background: var(--naranja);
+        color: #1a0a02;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="marca" aria-hidden="true">Á</div>
+      <h1>Sin conexión</h1>
+      <p>Ágora necesita internet para cargar. Revisa tu red e intenta de nuevo.</p>
+      <button type="button" onclick="location.reload()">Reintentar</button>
+    </main>
+  </body>
+</html>

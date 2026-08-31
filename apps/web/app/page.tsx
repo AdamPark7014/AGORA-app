@@ -7,6 +7,7 @@ import { api, ErrorApi } from '@/lib/api';
 import { analytics } from '@/lib/analytics';
 import { olvidarSesion } from '@/lib/sesion';
 import { copy } from '@/lib/copy';
+import { destinoTrasLogin } from '@/lib/welcome';
 import { GraduationCap, Lock, MessageSquare } from '@/componentes/iconos';
 
 type Paso = 'correo' | 'codigo';
@@ -15,6 +16,20 @@ const VENTAJAS = copy.login.ventajas.map((v, i) => ({
   ...v,
   icono: [GraduationCap, Lock, MessageSquare][i] ?? GraduationCap,
 }));
+
+function EsqueletoLogin() {
+  return (
+    <main className="landing" aria-busy="true" aria-label={copy.cargando.momento}>
+      <div className="landing-hero">
+        <span className="marca-punto landing-marca" aria-hidden="true">
+          Á
+        </span>
+        <div className="esqueleto" style={{ width: '42%', height: 28, margin: '0 auto 12px' }} />
+        <div className="esqueleto" style={{ width: '70%', height: 14, margin: '0 auto' }} />
+      </div>
+    </main>
+  );
+}
 
 export default function Entrar() {
   const router = useRouter();
@@ -31,7 +46,7 @@ export default function Entrar() {
     const tiempo = window.setTimeout(() => setReconociendo(false), 4000);
 
     api<{ tienePerfil: boolean }>('/auth/yo', { signal: control.signal })
-      .then((yo) => router.replace(yo.tienePerfil ? '/feed' : '/registro'))
+      .then((yo) => router.replace(destinoTrasLogin(yo.tienePerfil)))
       .catch(() => setReconociendo(false))
       .finally(() => window.clearTimeout(tiempo));
 
@@ -75,10 +90,9 @@ export default function Entrar() {
         method: 'POST',
         body: JSON.stringify({ email, codigo }),
       });
-      // Acaba de nacer una sesion: lo que hubiera guardado ya no vale.
       olvidarSesion();
       analytics.login();
-      router.push(tienePerfil ? '/feed' : '/registro');
+      router.push(destinoTrasLogin(tienePerfil));
     } catch (e) {
       setError(e instanceof ErrorApi ? e.message : copy.login.errores.verificar);
     } finally {
@@ -87,29 +101,24 @@ export default function Entrar() {
   }
 
   if (reconociendo) {
-    return (
-      <main>
-        <p className="tenue">{copy.cargando.momento}</p>
-      </main>
-    );
+    return <EsqueletoLogin />;
   }
 
   return (
-    <main>
+    <main className="landing">
       {paso === 'correo' ? (
         <>
-          <div className="hero-panel">
-            <div className="hero-entrada">
-              <span className="marca-punto" aria-hidden="true">
-                Á
-              </span>
-              <span className="insignia">{copy.login.insignia}</span>
-              <h1>{copy.login.titulo}</h1>
-              <p className="entradilla">{copy.login.entradilla}</p>
-            </div>
+          <div className="landing-hero">
+            <span className="marca-punto landing-marca" aria-hidden="true">
+              Á
+            </span>
+            <p className="landing-marca-nombre">Ágora</p>
+            <p className="insignia">{copy.login.insignia}</p>
+            <h1>{copy.login.titulo}</h1>
+            <p className="entradilla">{copy.login.entradilla}</p>
           </div>
 
-          <form className="tarjeta tarjeta-compositor" onSubmit={pedirCodigo}>
+          <form className="landing-form" onSubmit={pedirCodigo}>
             <label className="campo">
               <span>{copy.login.correo.etiqueta}</span>
               <input
@@ -124,9 +133,9 @@ export default function Entrar() {
               />
             </label>
             <button type="submit" className="grande" disabled={cargando}>
-              {cargando ? copy.login.correo.botonEnviando : copy.login.correo.boton}
+              {cargando ? copy.login.correo.botonEnviando : 'Entrar con @udlap.mx'}
             </button>
-            {error && <p className="error">{error}</p>}
+            <div aria-live="polite">{error && <p className="error">{error}</p>}</div>
           </form>
 
           <ul className="ventajas">
@@ -146,15 +155,18 @@ export default function Entrar() {
         </>
       ) : (
         <>
-          <div className="hero-entrada">
+          <div className="landing-hero">
+            <span className="marca-punto landing-marca" aria-hidden="true">
+              Á
+            </span>
             <h1>{copy.login.codigo.titulo}</h1>
             <p className="entradilla">
               Te mandamos 6 dígitos a <strong>{email}</strong>.
             </p>
           </div>
 
-          <form className="tarjeta" onSubmit={verificar}>
-            {aviso && <p className="nota">{aviso} Usa el que ya recibiste.</p>}
+          <form className="landing-form" onSubmit={verificar}>
+            {aviso && <p className="nota">{aviso}</p>}
             <label className="campo campo-codigo">
               <span>{copy.login.codigo.etiqueta}</span>
               <input
@@ -193,7 +205,7 @@ export default function Entrar() {
               </button>
             </div>
 
-            {error && <p className="error">{error}</p>}
+            <div aria-live="polite">{error && <p className="error">{error}</p>}</div>
           </form>
 
           <p className="tenue" style={{ textAlign: 'center', marginTop: 18 }}>

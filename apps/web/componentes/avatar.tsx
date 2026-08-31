@@ -7,6 +7,8 @@
  * color, en cualquier pantalla y sin guardar nada.
  */
 
+import Image from 'next/image';
+
 const COLORES = [
   '#e35205', // naranja 166 C
   '#154734', // verde 3435 C
@@ -52,12 +54,32 @@ export function Avatar({
   const clase = [claseBase, anillo ? `avatar-anillo-${anillo}` : '', verificado ? 'avatar-verificado' : '']
     .filter(Boolean)
     .join(' ');
+  const px = tamano === 'grande' ? 88 : tamano === 'chico' ? 30 : 42;
+  const alt = `Foto de ${nombre}`;
+  const sinOptimizar =
+    !!fotoUrl &&
+    (fotoUrl.startsWith('blob:') ||
+      fotoUrl.startsWith('data:') ||
+      fotoUrl.includes('localhost') ||
+      fotoUrl.includes('127.0.0.1'));
 
   const contenido = fotoUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img className={claseBase} src={fotoUrl} alt="" style={{ objectFit: 'cover' }} aria-hidden="true" />
+    <Image
+      className={claseBase}
+      src={fotoUrl}
+      alt={alt}
+      width={px}
+      height={px}
+      style={{ objectFit: 'cover' }}
+      unoptimized={sinOptimizar}
+    />
   ) : (
-    <span className={claseBase} style={{ background: colorDe(semilla ?? nombre) }} aria-hidden="true">
+    <span
+      className={claseBase}
+      style={{ background: colorDe(semilla ?? nombre) }}
+      role="img"
+      aria-label={nombre}
+    >
       {iniciales(nombre)}
     </span>
   );

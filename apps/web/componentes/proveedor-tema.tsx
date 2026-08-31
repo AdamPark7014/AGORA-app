@@ -31,6 +31,9 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
     const guardado = localStorage.getItem(CLAVE_TEMA) as Tema | null;
     if (guardado === 'light' || guardado === 'dark' || guardado === 'system') {
       setTemaEstado(guardado);
+    } else if (document.documentElement.dataset.theme === 'dark') {
+      // El script anti-FOUC ya resolvió system→dark; alinear estado React.
+      setTemaEstado('system');
     }
     setListo(true);
   }, []);

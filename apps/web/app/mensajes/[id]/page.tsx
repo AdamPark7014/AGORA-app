@@ -8,6 +8,8 @@ import { analytics } from '@/lib/analytics';
 import { usePolling } from '@/lib/use-polling';
 import { copy } from '@/lib/copy';
 import { Avatar } from '@/componentes/avatar';
+import { EstadoError } from '@/componentes/estado-error';
+import { EsqueletoLista } from '@/componentes/esqueleto';
 import { ArrowLeft } from '@/componentes/iconos';
 
 interface Mensaje {
@@ -40,10 +42,13 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
   } | null>(null);
   const [texto, setTexto] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [siguienteCursor, setSiguienteCursor] = useState<string | null>(null);
   const [cargandoAntiguos, setCargandoAntiguos] = useState(false);
   const finRef = useRef<HTMLDivElement>(null);
+  const cargaInicialHecha = useRef(false);
 
   /** Devuelve `true` si llegaron mensajes nuevos, para no frenar el sondeo. */
   const cargarRecientes = useCallback(async (irAlFinal: boolean): Promise<boolean> => {
@@ -55,6 +60,7 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
       }>(`/mensajes/${id}`);
       setCon(datos.con);
       setSiguienteCursor(datos.siguienteCursor);
+      setErrorCarga(null);
       let huboNuevos = false;
       setMensajes((previos) => {
         if (previos.length === 0) {
@@ -72,23 +78,32 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
       }
       return huboNuevos;
     } catch (e) {
-      setError(
+      const mensaje =
         e instanceof ErrorApi && e.estado === 404
           ? 'Esa conversación no existe.'
-          : 'No se pudo cargar.',
-      );
+          : 'No se pudo cargar.';
+      if (!cargaInicialHecha.current) setErrorCarga(mensaje);
+      else setError(mensaje);
       return false;
+    } finally {
+      setCargando(false);
+      cargaInicialHecha.current = true;
     }
   }, [id]);
 
   useEffect(() => {
+    setCargando(true);
+    cargaInicialHecha.current = false;
+    setMensajes([]);
+    setCon(null);
+    setErrorCarga(null);
     void cargarRecientes(true);
-  }, [cargarRecientes]);
+  }, [id, cargarRecientes]);
 
   const { reiniciar: reanudarSondeo } = usePolling(
     () => cargarRecientes(false),
     CADA_MS,
-    true,
+    !cargando && !errorCarga,
     CADA_MS_MAXIMO,
   );
 
@@ -120,8 +135,6 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
       analytics.dmEnviado({ conversacionId: id });
       setTexto('');
       await cargarRecientes(true);
-      // Acabas de escribir: lo mas probable es que te contesten ya. Se vuelve
-      // al ritmo rapido aunque el sondeo estuviera frenado por inactividad.
       reanudarSondeo();
     } catch (e) {
       setError(e instanceof ErrorApi ? e.message : 'No se pudo enviar.');
@@ -136,7 +149,7 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
         <Link href="/mensajes" className="enlace-nav" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <ArrowLeft size={16} strokeWidth={1.75} aria-hidden="true" />
         </Link>
-        {con && (
+        {con ? (
           <Link href={`/perfil/${con.handle}`} className="persona" style={{ flex: 1, margin: 0 }}>
             <Avatar nombre={con.nombre} semilla={con.handle} fotoUrl={con.fotoUrl} verificado={con.verificado} />
             <span>
@@ -145,60 +158,81 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
               <span className="tenue">@{con.handle}</span>
             </span>
           </Link>
-        )}
+        ) : cargando ? (
+          <div className="esqueleto-cabeza" style={{ flex: 1 }} aria-hidden="true">
+            <div className="esqueleto esqueleto-avatar" />
+            <div className="esqueleto-identidad">
+              <div className="esqueleto" style={{ width: '45%', height: 13 }} />
+              <div className="esqueleto" style={{ width: '30%', height: 11 }} />
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      <div className="tarjeta">
-        <div className="chat-hilo">
-          {siguienteCursor && (
-            <div style={{ textAlign: 'center', marginBottom: 12 }}>
-              <button
-                type="button"
-                className="fantasma"
-                disabled={cargandoAntiguos}
-                onClick={() => void cargarAntiguos()}
-              >
-              {cargandoAntiguos ? copy.cargando.general : 'Cargar mensajes anteriores'}
-              </button>
+      {errorCarga && (
+        <EstadoError onReintentar={() => void cargarRecientes(true)}>{errorCarga}</EstadoError>
+      )}
+
+      {!errorCarga && (
+        <>
+          <div className="tarjeta">
+            <div className="chat-hilo">
+              {cargando && <EsqueletoLista cantidad={2} />}
+
+              {!cargando && siguienteCursor && (
+                <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                  <button
+                    type="button"
+                    className="fantasma"
+                    disabled={cargandoAntiguos}
+                    onClick={() => void cargarAntiguos()}
+                  >
+                    {cargandoAntiguos ? copy.cargando.general : 'Cargar mensajes anteriores'}
+                  </button>
+                </div>
+              )}
+
+              {!cargando && mensajes.length === 0 && (
+                <p className="tenue vacio-texto" style={{ margin: 0, textAlign: 'center' }}>
+                  {copy.mensajes.chatVacio}
+                </p>
+              )}
+
+              {!cargando &&
+                mensajes.map((m) => (
+                  <div key={m.id} className={m.mio ? 'chat-burbuja chat-burbuja-mia' : 'chat-burbuja'}>
+                    {m.texto}
+                  </div>
+                ))}
+              <div ref={finRef} />
             </div>
-          )}
+          </div>
 
-          {mensajes.length === 0 && (
-            <p className="tenue vacio-texto" style={{ margin: 0, textAlign: 'center' }}>
-              {copy.mensajes.chatVacio}
-            </p>
-          )}
-
-          {mensajes.map((m) => (
-            <div key={m.id} className={m.mio ? 'chat-burbuja chat-burbuja-mia' : 'chat-burbuja'}>
-              {m.texto}
+          <form className="tarjeta chat-composer" onSubmit={enviar}>
+            <textarea
+              rows={2}
+              maxLength={4000}
+              required
+              aria-label="Tu mensaje"
+              placeholder={copy.mensajes.placeholder}
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && texto.trim()) {
+                  e.preventDefault();
+                  void enviar(e as unknown as React.FormEvent);
+                }
+              }}
+            />
+            <button type="submit" disabled={enviando || !texto.trim()}>
+              {enviando ? '…' : 'Enviar'}
+            </button>
+            <div aria-live="polite" style={{ flexBasis: '100%' }}>
+              {error && <p className="error" style={{ margin: '8px 0 0' }}>{error}</p>}
             </div>
-          ))}
-          <div ref={finRef} />
-        </div>
-      </div>
-
-      <form className="tarjeta chat-composer" onSubmit={enviar}>
-        <textarea
-          rows={2}
-          maxLength={4000}
-          required
-          aria-label="Tu mensaje"
-          placeholder={copy.mensajes.placeholder}
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && texto.trim()) {
-              e.preventDefault();
-              void enviar(e as unknown as React.FormEvent);
-            }
-          }}
-        />
-        <button type="submit" disabled={enviando || !texto.trim()}>
-          {enviando ? '…' : 'Enviar'}
-        </button>
-        {error && <p className="error" style={{ flexBasis: '100%', margin: '8px 0 0' }}>{error}</p>}
-      </form>
+          </form>
+        </>
+      )}
     </main>
   );
 }

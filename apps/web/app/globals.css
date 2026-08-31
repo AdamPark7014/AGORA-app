@@ -102,6 +102,11 @@
     --peligro: #f26161;
     --sombra: 0 1px 3px rgb(0 0 0 / 40%);
     --sombra-alta: 0 4px 20px rgb(0 0 0 / 55%);
+    --sombra-tarjeta: 0 2px 10px rgb(0 0 0 / 35%), 0 0 0 1px rgb(255 107 38 / 8%);
+    --sombra-tarjeta-hover: 0 8px 28px rgb(0 0 0 / 45%), 0 0 0 1px rgb(255 107 38 / 14%);
+    --glow-naranja: 0 0 28px rgb(255 107 38 / 18%);
+    --borde-sutil: rgb(255 107 38 / 12%);
+    --gradiente-fondo: radial-gradient(ellipse 80% 50% at 50% -20%, rgb(255 107 38 / 9%), transparent 70%);
   }
 }
 
@@ -127,6 +132,11 @@
   --peligro: #f26161;
   --sombra: 0 1px 3px rgb(0 0 0 / 40%);
   --sombra-alta: 0 4px 20px rgb(0 0 0 / 55%);
+  --sombra-tarjeta: 0 2px 10px rgb(0 0 0 / 35%), 0 0 0 1px rgb(255 107 38 / 8%);
+  --sombra-tarjeta-hover: 0 8px 28px rgb(0 0 0 / 45%), 0 0 0 1px rgb(255 107 38 / 14%);
+  --glow-naranja: 0 0 28px rgb(255 107 38 / 18%);
+  --borde-sutil: rgb(255 107 38 / 12%);
+  --gradiente-fondo: radial-gradient(ellipse 80% 50% at 50% -20%, rgb(255 107 38 / 9%), transparent 70%);
 }
 
 * {
@@ -761,12 +771,24 @@ button.fantasma:hover:not(:disabled) {
 
 .galeria.n1 {
   grid-template-columns: 1fr;
+  /* Reserva CLS en el contenedor, no solo en el media (que puede llegar tarde). */
+  aspect-ratio: 4 / 3;
+  max-height: 520px;
 }
 
 .galeria.n2,
 .galeria.n3,
 .galeria.n4 {
   grid-template-columns: 1fr 1fr;
+}
+
+.galeria.n2 {
+  aspect-ratio: 2 / 1;
+}
+
+.galeria.n3,
+.galeria.n4 {
+  aspect-ratio: 1;
 }
 
 .galeria.n3 > :first-child {
@@ -782,40 +804,27 @@ button.fantasma:hover:not(:disabled) {
   background: var(--superficie-2);
 }
 
-/* Reserva de espacio antes de que cargue el archivo. Sin proporcion declarada,
-   cada imagen empuja el contenido al aparecer y el CLS se dispara; el umbral
-   de Core Web Vitals es 0.1 en el percentil 75. */
-.galeria.n1 img,
-.galeria.n1 video {
-  aspect-ratio: 4 / 3;
-}
-
 /* Con una sola imagen se ve completa, sin recortar: es la que la gente
    publica cuando le importa que se vea entera. */
 .galeria.n1 img,
 .galeria.n1 video {
-  height: auto;
-  max-height: 520px;
   object-fit: contain;
   background: var(--superficie-2);
 }
 
 .galeria.n2 img,
-.galeria.n4 img {
-  aspect-ratio: 1;
-}
-
+.galeria.n4 img,
 .galeria.n3 > :not(:first-child) img {
   aspect-ratio: 1;
 }
 
 .galeria.n3 > :first-child img {
   aspect-ratio: 1 / 2.02;
+  height: 100%;
 }
 
 /* El video nunca se recorta: se ve completo con barras si hace falta. */
 .galeria video {
-  max-height: 520px;
   object-fit: contain;
   background: #000;
 }
@@ -1819,6 +1828,126 @@ button.fantasma:hover:not(:disabled) {
   font-size: 0.78rem;
   color: var(--texto-tenue);
   line-height: 1.6;
+}
+
+.saltar-contenido {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1000;
+  padding: 10px 16px;
+  background: var(--naranja);
+  color: var(--acento-texto);
+  font-weight: 600;
+  border-radius: 0 0 var(--radio-chico) 0;
+}
+
+.saltar-contenido:focus {
+  left: 0;
+  outline: 2px solid var(--texto);
+  outline-offset: 2px;
+}
+
+.landing {
+  position: relative;
+  padding-top: 8px;
+}
+
+.landing-tema {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.landing-hero {
+  text-align: center;
+  padding: 28px 8px 24px;
+}
+
+.landing-marca {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  font-size: 2rem;
+  margin: 0 auto 14px;
+}
+
+.landing-marca-nombre {
+  margin: 0 0 10px;
+  font-family: var(--fuente-display, var(--fuente-cuerpo)), ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(2.4rem, 8vw, 3.25rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--texto);
+}
+
+.landing-hero h1 {
+  font-size: var(--t-xl);
+  font-weight: 700;
+  margin: 10px 0 8px;
+}
+
+.landing-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.welcome {
+  display: grid;
+  gap: 20px;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 12px 0 32px;
+  text-align: center;
+}
+
+.welcome-tope {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.welcome-cuerpo {
+  padding: 24px 8px 8px;
+  min-height: 280px;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+}
+
+.welcome-icono {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 8px;
+  border-radius: 50%;
+  background: var(--naranja-suave);
+  color: var(--naranja);
+}
+
+.welcome-puntos {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.welcome-punto {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  min-height: 8px;
+  min-width: 8px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--borde-fuerte);
+  box-shadow: none;
+}
+
+.welcome-punto.activo {
+  background: var(--naranja);
+  transform: scale(1.2);
 }
 
 /* --- Premium: transiciones, FAB, grids -------------------------------- */
@@ -3193,6 +3322,8 @@ button.fantasma:hover:not(:disabled) {
 
 .galeria-enlace {
   display: block;
+  width: 100%;
+  height: 100%;
   padding: 0;
   border: none;
   background: none;

@@ -52,6 +52,15 @@ const config: NextConfig = {
    */
   ...(process.env.BUILD_STANDALONE === 'true' ? { output: 'standalone' as const } : {}),
   outputFileTracingRoot: join(import.meta.dirname, '../..'),
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'udlagora.com', pathname: '/media/**' },
+      { protocol: 'http', hostname: 'localhost', port: '3200', pathname: '/media/**' },
+      { protocol: 'http', hostname: '127.0.0.1', port: '3200', pathname: '/media/**' },
+      { protocol: 'http', hostname: 'localhost', port: '9000', pathname: '/**' },
+      { protocol: 'http', hostname: '127.0.0.1', port: '9000', pathname: '/**' },
+    ],
+  },
   // La API se sirve bajo el mismo origen que la web. Asi la cookie de sesion
   // es same-origin: nada de CORS ni de SameSite=None, que es justo lo que
   // rompe el login dentro de una PWA instalada en iOS.

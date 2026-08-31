@@ -5,11 +5,11 @@
  * desplegar una versión nueva el navegador seguía mostrando HTML viejo con
  * enlaces a CSS/JS que ya no existen → página sin estilos.
  *
- * Solo se cachean assets estáticos inmutables (icono, manifest).
+ * Solo se cachean assets estáticos inmutables (icono, manifest, offline).
  */
 
-const CACHE = 'agora-v2';
-const ESTATICOS = ['/manifest.webmanifest', '/icono.svg'];
+const CACHE = 'agora-v3';
+const ESTATICOS = ['/manifest.webmanifest', '/icono.svg', '/offline.html'];
 
 self.addEventListener('install', (evento) => {
   evento.waitUntil(
@@ -44,19 +44,20 @@ self.addEventListener('fetch', (evento) => {
   ) {
     evento.respondWith(
       fetch(evento.request).catch(() =>
-        caches.match(evento.request).then((r) => {
-          if (r) return r;
-          return new Response(
-            '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Sin conexión</title></head><body style="font-family:sans-serif;padding:2rem"><h1>Sin conexión</h1><p>Ágora necesita internet para cargar. Revisa tu red e intenta de nuevo.</p></body></html>',
-            { headers: { 'content-type': 'text/html; charset=utf-8' } },
-          );
-        }),
+        caches.match('/offline.html').then(
+          (r) =>
+            r ??
+            new Response(
+              '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Sin conexión</title></head><body style="font-family:sans-serif;padding:2rem;background:#0d1210;color:#e7e9ea"><h1>Sin conexión</h1><p>Ágora necesita internet.</p></body></html>',
+              { headers: { 'content-type': 'text/html; charset=utf-8' } },
+            ),
+        ),
       ),
     );
     return;
   }
 
-  // Icono y manifest: cache primero (no cambian entre deploys).
+  // Icono, manifest y offline: cache primero (no cambian entre deploys).
   if (ESTATICOS.includes(url.pathname)) {
     evento.respondWith(
       caches.match(evento.request).then((cacheado) => cacheado ?? fetch(evento.request)),

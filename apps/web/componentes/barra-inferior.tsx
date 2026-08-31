@@ -22,7 +22,16 @@ const DESTINOS: Array<{
   { href: '/feed#publicar', icono: 'publicar' as const, texto: 'Publicar', fab: true },
   { href: '/mensajes', icono: 'mensajes' as const, texto: 'Mensajes' },
   { href: '/mas', icono: 'mas' as const, texto: 'Más' },
-] ;
+];
+
+function dispararPublicar() {
+  if (typeof window === 'undefined') return;
+  if (window.location.hash !== '#publicar') {
+    window.location.hash = 'publicar';
+  } else {
+    window.dispatchEvent(new Event('agora:publicar'));
+  }
+}
 
 export function BarraInferior() {
   const ruta = usePathname();
@@ -41,16 +50,23 @@ export function BarraInferior() {
   return (
     <nav className="barra-inferior" aria-label="Navegación principal">
       {DESTINOS.map((d) => {
-        const activo =
-          d.href === '/feed#publicar'
-            ? ruta === '/feed'
-            : ruta === d.href || (d.href !== '/feed' && ruta.startsWith(d.href));
+        const activo = d.fab
+          ? false
+          : ruta === d.href || (d.href !== '/feed' && ruta.startsWith(d.href));
         return (
           <Link
             key={d.href}
             href={d.href}
             className={d.fab ? 'destino destino-fab' : 'destino'}
             aria-current={activo ? 'page' : undefined}
+            aria-label={d.fab ? 'Publicar' : undefined}
+            onClick={(e) => {
+              if (!d.fab) return;
+              if (ruta === '/feed') {
+                e.preventDefault();
+                dispararPublicar();
+              }
+            }}
           >
             <span className="destino-icono" aria-hidden="true">
               <IconoNav nombre={d.icono} size={d.fab ? 24 : 22} />

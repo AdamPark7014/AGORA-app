@@ -12,6 +12,7 @@ import { copy } from '@/lib/copy';
 import { Avatar } from '@/componentes/avatar';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
+import { EstadoError } from '@/componentes/estado-error';
 import { EsqueletoFeed } from '@/componentes/esqueleto';
 import { Compartir } from '@/componentes/compartir';
 import { GuardarPost } from '@/componentes/guardar-post';
@@ -113,6 +114,7 @@ function FeedInterno() {
   const [lightbox, setLightbox] = useState<{ url: string; esVideo: boolean } | null>(null);
   const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [cursor, setCursor] = useState<string | null>(null);
   const [cargandoMas, setCargandoMas] = useState(false);
@@ -154,6 +156,7 @@ function FeedInterno() {
   const cargarFeed = useCallback(async (slug: string, siguiendo: boolean) => {
     setCargando(true);
     setError(null);
+    setErrorCarga(null);
     try {
       const p = new URLSearchParams();
       if (siguiendo) p.set('siguiendo', 'true');
@@ -164,7 +167,7 @@ function FeedInterno() {
       setPublicaciones(datos.publicaciones);
       setCursor(datos.siguienteCursor);
     } catch (e) {
-      setError(
+      setErrorCarga(
         e instanceof ErrorApi && e.estado === 401
           ? copy.feed.errores.sesion
           : copy.feed.errores.cargar,
@@ -217,10 +220,19 @@ function FeedInterno() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || window.location.hash !== '#publicar') return;
-    document.getElementById(compositorId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const ta = document.querySelector<HTMLTextAreaElement>(`#${compositorId} textarea`);
-    ta?.focus();
+    function irAPublicar() {
+      if (typeof window === 'undefined' || window.location.hash !== '#publicar') return;
+      if (cargando) return;
+      document.getElementById(compositorId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.querySelector<HTMLTextAreaElement>(`#${CSS.escape(compositorId)} textarea`)?.focus();
+    }
+    irAPublicar();
+    window.addEventListener('hashchange', irAPublicar);
+    window.addEventListener('agora:publicar', irAPublicar);
+    return () => {
+      window.removeEventListener('hashchange', irAPublicar);
+      window.removeEventListener('agora:publicar', irAPublicar);
+    };
   }, [compositorId, cargando]);
 
   useEffect(() => {
@@ -715,8 +727,14 @@ function FeedInterno() {
         </div>
 
         {aviso && <p className="nota">{aviso}</p>}
-        {error && <p className="error">{error}</p>}
+        <div aria-live="polite">{error && <p className="error">{error}</p>}</div>
       </form>
+
+      {errorCarga && !cargando && (
+        <EstadoError onReintentar={() => void cargarFeed(comunidadSlug, soloSiguiendo)}>
+          {errorCarga}
+        </EstadoError>
+      )}
 
       <div className="feed-canales feed-canales--animado" role="tablist" aria-label="Filtrar feed">
         <button
@@ -753,7 +771,7 @@ function FeedInterno() {
 
       {cargando && <EsqueletoFeed />}
 
-      {!cargando && publicaciones.length === 0 && !error && (
+      {!cargando && publicaciones.length === 0 && !errorCarga && (
         <EstadoVacio
           icono={Flame}
           titulo={

@@ -32,19 +32,20 @@ export function Encabezado() {
   const router = useRouter();
   const ruta = usePathname();
   const [yo, setYo] = useState<Yo | null>(null);
+  const publica = esRutaPublica(ruta);
 
   useEffect(() => {
     // En rutas publicas no hay sesion que consultar; preguntarlo solo suma un
     // 401 por pantalla. La portada se encarga de su propia comprobacion,
     // porque ahi si importa redirigir a quien ya entro.
-    if (esRutaPublica(ruta)) {
+    if (publica) {
       setYo(null);
       return;
     }
     sesion()
       .then(setYo)
       .catch(() => setYo(null));
-  }, [ruta]);
+  }, [ruta, publica]);
 
   async function salir() {
     try {
@@ -64,6 +65,13 @@ export function Encabezado() {
         <span className="marca-punto">Á</span>
         Ágora
       </Link>
+
+      {publica && !yo && (
+        <>
+          <span className="empuje" />
+          <ToggleTema />
+        </>
+      )}
 
       {yo && (
         <>

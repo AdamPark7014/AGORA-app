@@ -8,6 +8,8 @@ import { analytics } from '@/lib/analytics';
 import { Avatar } from '@/componentes/avatar';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
+import { EstadoError } from '@/componentes/estado-error';
+import { EsqueletoLista } from '@/componentes/esqueleto';
 import { CalendarDays, MapPin, Plus, X } from '@/componentes/iconos';
 
 interface Comunidad {
@@ -307,18 +309,21 @@ export default function Eventos() {
             {enviando ? 'Publicando…' : 'Publicar evento'}
           </button>
 
-          {error && <p className="error">{error}</p>}
+          {error && (
+            <div aria-live="polite">
+              <p className="error">{error}</p>
+            </div>
+          )}
         </form>
       )}
 
-      {error && !abierto && <p className="error">{error}</p>}
-
-      {cargando && (
-        <div className="tarjeta" aria-hidden="true">
-          <div className="esqueleto" style={{ width: '50%' }} />
-          <div className="esqueleto" style={{ width: '80%' }} />
-        </div>
+      {error && !abierto && (
+        <EstadoError onReintentar={() => void cargar(filtroTipo)}>
+          {error}
+        </EstadoError>
       )}
+
+      {cargando && <EsqueletoLista cantidad={3} />}
 
       {!cargando && eventos.length === 0 && !error && (
         <EstadoVacio icono={CalendarDays} titulo="No hay nada agendado">

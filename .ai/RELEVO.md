@@ -6,44 +6,45 @@
 
 ## Hecho en este turno
 
-**Ola R3 + fix crítico minio-init** (plan `sistema_super_robusto`).
+**Web profesional polish** (plan `web_profesional_polish`) — olas W1–W3 + verify. Sin sync VPS.
 
-### minio-init (paridad VPS)
-- Local `deploy/docker-compose.yml` ya no usa `sed` + `mc anonymous set-json` (imagen `minio/mc` **no trae sed**).
-- Ahora: `mc anonymous set download local/$$S3_BUCKET` con escape Compose `$$VAR`.
-- Se quitó el volume mount de `bucket-policy.json` (queda como referencia en disco).
-- Tag pin se mantiene: `minio/mc:RELEASE.2025-08-13T08-35-41Z` (VPS aún puede tener `:latest` hasta próximo sync).
+### W1 — Primera impresión
+- Landing branded en `/`: marca Ágora dominante, headline, CTA `@udlap.mx`, sin cards en hero; esqueleto branded anti-FOUC al reconocer sesión.
+- Disclaimer legal solo en rutas públicas (`AvisoLegal`); fuera del layout autenticado.
+- SEO: `metadataBase`, Open Graph, Twitter card, `public/og.svg`; sitemap con registro/términos/privacidad.
+- Script inline anti-FOUC de tema en `layout.tsx`; skip link + `#contenido`.
+- Toggle tema en encabezado también en rutas públicas.
 
-### R3 calidad
-- `pnpm ci:verify:sin-turbo` → **verde** (API unit **140**/0 fail).
-- `pnpm test:e2e` → **25 pass / 1 skip** (Docker Desktop Linux engine presente).
-- Fix `package.json` `test:e2e`: config real es `playwright.config.ts` (raíz), no `e2e/playwright.config.ts`.
-- DB local: `pnpm db:migrate:deploy` aplicó 7 migraciones pendientes (rachas/badges/reto) — causaban 500 en `/api/gamificacion/*` y rompían humo.
-- e2e: expectativa membresías automáticas **6** (escuela+depto+carrera+gen+colegio+campus).
-- Admin `Guardia`: acepta rol `super_admin` (antes solo moderador/admin → panel atascado en “Comprobando permisos…”).
-- `capturas-admin`: timeout 90s.
+### W2 — Confianza
+- DM hilo: `cargando` + skeleton; no “chat vacío” hasta terminar fetch; header con nombre al llegar; `EstadoError` en fallo de carga.
+- Nuevo `EstadoError` cableado en feed, mensajes, notificaciones, eventos, directorio.
+- Galería: aspect-ratio en contenedor (CLS); `next/image` + alts en `Avatar`; `images.remotePatterns` en `next.config.ts`.
 
-### Docs
-- `README.md` A6-7 / R1–R3: Traefik durable, smoke, backup cron, Redis throttle, RETO en prod, e2e verde.
+### W3 — Pulido
+- Tokens dark completos (`--sombra-tarjeta*`, `--borde-sutil`, `--gradiente-fondo`, glow).
+- `aria-live="polite"` en errores de formularios OTP/registro/feed compositor.
+- Welcome web `/bienvenida` (localStorage `agora-welcome-visto`), post-login/registro.
+- FAB: hash/scroll fiable + `agora:publicar`; FAB sin `aria-current`.
+- Eventos/directorio: `EsqueletoLista`; `perfil/mio` sin flash null; 404 con CTA `vacio-cta`.
+- Offline SW branded (`offline.html`, cache `agora-v3`).
 
-### Verificado en VPS (solo lectura)
-- `/opt/traefik/config/udlagora.yml` presente; `https://udlagora.com/` 200; `/api/salud` ok.
-- Cron backup: `/etc/cron.d/udlagora-backup` (15 3 * * *); dumps en `/var/backups/udlagora/`.
-- Enum `RETO` presente en BD prod.
+### Verificado
+- `pnpm --filter @agora/web check-types` → **verde**.
 
 ## A medias - CUIDADO
 
 - **SIN REMOTO EN MAYÚSCULAS.** Custodia solo local.
-- Código local **adelantado** al deploy en `/var/www/udlagora-app` (Redis throttle, minio pin/init, Guardia, etc.). **No sync sin OK de Adam.**
-- R4 Wave13: prefs RETO/INSIGNIA y push respetan `url`; deep link `/retos` → feed nativo (sin pantalla dedicada). Cierre fino opcional.
-- VPS `minio-init` ya usa `anonymous set download` pero imagen puede seguir en `:latest` hasta sync.
+- Código local **adelantado** al deploy en `/var/www/udlagora-app`. **No sync sin OK de Adam.**
+- R4 Wave13 / deep link `/retos` → feed nativo: cierre fino opcional.
+- VPS `minio-init` puede seguir en `:latest` hasta sync.
 - Firebase / APNs / AASA TEAMID / MARCANET — Adam.
+- Smoke visual manual de polish (landing/DM/dark/welcome) pendiente en navegador si Adam quiere.
 
 ## Siguiente paso
 
 1. Sync VPS (rsync + compose + `install-traefik-route.sh` + smoke) **solo con OK explícito**.
 2. Remoto GitHub cuando Adam autorice.
-3. Opcional: pantalla nativa `/retos` o dejar deep link→feed documentado.
+3. Opcional: smoke visual del polish web en local/prod tras sync.
 
 ## No tocar
 
@@ -51,6 +52,7 @@
 - Remoto / secretos FCM sin pedido explícito.
 - `git reset --hard`, `git checkout --`, `git clean`, `git stash drop`.
 - No regenerar secretos prod con `setup-server-env.sh`.
+- No sync VPS sin OK explícito de Adam.
 
 ## Mapa rápido del proyecto
 

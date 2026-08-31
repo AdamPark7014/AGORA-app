@@ -83,7 +83,7 @@ export default function Registro() {
       });
       // El perfil recien creado cambia `handle` y `tienePerfil`.
       olvidarSesion();
-      router.push('/feed');
+      router.push('/bienvenida');
     } catch (e) {
       setError(e instanceof ErrorApi ? e.message : copy.registro.errorCrear);
     } finally {
@@ -94,7 +94,13 @@ export default function Registro() {
   if (!catalogo) {
     return (
       <main>
-        {error ? <p className="error">{error}</p> : <EsqueletoLista cantidad={2} />}
+        {error ? (
+          <div aria-live="polite">
+            <p className="error">{error}</p>
+          </div>
+        ) : (
+          <EsqueletoLista cantidad={2} />
+        )}
       </main>
     );
   }
@@ -241,7 +247,7 @@ export default function Registro() {
           {cargando ? copy.registro.botonCreando : copy.registro.boton}
         </button>
 
-        {error && <p className="error">{error}</p>}
+        <div aria-live="polite">{error && <p className="error">{error}</p>}</div>
       </form>
     </main>
   );

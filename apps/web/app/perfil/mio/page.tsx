@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 import { api } from '@/lib/api';
+import { EsqueletoPerfil } from '@/componentes/esqueleto';
 
 /** Deep link web para avisos INSIGNIA (`/perfil/mio` → perfil del usuario autenticado). */
 export default function PerfilMioRedirect() {
@@ -15,5 +16,9 @@ export default function PerfilMioRedirect() {
       .catch(() => router.replace('/ajustes'));
   }, [router]);
 
-  return null;
+  return (
+    <main>
+      <EsqueletoPerfil />
+    </main>
+  );
 }

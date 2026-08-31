@@ -7,6 +7,8 @@ import { api, ErrorApi } from '@/lib/api';
 import { Avatar } from '@/componentes/avatar';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
+import { EstadoError } from '@/componentes/estado-error';
+import { EsqueletoLista } from '@/componentes/esqueleto';
 import { Search } from '@/componentes/iconos';
 
 interface Persona {
@@ -184,7 +186,9 @@ export default function Directorio() {
         )}
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <EstadoError onReintentar={() => void buscar()}>{error}</EstadoError>
+      )}
 
       {!error && !cargando && (
         <p className="tenue" style={{ margin: '18px 0 0' }}>
@@ -193,12 +197,7 @@ export default function Directorio() {
         </p>
       )}
 
-      {cargando && !error && (
-        <div className="tarjeta" aria-hidden="true" style={{ marginTop: 16 }}>
-          <div className="esqueleto" style={{ width: '70%' }} />
-          <div className="esqueleto" style={{ width: '50%' }} />
-        </div>
-      )}
+      {cargando && !error && <EsqueletoLista cantidad={4} />}
 
       {!error && !cargando && (
         <ul className="lista">

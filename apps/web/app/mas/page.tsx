@@ -91,7 +91,9 @@ export default function Mas() {
               <span>
                 Notificaciones
                 <br />
-                <span className="tenue" style={{ fontSize: '0.8rem' }}>Todo tu historial</span>
+                <span className="tenue" style={{ fontSize: '0.8rem' }}>
+                  Likes, menciones y avisos — también desde la campana arriba
+                </span>
               </span>
             </Link>
           </li>

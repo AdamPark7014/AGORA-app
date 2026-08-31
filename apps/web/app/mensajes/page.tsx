@@ -9,6 +9,7 @@ import { usePolling } from '@/lib/use-polling';
 import { Avatar } from '@/componentes/avatar';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
+import { EstadoError } from '@/componentes/estado-error';
 import { EsqueletoLista } from '@/componentes/esqueleto';
 import { MessageCircle } from '@/componentes/iconos';
 import { TiempoRelativo } from '@/componentes/tiempo';
@@ -57,9 +58,11 @@ export default function Mensajes() {
         entradilla={copy.mensajes.entradilla}
       />
 
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <EstadoError onReintentar={() => void cargar()}>{error}</EstadoError>
+      )}
 
-      {cargando && <EsqueletoLista />}
+      {cargando && !error && <EsqueletoLista />}
 
       {!cargando && conversaciones.length === 0 && !error && (
         <EstadoVacio

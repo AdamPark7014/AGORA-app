@@ -10,6 +10,7 @@ import { copy } from '@/lib/copy';
 import { Avatar } from '@/componentes/avatar';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
+import { EstadoError } from '@/componentes/estado-error';
 import { EsqueletoLista } from '@/componentes/esqueleto';
 import { TiempoRelativo } from '@/componentes/tiempo';
 
@@ -77,9 +78,11 @@ export default function Notificaciones() {
         entradilla={copy.notificaciones.entradilla}
       />
 
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <EstadoError onReintentar={() => void cargar()}>{error}</EstadoError>
+      )}
 
-      {cargando && <EsqueletoLista />}
+      {cargando && !error && <EsqueletoLista />}
 
       {!cargando && items.length === 0 && !error && (
         <EstadoVacio

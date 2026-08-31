@@ -10,7 +10,7 @@ export default function NoEncontrado() {
         </span>
         <strong>Página no encontrada</strong>
         <p className="tenue">Esa ruta no existe en Ágora.</p>
-        <Link href="/feed" className="reaccion" style={{ marginTop: 14, textDecoration: 'none' }}>
+        <Link href="/feed" className="vacio-cta">
           Ir al feed
         </Link>
       </div>
