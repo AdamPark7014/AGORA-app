@@ -1,12 +1,25 @@
 import type { MetadataRoute } from 'next';
 
+import { SITE_URL } from '@/lib/seo';
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
-      allow: ['/', '/terminos', '/privacidad'],
-      disallow: ['/feed', '/mensajes', '/perfil', '/ajustes', '/moderacion', '/api'],
+      allow: ['/', '/registro', '/bienvenida', '/terminos', '/privacidad'],
+      disallow: [
+        '/feed',
+        '/mensajes',
+        '/perfil',
+        '/ajustes',
+        '/moderacion',
+        '/api',
+        '/buscar',
+        '/retos',
+        '/guardados',
+        '/mas',
+      ],
     },
-    sitemap: 'https://udlagora.com/sitemap.xml',
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

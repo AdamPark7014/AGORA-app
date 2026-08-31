@@ -1,9 +1,5 @@
 import Link from 'next/link';
 
-export const metadata = {
-  title: 'Privacidad — Ágora',
-};
-
 export default function Privacidad() {
   return (
     <main className="tarjeta" style={{ maxWidth: 720 }}>

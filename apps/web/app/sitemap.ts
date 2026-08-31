@@ -1,11 +1,14 @@
 import type { MetadataRoute } from 'next';
 
+import { SITE_URL, SITEMAP_ROUTES } from '@/lib/seo';
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_WEB_URL ?? 'https://udlagora.com';
-  return [
-    { url: base, changeFrequency: 'weekly', priority: 1 },
-    { url: `${base}/terminos`, changeFrequency: 'monthly', priority: 0.4 },
-    { url: `${base}/privacidad`, changeFrequency: 'monthly', priority: 0.4 },
-    { url: `${base}/registro`, changeFrequency: 'monthly', priority: 0.5 },
-  ];
+  const lastModified = new Date();
+
+  return SITEMAP_ROUTES.map(({ path, changeFrequency, priority }) => ({
+    url: path === '/' ? SITE_URL : `${SITE_URL}${path}`,
+    lastModified,
+    changeFrequency,
+    priority,
+  }));
 }

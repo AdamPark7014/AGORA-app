@@ -1,9 +1,5 @@
 import Link from 'next/link';
 
-export const metadata = {
-  title: 'Términos de uso — Ágora',
-};
-
 export default function Terminos() {
   return (
     <main className="tarjeta" style={{ maxWidth: 720 }}>

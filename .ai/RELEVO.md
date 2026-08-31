@@ -6,53 +6,55 @@
 
 ## Hecho en este turno
 
-**Web profesional polish** (plan `web_profesional_polish`) — olas W1–W3 + verify. Sin sync VPS.
+**Ultra profundo — SEO, gaps por capa y deploy** (plan autorizado).
 
-### W1 — Primera impresión
-- Landing branded en `/`: marca Ágora dominante, headline, CTA `@udlap.mx`, sin cards en hero; esqueleto branded anti-FOUC al reconocer sesión.
-- Disclaimer legal solo en rutas públicas (`AvisoLegal`); fuera del layout autenticado.
-- SEO: `metadataBase`, Open Graph, Twitter card, `public/og.svg`; sitemap con registro/términos/privacidad.
-- Script inline anti-FOUC de tema en `layout.tsx`; skip link + `#contenido`.
-- Toggle tema en encabezado también en rutas públicas.
+### Capa web — SEO y presencia
+- `apps/web/lib/seo.ts`: fuente única (`SITE_URL`, `buildMetadata`, `ROOT_METADATA`, `SITEMAP_ROUTES`, `jsonLdScripts`).
+- `componentes/json-ld.tsx` + inyección en `layout.tsx` (Organization + WebSite/SearchAction).
+- Layouts metadata: `/registro`, `/bienvenida`, `/terminos`, `/privacidad` (migrados a `buildMetadata`).
+- `sitemap.ts` (5 URLs) y `robots.ts` desde config central; allow registro/bienvenida.
+- Assets: `og.png`, `icono-192.png`, `icono-512.png`, `humans.txt`; manifest con purpose any/maskable.
+- Script `scripts/export-brand-assets.mjs` + `sharp` devDep root.
 
-### W2 — Confianza
-- DM hilo: `cargando` + skeleton; no “chat vacío” hasta terminar fetch; header con nombre al llegar; `EstadoError` en fallo de carga.
-- Nuevo `EstadoError` cableado en feed, mensajes, notificaciones, eventos, directorio.
-- Galería: aspect-ratio en contenedor (CLS); `next/image` + alts en `Avatar`; `images.remotePatterns` en `next.config.ts`.
+### Capa API / compose
+- `deploy/docker-compose.yml`: passthrough `OPENAI_API_KEY`, `FIREBASE_*`, `APNS_*` al contenedor api.
+- `salud.controller.ts`: `@SkipThrottle()` + ping Redis → `estado: degradado` si Redis cae (base ok → HTTP 200).
 
-### W3 — Pulido
-- Tokens dark completos (`--sombra-tarjeta*`, `--borde-sutil`, `--gradiente-fondo`, glow).
-- `aria-live="polite"` en errores de formularios OTP/registro/feed compositor.
-- Welcome web `/bienvenida` (localStorage `agora-welcome-visto`), post-login/registro.
-- FAB: hash/scroll fiable + `agora:publicar`; FAB sin `aria-current`.
-- Eventos/directorio: `EsqueletoLista`; `perfil/mio` sin flash null; 404 con CTA `vacio-cta`.
-- Offline SW branded (`offline.html`, cache `agora-v3`).
+### Deploy VPS (2026-08-31)
+- Tar sync → `/var/www/udlagora-app` + `docker compose up -d --build`.
+- Traefik: `install-traefik-route.sh` (503 transitorio post-up; smoke OK tras ~15s).
+- Smoke verde: `/` 200, `/api/salud` estado=ok.
 
-### Verificado
-- `pnpm --filter @agora/web check-types` → **verde**.
+### URLs entregables (prod)
+- https://udlagora.com
+- https://udlagora.com/sitemap.xml
+- https://udlagora.com/robots.txt
+- https://udlagora.com/og.png
+- https://udlagora.com/api/salud → `estado: ok`
+
+### Verificado local
+- `pnpm --filter @agora/web check-types` → verde
+- `pnpm ci:verify:sin-turbo` → verde
 
 ## A medias - CUIDADO
 
-- **SIN REMOTO EN MAYÚSCULAS.** Custodia solo local.
-- Código local **adelantado** al deploy en `/var/www/udlagora-app`. **No sync sin OK de Adam.**
-- R4 Wave13 / deep link `/retos` → feed nativo: cierre fino opcional.
-- VPS `minio-init` puede seguir en `:latest` hasta sync.
+- **SIN REMOTO GitHub.** Custodia solo local.
 - Firebase / APNs / AASA TEAMID / MARCANET — Adam.
-- Smoke visual manual de polish (landing/DM/dark/welcome) pendiente en navegador si Adam quiere.
+- `OPENAI_API_KEY` en `deploy/.env` del VPS: revisar si moderación IA debe activarse (hoy puede seguir `MODERACION_OPCIONAL=true`).
+- R4 Wave13 / deep link `/retos` → feed nativo: cierre fino opcional.
 
 ## Siguiente paso
 
-1. Sync VPS (rsync + compose + `install-traefik-route.sh` + smoke) **solo con OK explícito**.
+1. Search Console: enviar sitemap; Rich Results Test en home.
 2. Remoto GitHub cuando Adam autorice.
-3. Opcional: smoke visual del polish web en local/prod tras sync.
+3. Adam: credenciales Firebase/APNs reales si quiere push nativo en prod.
 
 ## No tocar
 
-- **`.env`** (secretos). No leerlo ni commitearlo.
+- **`.env`** / **`deploy/.env`** (secretos). No leerlos ni commitearlos.
 - Remoto / secretos FCM sin pedido explícito.
 - `git reset --hard`, `git checkout --`, `git clean`, `git stash drop`.
 - No regenerar secretos prod con `setup-server-env.sh`.
-- No sync VPS sin OK explícito de Adam.
 
 ## Mapa rápido del proyecto
 

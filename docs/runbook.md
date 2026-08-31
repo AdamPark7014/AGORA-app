@@ -75,6 +75,22 @@ RESOLVE=udlagora.com:443:127.0.0.1 bash scripts/smoke-udlagora.sh
 
 Espera: `200` en `/`; JSON `estado` `ok` o `degradado` en `/api/salud`; aviso no bloqueante en media.
 
+## SEO post-deploy (2026-08-31)
+
+Tras sync con `lib/seo.ts`, verificar URLs públicas:
+
+| URL | Esperado |
+|---|---|
+| https://udlagora.com | 200, OG `og.png`, JSON-LD Organization + WebSite |
+| https://udlagora.com/sitemap.xml | 5 URLs indexables |
+| https://udlagora.com/robots.txt | `Sitemap: https://udlagora.com/sitemap.xml` |
+| https://udlagora.com/og.png | 200 PNG 1200×630 |
+| https://udlagora.com/icono-192.png | 200 (PWA) |
+
+Regenerar PNGs locales: `node scripts/export-brand-assets.mjs` (requiere `sharp` en root).
+
+Google Search Console: enviar sitemap; [Rich Results Test](https://search.google.com/test/rich-results) en home.
+
 ## Checklist post-reboot VPS
 
 1. `docker ps` — `agora-web`, `agora-api`, `agora-db`, `agora-redis`, `agora-minio` UP.

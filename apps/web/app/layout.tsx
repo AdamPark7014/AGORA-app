@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from 'next';
+import type { Viewport } from 'next';
 import { Bricolage_Grotesque, Outfit } from 'next/font/google';
 
 import { Encabezado } from '@/componentes/encabezado';
@@ -6,7 +6,9 @@ import { Marco } from '@/componentes/marco';
 import { Instalar } from '@/componentes/instalar';
 import { BarraInferior } from '@/componentes/barra-inferior';
 import { AvisoLegal } from '@/componentes/aviso-legal';
+import { JsonLd } from '@/componentes/json-ld';
 import { ProveedorTema } from '@/componentes/proveedor-tema';
+import { ROOT_METADATA } from '@/lib/seo';
 import { RegistrarSW } from './registrar-sw';
 import './globals.css';
 
@@ -24,34 +26,7 @@ const display = Bricolage_Grotesque({
   display: 'swap',
 });
 
-const BASE = process.env.NEXT_PUBLIC_WEB_URL ?? 'https://udlagora.com';
-
-export const metadata: Metadata = {
-  metadataBase: new URL(BASE),
-  title: 'Ágora — la red de la UDLAP',
-  description:
-    'Red verificada para la comunidad UDLAP. Entra con tu correo @udlap.mx.',
-  manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, title: 'Ágora', statusBarStyle: 'default' },
-  icons: { icon: '/icono.svg', apple: '/icono-192.png' },
-  openGraph: {
-    type: 'website',
-    locale: 'es_MX',
-    url: BASE,
-    siteName: 'Ágora',
-    title: 'Ágora — la red de la UDLAP',
-    description:
-      'Red verificada para la comunidad UDLAP. Entra con tu correo @udlap.mx.',
-    images: [{ url: '/og.svg', width: 1200, height: 630, alt: 'Ágora — la red de la UDLAP' }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Ágora — la red de la UDLAP',
-    description:
-      'Red verificada para la comunidad UDLAP. Entra con tu correo @udlap.mx.',
-    images: ['/og.svg'],
-  },
-};
+export const metadata = ROOT_METADATA;
 
 export const viewport: Viewport = {
   themeColor: [
@@ -70,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className={`${cuerpo.variable} ${display.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
+        <JsonLd />
       </head>
       <body>
         <ProveedorTema>

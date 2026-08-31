@@ -133,6 +133,12 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:contacto@udlagora.com}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
+      APNS_KEY_ID: ${APNS_KEY_ID:-}
+      APNS_TEAM_ID: ${APNS_TEAM_ID:-}
+      APNS_KEY: ${APNS_KEY:-}
+      APNS_BUNDLE_ID: ${APNS_BUNDLE_ID:-}
     healthcheck:
       test:
         [
