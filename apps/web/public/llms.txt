@@ -1,0 +1,26 @@
+# Ágora
+
+> Red verificada para la comunidad UDLAP (Universidad de las Américas Puebla).
+> Solo entra quien tiene correo @udlap.mx. Proyecto independiente, no afiliado a la universidad.
+
+## Site
+
+- Home / login: https://udlagora.com/
+- Registro de perfil: https://udlagora.com/registro
+- Bienvenida: https://udlagora.com/bienvenida
+- Términos: https://udlagora.com/terminos
+- Privacidad: https://udlagora.com/privacidad
+- Sitemap: https://udlagora.com/sitemap.xml
+- Contacto: contacto@udlagora.com
+
+## Product
+
+Ágora is a campus social network: feed, communities derived from academic graph,
+events, marketplace, DMs, and verified identity via institutional email OTP.
+User-generated content is not mass-indexed; public share previews are minimal
+(title, excerpt, image) for Open Graph unfurls.
+
+## Optional
+
+- Humans: https://udlagora.com/humans.txt
+- Security: https://udlagora.com/.well-known/security.txt

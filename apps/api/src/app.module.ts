@@ -54,6 +54,8 @@ import { GamificacionController } from './gamificacion/gamificacion.controller.j
 import { GamificacionService } from './gamificacion/gamificacion.service.js';
 import { RetosController } from './retos/retos.controller.js';
 import { RetosService } from './retos/retos.service.js';
+import { PublicController } from './public/public.controller.js';
+import { PublicService } from './public/public.service.js';
 
 @Module({
   imports: [
@@ -107,6 +109,7 @@ import { RetosService } from './retos/retos.service.js';
     AnalyticsController,
     GamificacionController,
     RetosController,
+    PublicController,
   ],
   providers: [
     PrismaService,
@@ -136,6 +139,7 @@ import { RetosService } from './retos/retos.service.js';
     AnalyticsService,
     GamificacionService,
     RetosService,
+    PublicService,
     { provide: APP_GUARD, useClass: LimiteGuard },
   ],
 })

@@ -10,9 +10,24 @@
  *
  * No es solo desperdicio: son 401 en el registro del servidor que enmascaran
  * los 401 de verdad, y trabajo de base de datos para nada.
+ *
+ * Prefijos `/publicacion`, `/perfil`, `/eventos/:id`, `/marketplace/:id`:
+ * preview pública (OG unfurl + CTA login). `/perfil/mio` sigue autenticado.
  */
-export const RUTAS_PUBLICAS = ['/', '/registro', '/terminos', '/privacidad'] as const;
+export const RUTAS_PUBLICAS = [
+  '/',
+  '/registro',
+  '/bienvenida',
+  '/terminos',
+  '/privacidad',
+] as const;
 
-/** `true` si la ruta se sirve sin sesion. */
-export const esRutaPublica = (ruta: string): boolean =>
-  (RUTAS_PUBLICAS as readonly string[]).includes(ruta);
+/** `true` si la ruta se sirve sin sesion (exacta o preview UGC). */
+export const esRutaPublica = (ruta: string): boolean => {
+  if ((RUTAS_PUBLICAS as readonly string[]).includes(ruta)) return true;
+  if (ruta.startsWith('/publicacion/')) return true;
+  if (ruta.startsWith('/perfil/') && ruta !== '/perfil/mio') return true;
+  if (/^\/eventos\/[^/]+$/.test(ruta)) return true;
+  if (/^\/marketplace\/[^/]+$/.test(ruta)) return true;
+  return false;
+};

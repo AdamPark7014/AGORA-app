@@ -9,7 +9,13 @@
  */
 
 const CACHE = 'agora-v3';
-const ESTATICOS = ['/manifest.webmanifest', '/icono.svg', '/offline.html'];
+const ESTATICOS = [
+  '/manifest.webmanifest',
+  '/icono.svg',
+  '/icono-192.png',
+  '/icono-512.png',
+  '/offline.html',
+];
 
 self.addEventListener('install', (evento) => {
   evento.waitUntil(

@@ -1,14 +1,14 @@
 import { jsonLdScripts } from '@/lib/seo';
 
-/** Inyecta Organization + WebSite schema.org en el documento. */
+/** Inyecta schema.org (Organization, WebSite, WebApplication, FAQPage). */
 export function JsonLd() {
   const graphs = jsonLdScripts();
 
   return (
     <>
-      {graphs.map((graph) => (
+      {graphs.map((graph, i) => (
         <script
-          key={String(graph['@type'])}
+          key={i}
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(graph).replace(/</g, '\\u003c'),

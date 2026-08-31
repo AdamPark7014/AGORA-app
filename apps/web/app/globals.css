@@ -1894,6 +1894,47 @@ button.fantasma:hover:not(:disabled) {
   margin-bottom: 28px;
 }
 
+.landing-faq {
+  margin-top: 8px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.landing-faq h2 {
+  font-family: var(--fuente-display), sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 14px;
+  text-align: center;
+}
+
+.landing-faq dl {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+
+.landing-faq-item dt {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.landing-faq-item dd {
+  margin: 0;
+  color: var(--texto-tenue);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.preview-publica-img {
+  display: block;
+  width: min(100%, 560px);
+  max-height: 280px;
+  object-fit: cover;
+  margin: 16px auto 0;
+  border-radius: 12px;
+}
+
 .welcome {
   display: grid;
   gap: 20px;

@@ -25,4 +25,11 @@ await svgToPng(join(publicDir, 'og.svg'), join(publicDir, 'og.png'), 1200, 630);
 await svgToPng(join(publicDir, 'icono.svg'), join(publicDir, 'icono-192.png'), 192, 192);
 await svgToPng(join(publicDir, 'icono.svg'), join(publicDir, 'icono-512.png'), 512, 512);
 
+const icoSvg = readFileSync(join(publicDir, 'icono.svg'));
+await sharp(icoSvg, { density: 300 })
+  .resize(48, 48)
+  .png()
+  .toFile(join(publicDir, 'favicon.ico'));
+console.log('✓ apps/web/public/favicon.ico');
+
 console.log('Assets de marca exportados.');

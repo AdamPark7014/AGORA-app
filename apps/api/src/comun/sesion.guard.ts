@@ -50,6 +50,9 @@ export class SesionGuard implements CanActivate {
     if (sesion.user.estado === 'BAJA') {
       throw new UnauthorizedException('Esta cuenta ya no esta activa.');
     }
+    if (sesion.user.estado === 'SUSPENDIDO') {
+      throw new UnauthorizedException('Tu cuenta esta suspendida.');
+    }
 
     req.usuario = {
       id: sesion.user.id,

@@ -137,7 +137,7 @@ services:
       FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
       APNS_KEY_ID: ${APNS_KEY_ID:-}
       APNS_TEAM_ID: ${APNS_TEAM_ID:-}
-      APNS_KEY: ${APNS_KEY:-}
+      APNS_SIGNING_KEY: ${APNS_SIGNING_KEY:-}
       APNS_BUNDLE_ID: ${APNS_BUNDLE_ID:-}
     healthcheck:
       test:

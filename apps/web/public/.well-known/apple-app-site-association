@@ -12,7 +12,9 @@
           "/perfil/*",
           "/mensajes/*",
           "/marketplace/*",
-          "/hashtag/*"
+          "/hashtag/*",
+          "/retos",
+          "/retos/*"
         ]
       }
     ]

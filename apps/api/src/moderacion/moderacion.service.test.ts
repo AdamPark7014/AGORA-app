@@ -130,3 +130,61 @@ test('reportar post inexistente es 404', async () => {
     (err: unknown) => err instanceof NotFoundException,
   );
 });
+
+test('SUSPENDER_USUARIO revoca sesiones del autor', async () => {
+  const llamadas: unknown[] = [];
+  const prisma = {
+    report: {
+      findUnique: async () => ({
+        id: 'r1',
+        estado: 'ABIERTO',
+        postId: 'p1',
+        commentId: null,
+        post: { id: 'p1', authorId: 'autor' },
+        comment: null,
+      }),
+      updateMany: (args: unknown) => {
+        llamadas.push(['report.updateMany', args]);
+        return Promise.resolve({ count: 1 });
+      },
+    },
+    user: {
+      update: (args: unknown) => {
+        llamadas.push(['user.update', args]);
+        return Promise.resolve({});
+      },
+    },
+    session: {
+      deleteMany: (args: unknown) => {
+        llamadas.push(['session.deleteMany', args]);
+        return Promise.resolve({ count: 2 });
+      },
+    },
+    post: {
+      update: (args: unknown) => {
+        llamadas.push(['post.update', args]);
+        return Promise.resolve({});
+      },
+    },
+    moderationAction: {
+      create: (args: unknown) => {
+        llamadas.push(['moderationAction.create', args]);
+        return Promise.resolve({});
+      },
+    },
+    $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
+  } as unknown as PrismaService;
+
+  await servicio(prisma).resolver('r1', 'mod', {
+    accion: 'SUSPENDER_USUARIO',
+    motivo: 'acoso',
+  });
+
+  assert.ok(
+    llamadas.some((entrada) => {
+      const [op, args] = entrada as [string, { where: { userId: string } }];
+      return op === 'session.deleteMany' && args.where.userId === 'autor';
+    }),
+    'debe borrar sesiones del suspendido',
+  );
+});

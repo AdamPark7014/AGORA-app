@@ -231,6 +231,7 @@ export class ModeracionService {
     if (datos.accion === 'SUSPENDER_USUARIO' && autorId) {
       operaciones.push(
         this.prisma.user.update({ where: { id: autorId }, data: { estado: 'SUSPENDIDO' } }),
+        this.prisma.session.deleteMany({ where: { userId: autorId } }),
       );
       // Suspender no basta: el contenido denunciado también se retira.
       if (reporte.postId) {

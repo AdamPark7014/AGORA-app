@@ -8,6 +8,7 @@ import { analytics } from '@/lib/analytics';
 import { olvidarSesion } from '@/lib/sesion';
 import { copy } from '@/lib/copy';
 import { destinoTrasLogin } from '@/lib/welcome';
+import { LANDING_FAQ as FAQ_LANDING } from '@/lib/seo';
 import { GraduationCap, Lock, MessageSquare } from '@/componentes/iconos';
 
 type Paso = 'correo' | 'codigo';
@@ -16,20 +17,6 @@ const VENTAJAS = copy.login.ventajas.map((v, i) => ({
   ...v,
   icono: [GraduationCap, Lock, MessageSquare][i] ?? GraduationCap,
 }));
-
-function EsqueletoLogin() {
-  return (
-    <main className="landing" aria-busy="true" aria-label={copy.cargando.momento}>
-      <div className="landing-hero">
-        <span className="marca-punto landing-marca" aria-hidden="true">
-          Á
-        </span>
-        <div className="esqueleto" style={{ width: '42%', height: 28, margin: '0 auto 12px' }} />
-        <div className="esqueleto" style={{ width: '70%', height: 14, margin: '0 auto' }} />
-      </div>
-    </main>
-  );
-}
 
 export default function Entrar() {
   const router = useRouter();
@@ -101,7 +88,22 @@ export default function Entrar() {
   }
 
   if (reconociendo) {
-    return <EsqueletoLogin />;
+    return (
+      <main className="landing" aria-busy="true" aria-label={copy.cargando.momento}>
+        <div className="landing-hero">
+          <span className="marca-punto landing-marca" aria-hidden="true">
+            Á
+          </span>
+          <p className="landing-marca-nombre">Ágora</p>
+          <p className="insignia">{copy.login.insignia}</p>
+          <h1>{copy.login.titulo}</h1>
+          <p className="entradilla">{copy.login.entradilla}</p>
+        </div>
+        <p className="tenue" style={{ textAlign: 'center' }}>
+          {copy.cargando.momento}
+        </p>
+      </main>
+    );
   }
 
   return (
@@ -152,6 +154,18 @@ export default function Entrar() {
               </li>
             ))}
           </ul>
+
+          <section className="landing-faq" aria-labelledby="faq-titulo">
+            <h2 id="faq-titulo">Preguntas frecuentes</h2>
+            <dl>
+              {FAQ_LANDING.map((item) => (
+                <div key={item.pregunta} className="landing-faq-item">
+                  <dt>{item.pregunta}</dt>
+                  <dd>{item.respuesta}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         </>
       ) : (
         <>

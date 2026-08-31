@@ -1,0 +1,5 @@
+Contact: mailto:contacto@udlagora.com
+Expires: 2027-08-31T00:00:00.000Z
+Preferred-Languages: es, en
+Canonical: https://udlagora.com/.well-known/security.txt
+Policy: https://udlagora.com/privacidad

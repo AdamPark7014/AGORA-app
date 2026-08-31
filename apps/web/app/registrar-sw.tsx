@@ -12,10 +12,11 @@ export function RegistrarSW() {
     installCrashReporting();
     if (!('serviceWorker' in navigator)) return;
 
-    // Forzar actualización del SW y borrar caches rotos de agora-v1.
+    // Borrar caches viejos; conservar el activo (agora-v3 en sw.js).
+    const CACHE_ACTIVO = 'agora-v3';
     void caches.keys().then((claves) => {
       claves
-        .filter((c) => c.startsWith('agora-') && c !== 'agora-v2')
+        .filter((c) => c.startsWith('agora-') && c !== CACHE_ACTIVO)
         .forEach((c) => void caches.delete(c));
     });
 

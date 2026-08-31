@@ -75,21 +75,33 @@ RESOLVE=udlagora.com:443:127.0.0.1 bash scripts/smoke-udlagora.sh
 
 Espera: `200` en `/`; JSON `estado` `ok` o `degradado` en `/api/salud`; aviso no bloqueante en media.
 
-## SEO post-deploy (2026-08-31)
+## SEO post-deploy (v2 — 2026-08-31)
 
-Tras sync con `lib/seo.ts`, verificar URLs públicas:
+Tras sync mega presencia v2, verificar:
 
 | URL | Esperado |
 |---|---|
-| https://udlagora.com | 200, OG `og.png`, JSON-LD Organization + WebSite |
-| https://udlagora.com/sitemap.xml | 5 URLs indexables |
-| https://udlagora.com/robots.txt | `Sitemap: https://udlagora.com/sitemap.xml` |
+| https://udlagora.com | 200, H1 en HTML, FAQ visible, JSON-LD `@graph` (Organization, WebSite, WebApplication, FAQPage) |
+| https://udlagora.com/sitemap.xml | 5 URLs (/, registro, bienvenida, terminos, privacidad) |
+| https://udlagora.com/robots.txt | allow onboarding; disallow gated + UGC |
+| https://udlagora.com/llms.txt | 200 texto |
+| https://udlagora.com/.well-known/security.txt | 200 |
 | https://udlagora.com/og.png | 200 PNG 1200×630 |
-| https://udlagora.com/icono-192.png | 200 (PWA) |
+| Headers en `/` | HSTS, X-Content-Type-Options, CSP |
+| Share UGC | `curl` a `/publicacion/{id}` sin cookie → preview + OG noindex |
 
-Regenerar PNGs locales: `node scripts/export-brand-assets.mjs` (requiere `sharp` en root).
+Regenerar PNGs/favicon: `node scripts/export-brand-assets.mjs`.
+
+**Unfurl:** `GET /api/public/tarjeta/{publicacion\|perfil\|evento\|anuncio}/:id` sin sesión (campos mínimos).
+
+**Salud:** Redis caído → JSON `estado: degradado` + `redis: error` con **HTTP 200** (no tumba Traefik/healthcheck). Solo Postgres caído → 503.
+
+**Suspensión:** `SUSPENDIDO` rechazado en `SesionGuard`; al suspender se borran sesiones (`session.deleteMany`).
+
+**APNs en compose:** variable `APNS_SIGNING_KEY` (no `APNS_KEY`).
 
 Google Search Console: enviar sitemap; [Rich Results Test](https://search.google.com/test/rich-results) en home.
+
 
 ## Checklist post-reboot VPS
 
@@ -103,8 +115,9 @@ Google Search Console: enviar sitemap; [Rich Results Test](https://search.google
 
 - Bucket: `S3_BUCKET` (default `agora-media`).
 - Política: solo `s3:GetObject` público sobre `arn:aws:s3:::BUCKET/*`
-  (`deploy/minio/bucket-policy.json`). El init aplica
-  `mc anonymous set-json` (no ListBucket ni Put anónimo).
+  (`deploy/minio/bucket-policy.json` es referencia). El init aplica
+  `mc anonymous set download` (la imagen `mc` no trae `sed`; no usar
+  `set-json` + plantilla).
 - Escritura: solo la API con `MINIO_ROOT_*` → `S3_ACCESS_KEY_ID` /
   `S3_SECRET_ACCESS_KEY`.
 - URL pública: `https://udlagora.com/media/agora-media/...`

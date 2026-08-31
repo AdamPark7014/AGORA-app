@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLICAS = ['/', '/registro', '/terminos', '/privacidad'];
+import { esRutaPublica } from '@/lib/rutas';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/api') ||
     pathname.startsWith('/_next') ||
     pathname.includes('.') ||
-    PUBLICAS.includes(pathname)
+    esRutaPublica(pathname)
   ) {
     return NextResponse.next();
   }
