@@ -4,9 +4,9 @@ name: ci
 
 on:
   push:
-    branches: [master, 'mejora/**']
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
