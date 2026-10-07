@@ -1,13 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Bell, Car, MessageCircle, Scale, Sparkles, AtSign, UserPlus, Award, Swords } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 import { api } from '@/lib/api';
-import { esRutaPublica } from '@/lib/rutas';
+import { useSinNavegacion } from '@/lib/navegacion';
 import { usePolling } from '@/lib/use-polling';
 import { Avatar } from './avatar';
 import { TiempoRelativo } from './tiempo';
@@ -36,8 +35,7 @@ const ICONO: Record<string, LucideIcon> = {
 };
 
 export function Campana() {
-  const ruta = usePathname();
-  const publica = esRutaPublica(ruta);
+  const publica = useSinNavegacion();
   const [abierta, setAbierta] = useState(false);
   const [sinLeer, setSinLeer] = useState(0);
   const [lista, setLista] = useState<Notificacion[]>([]);

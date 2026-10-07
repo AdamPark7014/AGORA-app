@@ -88,7 +88,7 @@ test('cada ruta de la web carga sin error de compilacion', async ({ page }) => {
   rutaActual = '/';
   await page.goto('/');
   await page.getByPlaceholder('nombre.apellido@udlap.mx').fill(email);
-  await page.getByRole('button', { name: 'Mandarme el código' }).click();
+  await page.getByRole('button', { name: 'Entrar con @udlap.mx' }).click();
   await expect(page.getByPlaceholder('000000')).toBeVisible();
 
   const secreto = process.env.SESSION_SECRET;
@@ -110,7 +110,7 @@ test('cada ruta de la web carga sin error de compilacion', async ({ page }) => {
   await page.locator('select').nth(1).selectOption('ing-sistemas-computacionales');
   await page.locator('select').nth(2).selectOption('2024');
   await page.getByRole('button', { name: 'Crear mi perfil' }).click();
-  await expect(page).toHaveURL(/\/feed$/);
+  await expect(page).toHaveURL(/\/(feed|bienvenida)$/);
 
   for (const ruta of PRIVADAS) {
     rutaActual = ruta;

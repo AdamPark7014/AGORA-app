@@ -19,7 +19,7 @@ export const copy = {
     correo: {
       etiqueta: 'Tu correo @udlap.mx',
       placeholder: 'nombre.apellido@udlap.mx',
-      boton: 'Mandarme el código',
+      boton: 'Entrar con @udlap.mx',
       botonEnviando: 'Enviando…',
     },
     codigo: {

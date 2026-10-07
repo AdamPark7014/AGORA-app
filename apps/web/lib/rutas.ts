@@ -22,12 +22,22 @@ export const RUTAS_PUBLICAS = [
   '/privacidad',
 ] as const;
 
-/** `true` si la ruta se sirve sin sesion (exacta o preview UGC). */
-export const esRutaPublica = (ruta: string): boolean => {
-  if ((RUTAS_PUBLICAS as readonly string[]).includes(ruta)) return true;
+/** Pantallas que nunca llevan la navegacion de la app (entrada, legales). */
+export const esRutaSinSesion = (ruta: string): boolean =>
+  (RUTAS_PUBLICAS as readonly string[]).includes(ruta);
+
+/**
+ * Contenido compartible: se puede abrir sin cuenta (preview + invitacion a
+ * entrar), pero quien ya entro debe conservar la barra y los carriles.
+ */
+export const esPreviewPublica = (ruta: string): boolean => {
   if (ruta.startsWith('/publicacion/')) return true;
   if (ruta.startsWith('/perfil/') && ruta !== '/perfil/mio') return true;
   if (/^\/eventos\/[^/]+$/.test(ruta)) return true;
   if (/^\/marketplace\/[^/]+$/.test(ruta)) return true;
   return false;
 };
+
+/** `true` si la ruta se sirve sin sesion (exacta o preview UGC). */
+export const esRutaPublica = (ruta: string): boolean =>
+  esRutaSinSesion(ruta) || esPreviewPublica(ruta);

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { api } from '@/lib/api';
-import { esRutaPublica } from '@/lib/rutas';
+import { useSinNavegacion } from '@/lib/navegacion';
 import { IconoNav } from './iconos';
 
 /**
@@ -35,17 +35,18 @@ function dispararPublicar() {
 
 export function BarraInferior() {
   const ruta = usePathname();
+  const sinNavegacion = useSinNavegacion();
   const [noLeidos, setNoLeidos] = useState(0);
 
   useEffect(() => {
-    if (esRutaPublica(ruta)) return;
+    if (sinNavegacion) return;
     api<{ total: number }>('/mensajes/no-leidos')
       .then((d) => setNoLeidos(d.total))
       .catch(() => undefined);
-  }, [ruta]);
+  }, [ruta, sinNavegacion]);
 
   // Sin sesion no hay a donde navegar, y pedir los no leidos solo gana un 401.
-  if (esRutaPublica(ruta)) return null;
+  if (sinNavegacion) return null;
 
   return (
     <nav className="barra-inferior" aria-label="Navegación principal">

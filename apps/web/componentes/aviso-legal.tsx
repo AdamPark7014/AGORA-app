@@ -1,13 +1,10 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-
-import { esRutaPublica } from '@/lib/rutas';
+import { useSinNavegacion } from '@/lib/navegacion';
 
 /** Disclaimer solo en rutas públicas — no ensucia pantallas autenticadas. */
 export function AvisoLegal() {
-  const ruta = usePathname();
-  if (!esRutaPublica(ruta)) return null;
+  if (!useSinNavegacion()) return null;
 
   return (
     <p className="aviso">

@@ -29,7 +29,7 @@ test('capturas de las pantallas principales', async ({ page }) => {
   await page.screenshot({ path: 'capturas/1-entrar.png', fullPage: true });
 
   await page.getByPlaceholder('nombre.apellido@udlap.mx').fill(email);
-  await page.getByRole('button', { name: 'Mandarme el código' }).click();
+  await page.getByRole('button', { name: 'Entrar con @udlap.mx' }).click();
   await expect(page.getByPlaceholder('000000')).toBeVisible();
   await page.screenshot({ path: 'capturas/2-codigo.png', fullPage: true });
 
@@ -55,7 +55,9 @@ test('capturas de las pantallas principales', async ({ page }) => {
   await page.locator('form textarea').fill('5to semestre. Me late Verilog más de lo que debería.');
   await page.getByRole('button', { name: 'Crear mi perfil' }).click();
 
-  await expect(page).toHaveURL(/\/feed$/);
+  // Primera vez: pasa por la bienvenida antes del feed.
+  await expect(page).toHaveURL(/\/(feed|bienvenida)$/);
+  await page.goto('/feed');
 
   // El contenido lo siembra `pnpm db:demo`. Crearlo aqui ensuciaba el feed de
   // desarrollo un poco mas en cada corrida.

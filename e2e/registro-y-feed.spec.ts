@@ -33,7 +33,7 @@ function hashDe(codigo: string, email: string): string {
 async function entrar(page: Page, email: string): Promise<void> {
   await page.goto('/');
   await page.getByPlaceholder('nombre.apellido@udlap.mx').fill(email);
-  await page.getByRole('button', { name: 'Mandarme el código' }).click();
+  await page.getByRole('button', { name: 'Entrar con @udlap.mx' }).click();
 
   await expect(page.getByPlaceholder('000000')).toBeVisible();
 
@@ -51,7 +51,7 @@ async function entrar(page: Page, email: string): Promise<void> {
 test('un correo que no es @udlap.mx no entra', async ({ page }) => {
   await page.goto('/');
   await page.getByPlaceholder('nombre.apellido@udlap.mx').fill('alguien@gmail.com');
-  await page.getByRole('button', { name: 'Mandarme el código' }).click();
+  await page.getByRole('button', { name: 'Entrar con @udlap.mx' }).click();
 
   await expect(page.getByText('Necesitas un correo @udlap.mx para entrar.')).toBeVisible();
   await expect(page.getByPlaceholder('000000')).toHaveCount(0);
@@ -82,7 +82,9 @@ test('registro completo deja al usuario en sus comunidades y pudiendo publicar',
 
   await page.getByRole('button', { name: 'Crear mi perfil' }).click();
 
-  await expect(page).toHaveURL(/\/feed$/);
+  // Primera vez: pasa por la bienvenida antes del feed.
+  await expect(page).toHaveURL(/\/(feed|bienvenida)$/);
+  await page.goto('/feed');
 
   // Las comunidades automaticas son la razon de que el feed no nazca vacio.
   // Perfil e2e (escuela+depto via carrera+carrera+gen+colegio) + campus UDLAP = 6.

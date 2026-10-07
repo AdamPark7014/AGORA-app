@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 
 import { api } from '@/lib/api';
-import { esRutaPublica } from '@/lib/rutas';
+import { useSinNavegacion } from '@/lib/navegacion';
 import { olvidarSesion, sesion } from '@/lib/sesion';
 import { Avatar } from './avatar';
 import { Campana } from './campana';
@@ -33,7 +33,7 @@ export function Encabezado() {
   const router = useRouter();
   const ruta = usePathname();
   const [yo, setYo] = useState<Yo | null>(null);
-  const publica = esRutaPublica(ruta);
+  const publica = useSinNavegacion();
 
   useEffect(() => {
     // En rutas publicas no hay sesion que consultar; preguntarlo solo suma un

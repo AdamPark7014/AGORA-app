@@ -7,7 +7,7 @@ import { api, apiConCabeceras, ErrorApi } from '@/lib/api';
 import { analytics } from '@/lib/analytics';
 import { olvidarSesion } from '@/lib/sesion';
 import { copy } from '@/lib/copy';
-import { destinoTrasLogin } from '@/lib/welcome';
+import { destinoTrasLogin, siguienteDeUrl } from '@/lib/welcome';
 import { LANDING_FAQ as FAQ_LANDING } from '@/lib/seo';
 import { GraduationCap, Lock, MessageSquare } from '@/componentes/iconos';
 import { EstadoEntrega } from '@/componentes/estado-entrega';
@@ -37,7 +37,7 @@ export default function Entrar() {
     const tiempo = window.setTimeout(() => setReconociendo(false), 4000);
 
     api<{ tienePerfil: boolean }>('/auth/yo', { signal: control.signal })
-      .then((yo) => router.replace(destinoTrasLogin(yo.tienePerfil)))
+      .then((yo) => router.replace(destinoTrasLogin(yo.tienePerfil, siguienteDeUrl())))
       .catch(() => setReconociendo(false))
       .finally(() => window.clearTimeout(tiempo));
 
@@ -92,7 +92,7 @@ export default function Entrar() {
       });
       olvidarSesion();
       analytics.login();
-      router.push(destinoTrasLogin(tienePerfil));
+      router.push(destinoTrasLogin(tienePerfil, siguienteDeUrl()));
     } catch (e) {
       setError(e instanceof ErrorApi ? e.message : copy.login.errores.verificar);
     } finally {
@@ -144,7 +144,7 @@ export default function Entrar() {
               />
             </label>
             <button type="submit" className="grande" disabled={cargando}>
-              {cargando ? copy.login.correo.botonEnviando : 'Entrar con @udlap.mx'}
+              {cargando ? copy.login.correo.botonEnviando : copy.login.correo.boton}
             </button>
             <div aria-live="polite">{error && <p className="error">{error}</p>}</div>
           </form>

@@ -1,10 +1,9 @@
 'use client';
 
 import { Suspense } from 'react';
-import { usePathname } from 'next/navigation';
 
 import { CarrilDerecho, CarrilIzquierdo } from './carriles';
-import { esRutaPublica } from '@/lib/rutas';
+import { useSinNavegacion } from '@/lib/navegacion';
 import { TransicionPagina } from './transicion-pagina';
 
 /**
@@ -15,9 +14,7 @@ import { TransicionPagina } from './transicion-pagina';
  */
 
 export function Marco({ children }: { children: React.ReactNode }) {
-  const ruta = usePathname();
-
-  if (esRutaPublica(ruta)) {
+  if (useSinNavegacion()) {
     return (
       <div className="pagina-centrada">
         <TransicionPagina>{children}</TransicionPagina>

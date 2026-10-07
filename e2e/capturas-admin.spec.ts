@@ -23,7 +23,7 @@ test('capturas del panel de moderacion', async ({ page }) => {
   // Sesión del moderador con el código maestro de desarrollo.
   await page.goto('/');
   await page.getByPlaceholder('nombre.apellido@udlap.mx').fill(MODERADOR);
-  await page.getByRole('button', { name: 'Mandarme el código' }).click();
+  await page.getByRole('button', { name: 'Entrar con @udlap.mx' }).click();
   await expect(page.getByPlaceholder('000000')).toBeVisible();
 
 
