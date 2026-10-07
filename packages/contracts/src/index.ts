@@ -574,6 +574,16 @@ export const retirarPostSchema = z.object({
 });
 export type RetirarPost = z.infer<typeof retirarPostSchema>;
 
+/**
+ * Baja de la cuenta. `confirmacion` debe ser el @handle (sin arroba) o, si la
+ * cuenta no llego a tener perfil, la palabra ELIMINAR: escribirlo evita que un
+ * toque accidental borre la cuenta.
+ */
+export const eliminarCuentaSchema = z.object({
+  confirmacion: z.string().trim().min(1, { message: 'Escribe la confirmación.' }).max(60),
+});
+export type EliminarCuenta = z.infer<typeof eliminarCuentaSchema>;
+
 export const bloquearSchema = z.object({
   /** true = silenciar (no lo veo), false = bloquear (no nos vemos). */
   soloSilencio: z.boolean().default(false),

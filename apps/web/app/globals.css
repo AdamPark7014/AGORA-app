@@ -1628,6 +1628,21 @@ button.fantasma:hover:not(:disabled) {
   font-weight: 500;
 }
 
+/* Acciones irreversibles (componentes/eliminar-cuenta.tsx). */
+.zona-peligro {
+  border-color: color-mix(in srgb, var(--peligro) 35%, var(--borde));
+}
+
+button.peligro {
+  background: var(--peligro);
+  color: #fff;
+  box-shadow: none;
+}
+
+button.peligro:disabled {
+  opacity: 0.5;
+}
+
 .nota {
   color: var(--texto-medio);
   background: var(--aqua-suave);

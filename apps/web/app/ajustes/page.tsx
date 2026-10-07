@@ -7,6 +7,7 @@ import { Avatar } from '@/componentes/avatar';
 import { ToggleTema } from '@/componentes/proveedor-tema';
 import { SuscribirPush } from '@/componentes/suscribir-push';
 import { PreferenciasNotificaciones } from '@/componentes/preferencias-notificaciones';
+import { EliminarCuenta } from '@/componentes/eliminar-cuenta';
 
 interface MiPerfil {
   handle: string;
@@ -475,6 +476,8 @@ export default function Ajustes() {
         {aviso && <p className="nota" style={{ marginTop: 14, marginBottom: 0 }}>{aviso}</p>}
         {error && <p className="error">{error}</p>}
       </form>
+
+      <EliminarCuenta handle={perfil.handle} />
     </main>
   );
 }

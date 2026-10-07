@@ -58,6 +58,8 @@ import { RetosController } from './retos/retos.controller.js';
 import { RetosService } from './retos/retos.service.js';
 import { PublicController } from './public/public.controller.js';
 import { PublicService } from './public/public.service.js';
+import { CuentaController } from './cuenta/cuenta.controller.js';
+import { CuentaService } from './cuenta/cuenta.service.js';
 
 @Module({
   imports: [
@@ -113,6 +115,7 @@ import { PublicService } from './public/public.service.js';
     GamificacionController,
     RetosController,
     PublicController,
+    CuentaController,
   ],
   providers: [
     PrismaService,
@@ -143,6 +146,7 @@ import { PublicService } from './public/public.service.js';
     AnalyticsService,
     GamificacionService,
     RetosService,
+    CuentaService,
     PublicService,
     { provide: APP_GUARD, useClass: LimiteGuard },
   ],
