@@ -25,6 +25,7 @@ import { RetosAmigos } from '@/componentes/retos-amigos';
 import { RetosRankingSemanal } from '@/componentes/retos-ranking-semanal';
 import { LeaderboardRachas } from '@/componentes/leaderboard-rachas';
 import { CampusTip } from '@/componentes/campus-tip';
+import { TuDia } from '@/componentes/tu-dia';
 import { pingGamificacionSiNecesario, notificarInsigniasNuevas } from '@/lib/gamificacion';
 import type { BadgeCodigo } from '@agora/contracts';
 import { TextoConMenciones } from '@/componentes/texto-con-menciones';
@@ -566,17 +567,8 @@ function FeedInterno() {
         }
       />
 
-      <div style={{ marginBottom: 12, display: 'grid', gap: 12 }}>
-        <div className="solo-movil">
-          <PreguntaDelDia />
-        </div>
+      <div style={{ marginBottom: 12 }}>
         <EventosEnVivo />
-        <RachaBadges />
-        <RetoSemanal />
-        <RetosAmigos />
-        <RetosRankingSemanal />
-        <LeaderboardRachas />
-        <CampusTip />
       </div>
 
       <form className="tarjeta tarjeta-compositor" id={compositorId} onSubmit={publicar}>
@@ -729,6 +721,18 @@ function FeedInterno() {
         {aviso && <p className="nota">{aviso}</p>}
         <div aria-live="polite">{error && <p className="error">{error}</p>}</div>
       </form>
+
+      <TuDia>
+        <div className="solo-movil">
+          <PreguntaDelDia />
+        </div>
+        <RachaBadges />
+        <RetoSemanal />
+        <RetosAmigos />
+        <RetosRankingSemanal />
+        <LeaderboardRachas />
+        <CampusTip />
+      </TuDia>
 
       {errorCarga && !cargando && (
         <EstadoError onReintentar={() => void cargarFeed(comunidadSlug, soloSiguiendo)}>

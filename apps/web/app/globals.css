@@ -35,7 +35,7 @@
   /* --- Texto --- */
   --texto: #0f1419;
   --texto-medio: #536471;
-  --texto-tenue: #8b98a5;
+  --texto-tenue: #66727f;
 
   --acento: var(--naranja);
   --acento-texto: #ffffff;
@@ -96,7 +96,7 @@
 
     --texto: #e7e9ea;
     --texto-medio: #9aa4af;
-    --texto-tenue: #6e7883;
+    --texto-tenue: #7d8792;
 
     --acento-texto: #1a0a02;
     --peligro: #f26161;
@@ -127,7 +127,7 @@
   --borde-fuerte: #3d434b;
   --texto: #e7e9ea;
   --texto-medio: #9aa4af;
-  --texto-tenue: #6e7883;
+  --texto-tenue: #7d8792;
   --acento-texto: #1a0a02;
   --peligro: #f26161;
   --sombra: 0 1px 3px rgb(0 0 0 / 40%);
@@ -3481,3 +3481,48 @@ button.perfil-cifra:hover strong {
   border: 1px solid var(--borde);
 }
 
+/* Tu dia: gamificacion plegada bajo el compositor (feed contenido-primero). */
+.tu-dia {
+  padding: 0;
+  margin-bottom: 12px;
+}
+
+.tu-dia > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.tu-dia > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tu-dia > summary::after {
+  content: '▾';
+  margin-left: auto;
+  color: var(--texto-medio);
+  transition: transform 0.15s ease;
+}
+
+.tu-dia[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.tu-dia-titulo {
+  font-weight: 650;
+}
+
+.tu-dia-sub {
+  color: var(--texto-medio);
+  font-size: 0.875rem;
+}
+
+.tu-dia-cuerpo {
+  display: grid;
+  gap: 12px;
+  padding: 0 12px 12px;
+}
