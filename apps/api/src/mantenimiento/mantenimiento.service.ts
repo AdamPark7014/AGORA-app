@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
+import { crearAlmacen, type Almacen } from '../media/almacen.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RETENCION, limite } from './retencion.js';
 
@@ -27,6 +28,7 @@ import { RETENCION, limite } from './retencion.js';
 @Injectable()
 export class MantenimientoService {
   private readonly log = new Logger('Mantenimiento');
+  private almacen: Almacen | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -68,5 +70,57 @@ export class MantenimientoService {
     );
 
     return resumen;
+  }
+
+  /**
+   * Archivos subidos que nunca llegaron a una publicacion, un anuncio ni a un
+   * perfil. Se borra el archivo del almacen y luego la fila; si el almacen
+   * falla, la fila se queda para el siguiente barrido.
+   */
+  @Cron('30 4 * * *', { name: 'limpieza-media' })
+  async limpiarMedia(lote = 500): Promise<{ archivos: number; fallidos: number }> {
+    const candidatos = await this.prisma.media.findMany({
+      where: {
+        postId: null,
+        anuncioId: null,
+        createdAt: { lt: limite(RETENCION.mediaHuerfanaMs) },
+      },
+      select: { id: true, url: true, thumbUrl: true },
+      take: lote,
+      orderBy: { createdAt: 'asc' },
+    });
+    if (candidatos.length === 0) {
+      this.log.log('limpieza-media: 0 archivos');
+      return { archivos: 0, fallidos: 0 };
+    }
+
+    // Foto y portada de perfil se guardan por URL, no por relacion.
+    const urls = candidatos.map((m) => m.url);
+    const enPerfil = await this.prisma.profile.findMany({
+      where: { OR: [{ fotoUrl: { in: urls } }, { portadaUrl: { in: urls } }] },
+      select: { fotoUrl: true, portadaUrl: true },
+    });
+    const usadas = new Set(enPerfil.flatMap((p) => [p.fotoUrl, p.portadaUrl]));
+
+    const almacen = this.almacen ?? (this.almacen = crearAlmacen());
+    const borrados: string[] = [];
+    let fallidos = 0;
+    for (const m of candidatos) {
+      if (usadas.has(m.url)) continue;
+      try {
+        await almacen.borrar(m.url);
+        if (m.thumbUrl) await almacen.borrar(m.thumbUrl);
+        borrados.push(m.id);
+      } catch (e) {
+        fallidos++;
+        this.log.warn(`limpieza-media: no se pudo borrar ${m.url}: ${(e as Error).message}`);
+      }
+    }
+    if (borrados.length > 0) {
+      await this.prisma.media.deleteMany({ where: { id: { in: borrados } } });
+    }
+
+    this.log.log(`limpieza-media: ${borrados.length} archivos, ${fallidos} fallidos`);
+    return { archivos: borrados.length, fallidos };
   }
 }

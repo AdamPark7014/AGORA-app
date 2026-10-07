@@ -28,6 +28,13 @@ export const RETENCION = {
    * sean: borrar algo que la persona nunca vio es perderle informacion.
    */
   notificacionLeidaMs: 90 * DIA_MS,
+
+  /**
+   * Archivos subidos que nunca se usaron (formulario abandonado). Un dia da
+   * margen a quien deja un borrador abierto; despues ocupan disco y, peor,
+   * siguen accesibles por URL aunque la persona creyera que no publico nada.
+   */
+  mediaHuerfanaMs: 1 * DIA_MS,
 } as const;
 
 /** Fecha limite: lo anterior a esto se borra. */

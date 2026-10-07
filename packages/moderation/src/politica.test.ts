@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { DECISIONES, LINEAS_ROJAS, decidir } from './politica.js';
-import { moderarTexto } from './cliente.js';
+import { masSevero, moderarImagen, moderarTexto } from './cliente.js';
 
 /**
  * La prueba mas importante del producto.
@@ -111,4 +111,26 @@ test('una respuesta valida se traduce al veredicto de la politica', async () => 
   });
   assert.equal(veredicto.decision, DECISIONES.RETIRAR);
   assert.equal(veredicto.lineaRoja, LINEAS_ROJAS.INTIMIDAD_SEXUAL);
+});
+
+test('de varios veredictos (texto + imagenes) gana el mas severo', () => {
+  const publicar = { decision: DECISIONES.PUBLICAR };
+  const revisar = { decision: DECISIONES.PUBLICAR_Y_ENCOLAR, motivo: 'r' };
+  const retirar = { decision: DECISIONES.RETIRAR, motivo: 'x' };
+  assert.equal(masSevero([]).decision, DECISIONES.PUBLICAR);
+  assert.equal(masSevero([publicar, revisar]).decision, DECISIONES.PUBLICAR_Y_ENCOLAR);
+  assert.equal(masSevero([revisar, retirar, publicar]).decision, DECISIONES.RETIRAR);
+});
+
+test('una imagen se manda como image_url al clasificador', async () => {
+  let cuerpo: { input?: unknown } = {};
+  const fetchImpl = (async (_url: string, init: { body: string }) => {
+    cuerpo = JSON.parse(init.body);
+    return { ok: true, json: async () => ({ results: [{ category_scores: { 'violence/graphic': 0.95 } }] }) };
+  }) as unknown as typeof fetch;
+
+  const v = await moderarImagen('https://cdn.example/x.webp', { apiKey: 'k', fetchImpl });
+
+  assert.deepEqual(cuerpo.input, [{ type: 'image_url', image_url: { url: 'https://cdn.example/x.webp' } }]);
+  assert.equal(v.decision, DECISIONES.RETIRAR);
 });

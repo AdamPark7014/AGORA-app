@@ -165,6 +165,9 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      sharp:
+        specifier: ^0.35.4
+        version: 0.35.4(@types/node@22.20.1)
       web-push:
         specifier: ^3.6.7
         version: 3.6.7

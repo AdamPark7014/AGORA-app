@@ -68,18 +68,18 @@ export class PerfilController {
       handle.toLowerCase(),
       req.usuario!.id,
       cursor,
-      limite ? Math.min(Number(limite), 40) : 20,
+      Number(limite) > 0 ? Math.min(Math.floor(Number(limite)), 40) : 20,
     );
   }
 
   @Get(':handle/seguidores')
-  async seguidores(@Param('handle') handle: string) {
-    return this.perfiles.listarSeguidores(handle.toLowerCase());
+  async seguidores(@Req() req: RequestConSesion, @Param('handle') handle: string) {
+    return this.perfiles.listarSeguidores(handle.toLowerCase(), req.usuario!.id);
   }
 
   @Get(':handle/siguiendo')
-  async siguiendo(@Param('handle') handle: string) {
-    return this.perfiles.listarSiguiendo(handle.toLowerCase());
+  async siguiendo(@Req() req: RequestConSesion, @Param('handle') handle: string) {
+    return this.perfiles.listarSiguiendo(handle.toLowerCase(), req.usuario!.id);
   }
 
   @Get(':handle')

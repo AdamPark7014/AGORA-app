@@ -29,8 +29,32 @@ interface RespuestaOpenAI {
  * revision humana. Bloquear publicaciones porque un proveedor externo esta
  * caido convierte una incidencia suya en censura nuestra.
  */
-export const moderarTexto = async (
-  texto: string,
+export const moderarTexto = (texto: string, opciones: OpcionesModeracion): Promise<Veredicto> =>
+  consultar(texto, opciones);
+
+/**
+ * Evalua una imagen por URL publica (o `data:`). Misma politica que el texto:
+ * desnudez o violencia grafica pasan a revision humana y solo las lineas
+ * rojas se retiran solas.
+ */
+export const moderarImagen = (url: string, opciones: OpcionesModeracion): Promise<Veredicto> =>
+  consultar([{ type: 'image_url', image_url: { url } }], opciones);
+
+const SEVERIDAD: Record<string, number> = {
+  [DECISIONES.PUBLICAR]: 0,
+  [DECISIONES.PUBLICAR_Y_ENCOLAR]: 1,
+  [DECISIONES.RETIRAR]: 2,
+};
+
+/** El veredicto mas severo de varios (texto + cada imagen de una publicacion). */
+export const masSevero = (veredictos: readonly Veredicto[]): Veredicto =>
+  veredictos.reduce<Veredicto>(
+    (peor, v) => ((SEVERIDAD[v.decision] ?? 0) > (SEVERIDAD[peor.decision] ?? 0) ? v : peor),
+    { decision: DECISIONES.PUBLICAR },
+  );
+
+const consultar = async (
+  input: string | ReadonlyArray<Record<string, unknown>>,
   opciones: OpcionesModeracion,
 ): Promise<Veredicto> => {
   const { apiKey, timeoutMs = 4000, fetchImpl = fetch } = opciones;
@@ -44,7 +68,7 @@ export const moderarTexto = async (
         'content-type': 'application/json',
         authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ model: MODELO, input: texto }),
+      body: JSON.stringify({ model: MODELO, input }),
       signal: control.signal,
     });
 

@@ -6,6 +6,8 @@ import {
   BadRequestException,
   Controller,
   Get,
+  HttpException,
+  HttpStatus,
   NotFoundException,
   Param,
   Post,
@@ -39,10 +41,12 @@ import {
   MAX_BYTES,
   crearAlmacen,
   esVideo,
+  excedeCuota,
   nombreArchivoLocalValido,
   validarSubida,
   type Almacen,
 } from './almacen.js';
+import { ImagenInvalida, procesarImagen } from './procesar.js';
 
 @Controller('media')
 export class MediaController {
@@ -63,21 +67,59 @@ export class MediaController {
   @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: MAX_BYTES } }))
   async subir(@Req() req: RequestConSesion, @UploadedFile() archivo?: ArchivoMulter) {
     if (!archivo) throw new BadRequestException('No llego ningun archivo.');
+    const ownerId = req.usuario!.id;
 
     // El tipo real (magic bytes), no el Content-Type que manda el cliente.
     const validacion = validarSubida(archivo.buffer, archivo.size);
     if (!validacion.ok) throw new BadRequestException(validacion.motivo);
     const { mime } = validacion;
 
-    const guardado = await this.almacen.guardar(archivo.buffer, mime);
+    const usado = await this.prisma.media.aggregate({
+      where: { ownerId, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      _count: { _all: true },
+      _sum: { bytes: true },
+    });
+    if (
+      excedeCuota({ archivos: usado._count._all, bytes: usado._sum.bytes ?? 0 }, archivo.size)
+    ) {
+      throw new HttpException(
+        'Llegaste al limite de archivos de hoy. Intenta de nuevo manana.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    let datos = archivo.buffer;
+    let mimeFinal = mime;
+    let ancho: number | null = null;
+    let alto: number | null = null;
+    let miniatura: Buffer | null = null;
+    if (!esVideo(mime)) {
+      try {
+        const procesada = await procesarImagen(archivo.buffer, mime);
+        ({ datos, ancho, alto, miniatura } = procesada);
+        mimeFinal = procesada.mime;
+      } catch (e) {
+        if (e instanceof ImagenInvalida) {
+          throw new BadRequestException('La imagen esta danada o no se puede leer.');
+        }
+        throw e;
+      }
+    }
+
+    const guardado = await this.almacen.guardar(datos, mimeFinal);
+    const thumb = miniatura ? await this.almacen.guardar(miniatura, 'image/webp') : null;
 
     const media = await this.prisma.media.create({
       data: {
+        ownerId,
         url: guardado.url,
+        thumbUrl: thumb?.url ?? null,
         mime: guardado.mime,
-        bytes: guardado.bytes,
+        bytes: guardado.bytes + (thumb?.bytes ?? 0),
+        ancho,
+        alto,
       },
-      select: { id: true, url: true, mime: true },
+      select: { id: true, url: true, thumbUrl: true, mime: true, ancho: true, alto: true },
     });
 
     return { ...media, esVideo: esVideo(media.mime) };

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /**
@@ -20,7 +20,21 @@ export interface ArchivoSubido {
 
 export interface Almacen {
   guardar(datos: Buffer, mime: string): Promise<ArchivoSubido>;
+  /** Borra por la URL que devolvio `guardar`. No falla si ya no existe. */
+  borrar(url: string): Promise<void>;
 }
+
+/**
+ * Tope por persona en 24 horas. Alcanza para un dia muy activo (decenas de
+ * fotos) y corta a quien use la red como disco gratis o la llene de basura.
+ */
+export const CUOTA_DIARIA = { archivos: 80, bytes: 400 * 1024 * 1024 } as const;
+
+export const excedeCuota = (usado: { archivos: number; bytes: number }, nuevoBytes: number): boolean =>
+  usado.archivos + 1 > CUOTA_DIARIA.archivos || usado.bytes + nuevoBytes > CUOTA_DIARIA.bytes;
+
+/** Ultimo segmento de la URL: el nombre que genero el servidor. */
+const nombreDeUrl = (url: string): string => url.split('?')[0]!.split('/').pop() ?? '';
 
 /** Formatos permitidos. Nada de SVG: admite scripts y es un vector de XSS. */
 export const MIMES_IMAGEN = new Set([
@@ -153,6 +167,16 @@ export class AlmacenLocal implements Almacen {
     return { url: `${this.baseUrl}/${nombre}`, bytes: datos.length, mime };
   }
 
+  async borrar(url: string): Promise<void> {
+    const nombre = nombreDeUrl(url);
+    if (!nombreArchivoLocalValido(nombre)) return;
+    try {
+      await unlink(join(this.carpeta, nombre));
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+    }
+  }
+
   get raiz(): string {
     return this.carpeta;
   }
@@ -170,11 +194,9 @@ export class AlmacenS3 implements Almacen {
     },
   ) {}
 
-  async guardar(datos: Buffer, mime: string): Promise<ArchivoSubido> {
-    const nombre = nombreNuevo(mime);
-    const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
-
-    const cliente = new S3Client({
+  private async cliente() {
+    const { S3Client } = await import('@aws-sdk/client-s3');
+    return new S3Client({
       endpoint: this.config.endpoint,
       region: this.config.region,
       credentials: {
@@ -182,6 +204,20 @@ export class AlmacenS3 implements Almacen {
         secretAccessKey: this.config.secretAccessKey,
       },
     });
+  }
+
+  async borrar(url: string): Promise<void> {
+    const nombre = nombreDeUrl(url);
+    if (!nombreArchivoLocalValido(nombre)) return;
+    const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+    const cliente = await this.cliente();
+    await cliente.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: nombre }));
+  }
+
+  async guardar(datos: Buffer, mime: string): Promise<ArchivoSubido> {
+    const nombre = nombreNuevo(mime);
+    const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const cliente = await this.cliente();
 
     await cliente.send(
       new PutObjectCommand({

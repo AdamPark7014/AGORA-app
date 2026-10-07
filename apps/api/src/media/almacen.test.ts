@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  CUOTA_DIARIA,
   MAX_BYTES_IMAGEN,
   MAX_BYTES_VIDEO,
   detectarMime,
+  excedeCuota,
   nombreArchivoLocalValido,
   validarSubida,
 } from './almacen.js';
@@ -152,4 +154,11 @@ test('rechaza imagen WEBP por encima del tope de 8 MB', () => {
   const v = validarSubida(webp, MAX_BYTES_IMAGEN + 1);
   assert.equal(v.ok, false);
   if (!v.ok) assert.match(v.motivo, /pasa de 8 MB/);
+});
+
+test('la cuota diaria corta por numero de archivos y por peso', () => {
+  assert.equal(excedeCuota({ archivos: 0, bytes: 0 }, 1024), false);
+  assert.equal(excedeCuota({ archivos: CUOTA_DIARIA.archivos - 1, bytes: 0 }, 1024), false);
+  assert.equal(excedeCuota({ archivos: CUOTA_DIARIA.archivos, bytes: 0 }, 1024), true);
+  assert.equal(excedeCuota({ archivos: 1, bytes: CUOTA_DIARIA.bytes - 10 }, 11), true);
 });

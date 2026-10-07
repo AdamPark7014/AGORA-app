@@ -6,7 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { CrearComentario, CrearPost, EditarPost, Feed, Reaccionar } from '@agora/contracts';
-import { DECISIONES, moderarTexto, type Veredicto } from '@agora/moderation';
+import {
+  DECISIONES,
+  masSevero,
+  moderarImagen,
+  moderarTexto,
+  type Veredicto,
+} from '@agora/moderation';
 import { esStaff } from '@agora/rbac';
 import { extraerMenciones } from '@agora/shared';
 import { Prisma } from '@agora/db';
@@ -41,12 +47,19 @@ export class PostsService {
    * correcto en desarrollo: no tener llave no puede significar que nadie
    * pueda publicar.
    */
-  private async moderar(texto: string): Promise<Veredicto> {
+  private async moderar(texto: string, imagenes: readonly string[] = []): Promise<Veredicto> {
     if (!moderacionPreviaActiva()) {
       return { decision: DECISIONES.PUBLICAR };
     }
     const apiKey = process.env.OPENAI_API_KEY!;
-    return moderarTexto(texto, { apiKey });
+    // Solo URLs publicas: las del almacen local (/api/media/...) no las puede
+    // descargar el clasificador.
+    const publicas = imagenes.filter((url) => url.startsWith('https://'));
+    const veredictos = await Promise.all([
+      ...(texto ? [moderarTexto(texto, { apiKey })] : []),
+      ...publicas.map((url) => moderarImagen(url, { apiKey })),
+    ]);
+    return masSevero(veredictos);
   }
 
   async crear(userId: string, datos: CrearPost) {
@@ -68,18 +81,23 @@ export class PostsService {
     });
     if (!membresia) throw new ForbiddenException('No perteneces a esa comunidad.');
 
-    // Los archivos deben estar libres: si no se comprobara, cualquiera podria
-    // colgar en su publicacion la foto de otra persona.
+    // Los archivos deben estar libres y ser tuyos: si no se comprobara,
+    // cualquiera podria colgar en su publicacion la foto de otra persona.
+    let imagenes: string[] = [];
     if (datos.mediaIds.length > 0) {
-      const libres = await this.prisma.media.count({
-        where: { id: { in: datos.mediaIds }, postId: null, anuncioId: null },
+      const libres = await this.prisma.media.findMany({
+        where: { id: { in: datos.mediaIds }, postId: null, anuncioId: null, ownerId: userId },
+        select: { url: true, thumbUrl: true, mime: true },
       });
-      if (libres !== datos.mediaIds.length) {
+      if (libres.length !== datos.mediaIds.length) {
         throw new BadRequestException('Alguno de esos archivos ya no esta disponible.');
       }
+      imagenes = libres
+        .filter((m) => m.mime.startsWith('image/'))
+        .map((m) => m.thumbUrl ?? m.url);
     }
 
-    const veredicto = await this.moderar(datos.texto);
+    const veredicto = await this.moderar(datos.texto, imagenes);
     const estado =
       veredicto.decision === DECISIONES.RETIRAR
         ? 'RETIRADO'
@@ -156,9 +174,10 @@ export class PostsService {
     });
     if (!usuario) return { publicaciones: [], siguienteCursor: null };
 
-    // A quien bloquee no lo veo, y quien me bloqueo no me ve a mi.
+    // A quien bloquee o silencie no lo veo, y quien me bloqueo no me ve a mi.
+    // Silenciar es unilateral: el silenciado me sigue viendo y no se entera.
     const bloqueos = await this.prisma.block.findMany({
-      where: { OR: [{ bloqueadorId: userId }, { bloqueadoId: userId }] },
+      where: { OR: [{ bloqueadorId: userId }, { bloqueadoId: userId, soloSilencio: false }] },
       select: { bloqueadorId: true, bloqueadoId: true },
     });
     const ocultos = new Set(

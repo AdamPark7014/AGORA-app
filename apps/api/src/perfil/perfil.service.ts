@@ -85,7 +85,7 @@ export class PerfilService {
       if (mediaId === null) return null;
       if (!mediaId) return undefined;
       const media = await this.prisma.media.findFirst({
-        where: { id: mediaId, postId: null, anuncioId: null },
+        where: { id: mediaId, postId: null, anuncioId: null, ownerId: userId },
         select: { url: true },
       });
       if (!media) throw new BadRequestException('Esa imagen ya no esta disponible.');
@@ -186,11 +186,8 @@ export class PerfilService {
 
   /** Publicaciones de una persona, para la pestana de su perfil. */
   async publicacionesDe(handle: string, solicitanteId: string, cursor?: string, limite = 20) {
-    const perfil = await this.prisma.profile.findUnique({
-      where: { handle },
-      select: { userId: true },
-    });
-    if (!perfil) throw new NotFoundException('No existe ese perfil.');
+    const perfil = await this.perfilParaListas(handle, solicitanteId);
+    if (perfil.restringido) return { publicaciones: [], siguienteCursor: null };
 
     // Solo lo publicado en comunidades a las que el solicitante pertenece: un
     // perfil no puede ser una puerta trasera al contenido de otra comunidad.
@@ -256,20 +253,12 @@ export class PerfilService {
 
     // Visibilidad: se resuelve ANTES de armar la respuesta, no filtrando
     // campos en el cliente.
-    let restringido = false;
-    if (perfil.visibilidad === 'COMUNIDADES' && solicitanteId !== perfil.userId) {
-      if (!solicitanteId) {
-        restringido = true;
-      } else {
-        const comparte = await this.prisma.membership.findFirst({
-          where: {
-            userId: solicitanteId,
-            community: { memberships: { some: { userId: perfil.userId } } },
-          },
-          select: { id: true },
-        });
-        restringido = !comparte;
-      }
+    let restringido = perfil.visibilidad === 'COMUNIDADES';
+    if (solicitanteId) {
+      ({ restringido } = await this.acceso(
+        { userId: perfil.userId, visibilidad: perfil.visibilidad, estado: perfil.user.estado },
+        solicitanteId,
+      ));
     }
 
     let yoLeSigo = false;
@@ -377,15 +366,59 @@ export class PerfilService {
     return { slug: membresia.community.slug, silenciada };
   }
 
-  async listarSeguidores(handle: string, limite = 40) {
+  /**
+   * Quien puede ver que de un perfil. Si el dueno bloqueo al solicitante, el
+   * perfil no existe para el; si esta en modo COMUNIDADES y no comparten
+   * ninguna, solo ve lo minimo. Silenciar no cuenta: el silenciado no se entera.
+   */
+  private async acceso(
+    perfil: { userId: string; visibilidad: string; estado: string },
+    solicitanteId: string,
+  ) {
+    if (perfil.estado === 'BAJA') throw new NotFoundException('No existe ese perfil.');
+    if (perfil.userId === solicitanteId) return { restringido: false };
+
+    const [bloqueo, comparte] = await Promise.all([
+      this.prisma.block.findFirst({
+        where: { bloqueadorId: perfil.userId, bloqueadoId: solicitanteId, soloSilencio: false },
+        select: { id: true },
+      }),
+      perfil.visibilidad === 'COMUNIDADES'
+        ? this.prisma.membership.findFirst({
+            where: {
+              userId: solicitanteId,
+              community: { memberships: { some: { userId: perfil.userId } } },
+            },
+            select: { id: true },
+          })
+        : Promise.resolve({ id: 'publico' }),
+    ]);
+    if (bloqueo) throw new NotFoundException('No existe ese perfil.');
+    return { restringido: !comparte };
+  }
+
+  private async perfilParaListas(handle: string, solicitanteId: string) {
     const perfil = await this.prisma.profile.findUnique({
       where: { handle },
-      select: { userId: true },
+      select: { userId: true, visibilidad: true, user: { select: { estado: true } } },
     });
     if (!perfil) throw new NotFoundException('No existe ese perfil.');
+    const { restringido } = await this.acceso(
+      { userId: perfil.userId, visibilidad: perfil.visibilidad, estado: perfil.user.estado },
+      solicitanteId,
+    );
+    return { userId: perfil.userId, restringido };
+  }
+
+  async listarSeguidores(handle: string, solicitanteId: string, limite = 40) {
+    const perfil = await this.perfilParaListas(handle, solicitanteId);
+    if (perfil.restringido) return { personas: [], restringido: true };
 
     const filas = await this.prisma.follow.findMany({
-      where: { seguidoId: perfil.userId },
+      where: {
+        seguidoId: perfil.userId,
+        seguidor: { bloqueosHechos: { none: { bloqueadoId: solicitanteId, soloSilencio: false } } },
+      },
       include: {
         seguidor: {
           select: {
@@ -399,6 +432,7 @@ export class PerfilService {
     });
 
     return {
+      restringido: false,
       personas: filas
         .filter((f) => f.seguidor.profile)
         .map((f) => ({
@@ -410,15 +444,15 @@ export class PerfilService {
     };
   }
 
-  async listarSiguiendo(handle: string, limite = 40) {
-    const perfil = await this.prisma.profile.findUnique({
-      where: { handle },
-      select: { userId: true },
-    });
-    if (!perfil) throw new NotFoundException('No existe ese perfil.');
+  async listarSiguiendo(handle: string, solicitanteId: string, limite = 40) {
+    const perfil = await this.perfilParaListas(handle, solicitanteId);
+    if (perfil.restringido) return { personas: [], restringido: true };
 
     const filas = await this.prisma.follow.findMany({
-      where: { seguidorId: perfil.userId },
+      where: {
+        seguidorId: perfil.userId,
+        seguido: { bloqueosHechos: { none: { bloqueadoId: solicitanteId, soloSilencio: false } } },
+      },
       include: {
         seguido: {
           select: {
@@ -432,6 +466,7 @@ export class PerfilService {
     });
 
     return {
+      restringido: false,
       personas: filas
         .filter((f) => f.seguido.profile)
         .map((f) => ({
