@@ -1,0 +1,5 @@
+# Los scripts y Dockerfiles corren en Linux (contenedores y VPS): siempre LF,
+# aunque el checkout sea de Windows con core.autocrlf=true. Con CRLF el
+# entrypoint del API muere con "exec /entrypoint.sh: no such file or directory".
+*.sh text eol=lf
+Dockerfile text eol=lf

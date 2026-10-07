@@ -36,6 +36,19 @@
   DKIM brevo1/brevo2, DMARC p=none, SPF `include:spf.brevo.com`). Remitente creado:
   `Ágora <acceso@udlagora.com>`. Si Zynora cae en no deseados, cambiar `MAIL_FROM` a ese.
 
+### Despliegue (07-10, verificado)
+- Desplegado `api` + `web`. Verificado en producción: `X-Envio-Id` en solicitar, estado
+  «entregado» en 9 s para adam.delpozoos@udlap.mx, log «Entregado a …», webhook con token → 204,
+  ícono/og/sw `agora-v4` servidos, «Developed by Zynora Tek» en el aviso legal.
+- Webhook transaccional de Brevo id **2236928** → `https://udlagora.com/api/correo/brevo/<token>`.
+- **Incidente:** el primer deploy subió con CRLF (`git archive` en Windows con autocrlf) y el API
+  murió con `exec /entrypoint.sh: no such file or directory`; `web` depende de `api` healthy, así
+  que el sitio estuvo caído ~10 min. Arreglado: `.gitattributes` con `*.sh`/`Dockerfile` en LF y
+  subir con `git -c core.autocrlf=false archive HEAD`.
+- Compose: usar `up -d --no-deps api web`. Sin `--no-deps` intenta recrear `minio-init` y la imagen
+  `minio/mc` ya no existe en Docker Hub.
+- Respaldo del env previo: `/root/udlagora-deploy-env.bak-20261007` en el servidor.
+
 ### Logo
 - Isotipo nuevo: la Á como arco de portal (portales del zócalo de Cholula). Squircle con degradado.
   `public/icono.svg` (fuente), `icono-maskable.svg`, PNGs con `node scripts/export-brand-assets.mjs`.
@@ -67,5 +80,6 @@
 ## Mapa rápido del proyecto
 
 Monorepo pnpm + turbo. Deploy VPS: `/var/www/udlagora-app` (copia sin git; se sube con
-`git archive HEAD | ssh … tar -x`) + Traefik. Dominio **udlagora.com**. Remotos: `origin` (GitHub)
+`git -c core.autocrlf=false archive HEAD | ssh … tar -x`, luego `docker compose -f
+deploy/docker-compose.yml build api web && … up -d --no-deps api web`) + Traefik. Dominio **udlagora.com**. Remotos: `origin` (GitHub)
 y `hetzner` (`/srv/git/AGORA-app.git`).
