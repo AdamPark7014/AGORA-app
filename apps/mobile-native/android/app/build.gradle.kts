@@ -32,6 +32,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        manifestPlaceholders["usesCleartextTraffic"] = "false"
     }
 
     signingConfigs {
@@ -50,6 +51,7 @@ android {
         debug {
             // Emulador Android → localhost del host de desarrollo.
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:4200/api\"")
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
             isMinifyEnabled = true

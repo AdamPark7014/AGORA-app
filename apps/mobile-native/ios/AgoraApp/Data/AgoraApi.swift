@@ -69,6 +69,10 @@ enum AgoraApi {
     return try ApiClient.decodeOne(data)
   }
 
+  static func eliminarCuenta(confirmacion: String) async throws {
+    _ = try await client.postJSON("cuenta/eliminar", body: EliminarCuentaRequest(confirmacion: confirmacion))
+  }
+
   static func misComunidades() async throws -> [ComunidadDto] {
     let data = try await client.get("perfil/mis-comunidades")
     return try ApiClient.decodeOne(data)

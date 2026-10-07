@@ -329,6 +329,11 @@ interface BloqueosApi {
     suspend fun quitar(@Path("handle") handle: String): Response<Unit>
 }
 
+interface CuentaApi {
+    @POST("cuenta/eliminar")
+    suspend fun eliminar(@Body body: EliminarCuentaRequest): Response<Unit>
+}
+
 interface AnalyticsApi {
     @POST("analytics/evento")
     suspend fun evento(@Body body: AnalyticsEventoRequest): Response<Unit>

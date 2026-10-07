@@ -212,6 +212,10 @@ struct SilenciarComunidadRequest: Encodable {
     let silenciada: Bool
 }
 
+struct EliminarCuentaRequest: Encodable {
+    let confirmacion: String
+}
+
 struct BloqueoEstadoDto: Decodable {
     let bloqueado: Bool
 }

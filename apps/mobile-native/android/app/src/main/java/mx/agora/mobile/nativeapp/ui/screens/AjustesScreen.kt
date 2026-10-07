@@ -18,7 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +28,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,12 +50,15 @@ import mx.agora.mobile.nativeapp.data.api.ActualizarPerfilRequest
 import mx.agora.mobile.nativeapp.data.api.ActualizarPreferenciasRequest
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.ComunidadDto
+import mx.agora.mobile.nativeapp.data.api.CuentaApi
+import mx.agora.mobile.nativeapp.data.api.EliminarCuentaRequest
 import mx.agora.mobile.nativeapp.data.api.NotificacionesApi
 import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PreferenciaNotificacionDto
 import mx.agora.mobile.nativeapp.data.api.SilenciarComunidadRequest
 import mx.agora.mobile.nativeapp.ui.components.SubScreenScaffold
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
+import retrofit2.HttpException
 
 private val etiquetasPreferencia = mapOf(
     "COMENTARIO" to "Comentarios",
@@ -71,8 +77,13 @@ private val etiquetasPreferencia = mapOf(
 fun AjustesScreen(
     auth: AuthRepository,
     modifier: Modifier = Modifier,
+    onCuentaEliminada: () -> Unit = {},
 ) {
-    AjustesScreenContent(tokenProvider = { auth.token() }, modifier = modifier)
+    AjustesScreenContent(
+        tokenProvider = { auth.token() },
+        modifier = modifier,
+        onCuentaEliminada = onCuentaEliminada,
+    )
 }
 
 @Composable
@@ -90,6 +101,7 @@ fun AjustesScreen(
 private fun AjustesScreenContent(
     tokenProvider: () -> String?,
     modifier: Modifier = Modifier,
+    onCuentaEliminada: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val mediaRepo = remember { MediaRepository(context) }
@@ -455,8 +467,106 @@ private fun AjustesScreenContent(
                     ) {
                         Text(if (guardando) "Guardando…" else "Guardar cambios")
                     }
+
+                    EliminarCuentaSeccion(
+                        handle = handle,
+                        tokenProvider = tokenProvider,
+                        onCuentaEliminada = onCuentaEliminada,
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun EliminarCuentaSeccion(
+    handle: String,
+    tokenProvider: () -> String?,
+    onCuentaEliminada: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    var abierto by remember { mutableStateOf(false) }
+    var confirmacion by remember { mutableStateOf("") }
+    var eliminando by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val esperado = handle.ifBlank { "ELIMINAR" }
+    val coincide = confirmacion.trim().removePrefix("@").equals(esperado, ignoreCase = true)
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("Eliminar mi cuenta", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
+        Text(
+            "Se borran tu perfil, tus publicaciones, comentarios, mensajes y tu actividad. No se puede deshacer.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedButton(
+            onClick = {
+                confirmacion = ""
+                error = null
+                abierto = true
+            },
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Eliminar mi cuenta")
+        }
+    }
+
+    if (abierto) {
+        AlertDialog(
+            onDismissRequest = { if (!eliminando) abierto = false },
+            title = { Text("¿Eliminar tu cuenta?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        if (handle.isNotBlank()) "Para confirmar, escribe tu usuario: @$handle"
+                        else "Para confirmar, escribe ELIMINAR",
+                    )
+                    OutlinedTextField(
+                        value = confirmacion,
+                        onValueChange = { confirmacion = it },
+                        singleLine = true,
+                        enabled = !eliminando,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = coincide && !eliminando,
+                    onClick = {
+                        scope.launch {
+                            eliminando = true
+                            error = null
+                            try {
+                                val resp = ApiClient.api<CuentaApi>(tokenProvider)
+                                    .eliminar(EliminarCuentaRequest(confirmacion.trim()))
+                                if (resp.isSuccessful) {
+                                    abierto = false
+                                    onCuentaEliminada()
+                                } else if (resp.code() == 400) {
+                                    error = "La confirmación no coincide."
+                                } else {
+                                    error = mensajeDe(HttpException(resp))
+                                }
+                            } catch (e: Exception) {
+                                error = mensajeDe(e)
+                            } finally {
+                                eliminando = false
+                            }
+                        }
+                    },
+                ) {
+                    Text(if (eliminando) "Eliminando…" else "Eliminar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { abierto = false }, enabled = !eliminando) { Text("Cancelar") }
+            },
+        )
     }
 }

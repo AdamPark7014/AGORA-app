@@ -37,6 +37,9 @@ struct AjustesView: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var error: String?
     @State private var aviso: String?
+    @State private var confirmandoBaja = false
+    @State private var confirmacionBaja = ""
+    @State private var eliminando = false
 
     var body: some View {
         Group {
@@ -103,6 +106,8 @@ struct AjustesView: View {
                         .buttonStyle(.borderedProminent)
                         .tint(AgoraDesign.Colors.naranja)
                         .disabled(guardando)
+
+                        seccionEliminarCuenta
                     }
                     .padding(AgoraDesign.Spacing.md)
                 }
@@ -113,6 +118,63 @@ struct AjustesView: View {
         .task { await cargar() }
         .onChange(of: selectedPhoto) { item in
             Task { await subirFoto(item) }
+        }
+        .alert("¿Eliminar tu cuenta?", isPresented: $confirmandoBaja) {
+            TextField(handle.isEmpty ? "ELIMINAR" : "@\(handle)", text: $confirmacionBaja)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Eliminar", role: .destructive) {
+                Task { await eliminarCuenta() }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text(handle.isEmpty
+                ? "Para confirmar, escribe ELIMINAR. No se puede deshacer."
+                : "Para confirmar, escribe tu usuario @\(handle). No se puede deshacer.")
+        }
+    }
+
+    private var seccionEliminarCuenta: some View {
+        VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
+            Text("Eliminar mi cuenta")
+                .font(.headline)
+                .foregroundStyle(AgoraDesign.Colors.danger)
+            Text("Se borran tu perfil, tus publicaciones, comentarios, mensajes y tu actividad. No se puede deshacer.")
+                .font(.footnote)
+                .foregroundStyle(AgoraDesign.Colors.textoMedio)
+            Button(role: .destructive) {
+                confirmacionBaja = ""
+                confirmandoBaja = true
+            } label: {
+                HStack {
+                    Spacer()
+                    if eliminando { ProgressView() } else { Text("Eliminar mi cuenta") }
+                    Spacer()
+                }
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(.bordered)
+            .disabled(eliminando)
+        }
+        .padding(.top, AgoraDesign.Spacing.lg)
+    }
+
+    private func eliminarCuenta() async {
+        let escrito = confirmacionBaja.trimmingCharacters(in: .whitespacesAndNewlines)
+        let esperado = handle.isEmpty ? "ELIMINAR" : handle
+        let limpio = escrito.hasPrefix("@") ? String(escrito.dropFirst()) : escrito
+        guard limpio.caseInsensitiveCompare(esperado) == .orderedSame else {
+            error = "La confirmación no coincide."
+            return
+        }
+        eliminando = true
+        error = nil
+        defer { eliminando = false }
+        do {
+            try await AgoraApi.eliminarCuenta(confirmacion: escrito)
+            AuthRepository.shared.logout()
+        } catch {
+            self.error = FormatUtils.mensajeDe(error)
         }
     }
 

@@ -341,7 +341,14 @@ fun AgoraNavHost(
 
         composable(AgoraRoutes.AJUSTES) {
             SecondaryScaffold(title = "Ajustes", onBack = { navController.popBackStack() }) { padding ->
-                AjustesScreen(auth = auth, modifier = Modifier.padding(padding))
+                AjustesScreen(
+                    auth = auth,
+                    modifier = Modifier.padding(padding),
+                    onCuentaEliminada = {
+                        auth.logout()
+                        onLogout()
+                    },
+                )
             }
         }
 

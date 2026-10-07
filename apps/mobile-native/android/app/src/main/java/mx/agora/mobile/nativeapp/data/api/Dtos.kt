@@ -656,6 +656,9 @@ data class ActualizarPerfilRequest(
 @JsonClass(generateAdapter = true)
 data class SilenciarComunidadRequest(val silenciada: Boolean)
 
+@JsonClass(generateAdapter = true)
+data class EliminarCuentaRequest(val confirmacion: String)
+
 // --- Bloqueos ---
 
 @JsonClass(generateAdapter = true)
