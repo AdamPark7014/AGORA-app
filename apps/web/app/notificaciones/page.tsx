@@ -30,6 +30,7 @@ const ICONO: Record<string, LucideIcon> = {
   MENSAJE: MessageCircle,
   EVENTO_NUEVO: Sparkles,
   AVENTON_APARTADO: Car,
+  AVENTON_CANCELADO: Car,
   MODERACION: Scale,
   MENCION: AtSign,
   SEGUIDOR: UserPlus,

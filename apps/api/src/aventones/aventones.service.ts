@@ -174,14 +174,38 @@ export class AventonesService {
   async cancelar(aventonId: string, userId: string) {
     const aventon = await this.prisma.aventon.findUnique({
       where: { id: aventonId },
-      select: { conductorId: true },
+      select: {
+        conductorId: true,
+        estado: true,
+        destino: true,
+        salidaAt: true,
+        asientos: { select: { userId: true } },
+      },
     });
     if (!aventon) throw new NotFoundException('Ese aventón no existe.');
     if (aventon.conductorId !== userId) throw new ForbiddenException('No es tu aventón.');
+    if (aventon.estado === 'BORRADO_POR_AUTOR') return;
 
     await this.prisma.aventon.update({
       where: { id: aventonId },
       data: { estado: 'BORRADO_POR_AUTOR' },
     });
+
+    // Quien aparto lugar cuenta con ese viaje: si nadie le avisa, se entera
+    // esperando en el estacionamiento.
+    if (aventon.estado !== 'PUBLICADO' || aventon.salidaAt.getTime() < Date.now()) return;
+    const conductor = await this.prisma.profile.findUnique({
+      where: { userId },
+      select: { nombre: true },
+    });
+    for (const { userId: pasajeroId } of aventon.asientos) {
+      void this.notificaciones.crear({
+        userId: pasajeroId,
+        actorId: userId,
+        tipo: 'AVENTON_CANCELADO',
+        texto: `${conductor?.nombre ?? 'El conductor'} canceló el aventón a ${aventon.destino}`,
+        url: '/aventones',
+      });
+    }
   }
 }

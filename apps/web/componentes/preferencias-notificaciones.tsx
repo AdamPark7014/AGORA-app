@@ -12,6 +12,7 @@ const ETIQUETAS: Record<string, string> = {
   SEGUIDOR: 'Nuevos seguidores',
   EVENTO_NUEVO: 'Eventos nuevos',
   AVENTON_APARTADO: 'Aventones',
+  AVENTON_CANCELADO: 'Aventones cancelados',
   MODERACION: 'Moderación',
   INSIGNIA: 'Insignias',
   RETO: 'Retos y duelos',

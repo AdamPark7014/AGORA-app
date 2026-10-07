@@ -201,3 +201,59 @@ test('apartar aventon inexistente es 404', async () => {
     (err: unknown) => err instanceof NotFoundException,
   );
 });
+
+function prismaCancelar(estado: string, salidaAt: Date) {
+  const avisos: { userId: string; tipo: string }[] = [];
+  let actualizaciones = 0;
+  const prisma = {
+    aventon: {
+      findUnique: async () => ({
+        conductorId: 'yo',
+        estado,
+        destino: 'UDLAP',
+        salidaAt,
+        asientos: [{ userId: 'p1' }, { userId: 'p2' }],
+      }),
+      update: async () => {
+        actualizaciones += 1;
+        return {};
+      },
+    },
+    profile: { findUnique: async () => ({ nombre: 'Ana' }) },
+  } as unknown as PrismaService;
+  const notificaciones = {
+    crear: async (d: { userId: string; tipo: string }) => {
+      avisos.push(d);
+    },
+  } as unknown as NotificacionesService;
+  const svc = new AventonesService(prisma, notificaciones, gamificacionMock);
+  return { svc, avisos, actualizaciones: () => actualizaciones };
+}
+
+const enUnaHora = () => new Date(Date.now() + 60 * 60 * 1000);
+
+test('cancelar avisa a cada pasajero que aparto lugar', async () => {
+  const { svc, avisos, actualizaciones } = prismaCancelar('PUBLICADO', enUnaHora());
+  await svc.cancelar('a1', 'yo');
+  assert.equal(actualizaciones(), 1);
+  assert.deepEqual(
+    avisos.map((a) => [a.userId, a.tipo]),
+    [
+      ['p1', 'AVENTON_CANCELADO'],
+      ['p2', 'AVENTON_CANCELADO'],
+    ],
+  );
+});
+
+test('cancelar un aventon que ya salio no avisa a nadie', async () => {
+  const { svc, avisos } = prismaCancelar('PUBLICADO', new Date(Date.now() - 60_000));
+  await svc.cancelar('a1', 'yo');
+  assert.equal(avisos.length, 0);
+});
+
+test('cancelar dos veces no repite avisos ni escrituras', async () => {
+  const { svc, avisos, actualizaciones } = prismaCancelar('BORRADO_POR_AUTOR', enUnaHora());
+  await svc.cancelar('a1', 'yo');
+  assert.equal(actualizaciones(), 0);
+  assert.equal(avisos.length, 0);
+});

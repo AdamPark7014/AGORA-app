@@ -18,6 +18,7 @@ const preferenciasSchema = z.object({
         'MENSAJE',
         'EVENTO_NUEVO',
         'AVENTON_APARTADO',
+        'AVENTON_CANCELADO',
         'MODERACION',
         'MENCION',
         'SEGUIDOR',

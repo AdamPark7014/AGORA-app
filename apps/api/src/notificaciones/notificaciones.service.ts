@@ -11,6 +11,7 @@ const TIPOS: TipoNotificacion[] = [
   'MENSAJE',
   'EVENTO_NUEVO',
   'AVENTON_APARTADO',
+  'AVENTON_CANCELADO',
   'MODERACION',
   'MENCION',
   'SEGUIDOR',

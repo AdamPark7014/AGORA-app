@@ -66,6 +66,7 @@ private val etiquetasPreferencia = mapOf(
     "MENSAJE" to "Mensajes",
     "EVENTO_NUEVO" to "Eventos nuevos",
     "AVENTON_APARTADO" to "Aventones",
+    "AVENTON_CANCELADO" to "Aventones cancelados",
     "MODERACION" to "Moderación",
     "MENCION" to "Menciones",
     "SEGUIDOR" to "Nuevos seguidores",
