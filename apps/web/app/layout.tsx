@@ -10,6 +10,7 @@ import { JsonLd } from '@/componentes/json-ld';
 import { ProveedorTema } from '@/componentes/proveedor-tema';
 import { ROOT_METADATA } from '@/lib/seo';
 import { RegistrarSW } from './registrar-sw';
+import { AvisosGlobales } from '@/componentes/avisos-globales';
 import './globals.css';
 
 const cuerpo = Outfit({
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AvisoLegal />
           </div>
           <BarraInferior />
+          <AvisosGlobales />
         </ProveedorTema>
       </body>
     </html>

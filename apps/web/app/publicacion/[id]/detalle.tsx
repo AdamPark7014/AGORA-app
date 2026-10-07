@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { use, useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, ErrorApi } from '@/lib/api';
+import { confirmar } from '@/lib/avisos';
 import { sesion } from '@/lib/sesion';
 import { Avatar } from '@/componentes/avatar';
 import { EstadoVacio } from '@/componentes/estado-vacio';
@@ -238,7 +239,7 @@ export default function Publicacion({ params }: { params: Promise<{ id: string }
   }
 
   async function borrarPost() {
-    if (!confirm('¿Borrar esta publicación?')) return;
+    if (!(await confirmar({ titulo: '¿Borrar esta publicación?', detalle: 'No se puede deshacer.', accion: 'Borrar', peligro: true }))) return;
     try {
       await api(`/posts/${id}`, { method: 'DELETE' });
       // `router.push` y no `window.location`: esto ultimo recarga la pagina

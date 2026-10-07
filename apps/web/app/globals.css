@@ -3526,3 +3526,85 @@ button.perfil-cifra:hover strong {
   gap: 12px;
   padding: 0 12px 12px;
 }
+
+/* Avisos globales (lib/avisos.ts): toasts y dialogo de confirmacion. */
+.avisos {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: 9998;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  max-width: 420px;
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: var(--radio);
+  background: var(--texto);
+  color: var(--superficie);
+  box-shadow: var(--sombra-alta);
+  font-size: 0.9rem;
+  font-weight: 550;
+  pointer-events: auto;
+  animation: toast-entra 0.2s ease-out;
+}
+
+.toast--error {
+  background: var(--peligro);
+  color: #fff;
+}
+
+@keyframes toast-entra {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (max-width: 860px) {
+  .avisos {
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+.dialogo-confirmar {
+  width: min(400px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  color: var(--texto);
+  box-shadow: var(--sombra-alta);
+}
+
+.dialogo-confirmar::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.dialogo-confirmar h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.dialogo-confirmar p {
+  margin: 0;
+  color: var(--texto-medio);
+}
+
+.dialogo-confirmar-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}

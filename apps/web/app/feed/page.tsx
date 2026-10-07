@@ -26,6 +26,7 @@ import { RetosRankingSemanal } from '@/componentes/retos-ranking-semanal';
 import { LeaderboardRachas } from '@/componentes/leaderboard-rachas';
 import { CampusTip } from '@/componentes/campus-tip';
 import { TuDia } from '@/componentes/tu-dia';
+import { avisar, confirmar } from '@/lib/avisos';
 import { pingGamificacionSiNecesario, notificarInsigniasNuevas } from '@/lib/gamificacion';
 import type { BadgeCodigo } from '@agora/contracts';
 import { TextoConMenciones } from '@/componentes/texto-con-menciones';
@@ -438,7 +439,7 @@ function FeedInterno() {
             : p,
         ),
       );
-      setError('No se pudo reaccionar.');
+      avisar('No se pudo reaccionar.', 'error');
     }
   }
 
@@ -456,7 +457,7 @@ function FeedInterno() {
         ),
       );
     } catch {
-      setError('No se pudo votar.');
+      avisar('No se pudo votar.', 'error');
     }
   }
 
@@ -481,12 +482,12 @@ function FeedInterno() {
   }
 
   async function borrarPost(postId: string) {
-    if (!confirm('¿Borrar esta publicación?')) return;
+    if (!(await confirmar({ titulo: '¿Borrar esta publicación?', detalle: 'No se puede deshacer.', accion: 'Borrar', peligro: true }))) return;
     try {
       await api(`/posts/${postId}`, { method: 'DELETE' });
       setPublicaciones((previas) => previas.filter((p) => p.id !== postId));
     } catch (e) {
-      setError(e instanceof ErrorApi ? e.message : 'No se pudo borrar.');
+      avisar(e instanceof ErrorApi ? e.message : 'No se pudo borrar.', 'error');
     }
   }
 
@@ -500,9 +501,9 @@ function FeedInterno() {
       setPublicaciones((previas) =>
         previas.map((p) => (p.id === postId ? { ...p, texto: textoEditar } : p)),
       );
-      if (r.aviso) setAviso(r.aviso);
+      if (r.aviso) avisar(r.aviso);
     } catch (e) {
-      setError(e instanceof ErrorApi ? e.message : 'No se pudo editar.');
+      avisar(e instanceof ErrorApi ? e.message : 'No se pudo editar.', 'error');
     }
   }
 
@@ -518,20 +519,20 @@ function FeedInterno() {
         method: 'POST',
         body: JSON.stringify({ postId, motivo }),
       });
-      setAviso(
+      avisar(
         r.yaExistia
           ? 'Ya habías reportado esto. Un moderador lo va a ver.'
           : 'Gracias. Un moderador lo va a revisar.',
       );
     } catch (e) {
-      setError(e instanceof ErrorApi ? e.message : 'No se pudo reportar.');
+      avisar(e instanceof ErrorApi ? e.message : 'No se pudo reportar.', 'error');
     }
   }
 
   async function retirarPost(postId: string) {
     const motivo = motivoRetiro.trim();
     if (motivo.length < 3) {
-      setError('Escribe el motivo del retiro.');
+      avisar('Escribe el motivo del retiro.', 'error');
       return;
     }
     setError(null);
@@ -543,9 +544,9 @@ function FeedInterno() {
       setPublicaciones((previas) => previas.filter((p) => p.id !== postId));
       setRetirando(null);
       setMotivoRetiro('');
-      setAviso('Publicación retirada.');
+      avisar('Publicación retirada.');
     } catch (e) {
-      setError(e instanceof ErrorApi ? e.message : 'No se pudo retirar.');
+      avisar(e instanceof ErrorApi ? e.message : 'No se pudo retirar.', 'error');
     }
   }
 

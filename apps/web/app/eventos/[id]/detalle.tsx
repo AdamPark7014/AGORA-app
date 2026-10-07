@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { use, useCallback, useEffect, useState } from 'react';
 
 import { api, ErrorApi } from '@/lib/api';
+import { avisar, confirmar } from '@/lib/avisos';
 import { analytics } from '@/lib/analytics';
 import { Avatar } from '@/componentes/avatar';
 import { Compartir } from '@/componentes/compartir';
@@ -164,9 +165,13 @@ export default function EventoDetalle({ params }: { params: Promise<{ id: string
 
         {evento.esMio && (
           <button type="button" className="fantasma" style={{ marginTop: 16 }} onClick={async () => {
-            if (!confirm('¿Borrar este evento?')) return;
-            await api(`/eventos/${id}`, { method: 'DELETE' });
-            router.push('/eventos');
+            if (!(await confirmar({ titulo: '¿Borrar este evento?', detalle: 'Quienes iban a ir dejan de verlo.', accion: 'Borrar', peligro: true }))) return;
+            try {
+              await api(`/eventos/${id}`, { method: 'DELETE' });
+              router.push('/eventos');
+            } catch (e) {
+              avisar(e instanceof ErrorApi ? e.message : 'No se pudo borrar el evento.', 'error');
+            }
           }}>
             Borrar evento
           </button>
