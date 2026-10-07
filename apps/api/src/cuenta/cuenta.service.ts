@@ -56,6 +56,17 @@ export class CuentaService {
 
     await this.prisma.$transaction([
       this.prisma.post.updateMany({ where: { authorId: userId, ...visibles }, data: oculto }),
+      // Antes de ocultarlos: sus comentarios dejan de contar en los posts ajenos.
+      this.prisma.$executeRaw`
+        UPDATE "posts" p
+        SET "numComments" = GREATEST(p."numComments" - c.n, 0)
+        FROM (
+          SELECT "postId", COUNT(*)::int AS n
+          FROM "comments"
+          WHERE "authorId" = ${userId} AND "estado" IN ('PUBLICADO', 'EN_REVISION')
+          GROUP BY "postId"
+        ) c
+        WHERE p."id" = c."postId"`,
       this.prisma.comment.updateMany({ where: { authorId: userId, ...visibles }, data: oculto }),
       this.prisma.message.updateMany({ where: { autorId: userId, ...visibles }, data: oculto }),
       this.prisma.anuncio.updateMany({ where: { vendedorId: userId, ...visibles }, data: oculto }),

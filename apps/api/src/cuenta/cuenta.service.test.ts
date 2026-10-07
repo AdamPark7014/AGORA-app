@@ -30,6 +30,10 @@ function prismaFalso(usuario: unknown) {
           return Promise.resolve({});
         },
       },
+      $executeRaw: (sql: TemplateStringsArray, ...valores: unknown[]) => {
+        llamadas.push(['$executeRaw', { sql: sql.join('?'), valores }]);
+        return Promise.resolve(0);
+      },
       $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
     } as Record<string, unknown>,
     { get: (t, k: string) => (k in t ? t[k] : modelo(k)) },
@@ -79,6 +83,12 @@ test('eliminar anonimiza: borra perfil y sesiones, oculta contenido y libera el 
   ]) {
     assert.ok(ops.includes(esperado), `falta ${esperado}`);
   }
+
+  const descuento = ops.indexOf('$executeRaw');
+  assert.ok(descuento >= 0 && descuento < ops.indexOf('comment.updateMany'), 'descuenta numComments antes de ocultar');
+  const raw = llamadas[descuento]![1] as { sql: string; valores: unknown[] };
+  assert.match(raw.sql, /"numComments"/);
+  assert.deepEqual(raw.valores, ['u1']);
 
   const update = llamadas.find(([op]) => op === 'user.update')?.[1] as {
     data: { estado: string; email: string };

@@ -149,6 +149,59 @@ test('reportar post inexistente es 404', async () => {
   );
 });
 
+function prismaComentario(estado: string) {
+  const llamadas: [string, unknown][] = [];
+  const registrar = (op: string) => (args: unknown) => {
+    llamadas.push([op, args]);
+    return Promise.resolve({});
+  };
+  const prisma = {
+    report: {
+      findUnique: async () => ({
+        id: 'r1',
+        estado: 'ABIERTO',
+        postId: null,
+        commentId: 'c1',
+        post: null,
+        comment: { id: 'c1', authorId: 'autor', postId: 'p1', estado },
+      }),
+      updateMany: registrar('report.updateMany'),
+    },
+    comment: { update: registrar('comment.update') },
+    post: { update: registrar('post.update'), updateMany: registrar('post.updateMany') },
+    moderationAction: { create: registrar('moderationAction.create') },
+    $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
+  } as unknown as PrismaService;
+  return { prisma, llamadas };
+}
+
+test('retirar un comentario visible descuenta numComments', async () => {
+  const { prisma, llamadas } = prismaComentario('PUBLICADO');
+  await servicio(prisma).resolver('r1', 'mod', { accion: 'RETIRAR_CONTENIDO', motivo: 'x' }, ['moderador']);
+  const contador = llamadas.find(([op]) => op === 'post.updateMany');
+  assert.deepEqual(contador?.[1], {
+    where: { id: 'p1', numComments: { gt: 0 } },
+    data: { numComments: { decrement: 1 } },
+  });
+});
+
+test('restaurar un comentario retirado vuelve a contarlo', async () => {
+  const { prisma, llamadas } = prismaComentario('RETIRADO');
+  await servicio(prisma).resolver('r1', 'mod', { accion: 'RESTAURAR_CONTENIDO', motivo: 'x' }, ['moderador']);
+  const contador = llamadas.find(([op]) => op === 'post.update');
+  assert.deepEqual(contador?.[1], {
+    where: { id: 'p1' },
+    data: { numComments: { increment: 1 } },
+  });
+});
+
+test('retirar un comentario ya oculto no toca el contador', async () => {
+  const { prisma, llamadas } = prismaComentario('RETIRADO');
+  await servicio(prisma).resolver('r1', 'mod', { accion: 'RETIRAR_CONTENIDO', motivo: 'x' }, ['moderador']);
+  assert.ok(llamadas.some(([op]) => op === 'comment.update'));
+  assert.ok(!llamadas.some(([op]) => op.startsWith('post.')));
+});
+
 test('SUSPENDER_USUARIO revoca sesiones del autor', async () => {
   const llamadas: unknown[] = [];
   const prisma = {

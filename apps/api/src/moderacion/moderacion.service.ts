@@ -12,6 +12,8 @@ import { PERMISSIONS, algunRolTienePermiso, type RoleKey } from '@agora/rbac';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
 
+const COMENTARIO_VISIBLE: readonly string[] = ['PUBLICADO', 'EN_REVISION'];
+
 /**
  * Cola de moderación.
  *
@@ -188,7 +190,7 @@ export class ModeracionService {
       where: { id: reporteId },
       include: {
         post: { select: { id: true, authorId: true } },
-        comment: { select: { id: true, authorId: true } },
+        comment: { select: { id: true, authorId: true, postId: true, estado: true } },
       },
     });
     if (!reporte) throw new NotFoundException('Ese reporte no existe.');
@@ -198,6 +200,30 @@ export class ModeracionService {
 
     const autorId = reporte.post?.authorId ?? reporte.comment?.authorId ?? null;
     const operaciones: Prisma.PrismaPromise<unknown>[] = [];
+
+    // numComments cuenta solo comentarios visibles: si el estado cruza esa
+    // frontera, el contador del post se mueve en la misma transaccion.
+    const comentario = reporte.comment;
+    const cambiarComentario = (estado: 'RETIRADO' | 'PUBLICADO') => {
+      if (!comentario) return;
+      operaciones.push(
+        this.prisma.comment.update({ where: { id: comentario.id }, data: { estado } }),
+      );
+      const eraVisible = COMENTARIO_VISIBLE.includes(comentario.estado);
+      const seraVisible = estado === 'PUBLICADO';
+      if (eraVisible === seraVisible) return;
+      operaciones.push(
+        seraVisible
+          ? this.prisma.post.update({
+              where: { id: comentario.postId },
+              data: { numComments: { increment: 1 } },
+            })
+          : this.prisma.post.updateMany({
+              where: { id: comentario.postId, numComments: { gt: 0 } },
+              data: { numComments: { decrement: 1 } },
+            }),
+      );
+    };
 
     // Todos los reportes sobre el mismo contenido se cierran juntos: resolver
     // uno y dejar cinco abiertos por lo mismo es trabajo repetido garantizado.
@@ -220,14 +246,7 @@ export class ModeracionService {
           this.prisma.post.update({ where: { id: reporte.postId }, data: { estado: 'RETIRADO' } }),
         );
       }
-      if (reporte.commentId) {
-        operaciones.push(
-          this.prisma.comment.update({
-            where: { id: reporte.commentId },
-            data: { estado: 'RETIRADO' },
-          }),
-        );
-      }
+      cambiarComentario('RETIRADO');
     }
 
     if (datos.accion === 'RESTAURAR_CONTENIDO') {
@@ -239,14 +258,7 @@ export class ModeracionService {
           }),
         );
       }
-      if (reporte.commentId) {
-        operaciones.push(
-          this.prisma.comment.update({
-            where: { id: reporte.commentId },
-            data: { estado: 'PUBLICADO' },
-          }),
-        );
-      }
+      cambiarComentario('PUBLICADO');
     }
 
     if (datos.accion === 'SUSPENDER_USUARIO' && autorId) {
@@ -260,14 +272,7 @@ export class ModeracionService {
           this.prisma.post.update({ where: { id: reporte.postId }, data: { estado: 'RETIRADO' } }),
         );
       }
-      if (reporte.commentId) {
-        operaciones.push(
-          this.prisma.comment.update({
-            where: { id: reporte.commentId },
-            data: { estado: 'RETIRADO' },
-          }),
-        );
-      }
+      cambiarComentario('RETIRADO');
     }
 
     if (datos.accion === 'LEVANTAR_SUSPENSION' && autorId) {
