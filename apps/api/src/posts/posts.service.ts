@@ -437,12 +437,17 @@ export class PostsService {
   async editar(postId: string, userId: string, datos: EditarPost) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
-      select: { authorId: true, estado: true },
+      select: { authorId: true, estado: true, anonimo: true },
     });
     if (!post || !VISIBLES.includes(post.estado as (typeof VISIBLES)[number])) {
       throw new NotFoundException('Esa publicacion no existe.');
     }
     if (post.authorId !== userId) throw new ForbiddenException('No es tu publicacion.');
+    // Editar notifica menciones con el actor real y sincroniza hashtags: en una
+    // anonima eso revelaria quien la escribio.
+    if (post.anonimo) {
+      throw new BadRequestException('Las publicaciones anónimas no se editan; bórrala y publica otra.');
+    }
 
     const veredicto = await this.moderar(datos.texto);
     if (veredicto.decision === DECISIONES.RETIRAR) {

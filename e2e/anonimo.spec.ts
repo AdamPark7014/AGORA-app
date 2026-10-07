@@ -36,6 +36,51 @@ test('la respuesta anonima nunca incluye al autor', async ({ request }) => {
   expect(crudo).toContain('alias');
 });
 
+test('ninguna ruta de publicaciones revela al autor de una anonima', async ({ request }) => {
+  await entrar(request);
+
+  const estado = await request.get(`${API}/anonimo/estado`);
+  const { habilitada } = await estado.json();
+  test.skip(!habilitada, 'la zona esta apagada sin OPENAI_API_KEY');
+
+  const yo = await (await request.get(`${API}/auth/yo`)).json();
+  const handle: string | null = yo?.handle ?? null;
+
+  const creada = await request.post(`${API}/anonimo`, {
+    data: { texto: `prueba e2e de anonimato ${Date.now()}` },
+  });
+  expect(creada.status()).toBe(201);
+  const { id } = await creada.json();
+
+  try {
+    const detalle = await request.get(`${API}/posts/${id}`);
+    expect(detalle.status()).toBe(200);
+    const cuerpo = await detalle.json();
+    expect(cuerpo.autor).toBeNull();
+    expect(cuerpo.anonimo).toBe(true);
+    if (handle) expect(JSON.stringify(cuerpo)).not.toContain(handle);
+
+    await request.post(`${API}/posts/${id}/guardar`);
+    const guardados = await (await request.get(`${API}/guardados`)).json();
+    const guardada = guardados.publicaciones.find((p: { id: string }) => p.id === id);
+    expect(guardada, 'la publicacion guardada debe listarse').toBeTruthy();
+    expect(guardada.autor).toBeNull();
+    if (handle) expect(JSON.stringify(guardada)).not.toContain(handle);
+
+    const tarjeta = await (await request.get(`${API}/public/tarjeta/publicacion/${id}`)).json();
+    expect(JSON.stringify(tarjeta)).not.toContain('prueba e2e de anonimato');
+
+    const edicion = await request.patch(`${API}/posts/${id}`, {
+      data: { texto: 'editada' },
+      failOnStatusCode: false,
+    });
+    expect(edicion.status()).toBe(400);
+  } finally {
+    await request.post(`${API}/posts/${id}/guardar`, { failOnStatusCode: false });
+    await request.delete(`${API}/anonimo/${id}`, { failOnStatusCode: false });
+  }
+});
+
 test('lo anonimo no aparece en el feed normal', async ({ request }) => {
   await entrar(request);
 

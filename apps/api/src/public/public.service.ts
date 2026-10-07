@@ -58,8 +58,12 @@ export class PublicService {
 
     return {
       titulo: post.anonimo ? 'Publicación en Ágora' : `Publicación de ${autor}`,
-      descripcion: excerpt(post.texto),
-      imagen,
+      // Lo anonimo solo se lee con sesion: fuera de la red no hay moderacion
+      // que respalde el texto y el extracto viaja a cualquier unfurl.
+      descripcion: post.anonimo
+        ? 'Publicación de la zona sin nombre. Entra con tu correo @udlap.mx para leerla.'
+        : excerpt(post.texto),
+      imagen: post.anonimo ? null : imagen,
       canonical: `/publicacion/${post.id}`,
     };
   }

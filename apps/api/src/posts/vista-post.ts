@@ -26,6 +26,7 @@ export const incluirVistaPost = (userId: string) =>
       select: {
         roles: true,
         profile: { select: { handle: true, nombre: true, apellidos: true, fotoUrl: true } },
+        aliasAnonimo: { select: { alias: true } },
       },
     },
     community: { select: { slug: true, nombre: true } },
@@ -72,6 +73,9 @@ export interface VistaPost {
   numComments: number;
   numReactions: number;
   miReaccion: string | null;
+  anonimo: boolean;
+  /** Solo en publicaciones anonimas; en las firmadas es `null`. */
+  alias: string | null;
 }
 
 /**
@@ -80,15 +84,22 @@ export interface VistaPost {
  * Aqui se decide que **no** sale: el `authorId` crudo, el `communityId`, las
  * marcas de moderacion. Un `select` que se lleve algo de mas no filtra nada
  * mientras el mapeo pase por esta funcion.
+ *
+ * Una publicacion anonima sale sin autor y con el alias, por cualquier ruta
+ * (detalle, guardados, feed). El alias solo se manda en las anonimas: en una
+ * firmada ligaria a la persona real con su alias.
  */
 export function aVistaPost(post: PostConRelaciones, miGuardado: boolean): VistaPost {
+  const anonimo = post.anonimo;
   return {
     id: post.id,
     texto: post.texto,
     estado: post.estado,
     createdAt: post.createdAt,
     miGuardado,
-    autor: post.author.profile
+    anonimo,
+    alias: anonimo ? (post.author.aliasAnonimo?.alias ?? 'Alguien') : null,
+    autor: !anonimo && post.author.profile
       ? {
           handle: post.author.profile.handle,
           nombre: `${post.author.profile.nombre} ${post.author.profile.apellidos}`,
