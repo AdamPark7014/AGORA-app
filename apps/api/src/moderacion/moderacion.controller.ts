@@ -70,7 +70,7 @@ export class ModeracionController {
     @Param('id') id: string,
     @Body(new ZodPipe(resolverReporteSchema)) datos: ResolverReporte,
   ) {
-    return this.moderacion.resolver(id, req.usuario!.id, datos);
+    return this.moderacion.resolver(id, req.usuario!.id, datos, req.usuario!.roles);
   }
 
   @Post('marcado-ia/:id')

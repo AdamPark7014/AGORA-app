@@ -168,11 +168,16 @@ async function main() {
 
   console.log(`   comunidades derivadas: ${comunidades}`);
 
-  const superadminEmail = (
-    process.env.BOOTSTRAP_SUPERADMIN_EMAIL ?? 'adam.delpozoos@udlap.mx'
-  ).toLowerCase();
-
-  await sembrarDemo(prisma, universidad.id, superadminEmail);
+  // La demo mete cuentas y contenido ficticio y puede dar super_admin: en
+  // produccion solo corre si se pide explicitamente, y el correo del
+  // super_admin nunca tiene valor por omision.
+  const esProduccion = process.env.NODE_ENV === 'production';
+  if (esProduccion && process.env.SEED_DEMO !== 'true') {
+    console.log('   demo omitida (NODE_ENV=production; SEED_DEMO=true para forzarla)');
+  } else {
+    const superadminEmail = process.env.BOOTSTRAP_SUPERADMIN_EMAIL?.trim().toLowerCase() || null;
+    await sembrarDemo(prisma, universidad.id, superadminEmail);
+  }
 
   console.log('-- Listo');
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
 import { ModeracionService } from './moderacion.service.js';
 import type { NotificacionesService } from '../notificaciones/notificaciones.service.js';
@@ -81,11 +81,29 @@ test('resolver falla si el reporte ya esta cerrado', async () => {
 
   await assert.rejects(
     () =>
-      servicio(prisma).resolver('r1', 'mod', {
-        accion: 'SIN_ACCION',
-        motivo: 'ok',
-      }),
+      servicio(prisma).resolver('r1', 'mod', { accion: 'SIN_ACCION', motivo: 'ok' }, ['moderador']),
     (err: unknown) => err instanceof BadRequestException,
+  );
+});
+
+test('un moderador no puede suspender cuentas desde un reporte', async () => {
+  const prisma = {
+    report: {
+      findUnique: async () => {
+        throw new Error('no debe ni consultar el reporte');
+      },
+    },
+  } as unknown as PrismaService;
+
+  await assert.rejects(
+    () =>
+      servicio(prisma).resolver(
+        'r1',
+        'mod',
+        { accion: 'SUSPENDER_USUARIO', motivo: 'acoso' },
+        ['moderador'],
+      ),
+    (err: unknown) => err instanceof ForbiddenException,
   );
 });
 
@@ -175,10 +193,12 @@ test('SUSPENDER_USUARIO revoca sesiones del autor', async () => {
     $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
   } as unknown as PrismaService;
 
-  await servicio(prisma).resolver('r1', 'mod', {
-    accion: 'SUSPENDER_USUARIO',
-    motivo: 'acoso',
-  });
+  await servicio(prisma).resolver(
+    'r1',
+    'mod',
+    { accion: 'SUSPENDER_USUARIO', motivo: 'acoso' },
+    ['admin'],
+  );
 
   assert.ok(
     llamadas.some((entrada) => {

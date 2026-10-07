@@ -52,6 +52,13 @@ function ColaInterna() {
   const [error, setError] = useState<string | null>(null);
   const [motivos, setMotivos] = useState<Record<string, string>>({});
   const [trabajando, setTrabajando] = useState<string | null>(null);
+  const [puedeSuspender, setPuedeSuspender] = useState(false);
+
+  useEffect(() => {
+    api<{ puedeSuspender?: boolean }>('/auth/yo')
+      .then((yo) => setPuedeSuspender(Boolean(yo.puedeSuspender)))
+      .catch(() => setPuedeSuspender(false));
+  }, []);
 
   const cargar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCargando(true);
@@ -191,14 +198,16 @@ function ColaInterna() {
               >
                 Retirar
               </button>
-              <button
-                type="button"
-                className="suspender"
-                disabled={trabajando === c.reporteId}
-                onClick={() => resolver(c.reporteId, 'SUSPENDER_USUARIO')}
-              >
-                Suspender autor
-              </button>
+              {puedeSuspender && (
+                <button
+                  type="button"
+                  className="suspender"
+                  disabled={trabajando === c.reporteId}
+                  onClick={() => resolver(c.reporteId, 'SUSPENDER_USUARIO')}
+                >
+                  Suspender autor
+                </button>
+              )}
             </div>
           </article>
         );

@@ -32,6 +32,7 @@ export interface Sesion {
   fotoUrl: string | null;
   esStaff: boolean;
   puedeModerar: boolean;
+  puedeSuspender?: boolean;
 }
 
 const VIDA_MS = 30_000;

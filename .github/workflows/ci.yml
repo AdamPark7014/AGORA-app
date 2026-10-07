@@ -61,6 +61,7 @@ jobs:
       MODERACION_OPCIONAL: 'true'
       DEV_OTP_MAESTRO: '123456'
       DEV_OTP_CORREOS: 'adam.delpozoos@udlap.mx,prueba.uno@udlap.mx,prueba.dos@udlap.mx'
+      BOOTSTRAP_SUPERADMIN_EMAIL: adam.delpozoos@udlap.mx
       WEB_URL: http://localhost:3200
       ADMIN_URL: http://localhost:3300
       API_URL: http://localhost:4200

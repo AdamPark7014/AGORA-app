@@ -39,7 +39,7 @@ export class BusquedaService {
         : this.buscarPublicaciones(q, usuario.universityId, idsComunidad, filtros.limite),
       filtros.tipo === 'personas' || filtros.tipo === 'publicaciones' || filtros.tipo === 'marketplace'
         ? []
-        : this.buscarEventos(q, usuario.universityId, filtros.limite),
+        : this.buscarEventos(q, usuario.universityId, idsComunidad, filtros.limite),
       filtros.tipo === 'personas' || filtros.tipo === 'publicaciones' || filtros.tipo === 'eventos'
         ? []
         : this.buscarAnuncios(q, usuario.universityId, filtros.limite),
@@ -110,14 +110,27 @@ export class BusquedaService {
     }));
   }
 
-  private async buscarEventos(q: string, universityId: string, limite: number) {
+  private async buscarEventos(
+    q: string,
+    universityId: string,
+    comunidades: string[],
+    limite: number,
+  ) {
+    // Mismas reglas que el listado de eventos: nada retirado ni de comunidades
+    // ajenas. Buscar no puede ser una puerta trasera a lo que el listado oculta.
     const eventos = await this.prisma.evento.findMany({
       where: {
         universityId,
-        OR: [
-          { titulo: { contains: q, mode: 'insensitive' } },
-          { descripcion: { contains: q, mode: 'insensitive' } },
-          { lugar: { contains: q, mode: 'insensitive' } },
+        estado: { in: [...VISIBLES] },
+        AND: [
+          {
+            OR: [
+              { titulo: { contains: q, mode: 'insensitive' } },
+              { descripcion: { contains: q, mode: 'insensitive' } },
+              { lugar: { contains: q, mode: 'insensitive' } },
+            ],
+          },
+          { OR: [{ communityId: null }, { communityId: { in: comunidades } }] },
         ],
         inicioAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
       },
@@ -138,6 +151,7 @@ export class BusquedaService {
     const anuncios = await this.prisma.anuncio.findMany({
       where: {
         universityId,
+        estado: 'PUBLICADO',
         estadoVenta: { in: ['DISPONIBLE', 'APARTADO'] },
         OR: [
           { titulo: { contains: q, mode: 'insensitive' } },

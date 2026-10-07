@@ -930,7 +930,7 @@ async function vincularHashtags(
 export async function sembrarDemo(
   prisma: PrismaClient,
   universityId: string,
-  superadminEmail: string,
+  superadminEmail: string | null,
 ): Promise<void> {
   console.log('-- Sembrando demo');
 
@@ -1341,7 +1341,8 @@ export async function sembrarDemo(
   }
   console.log(`   demo notificaciones: ${conteos.notificaciones} nuevas`);
 
-  // --- Super admin
+  // --- Super admin (solo si BOOTSTRAP_SUPERADMIN_EMAIL lo pide)
+  if (!superadminEmail) return;
   const fundador = await prisma.user.findUnique({ where: { email: superadminEmail } });
   if (fundador) {
     await prisma.user.update({

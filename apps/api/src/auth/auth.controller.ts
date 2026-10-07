@@ -133,6 +133,7 @@ export class AuthController {
       fotoUrl: perfil?.fotoUrl ?? null,
       esStaff: esStaff(usuario.roles),
       puedeModerar: algunRolTienePermiso(usuario.roles, PERMISSIONS.MODERACION_COLA_VER),
+      puedeSuspender: algunRolTienePermiso(usuario.roles, PERMISSIONS.USUARIO_SUSPENDER),
     };
   }
 

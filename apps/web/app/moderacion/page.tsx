@@ -41,6 +41,7 @@ export default function Moderacion() {
   const [motivos, setMotivos] = useState<Record<string, string>>({});
   const [trabajando, setTrabajando] = useState<string | null>(null);
   const [permitido, setPermitido] = useState<boolean | null>(null);
+  const [puedeSuspender, setPuedeSuspender] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -52,6 +53,7 @@ export default function Moderacion() {
         return;
       }
       setPermitido(true);
+      setPuedeSuspender(Boolean(yo.puedeSuspender));
       const datos = await api<{ items: Caso[] }>('/moderacion/cola');
       setCasos(datos.items);
     } catch (e) {
@@ -183,13 +185,15 @@ export default function Moderacion() {
                 >
                   Retirar
                 </button>
-                <button
-                  type="button"
-                  disabled={trabajando === c.reporteId}
-                  onClick={() => resolver(c.reporteId, 'SUSPENDER_USUARIO')}
-                >
-                  Suspender autor
-                </button>
+                {puedeSuspender && (
+                  <button
+                    type="button"
+                    disabled={trabajando === c.reporteId}
+                    onClick={() => resolver(c.reporteId, 'SUSPENDER_USUARIO')}
+                  >
+                    Suspender autor
+                  </button>
+                )}
               </div>
             </li>
           );

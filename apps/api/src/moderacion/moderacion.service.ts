@@ -1,6 +1,13 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import type { CrearReporte, ResolverReporte } from '@agora/contracts';
 import { Prisma } from '@agora/db';
+import { PERMISSIONS, algunRolTienePermiso, type RoleKey } from '@agora/rbac';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
@@ -162,7 +169,21 @@ export class ModeracionService {
    * usuario tiene derecho a saber por qué se retiró su contenido y a apelar;
    * sin este registro esa promesa no se puede cumplir.
    */
-  async resolver(reporteId: string, moderadorId: string, datos: ResolverReporte) {
+  async resolver(
+    reporteId: string,
+    moderadorId: string,
+    datos: ResolverReporte,
+    rolesModerador: readonly RoleKey[],
+  ) {
+    // MODERACION_ACTUAR abre la ruta, pero suspender es de admin: sin esto un
+    // moderador suspendia cuentas a traves de un reporte.
+    if (
+      datos.accion === 'SUSPENDER_USUARIO' &&
+      !algunRolTienePermiso(rolesModerador, PERMISSIONS.USUARIO_SUSPENDER)
+    ) {
+      throw new ForbiddenException('Suspender una cuenta requiere rol de administrador.');
+    }
+
     const reporte = await this.prisma.report.findUnique({
       where: { id: reporteId },
       include: {
