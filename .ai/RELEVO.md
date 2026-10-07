@@ -1,6 +1,6 @@
 # RELEVO
 
-- **Último turno:** cursor (claude-code trabajó en paralelo en correo/logo, ver abajo)
+- **Último turno:** cursor
 - **Fecha:** 2026-10-07
 - **Rama:** main
 

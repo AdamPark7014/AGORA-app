@@ -52,3 +52,5 @@ test-results/
 # sistema operativo / editores
 .DS_Store
 .ai/index/
+
+.ai/drafts/
