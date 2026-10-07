@@ -54,3 +54,6 @@ test-results/
 .ai/index/
 
 .ai/drafts/
+
+# Almacen local de la API en dev (AlmacenLocal). Prod usa S3/volumen.
+apps/api/subidas/
