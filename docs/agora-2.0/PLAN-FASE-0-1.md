@@ -36,7 +36,7 @@ contenido primero).
 | Pieza del mandato | Existe | Falta |
 |---|---|---|
 | Anonimato garantizado | Zona `/anonimo`, alias estable | ✅ hecho (ver §4) |
-| Borrar cuenta | Estado `BAJA` en el enum, nada más | API+web ✅ · Android/iOS ⬜ |
+| Borrar cuenta | Estado `BAJA` en el enum, nada más | ✅ API, web, Android · iOS sin compilar |
 | RBAC | `PermisoGuard`, 7 roles / 16 permisos | ✅ suspender exige admin |
 | Seed seguro | — | ✅ |
 | Cupos sin carrera | — | ✅ |
@@ -84,10 +84,10 @@ Previstas (no aplicadas todavía):
 | 0.4 | Búsqueda con retirados / comunidades ajenas | ✅ | `bac6502` |
 | 0.5 | Cupos eventos / aventones | ✅ | `4fc2af8` — `SELECT … FOR UPDATE` en transacción |
 | 0.6 | Borrar cuenta — API + web | ✅ | `ffee1d3` — `POST /cuenta/eliminar` |
-| 0.7 | Borrar cuenta — Android + iOS | ⬜ | botón en Ajustes → `POST /cuenta/eliminar` → `SessionEvents` |
+| 0.7 | Borrar cuenta — Android + iOS | ✅ / ⚠️ | `7c0e6dc` — Android compilado (`assembleDebug`); iOS escrito, **sin compilar** (requiere Mac) |
 | 0.8 | iOS: reportar publicación | ⬜ | requisito App Store (UGC) |
 | 0.9 | iOS: `PushRegistration.registerIfNeeded()` nunca se llama | ⬜ | llamarlo tras login con permiso en contexto |
-| 0.10 | Android: `usesCleartextTraffic` en release | ⬜ | mover a `src/debug` |
+| 0.10 | Android: `usesCleartextTraffic` en release | ✅ | `7c0e6dc` — `manifestPlaceholders`: `true` solo en debug |
 | 0.11 | Media: thumbnails + dimensiones (sharp), cuota por usuario, limpieza de huérfanos | ⬜ | `media.controller.ts`, `almacen.ts`, `MantenimientoService` |
 | 0.12 | Media: moderación de imágenes | ⬜ | OpenAI `omni-moderation` acepta imagen; mismo `@agora/moderation` |
 | 0.13 | Seguidores ignoran visibilidad `COMUNIDADES` | ⬜ | `perfil.service.ts` |

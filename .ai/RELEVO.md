@@ -1,10 +1,22 @@
 # RELEVO
 
-- **Último turno:** claude-code
+- **Último turno:** cursor (claude-code trabajó en paralelo en correo/logo, ver abajo)
 - **Fecha:** 2026-10-07
 - **Rama:** main
 
 ## Hecho en este turno
+
+### ÁGORA 2.0 — Fase 0 (cursor) · plan en `docs/agora-2.0/PLAN-FASE-0-1.md`
+- `71658c6` anonimato: `GET /posts/:id`, guardados y tarjeta pública ya no revelan al autor;
+  editar anónima → 400. Unit + e2e (`e2e/anonimo.spec.ts`).
+- `bac6502` suspender desde reporte exige `USUARIO_SUSPENDER` (`/auth/yo.puedeSuspender`);
+  seed demo no corre en producción sin `SEED_DEMO=true` y no hay super_admin por omisión
+  (`BOOTSTRAP_SUPERADMIN_EMAIL`); búsqueda sin eventos/anuncios retirados ni comunidades ajenas.
+- `4fc2af8` cupos de eventos y aventones con `SELECT … FOR UPDATE`.
+- `ffee1d3` + `7c0e6dc` eliminar cuenta: `POST /api/cuenta/eliminar` (anonimiza en sitio,
+  estado BAJA, correo liberado, AuditLog con HMAC), UI en web, Android e iOS.
+  Android release ya no permite HTTP en claro.
+- **No desplegado.** Sin migraciones nuevas.
 
 **Correo del código que no llegaba + seguimiento de entrega + logo nuevo.**
 
@@ -59,6 +71,12 @@
 
 ## A medias - CUIDADO
 
+- e2e `anonimo` y `cuenta` escritas pero **no ejecutadas** (Docker Desktop apagado). Correr
+  `npx playwright test anonimo cuenta` antes de desplegar Fase 0.
+- iOS: `AjustesView` con baja de cuenta **sin compilar** (no hay Mac).
+- Fase 0 pendiente: reportar post en iOS, `registerIfNeeded()` de push iOS, media (thumbs,
+  cuota, huérfanos, moderación de imagen), seguidores con visibilidad, silenciar en feed.
+
 - Admin (`apps/admin`) y apps móviles siguen con el ícono viejo (admin no está desplegado; las apps
   necesitan build de tienda).
 - `udlagora.com` no tiene MX (Email Routing de Cloudflare sin configurar).
@@ -69,6 +87,8 @@
 1. Ver en los logs de `agora-api` que cada «Codigo enviado» tenga su «Entregado a …».
 2. Si UDLAP manda a no deseados lo de Zynora: `MAIL_FROM` → `Ágora <acceso@udlagora.com>`.
 3. Search Console + Rich Results Test (pendiente de antes).
+4. ÁGORA 2.0: e2e con Docker → desplegar Fase 0 → resto de Fase 0 (tabla en el plan) →
+   Home «Ahora en UDLAP» + push + analytics.
 
 ## No tocar
 
