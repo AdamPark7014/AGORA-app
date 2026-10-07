@@ -113,6 +113,7 @@ struct MainTabView: View {
             deepLinkBus.consume()
         }
         .task {
+            PushRegistration.shared.registerIfNeeded()
             await actualizarBadge()
             if let route = deepLinkBus.pendingRoute {
                 aplicarDeepLink(route)

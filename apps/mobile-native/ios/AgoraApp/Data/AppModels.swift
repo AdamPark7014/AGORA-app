@@ -216,6 +216,12 @@ struct EliminarCuentaRequest: Encodable {
     let confirmacion: String
 }
 
+struct CrearReporteRequest: Encodable {
+    let postId: String?
+    let commentId: String?
+    let motivo: String
+}
+
 struct BloqueoEstadoDto: Decodable {
     let bloqueado: Bool
 }

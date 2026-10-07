@@ -75,10 +75,10 @@ import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
 import mx.agora.mobile.nativeapp.ui.util.rememberHaptics
 
 private val MOTIVOS_REPORTE = listOf(
-    "INTIMIDAD_SEXUAL" to "Intimidación sexual",
+    "INTIMIDAD_SEXUAL" to "Contenido íntimo sin permiso",
     "DATOS_PERSONALES" to "Datos personales",
-    "AMENAZA_VIOLENCIA" to "Amenaza o violencia",
-    "ACOSO_DIRIGIDO" to "Acoso",
+    "AMENAZA_VIOLENCIA" to "Amenaza de violencia",
+    "ACOSO_DIRIGIDO" to "Acoso dirigido",
     "SUPLANTACION" to "Suplantación",
     "OTRO" to "Otro",
 )

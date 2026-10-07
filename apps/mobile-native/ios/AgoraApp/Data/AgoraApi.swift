@@ -69,6 +69,13 @@ enum AgoraApi {
     return try ApiClient.decodeOne(data)
   }
 
+  static func reportar(postId: String, motivo: String) async throws {
+    _ = try await client.postJSON(
+      "reportes",
+      body: CrearReporteRequest(postId: postId, commentId: nil, motivo: motivo)
+    )
+  }
+
   static func eliminarCuenta(confirmacion: String) async throws {
     _ = try await client.postJSON("cuenta/eliminar", body: EliminarCuentaRequest(confirmacion: confirmacion))
   }

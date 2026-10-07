@@ -1,5 +1,20 @@
 import SwiftUI
 
+/// Mismos codigos que `MOTIVOS_REPORTE` en `@agora/contracts`.
+private struct MotivoReporte: Identifiable {
+    let id: String
+    let etiqueta: String
+}
+
+private let motivosReporte: [MotivoReporte] = [
+    MotivoReporte(id: "INTIMIDAD_SEXUAL", etiqueta: "Contenido íntimo sin permiso"),
+    MotivoReporte(id: "DATOS_PERSONALES", etiqueta: "Datos personales"),
+    MotivoReporte(id: "AMENAZA_VIOLENCIA", etiqueta: "Amenaza de violencia"),
+    MotivoReporte(id: "ACOSO_DIRIGIDO", etiqueta: "Acoso dirigido"),
+    MotivoReporte(id: "SUPLANTACION", etiqueta: "Suplantación"),
+    MotivoReporte(id: "OTRO", etiqueta: "Otro"),
+]
+
 struct PostCardView: View {
     let post: PostDto
     var onTap: (() -> Void)?
@@ -11,6 +26,8 @@ struct PostCardView: View {
     @State private var encuesta: EncuestaDto?
     @State private var votando = false
     @State private var heartTrigger = 0
+    @State private var eligiendoMotivo = false
+    @State private var avisoReporte: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -100,7 +117,38 @@ struct PostCardView: View {
                 )
                 Spacer()
                 GuardarButton(postId: post.id, guardado: post.miGuardado ?? false)
+                Menu {
+                    Button(role: .destructive) {
+                        eligiendoMotivo = true
+                    } label: {
+                        Label("Reportar", systemImage: "flag")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Más opciones")
             }
+        }
+        .confirmationDialog("¿Por qué la reportas?", isPresented: $eligiendoMotivo, titleVisibility: .visible) {
+            ForEach(motivosReporte) { motivo in
+                Button(motivo.etiqueta) {
+                    Task { await reportar(motivo.id) }
+                }
+            }
+            Button("Cancelar", role: .cancel) {}
+        }
+        .alert(
+            avisoReporte ?? "",
+            isPresented: Binding(
+                get: { avisoReporte != nil },
+                set: { if !$0 { avisoReporte = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
         }
         .padding(AgoraDesign.Spacing.sm + 2)
         .background(AgoraDesign.Colors.superficie)
@@ -204,6 +252,15 @@ struct PostCardView: View {
             Haptics.success()
         } catch {
             // Silencioso.
+        }
+    }
+
+    private func reportar(_ motivo: String) async {
+        do {
+            try await AgoraApi.reportar(postId: post.id, motivo: motivo)
+            avisoReporte = "Gracias. Un moderador lo revisará."
+        } catch {
+            avisoReporte = FormatUtils.mensajeDe(error)
         }
     }
 
