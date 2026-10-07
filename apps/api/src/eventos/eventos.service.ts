@@ -314,12 +314,24 @@ export class EventosService {
       return { miRespuesta: null };
     }
 
-    // El cupo solo limita el "voy", no el "me interesa".
+    // El cupo solo limita el "voy", no el "me interesa". Con cupo, el conteo y
+    // la escritura van bajo candado de la fila del evento: sin el, dos personas
+    // que ven el ultimo lugar libre entran las dos.
     if (datos.respuesta === 'VOY' && evento.cupo !== null) {
-      const van = await this.prisma.asistenciaEvento.count({
-        where: { eventoId, respuesta: 'VOY', ...(existente ? { NOT: { id: existente.id } } : {}) },
+      const cupo = evento.cupo;
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM eventos WHERE id = ${eventoId} FOR UPDATE`;
+        const van = await tx.asistenciaEvento.count({
+          where: { eventoId, respuesta: 'VOY', NOT: { userId } },
+        });
+        if (van >= cupo) throw new BadRequestException('Ya no hay lugares.');
+        await tx.asistenciaEvento.upsert({
+          where: { eventoId_userId: { eventoId, userId } },
+          update: { respuesta: datos.respuesta },
+          create: { eventoId, userId, respuesta: datos.respuesta },
+        });
       });
-      if (van >= evento.cupo) throw new BadRequestException('Ya no hay lugares.');
+      return { miRespuesta: datos.respuesta };
     }
 
     await this.prisma.asistenciaEvento.upsert({

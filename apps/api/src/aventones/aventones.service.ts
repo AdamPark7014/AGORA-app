@@ -136,7 +136,25 @@ export class AventonesService {
       throw new BadRequestException('Ya no hay lugares.');
     }
 
-    await this.prisma.asientoAventon.create({ data: { aventonId, userId } });
+    // El conteo de arriba se leyo sin candado: dos personas pueden ver el
+    // ultimo lugar libre a la vez. Bloquear la fila del aventon serializa a
+    // quienes apartan en el mismo y el conteo se repite ya protegido.
+    let ocupados: number;
+    try {
+      ocupados = await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM aventones WHERE id = ${aventonId} FOR UPDATE`;
+        const actuales = await tx.asientoAventon.count({ where: { aventonId } });
+        if (actuales >= aventon.lugares) throw new BadRequestException('Ya no hay lugares.');
+        await tx.asientoAventon.create({ data: { aventonId, userId } });
+        return actuales + 1;
+      });
+    } catch (e) {
+      // Doble toque: el otro intento ya aparto el asiento de esta persona.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        return { voyYo: true, ocupados: aventon.asientos.length + 1 };
+      }
+      throw e;
+    }
 
     const pasajero = await this.prisma.profile.findUnique({
       where: { userId },
@@ -150,7 +168,7 @@ export class AventonesService {
       url: '/aventones',
     });
 
-    return { voyYo: true, ocupados: aventon.asientos.length + 1 };
+    return { voyYo: true, ocupados };
   }
 
   async cancelar(aventonId: string, userId: string) {

@@ -108,6 +108,73 @@ test('apartar es interruptor: si ya voy, libera el asiento', async () => {
   assert.deepEqual(r, { voyYo: false, ocupados: 1 });
 });
 
+test('apartar vuelve a contar bajo candado: si otro tomo el ultimo lugar, falla', async () => {
+  const consultas: string[] = [];
+  const tx = {
+    $queryRaw: async (partes: TemplateStringsArray) => {
+      consultas.push(partes.join('?'));
+      return [];
+    },
+    // Entre la lectura sin candado y el candado, otra persona aparto.
+    asientoAventon: {
+      count: async () => 1,
+      create: async () => {
+        throw new Error('no debe crear');
+      },
+    },
+  };
+  const prisma = {
+    aventon: {
+      findUnique: async () => ({
+        id: 'av1',
+        estado: 'PUBLICADO',
+        conductorId: 'cond',
+        salidaAt: new Date(Date.now() + 3_600_000),
+        lugares: 1,
+        asientos: [],
+      }),
+    },
+    $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+  } as unknown as PrismaService;
+
+  await assert.rejects(
+    () => servicio(prisma).apartar('av1', 'yo'),
+    (err: unknown) => err instanceof BadRequestException,
+  );
+  assert.ok(consultas.some((c) => c.includes('FOR UPDATE')), 'debe bloquear la fila');
+});
+
+test('apartar con lugar libre crea el asiento dentro de la transaccion', async () => {
+  let creado = false;
+  const tx = {
+    $queryRaw: async () => [],
+    asientoAventon: {
+      count: async () => 1,
+      create: async () => {
+        creado = true;
+      },
+    },
+  };
+  const prisma = {
+    aventon: {
+      findUnique: async () => ({
+        id: 'av1',
+        estado: 'PUBLICADO',
+        conductorId: 'cond',
+        salidaAt: new Date(Date.now() + 3_600_000),
+        lugares: 3,
+        asientos: [{ id: 's1', userId: 'otro' }],
+      }),
+    },
+    profile: { findUnique: async () => ({ nombre: 'Ana' }) },
+    $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+  } as unknown as PrismaService;
+
+  const r = await servicio(prisma).apartar('av1', 'yo');
+  assert.equal(creado, true);
+  assert.deepEqual(r, { voyYo: true, ocupados: 2 });
+});
+
 test('cancelar solo lo puede el conductor', async () => {
   const prisma = {
     aventon: {
