@@ -1,64 +1,71 @@
 # RELEVO
 
-- **Último turno:** cursor
-- **Fecha:** 2026-08-31
-- **Rama:** mejora/ci-y-blindaje
+- **Último turno:** claude-code
+- **Fecha:** 2026-10-07
+- **Rama:** main
 
 ## Hecho en este turno
 
-**Ultra profundo gaps + mega presencia v2** (plan autorizado). Deploy VPS OK.
+**Correo del código que no llegaba + seguimiento de entrega + logo nuevo.**
 
-### Ola A — P0
-- PWA: `registrar-sw` conserva `agora-v3`; SW precachea iconos 192/512.
-- `/bienvenida` pública (middleware + `RUTAS_PUBLICAS`); robots disallow ampliado.
-- Quitado SearchAction (deprecado Google); landing con H1 en HTML inicial (no esqueleto vacío).
-- Security headers en `next.config.ts` (HSTS, CSP, nosniff, frame deny, AASA Content-Type).
-- `favicon.ico` vía `export-brand-assets.mjs`.
+### Diagnóstico (07-10)
+- Adam no recibía el código: escribió `adam.delpozos@udlap.mx` (una «o»). Su cuenta real es
+  `adam.delpozoos@udlap.mx` (ACTIVO, super_admin). Microsoft rechazó con
+  `550 5.4.1 Recipient address rejected` y **Brevo bloqueó la dirección** (lista de bloqueo tras
+  rebote duro). El 22-08 pasó igual con `adam.delpozooos@udlap.mx`.
+- Con la dirección buena el correo sí se entregó, pero cayó fuera de la bandeja principal.
+  La «apertura» 4 s después es el escáner de Microsoft (AS8075), no una persona.
 
-### Ola B — Mega presencia
-- JSON-LD `@graph`: Organization + WebSite + WebApplication + FAQPage (FAQ visible en landing, misma copy).
-- `llms.txt`, `.well-known/security.txt`, manifest `id`/`scope`/`lang` + icon any+maskable.
-- AASA paths `/retos`, `/retos/*`.
+### Seguimiento de entrega (nuevo)
+- `packages/correo/src/entrega.ts`: eventos de Brevo → estado (`enviado/demorado/entregado/
+  rebotado/bloqueado/error`), consulta de eventos y desbloqueo por API de Brevo. Con pruebas.
+- `apps/api/src/correo/entrega.service.ts`: sigue cada código (en memoria, 1 réplica). Fuentes:
+  webhook `POST /api/correo/brevo/:token` (token `CORREO_WEBHOOK_TOKEN`) y, si calla, la API de
+  eventos de Brevo. Si Brevo tenía la dirección bloqueada, la desbloquea una vez.
+  Log por envío: «Entregado a …», «Rebotó …» — esa es la bitácora para revisar que lleguen.
+- `POST /api/auth/otp/solicitar` sigue en 204; el id va en la cabecera `X-Envio-Id`
+  (no rompe apps nativas). `GET /api/auth/otp/entrega/:envioId` → `{ estado }`.
+- Web: `componentes/estado-entrega.tsx` en «Revisa tu correo» (rebote → «esa dirección no existe»,
+  bloqueado → reenviar) + botón «Reenviar código».
 
-### Ola B — Unfurl OG
-- API pública: `GET /api/public/tarjeta/{publicacion|perfil|evento|anuncio}/:id`.
-- Middleware permite previews UGC; pages server + `generateMetadata` noindex; anónimo ve `PreviewPublica` + CTA.
+### Remitente
+- Por pedido de Adam: `MAIL_FROM="Ágora · Zynora Tek <contacto@zynoratek.com>"` (en `deploy/.env`
+  del servidor). Pie del correo y aviso legal: «Developed by Zynora Tek» → zynoratek.com.
+- **Riesgo:** `zynoratek.com` no tiene SPF y se usó para campañas en frío. DKIM (Brevo) y DMARC sí.
+- **Respaldo listo:** `udlagora.com` autenticado en Brevo (07-10; DNS en Cloudflare: brevo-code,
+  DKIM brevo1/brevo2, DMARC p=none, SPF `include:spf.brevo.com`). Remitente creado:
+  `Ágora <acceso@udlagora.com>`. Si Zynora cae en no deseados, cambiar `MAIL_FROM` a ese.
 
-### Ola C — Blindaje
-- `SesionGuard` rechaza `SUSPENDIDO`; suspender → `session.deleteMany`.
-- Compose: `APNS_SIGNING_KEY` (alineado con código).
-- Runbook SEO v2 / MinIO / salud Redis / APNs / suspensión.
-
-### URLs prod
-- https://udlagora.com — H1 + FAQ + JSON-LD graph
-- https://udlagora.com/llms.txt
-- https://udlagora.com/.well-known/security.txt
-- https://udlagora.com/sitemap.xml · robots.txt · og.png
-- https://udlagora.com/api/salud → ok
-
-### Verificado
-- `pnpm ci:verify:sin-turbo` verde
-- Smoke VPS verde
+### Logo
+- Isotipo nuevo: la Á como arco de portal (portales del zócalo de Cholula). Squircle con degradado.
+  `public/icono.svg` (fuente), `icono-maskable.svg`, PNGs con `node scripts/export-brand-assets.mjs`.
+  `componentes/isotipo.tsx` reemplaza los `<span class="marca-punto">Á</span>`.
+- SW cache `agora-v3` → `agora-v4` (si no, el ícono viejo seguía en caché).
+- og.png con fuentes de sistema (antes salía en monoespaciada).
 
 ## A medias - CUIDADO
 
-- **SIN REMOTO GitHub.**
-- Firebase / APNs reales / AASA TEAMID / assetlinks SHA / MARCANET — Adam.
-- Admin subdomain no en compose (DNS pendiente).
-- OPENAI en VPS: puede seguir `MODERACION_OPCIONAL=true`.
+- Admin (`apps/admin`) y apps móviles siguen con el ícono viejo (admin no está desplegado; las apps
+  necesitan build de tienda).
+- SPF de `zynoratek.com` (DNS en Google/Squarespace, sin acceso): falta
+  `v=spf1 include:_spf.google.com include:spf.brevo.com ~all`.
+- `udlagora.com` no tiene MX (Email Routing de Cloudflare sin configurar).
+- `apps/web/tsconfig.tsbuildinfo` está versionado y cambia con cada typecheck: no commitearlo.
 
 ## Siguiente paso
 
-1. Search Console + Rich Results Test.
-2. Remoto GitHub cuando Adam autorice.
-3. Credenciales push nativo cuando haya Firebase/APNs.
+1. Ver en los logs de `agora-api` que cada «Codigo enviado» tenga su «Entregado a …».
+2. Si UDLAP manda a no deseados lo de Zynora: `MAIL_FROM` → `Ágora <acceso@udlagora.com>`.
+3. Search Console + Rich Results Test (pendiente de antes).
 
 ## No tocar
 
-- **`.env`** / **`deploy/.env`**.
+- **`.env`** / **`deploy/.env`** salvo `MAIL_FROM` y `CORREO_WEBHOOK_TOKEN`.
 - `git reset --hard` / `checkout --` / `clean` / `stash drop`.
 - No regenerar secretos con `setup-server-env.sh`.
 
 ## Mapa rápido del proyecto
 
-Monorepo pnpm + turbo. Deploy VPS: `/var/www/udlagora-app` + Traefik. Dominio **udlagora.com**.
+Monorepo pnpm + turbo. Deploy VPS: `/var/www/udlagora-app` (copia sin git; se sube con
+`git archive HEAD | ssh … tar -x`) + Traefik. Dominio **udlagora.com**. Remotos: `origin` (GitHub)
+y `hetzner` (`/srv/git/AGORA-app.git`).

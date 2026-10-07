@@ -63,8 +63,11 @@ export class AuthService {
    * Devuelve siempre lo mismo exista o no la cuenta: si respondiera distinto,
    * cualquiera podria usar este endpoint para averiguar quien tiene cuenta en
    * Agora, que es justo el tipo de fuga que un campus pequeno no perdona.
+   *
+   * Devuelve el id de seguimiento de la entrega (o null). Tampoco filtra nada:
+   * todo correo del dominio recibe uno, tenga cuenta o no.
    */
-  async solicitarCodigo(email: string, ahora = new Date()): Promise<void> {
+  async solicitarCodigo(email: string, ahora = new Date()): Promise<string | null> {
     const universidad = await this.prisma.university.findFirst({
       where: { emailDomain: email.split('@')[1], activa: true },
     });
@@ -112,7 +115,7 @@ export class AuthService {
       },
     });
 
-    await this.correo.enviarCodigo(email, codigo);
+    return (await this.correo.enviarCodigo(email, codigo)) ?? null;
   }
 
   /**

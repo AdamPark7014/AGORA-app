@@ -24,6 +24,9 @@ async function svgToPng(svgPath, outPath, width, height) {
 await svgToPng(join(publicDir, 'og.svg'), join(publicDir, 'og.png'), 1200, 630);
 await svgToPng(join(publicDir, 'icono.svg'), join(publicDir, 'icono-192.png'), 192, 192);
 await svgToPng(join(publicDir, 'icono.svg'), join(publicDir, 'icono-512.png'), 512, 512);
+// Fondo a sangre: Android (maskable) e iOS recortan la forma por su cuenta.
+await svgToPng(join(publicDir, 'icono-maskable.svg'), join(publicDir, 'icono-maskable-512.png'), 512, 512);
+await svgToPng(join(publicDir, 'icono-maskable.svg'), join(publicDir, 'apple-touch-icon.png'), 180, 180);
 
 const icoSvg = readFileSync(join(publicDir, 'icono.svg'));
 await sharp(icoSvg, { density: 300 })

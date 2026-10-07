@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common';
 import {
   PROVEEDORES,
   VARIABLE_LLAVE,
@@ -9,6 +9,8 @@ import {
   type Proveedor,
 } from '@agora/correo';
 import { TTL_CODIGO_MS } from '@agora/auth';
+
+import { EntregaService } from './entrega.service.js';
 
 /**
  * Envio del codigo de acceso.
@@ -21,6 +23,8 @@ import { TTL_CODIGO_MS } from '@agora/auth';
 @Injectable()
 export class CorreoService {
   private readonly logger = new Logger(CorreoService.name);
+
+  constructor(@Optional() private readonly entrega?: EntregaService) {}
 
   private get proveedor(): string {
     return process.env.MAIL_PROVIDER ?? 'console';
@@ -41,7 +45,11 @@ export class CorreoService {
     return elegido as Proveedor;
   }
 
-  async enviarCodigo(destino: string, codigo: string): Promise<void> {
+  /**
+   * Manda el codigo. Devuelve el id de seguimiento de la entrega (ver
+   * EntregaService), o null si no hay nada que seguir (modo consola).
+   */
+  async enviarCodigo(destino: string, codigo: string): Promise<string | null> {
     const minutos = Math.round(TTL_CODIGO_MS / 60_000);
 
     if (this.proveedor === 'console') {
@@ -52,7 +60,7 @@ export class CorreoService {
         throw new Error('MAIL_PROVIDER=console esta prohibido en produccion.');
       }
       this.logger.warn(`[desarrollo] codigo para ${destino}: ${codigo}`);
-      return;
+      return null;
     }
 
     const proveedor = this.proveedorEnvio();
@@ -74,6 +82,9 @@ export class CorreoService {
       this.logger.log(
         `Codigo enviado a ${enmascarar(destino)} via ${proveedor} (id ${id}, ${intentos} intento(s))`,
       );
+
+      if (!this.entrega || id === 'sin-id') return null;
+      return this.entrega.registrar(id, destino, proveedor);
     } catch (error) {
       const detalle = error instanceof Error ? error.message : String(error);
       this.logger.error(`No se pudo enviar a ${enmascarar(destino)}: ${detalle}`);

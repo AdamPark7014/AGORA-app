@@ -125,7 +125,7 @@ export const ROOT_METADATA: Metadata = {
       { url: '/icono.svg', type: 'image/svg+xml' },
       { url: '/icono-192.png', sizes: '192x192' },
     ],
-    apple: [{ url: '/icono-192.png', sizes: '192x192' }],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
   },
   authors: [{ name: 'Ágora', url: SITE_URL }],
   creator: SITE_NAME,

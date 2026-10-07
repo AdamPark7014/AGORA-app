@@ -65,6 +65,8 @@ if [ -f "$ENV_FILE" ]; then
   set_if_missing SESSION_SECRET "$(openssl rand -hex 32)"
   set_if_missing MAIL_PROVIDER brevo
   set_if_missing MAIL_FROM "Ágora <${BREVO_EMAIL:-contacto@udlagora.com}>"
+  # Token de la URL del webhook de entregas de Brevo (/api/correo/brevo/<token>).
+  set_if_missing CORREO_WEBHOOK_TOKEN "$(openssl rand -hex 24)"
   set_if_missing NEXT_PUBLIC_WEB_URL https://udlagora.com
   set_if_missing COOKIE_DOMAIN .udlagora.com
   set_if_missing OPENAI_API_KEY ""

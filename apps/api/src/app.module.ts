@@ -5,6 +5,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { PrismaService } from './prisma/prisma.service.js';
 import { CorreoService } from './correo/correo.service.js';
+import { CorreoController } from './correo/correo.controller.js';
+import { EntregaService } from './correo/entrega.service.js';
 import { SesionGuard } from './comun/sesion.guard.js';
 import { AuthService } from './auth/auth.service.js';
 import { AuthController } from './auth/auth.controller.js';
@@ -86,6 +88,7 @@ import { PublicService } from './public/public.service.js';
   ],
   controllers: [
     AuthController,
+    CorreoController,
     CatalogoController,
     PerfilController,
     DirectorioController,
@@ -114,6 +117,7 @@ import { PublicService } from './public/public.service.js';
   providers: [
     PrismaService,
     CorreoService,
+    EntregaService,
     SesionGuard,
     AuthService,
     PerfilService,

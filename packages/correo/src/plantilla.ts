@@ -28,6 +28,14 @@ const TENUE = '#7a847f';
 const PAPEL = '#fdfbf7';
 const BORDE = '#e6ded1';
 
+/**
+ * Credito del desarrollador. Coincide con el dominio del remitente de
+ * produccion (MAIL_FROM en contacto@zynoratek.com), asi que el
+ * unico enlace del correo apunta al mismo dominio que lo firma: un enlace a un
+ * dominio ajeno al remitente es de lo que mas pesa en los filtros.
+ */
+const URL_ZYNORA = 'https://zynoratek.com';
+
 export interface OpcionesPlantilla {
   /** Minutos de vigencia, para decirlo en el cuerpo sin codificarlo dos veces. */
   readonly minutos: number;
@@ -50,6 +58,7 @@ export const plantillaCodigo = (
     'Nadie puede entrar a tu cuenta sin este código.',
     '',
     `${marca} no está afiliada a la Universidad de las Américas Puebla.`,
+    `Developed by Zynora Tek · ${URL_ZYNORA}`,
   ].join('\n');
 
   const html = `<!doctype html>
@@ -68,7 +77,8 @@ export const plantillaCodigo = (
     </td></tr>
     <tr><td style="padding-top:20px;font-size:13px;line-height:1.6;color:${TENUE};">
       <p style="margin:0 0 10px;">Si no lo pediste, ignora este correo: alguien escribió tu dirección por error. Nadie puede entrar a tu cuenta sin este código.</p>
-      <p style="margin:0;">${marca} no está afiliada a la Universidad de las Américas Puebla.</p>
+      <p style="margin:0 0 14px;">${marca} no está afiliada a la Universidad de las Américas Puebla.</p>
+      <p style="margin:0;padding-top:14px;border-top:1px solid ${BORDE};font-size:12px;">Developed by <a href="${URL_ZYNORA}" style="color:${TENUE};font-weight:600;text-decoration:none;">Zynora Tek</a></p>
     </td></tr>
   </table>
 </body>

@@ -8,7 +8,7 @@
  * Solo se cachean assets estáticos inmutables (icono, manifest, offline).
  */
 
-const CACHE = 'agora-v3';
+const CACHE = 'agora-v4';
 const ESTATICOS = [
   '/manifest.webmanifest',
   '/icono.svg',

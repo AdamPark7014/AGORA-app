@@ -17,6 +17,14 @@ export class ErrorApi extends Error {
 }
 
 export async function api<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
+  return (await apiConCabeceras<T>(ruta, opciones)).datos;
+}
+
+/** Igual que `api`, pero tambien entrega las cabeceras (p. ej. `X-Envio-Id`). */
+export async function apiConCabeceras<T>(
+  ruta: string,
+  opciones: RequestInit = {},
+): Promise<{ datos: T; cabeceras: Headers }> {
   const respuesta = await fetch(`/api${ruta}`, {
     ...opciones,
     credentials: 'include',
@@ -26,7 +34,7 @@ export async function api<T>(ruta: string, opciones: RequestInit = {}): Promise<
     },
   });
 
-  if (respuesta.status === 204) return undefined as T;
+  if (respuesta.status === 204) return { datos: undefined as T, cabeceras: respuesta.headers };
 
   const cuerpo = await respuesta.json().catch(() => null);
 
@@ -39,5 +47,5 @@ export async function api<T>(ruta: string, opciones: RequestInit = {}): Promise<
     throw new ErrorApi(respuesta.status, mensaje, cuerpo?.errores);
   }
 
-  return cuerpo as T;
+  return { datos: cuerpo as T, cabeceras: respuesta.headers };
 }

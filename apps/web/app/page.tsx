@@ -3,13 +3,15 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { api, ErrorApi } from '@/lib/api';
+import { api, apiConCabeceras, ErrorApi } from '@/lib/api';
 import { analytics } from '@/lib/analytics';
 import { olvidarSesion } from '@/lib/sesion';
 import { copy } from '@/lib/copy';
 import { destinoTrasLogin } from '@/lib/welcome';
 import { LANDING_FAQ as FAQ_LANDING } from '@/lib/seo';
 import { GraduationCap, Lock, MessageSquare } from '@/componentes/iconos';
+import { EstadoEntrega } from '@/componentes/estado-entrega';
+import { Isotipo } from '@/componentes/isotipo';
 
 type Paso = 'correo' | 'codigo';
 
@@ -25,6 +27,8 @@ export default function Entrar() {
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  /** Id de seguimiento del ultimo codigo enviado (cabecera X-Envio-Id). */
+  const [envioId, setEnvioId] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [reconociendo, setReconociendo] = useState(true);
 
@@ -43,18 +47,19 @@ export default function Entrar() {
     };
   }, [router]);
 
-  async function pedirCodigo(evento: React.FormEvent) {
-    evento.preventDefault();
+  async function pedirCodigo(evento?: React.FormEvent) {
+    evento?.preventDefault();
     setError(null);
     setCargando(true);
     try {
-      await api('/auth/otp/solicitar', {
+      const { cabeceras } = await apiConCabeceras('/auth/otp/solicitar', {
         method: 'POST',
         body: JSON.stringify({ email }),
       });
-      setAviso(
-        `${copy.login.codigo.avisoOutlook} Usa el que ya recibiste.`,
-      );
+      const id = cabeceras.get('x-envio-id');
+      setEnvioId(id);
+      // Sin seguimiento (API vieja o modo consola) queda el aviso de siempre.
+      setAviso(id ? null : copy.login.codigo.avisoOutlook);
       setPaso('codigo');
     } catch (e) {
       if (e instanceof ErrorApi && e.estado === 429) {
@@ -66,6 +71,14 @@ export default function Entrar() {
     } finally {
       setCargando(false);
     }
+  }
+
+  function volverAlCorreo() {
+    setPaso('correo');
+    setCodigo('');
+    setError(null);
+    setAviso(null);
+    setEnvioId(null);
   }
 
   async function verificar(evento: React.FormEvent) {
@@ -91,9 +104,7 @@ export default function Entrar() {
     return (
       <main className="landing" aria-busy="true" aria-label={copy.cargando.momento}>
         <div className="landing-hero">
-          <span className="marca-punto landing-marca" aria-hidden="true">
-            Á
-          </span>
+          <Isotipo className="marca-punto landing-marca" />
           <p className="landing-marca-nombre">Ágora</p>
           <p className="insignia">{copy.login.insignia}</p>
           <h1>{copy.login.titulo}</h1>
@@ -111,9 +122,7 @@ export default function Entrar() {
       {paso === 'correo' ? (
         <>
           <div className="landing-hero">
-            <span className="marca-punto landing-marca" aria-hidden="true">
-              Á
-            </span>
+            <Isotipo className="marca-punto landing-marca" />
             <p className="landing-marca-nombre">Ágora</p>
             <p className="insignia">{copy.login.insignia}</p>
             <h1>{copy.login.titulo}</h1>
@@ -170,9 +179,7 @@ export default function Entrar() {
       ) : (
         <>
           <div className="landing-hero">
-            <span className="marca-punto landing-marca" aria-hidden="true">
-              Á
-            </span>
+            <Isotipo className="marca-punto landing-marca" />
             <h1>{copy.login.codigo.titulo}</h1>
             <p className="entradilla">
               Te mandamos 6 dígitos a <strong>{email}</strong>.
@@ -180,6 +187,14 @@ export default function Entrar() {
           </div>
 
           <form className="landing-form" onSubmit={verificar}>
+            {envioId && (
+              <EstadoEntrega
+                envioId={envioId}
+                email={email}
+                onCorregir={volverAlCorreo}
+                onReenviar={() => void pedirCodigo()}
+              />
+            )}
             {aviso && <p className="nota">{aviso}</p>}
             <label className="campo campo-codigo">
               <span>{copy.login.codigo.etiqueta}</span>
@@ -208,14 +223,17 @@ export default function Entrar() {
               <button
                 type="button"
                 className="fantasma"
-                onClick={() => {
-                  setPaso('correo');
-                  setCodigo('');
-                  setError(null);
-                  setAviso(null);
-                }}
+                onClick={volverAlCorreo}
               >
                 {copy.login.codigo.cambiarCorreo}
+              </button>
+              <button
+                type="button"
+                className="fantasma"
+                disabled={cargando}
+                onClick={() => void pedirCodigo()}
+              >
+                {copy.login.codigo.reenviar}
               </button>
             </div>
 
@@ -223,9 +241,10 @@ export default function Entrar() {
           </form>
 
           <p className="tenue" style={{ textAlign: 'center', marginTop: 18 }}>
-            {copy.login.codigo.pie}
+            {copy.login.codigo.pie} {copy.login.codigo.remitente}
             <br />
-            En Outlook: busca <strong>Ágora</strong>, revisa <strong>Correo no deseado</strong>, la pestaña{' '}
+            En Outlook: busca <strong>Zynora</strong> o <strong>Ágora</strong>, revisa{' '}
+            <strong>Correo no deseado</strong>, la pestaña{' '}
             <strong>Otros</strong> y, si tienes acceso,{' '}
             <a href="https://security.microsoft.com/quarantine" target="_blank" rel="noreferrer">
               Cuarentena de Microsoft

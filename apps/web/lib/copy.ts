@@ -33,6 +33,20 @@ export const copy = {
       avisoOutlook:
         'Si no lo ves en la bandeja principal, busca "Ágora" o "udlagora" y revisa Correo no deseado, la pestaña Otros y Cuarentena en Outlook.',
       pie: 'Vence en 10 minutos y solo sirve una vez.',
+      reenviar: 'Reenviar código',
+      remitente: 'Llega de contacto@zynoratek.com («Ágora · Zynora Tek»).',
+      entrega: {
+        enviado: 'Enviando tu código…',
+        demorado: 'Outlook está tardando en aceptarlo. Se reintenta solo; dale un minuto.',
+        entregado:
+          'Entregado en tu buzón UDLAP. Si no está en la bandeja principal, revisa la pestaña Otros o Correo no deseado.',
+        rebotado: (email: string) =>
+          `Outlook rechazó ${email}: esa dirección no existe en UDLAP. Revisa que esté bien escrita.`,
+        bloqueado:
+          'Esa dirección había rebotado antes y estaba en pausa. Ya la liberamos: pide el código otra vez.',
+        error: 'No pudimos entregarlo. Intenta de nuevo en un minuto.',
+        sinNoticias: 'Sigue en camino. Si en un par de minutos no aparece, reenvíalo.',
+      },
     },
     ventajas: [
       {

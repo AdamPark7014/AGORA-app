@@ -11,6 +11,7 @@ import { olvidarSesion, sesion } from '@/lib/sesion';
 import { Avatar } from './avatar';
 import { Campana } from './campana';
 import { ToggleTema } from './proveedor-tema';
+import { Isotipo } from './isotipo';
 
 interface Yo {
   handle: string | null;
@@ -62,7 +63,7 @@ export function Encabezado() {
   return (
     <header className="encabezado">
       <Link href={yo ? '/feed' : '/'} className="marca">
-        <span className="marca-punto">Á</span>
+        <Isotipo />
         Ágora
       </Link>
 

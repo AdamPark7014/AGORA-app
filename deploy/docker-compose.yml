@@ -117,6 +117,8 @@ services:
       MAIL_PROVIDER: ${MAIL_PROVIDER}
       BREVO_API_KEY: ${BREVO_API_KEY}
       MAIL_FROM: ${MAIL_FROM}
+      # Webhook de entregas de Brevo; vacio = la ruta no existe.
+      CORREO_WEBHOOK_TOKEN: ${CORREO_WEBHOOK_TOKEN:-}
       NEXT_PUBLIC_WEB_URL: ${NEXT_PUBLIC_WEB_URL}
       NEXT_PUBLIC_ADMIN_URL: ${NEXT_PUBLIC_ADMIN_URL:-}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}

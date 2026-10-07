@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import type { TarjetaPublica } from '@/lib/tarjeta-publica';
+import { Isotipo } from './isotipo';
 
 /** Preview mínima para anónimos / crawlers; CTA a login. */
 export function PreviewPublica({
@@ -15,9 +16,7 @@ export function PreviewPublica({
   return (
     <main className="landing preview-publica">
       <div className="landing-hero">
-        <span className="marca-punto landing-marca" aria-hidden="true">
-          Á
-        </span>
+        <Isotipo className="marca-punto landing-marca" />
         <p className="landing-marca-nombre">Ágora</p>
         <h1>{tarjeta.titulo}</h1>
         <p className="entradilla">{tarjeta.descripcion}</p>

@@ -273,18 +273,15 @@ a:hover {
   text-decoration: none;
 }
 
+/* El isotipo es /icono.svg (ver componentes/isotipo.tsx): la forma, el
+   degradado y la luz ya vienen en el dibujo. Aqui solo se le da tamano y un
+   halo que sigue su silueta (drop-shadow, no box-shadow, que seria cuadrado). */
 .marca-punto {
+  display: block;
   width: 30px;
   height: 30px;
-  border-radius: 9px;
-  background: var(--gradiente-naranja);
-  box-shadow: var(--glow-naranja);
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 800;
   flex: none;
+  filter: drop-shadow(0 3px 8px rgb(227 82 5 / 22%));
 }
 
 .enlace-nav {
@@ -1640,6 +1637,67 @@ button.fantasma:hover:not(:disabled) {
   margin: 0 0 14px;
 }
 
+/* Estado de entrega del codigo (componentes/estado-entrega.tsx). */
+.entrega {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin: 0 0 14px;
+  padding: 10px 13px;
+  border-radius: var(--radio-chico);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.entrega svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.entrega-espera {
+  background: var(--superficie-2);
+  color: var(--texto-medio);
+}
+
+.entrega-ok {
+  background: var(--aqua-suave);
+  color: var(--verde);
+}
+
+.entrega-mal {
+  background: rgb(211 47 47 / 9%);
+  color: var(--peligro);
+}
+
+.entrega-accion {
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.girando {
+  animation: girar 0.9s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .girando {
+    animation: none;
+  }
+}
+
 .tenue {
   color: var(--texto-tenue);
   font-size: 0.9rem;
@@ -1865,11 +1923,10 @@ button.fantasma:hover:not(:disabled) {
 }
 
 .landing-marca {
-  width: 72px;
-  height: 72px;
-  border-radius: 20px;
-  font-size: 2rem;
-  margin: 0 auto 14px;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 16px;
+  filter: drop-shadow(0 10px 22px rgb(227 82 5 / 28%));
 }
 
 .landing-marca-nombre {
@@ -3092,8 +3149,6 @@ button.fantasma:hover:not(:disabled) {
 .hero-entrada .marca-punto {
   width: 56px;
   height: 56px;
-  border-radius: 16px;
-  font-size: 1.75rem;
   margin: 0 auto 16px;
 }
 

@@ -7,6 +7,7 @@ import { api, ErrorApi } from '@/lib/api';
 import { olvidarSesion } from '@/lib/sesion';
 import { copy } from '@/lib/copy';
 import { EsqueletoLista } from '@/componentes/esqueleto';
+import { Isotipo } from '@/componentes/isotipo';
 
 interface Catalogo {
   escuelas: Array<{
@@ -108,9 +109,7 @@ export default function Registro() {
   return (
     <main>
       <div className="hero-entrada">
-        <span className="marca-punto" aria-hidden="true">
-          Á
-        </span>
+        <Isotipo />
         <h1>{copy.registro.titulo}</h1>
         <p className="entradilla">{copy.registro.entradilla}</p>
       </div>
