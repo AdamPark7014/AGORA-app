@@ -31,7 +31,8 @@
 ### Remitente
 - Por pedido de Adam: `MAIL_FROM="Ágora · Zynora Tek <contacto@zynoratek.com>"` (en `deploy/.env`
   del servidor). Pie del correo y aviso legal: «Developed by Zynora Tek» → zynoratek.com.
-- **Riesgo:** `zynoratek.com` no tiene SPF y se usó para campañas en frío. DKIM (Brevo) y DMARC sí.
+- `zynoratek.com`: SPF agregado el 07-10 en Squarespace (`v=spf1 include:_spf.google.com include:spf.brevo.com ~all`);
+  DKIM (Brevo) y DMARC p=none ya estaban. Riesgo que queda: el dominio viene de campañas en frío.
 - **Respaldo listo:** `udlagora.com` autenticado en Brevo (07-10; DNS en Cloudflare: brevo-code,
   DKIM brevo1/brevo2, DMARC p=none, SPF `include:spf.brevo.com`). Remitente creado:
   `Ágora <acceso@udlagora.com>`. Si Zynora cae en no deseados, cambiar `MAIL_FROM` a ese.
@@ -60,8 +61,6 @@
 
 - Admin (`apps/admin`) y apps móviles siguen con el ícono viejo (admin no está desplegado; las apps
   necesitan build de tienda).
-- SPF de `zynoratek.com` (DNS en Google/Squarespace, sin acceso): falta
-  `v=spf1 include:_spf.google.com include:spf.brevo.com ~all`.
 - `udlagora.com` no tiene MX (Email Routing de Cloudflare sin configurar).
 - `apps/web/tsconfig.tsbuildinfo` está versionado y cambia con cada typecheck: no commitearlo.
 
