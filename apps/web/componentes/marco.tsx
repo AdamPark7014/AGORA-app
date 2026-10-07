@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 
 import { CarrilDerecho, CarrilIzquierdo } from './carriles';
 import { useSinNavegacion } from '@/lib/navegacion';
+import { useConsultaMedia } from '@/lib/pantalla';
 import { TransicionPagina } from './transicion-pagina';
 
 /**
@@ -14,7 +15,13 @@ import { TransicionPagina } from './transicion-pagina';
  */
 
 export function Marco({ children }: { children: React.ReactNode }) {
-  if (useSinNavegacion()) {
+  const sinNavegacion = useSinNavegacion();
+  // Los carriles se montan solo donde caben (mismos cortes que globals.css):
+  // ocultos con CSS seguían pidiendo datos en cada celular.
+  const conIzquierdo = useConsultaMedia('(min-width: 861px)');
+  const conDerecho = useConsultaMedia('(min-width: 1081px)');
+
+  if (sinNavegacion) {
     return (
       <div className="pagina-centrada">
         <TransicionPagina>{children}</TransicionPagina>
@@ -24,13 +31,21 @@ export function Marco({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="rejilla">
-      <Suspense fallback={<aside className="carril carril-izquierdo" aria-hidden="true" />}>
-        <CarrilIzquierdo />
-      </Suspense>
+      {conIzquierdo ? (
+        <Suspense fallback={<aside className="carril carril-izquierdo" aria-hidden="true" />}>
+          <CarrilIzquierdo />
+        </Suspense>
+      ) : (
+        <aside className="carril carril-izquierdo" aria-hidden="true" />
+      )}
       <div style={{ minWidth: 0 }}>
         <TransicionPagina>{children}</TransicionPagina>
       </div>
-      <CarrilDerecho />
+      {conDerecho ? (
+        <CarrilDerecho />
+      ) : (
+        <aside className="carril carril-derecho" aria-hidden="true" />
+      )}
     </div>
   );
 }
