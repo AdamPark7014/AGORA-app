@@ -62,7 +62,7 @@ peticiones al abrir; se diseña ahí, no ahora.
 
 ## 3. Modelos y migraciones
 
-Fase 0 **no requirió migraciones** (todo cabía en el esquema actual).
+Fase 0 terminó con **dos migraciones aditivas** (`20261007120000_media_owner`, `20261007140000_aviso_aventon_cancelado`), aplicadas en producción el 08-10-2026.
 
 Previstas (no aplicadas todavía):
 
@@ -85,15 +85,16 @@ Previstas (no aplicadas todavía):
 | 0.5 | Cupos eventos / aventones | ✅ | `4fc2af8` — `SELECT … FOR UPDATE` en transacción |
 | 0.6 | Borrar cuenta — API + web | ✅ | `ffee1d3` — `POST /cuenta/eliminar` |
 | 0.7 | Borrar cuenta — Android + iOS | ✅ / ⚠️ | `7c0e6dc` — Android compilado (`assembleDebug`); iOS escrito, **sin compilar** (requiere Mac) |
-| 0.8 | iOS: reportar publicación | ⬜ | requisito App Store (UGC) |
-| 0.9 | iOS: `PushRegistration.registerIfNeeded()` nunca se llama | ⬜ | llamarlo tras login con permiso en contexto |
+| 0.8 | iOS: reportar publicación | ✅ | `f3d8e3b` |
+| 0.9 | iOS: `PushRegistration.registerIfNeeded()` nunca se llama | ✅ | `f3d8e3b` |
 | 0.10 | Android: `usesCleartextTraffic` en release | ✅ | `7c0e6dc` — `manifestPlaceholders`: `true` solo en debug |
-| 0.11 | Media: thumbnails + dimensiones (sharp), cuota por usuario, limpieza de huérfanos | ⬜ | `media.controller.ts`, `almacen.ts`, `MantenimientoService` |
-| 0.12 | Media: moderación de imágenes | ⬜ | OpenAI `omni-moderation` acepta imagen; mismo `@agora/moderation` |
-| 0.13 | Seguidores ignoran visibilidad `COMUNIDADES` | ⬜ | `perfil.service.ts` |
-| 0.14 | Silenciar ≠ bloquear en el feed | ⬜ | `posts.service.ts` filtra `soloSilencio` en ambos sentidos |
+| 0.11 | Media: thumbnails + dimensiones (sharp), cuota por usuario, limpieza de huérfanos | ✅ | `e6c0f74` + `23de7f0` (HEIC/AVIF ya no pasan como video, GPS fuera de MP4/MOV, GIF/WEBP animados, huérfanos sin atascarse) |
+| 0.12 | Media: moderación de imágenes | ✅ | `e6c0f74` (posts) + `23de7f0` (marketplace) |
+| 0.13 | Seguidores ignoran visibilidad `COMUNIDADES` | ✅ | `e6c0f74` |
+| 0.14 | Silenciar ≠ bloquear en el feed | ✅ | `e6c0f74` |
 | 0.15 | Credenciales push reales + `assetlinks.json` SHA + AASA TEAMID | ⛔ Adam | no se inventan; requiere consola Firebase / Apple |
-| 0.16 | iOS: build real en Mac + TestFlight | ⛔ Mac | no se declara listo sin build |
+| 0.16 | iOS: build real en Mac + TestFlight | ⛔ cobro GitHub | workflow `ios.yml` listo (macos-15); no corre mientras Actions este bloqueado por cobro |
+| 0.17 | Revision previa al deploy (08-10) | ✅ | `23de7f0`: redirect abierto en `?siguiente=`, suspension que se levantaba al volver a entrar, baja que dejaba fotos publicas, permisos de levantar suspension/restaurar |
 
 ### Decisiones de Fase 0 que conviene no re-litigar
 
