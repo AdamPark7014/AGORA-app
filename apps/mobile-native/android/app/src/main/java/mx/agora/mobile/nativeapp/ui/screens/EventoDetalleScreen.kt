@@ -8,11 +8,16 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -34,6 +40,8 @@ import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.util.EnlacesWeb
+import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
 import mx.agora.mobile.nativeapp.ui.util.formatearFecha
 import mx.agora.mobile.nativeapp.ui.util.formatearPrecio
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
@@ -66,6 +74,7 @@ fun EventoDetalleScreen(
     var cargando by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     fun cargar() {
         scope.launch {
@@ -124,7 +133,11 @@ fun EventoDetalleScreen(
                 item.descripcion?.takeIf { it.isNotBlank() }?.let {
                     Text(it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
                 }
-                Text("${item.vanAIr} personas van", style = MaterialTheme.typography.bodySmall, color = AgoraColors.TextoMedio)
+                Text(
+                    listOfNotNull("${item.vanAIr} personas van", textoCupo(item.cupo, item.vanAIr)).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AgoraColors.TextoMedio,
+                )
 
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     respuestas.forEach { (valor, etiqueta) ->
@@ -156,6 +169,17 @@ fun EventoDetalleScreen(
                     TextButton(onClick = { autor.handle?.let(onPerfilClick) }) {
                         Text("Organiza ${autor.nombre ?: autor.handle}")
                     }
+                }
+
+                OutlinedButton(
+                    onClick = { compartirEnlace(context, EnlacesWeb.evento(eventoId), item.titulo) },
+                ) {
+                    Icon(
+                        Icons.Outlined.Share,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(AgoraCopy.compartir.accion, modifier = Modifier.padding(start = 8.dp))
                 }
 
                 if (item.esMio) {

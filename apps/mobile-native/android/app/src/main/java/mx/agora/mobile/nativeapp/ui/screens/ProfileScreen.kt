@@ -3,11 +3,14 @@ package mx.agora.mobile.nativeapp.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -31,12 +34,15 @@ import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.AuthApi
 import mx.agora.mobile.nativeapp.data.api.GamificacionApi
 import mx.agora.mobile.nativeapp.data.api.GamificacionDto
+import mx.agora.mobile.nativeapp.data.api.PerfilAjenoDto
 import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PerfilMioDto
 import mx.agora.mobile.nativeapp.data.local.OfflineCache
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.GamificacionProfileSection
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.util.EnlacesWeb
+import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
 private sealed class ProfileRoute {
@@ -56,6 +62,9 @@ fun ProfileScreen(
     onMarketplace: () -> Unit = {},
     onAventones: () -> Unit = {},
     onAnonimo: () -> Unit = {},
+    /** Lista de seguidores/seguidos del handle ([TipoConexion]). */
+    onConexiones: (handle: String, tipo: String) -> Unit = { _, _ -> },
+    modifier: Modifier = Modifier,
 ) {
     var ruta by remember { mutableStateOf<ProfileRoute>(ProfileRoute.Home) }
     val tokenProvider = { auth.token() }
@@ -73,6 +82,8 @@ fun ProfileScreen(
             onMarketplace = onMarketplace,
             onAventones = onAventones,
             onAnonimo = onAnonimo,
+            onConexiones = onConexiones,
+            modifier = modifier,
             onModeracion = { ruta = ProfileRoute.Moderacion },
             onTerminos = { ruta = ProfileRoute.Terminos },
             onPrivacidad = { ruta = ProfileRoute.Privacidad },
@@ -90,11 +101,15 @@ private fun ProfileHome(
     onMarketplace: () -> Unit,
     onAventones: () -> Unit,
     onAnonimo: () -> Unit,
+    onConexiones: (handle: String, tipo: String) -> Unit,
+    modifier: Modifier,
     onModeracion: () -> Unit,
     onTerminos: () -> Unit,
     onPrivacidad: () -> Unit,
 ) {
     var perfil by remember { mutableStateOf<PerfilMioDto?>(null) }
+    /** El perfil público propio: trae los contadores de seguidores y siguiendo. */
+    var publico by remember { mutableStateOf<PerfilAjenoDto?>(null) }
     var gamificacion by remember { mutableStateOf<GamificacionDto?>(null) }
     var puedeModerar by remember { mutableStateOf(false) }
     var cargando by remember { mutableStateOf(true) }
@@ -108,6 +123,7 @@ private fun ProfileHome(
         try {
             val api = ApiClient.api<PerfilApi> { auth.token() }
             perfil = api.mio().also { offlineCache.savePerfil(it) }
+            publico = runCatching { api.porHandle(perfil!!.handle) }.getOrNull()
             runCatching {
                 gamificacion = ApiClient.api<GamificacionApi> { auth.token() }.mio()
             }
@@ -141,8 +157,9 @@ private fun ProfileHome(
         }
         else -> {
             Column(
-                modifier = Modifier
+                modifier = modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -180,6 +197,34 @@ private fun ProfileHome(
                 )
                 perfil?.bio?.takeIf { it.isNotBlank() }?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium)
+                }
+
+                val miHandle = perfil?.handle ?: session?.handle
+                if (miHandle != null) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        publico?.let { p ->
+                            Text("${p.publicaciones ?: 0} posts", style = MaterialTheme.typography.bodySmall)
+                            ContadorConexion(
+                                texto = "${p.seguidores ?: 0} seguidores",
+                                habilitado = true,
+                                onClick = { onConexiones(miHandle, TipoConexion.SEGUIDORES) },
+                            )
+                            ContadorConexion(
+                                texto = "${p.siguiendo ?: 0} siguiendo",
+                                habilitado = true,
+                                onClick = { onConexiones(miHandle, TipoConexion.SIGUIENDO) },
+                            )
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = { compartirEnlace(context, EnlacesWeb.perfil(miHandle), "@$miHandle en Ágora") },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Compartir mi perfil")
+                    }
                 }
 
                 GamificacionProfileSection(

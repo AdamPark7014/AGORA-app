@@ -1,6 +1,9 @@
 package mx.agora.mobile.nativeapp.data
 
 import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.realtime.RealtimeBus
 import mx.agora.mobile.nativeapp.data.api.AuthApi
@@ -8,6 +11,7 @@ import mx.agora.mobile.nativeapp.data.api.CrearPerfilRequest
 import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.SolicitarOtpRequest
 import mx.agora.mobile.nativeapp.data.api.VerificarOtpRequest
+import mx.agora.mobile.nativeapp.push.PushRegistration
 import retrofit2.HttpException
 
 class AuthRepository(private val context: Context) {
@@ -21,9 +25,26 @@ class AuthRepository(private val context: Context) {
 
     fun markWelcomeSeen() = store.markWelcomeSeen()
 
-    suspend fun solicitarOtp(email: String) {
+    /**
+     * Pide el código. Devuelve el id de seguimiento de la entrega (cabecera
+     * `X-Envio-Id`) o null si la API no lo manda (API vieja o modo consola).
+     */
+    suspend fun solicitarOtp(email: String): String? {
         val resp = ApiClient.auth.solicitarOtp(SolicitarOtpRequest(email.trim().lowercase()))
         if (!resp.isSuccessful) throw HttpException(resp)
+        return resp.headers()["X-Envio-Id"]?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
+    /**
+     * Estado de la entrega del código: enviado, demorado, entregado, rebotado,
+     * bloqueado o error. Null si la API ya no conoce ese envío (404): no hay
+     * nada que seguir. Cualquier otro fallo lanza y el que pregunta reintenta.
+     */
+    suspend fun estadoEntrega(envioId: String): String? {
+        val resp = ApiClient.auth.entregaOtp(envioId)
+        if (resp.code() == 404) return null
+        if (!resp.isSuccessful) throw HttpException(resp)
+        return resp.body()?.estado
     }
 
     suspend fun verificarOtp(email: String, codigo: String): SessionUser {
@@ -47,9 +68,29 @@ class AuthRepository(private val context: Context) {
         return user
     }
 
+    /** Borra la sesión local. No toca la red; para el cierre completo usa [cerrarSesion]. */
     fun logout() {
         RealtimeBus.stop()
+        YoCache.limpiar()
         store.clear()
+    }
+
+    /**
+     * Cierre de sesión completo: da de baja el push del dispositivo, invalida
+     * la sesión en el servidor (`POST auth/salir`) y borra la sesión local.
+     * Los fallos de red se ignoran: salir nunca se queda colgado.
+     */
+    suspend fun cerrarSesion() {
+        val token = store.token()
+        if (!token.isNullOrBlank()) {
+            withContext(Dispatchers.IO) {
+                withTimeoutOrNull(8_000) {
+                    PushRegistration.desregistrarDispositivo(token)
+                    runCatching { ApiClient.api<AuthApi> { token }.salir() }
+                }
+            }
+        }
+        logout()
     }
 
     suspend fun refreshSession(): SessionUser? {

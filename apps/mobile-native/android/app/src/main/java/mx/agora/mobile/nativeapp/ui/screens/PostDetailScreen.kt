@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.RemoveCircleOutline
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,16 +49,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
+import mx.agora.mobile.nativeapp.data.YoCache
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.ComentarioDto
 import mx.agora.mobile.nativeapp.data.api.CrearComentarioRequest
 import mx.agora.mobile.nativeapp.data.api.CrearReporteRequest
 import mx.agora.mobile.nativeapp.data.api.EditarPostRequest
 import mx.agora.mobile.nativeapp.data.api.EncuestaDto
+import mx.agora.mobile.nativeapp.data.api.ModeracionApi
+import mx.agora.mobile.nativeapp.data.api.RetirarPostRequest
 import mx.agora.mobile.nativeapp.data.api.PostDetalleDto
 import mx.agora.mobile.nativeapp.data.api.PostsApi
 import mx.agora.mobile.nativeapp.data.api.ReaccionarRequest
@@ -64,24 +70,21 @@ import mx.agora.mobile.nativeapp.data.api.ReportesApi
 import mx.agora.mobile.nativeapp.data.api.VotarEncuestaRequest
 import mx.agora.mobile.nativeapp.ui.components.EncuestaBloque
 import mx.agora.mobile.nativeapp.ui.components.GuardarButton
+import mx.agora.mobile.nativeapp.ui.components.MOTIVOS_REPORTE
+import mx.agora.mobile.nativeapp.ui.components.RetirarPostDialogo
 import mx.agora.mobile.nativeapp.ui.components.PostMediaGrid
 import mx.agora.mobile.nativeapp.ui.components.ReaccionesRow
 import mx.agora.mobile.nativeapp.ui.components.TextoConHashtags
+import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.util.EnlacesWeb
 import mx.agora.mobile.nativeapp.ui.util.HapticType
+import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
 import mx.agora.mobile.nativeapp.ui.util.rememberHaptics
-
-private val MOTIVOS_REPORTE = listOf(
-    "INTIMIDAD_SEXUAL" to "Contenido íntimo sin permiso",
-    "DATOS_PERSONALES" to "Datos personales",
-    "AMENAZA_VIOLENCIA" to "Amenaza de violencia",
-    "ACOSO_DIRIGIDO" to "Acoso dirigido",
-    "SUPLANTACION" to "Suplantación",
-    "OTRO" to "Otro",
-)
+import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,6 +115,14 @@ fun PostDetailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptics = rememberHaptics()
+    val context = LocalContext.current
+    var puedeModerar by remember { mutableStateOf(false) }
+    var dialogoRetirar by remember { mutableStateOf(false) }
+    var retirando by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        puedeModerar = YoCache.obtener(tokenProvider)?.puedeModerar == true
+    }
 
     fun aplicarDetalle(detalle: PostDetalleDto) {
         post = detalle
@@ -244,6 +255,23 @@ fun PostDetailScreen(
         }
     }
 
+    fun retirar(motivo: String) {
+        scope.launch {
+            retirando = true
+            try {
+                val resp = ApiClient.api<ModeracionApi>(tokenProvider)
+                    .retirarPost(postId, RetirarPostRequest(motivo))
+                if (!resp.isSuccessful) throw HttpException(resp)
+                dialogoRetirar = false
+                onDeleted()
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar(ApiClient.mensajeDelServidor(e) ?: mensajeDe(e))
+            } finally {
+                retirando = false
+            }
+        }
+    }
+
     val esAutor = post?.autor?.handle != null && post?.autor?.handle == miHandle
 
     Scaffold(
@@ -255,6 +283,9 @@ fun PostDetailScreen(
                     TextButton(onClick = onBack) { Text("Volver") }
                 },
                 actions = {
+                    IconButton(onClick = { compartirEnlace(context, EnlacesWeb.publicacion(postId)) }) {
+                        Icon(Icons.Outlined.Share, contentDescription = AgoraCopy.compartir.accion)
+                    }
                     IconButton(onClick = { menuAbierto = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Más opciones")
                     }
@@ -268,6 +299,16 @@ fun PostDetailScreen(
                             },
                             leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null) },
                         )
+                        if (puedeModerar && !esAutor) {
+                            DropdownMenuItem(
+                                text = { Text("Retirar (moderación)") },
+                                onClick = {
+                                    menuAbierto = false
+                                    dialogoRetirar = true
+                                },
+                                leadingIcon = { Icon(Icons.Outlined.RemoveCircleOutline, contentDescription = null) },
+                            )
+                        }
                         if (esAutor) {
                             DropdownMenuItem(
                                 text = { Text("Editar") },
@@ -337,7 +378,11 @@ fun PostDetailScreen(
                         }
 
                         if (actual.texto.isNotBlank()) {
-                            TextoConHashtags(texto = actual.texto, onHashtagClick = onHashtagClick)
+                            TextoConHashtags(
+                                texto = actual.texto,
+                                onHashtagClick = onHashtagClick,
+                                onMentionClick = onAuthorClick,
+                            )
                         }
 
                         if (actual.media.isNotEmpty()) {
@@ -427,6 +472,14 @@ fun PostDetailScreen(
                     reporteComentarioId = null
                 }) { Text("Cancelar") }
             },
+        )
+    }
+
+    if (dialogoRetirar) {
+        RetirarPostDialogo(
+            enviando = retirando,
+            onConfirmar = ::retirar,
+            onCerrar = { dialogoRetirar = false },
         )
     }
 

@@ -98,6 +98,18 @@ object AgoraCopy {
         subtitle = "No hay reportes abiertos. El campus está en paz.",
     )
 
+    val emptySeguidores = EmptyState(
+        emoji = "👥",
+        title = "Sin seguidores todavía",
+        subtitle = "Cuando alguien siga este perfil, aparecerá aquí.",
+    )
+
+    val emptySiguiendo = EmptyState(
+        emoji = "👥",
+        title = "No sigue a nadie todavía",
+        subtitle = "Las personas que siga aparecerán aquí.",
+    )
+
     object errors {
         const val network = "Sin conexión. Revisa tu WiFi o datos y vuelve a intentar."
         const val session = "Tu sesión expiró. Vuelve a entrar con tu correo @udlap.mx."
@@ -111,6 +123,53 @@ object AgoraCopy {
         const val verEventos = "Ver eventos"
         const val buscarPersonas = "Buscar personas"
         const val reintentar = "Reintentar"
+    }
+
+    /** Mismo copy que la web (`apps/web/lib/copy.ts` → `login`). */
+    object login {
+        const val lema = "Red social verificada de la UDLAP"
+        const val etiquetaCorreo = "Correo @udlap.mx"
+        const val botonCorreo = "Enviar código"
+        const val botonCorreoEnviando = "Enviando…"
+        const val errorEnviar = "No se pudo enviar el código."
+        const val errorVerificar = "Código incorrecto."
+
+        const val tituloCodigo = "Revisa tu correo"
+        fun entradillaCodigo(email: String) = "Te mandamos 6 dígitos a $email."
+        const val etiquetaCodigo = "Código de 6 dígitos"
+        const val botonCodigo = "Entrar al Ágora"
+        const val botonVerificando = "Verificando…"
+        const val cambiarCorreo = "Cambiar correo"
+        const val reenviar = "Reenviar código"
+        const val avisoOutlook =
+            "Si no lo ves en la bandeja principal, busca \"Ágora\" o \"udlagora\" y revisa Correo no deseado, la pestaña Otros y Cuarentena en Outlook."
+        const val pie = "Vence en 10 minutos y solo sirve una vez."
+        const val remitente = "Llega de contacto@zynoratek.com («Ágora · Zynora Tek»)."
+
+        object entrega {
+            const val enviado = "Enviando tu código…"
+            const val demorado = "Outlook está tardando en aceptarlo. Se reintenta solo; dale un minuto."
+            const val entregado =
+                "Entregado en tu buzón UDLAP. Si no está en la bandeja principal, revisa la pestaña Otros o Correo no deseado."
+            fun rebotado(email: String) =
+                "Outlook rechazó $email: esa dirección no existe en UDLAP. Revisa que esté bien escrita."
+            const val bloqueado =
+                "Esa dirección había rebotado antes y estaba en pausa. Ya la liberamos: pide el código otra vez."
+            const val error = "No pudimos entregarlo. Intenta de nuevo en un minuto."
+            const val sinNoticias = "Sigue en camino. Si en un par de minutos no aparece, reenvíalo."
+        }
+    }
+
+    object legal {
+        const val noAfiliada = "Ágora no está afiliada a la Universidad de las Américas Puebla."
+        const val desarrolladoPor = "Developed by "
+        const val zynora = "Zynora Tek"
+        const val zynoraUrl = "https://zynoratek.com"
+    }
+
+    object compartir {
+        const val accion = "Compartir"
+        const val publicacion = "Publicación en Ágora"
     }
 
     val buscarEjemplos = listOf(

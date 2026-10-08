@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,11 +27,15 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.NetworkMonitor
+import mx.agora.mobile.nativeapp.data.YoCache
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.ComunidadDto
 import mx.agora.mobile.nativeapp.data.api.FeedApi
+import mx.agora.mobile.nativeapp.data.api.ModeracionApi
 import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PostDto
+import mx.agora.mobile.nativeapp.data.api.RetirarPostRequest
+import mx.agora.mobile.nativeapp.data.local.OfflineCache
 import mx.agora.mobile.nativeapp.ui.components.AgoraChipItem
 import mx.agora.mobile.nativeapp.ui.components.AgoraChipRow
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
@@ -39,20 +44,21 @@ import mx.agora.mobile.nativeapp.ui.components.AgoraFeedSkeleton
 import mx.agora.mobile.nativeapp.ui.components.CampusPulseBanner
 import mx.agora.mobile.nativeapp.ui.components.CampusTipBanner
 import mx.agora.mobile.nativeapp.ui.components.EventosEnVivoBanner
+import mx.agora.mobile.nativeapp.ui.components.LeaderboardRachasRow
 import mx.agora.mobile.nativeapp.ui.components.OfflineBanner
 import mx.agora.mobile.nativeapp.ui.components.PostCard
 import mx.agora.mobile.nativeapp.ui.components.PreguntaDelDiaBanner
-import mx.agora.mobile.nativeapp.ui.components.LeaderboardRachasRow
 import mx.agora.mobile.nativeapp.ui.components.RachaBadgeRow
+import mx.agora.mobile.nativeapp.ui.components.RetirarPostDialogo
+import mx.agora.mobile.nativeapp.ui.components.RetoSemanalBanner
 import mx.agora.mobile.nativeapp.ui.components.RetosAmigosRow
 import mx.agora.mobile.nativeapp.ui.components.RetosHistorialRow
 import mx.agora.mobile.nativeapp.ui.components.RetosRankingSemanalRow
-import mx.agora.mobile.nativeapp.ui.components.RetoSemanalBanner
-import mx.agora.mobile.nativeapp.data.local.OfflineCache
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
 import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
+import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +85,32 @@ fun FeedScreen(
     var sinConexion by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val offlineCache = remember { OfflineCache.get(context) }
+    var puedeModerar by remember { mutableStateOf(false) }
+    var retirandoId by remember { mutableStateOf<String?>(null) }
+    var enviandoRetiro by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        puedeModerar = YoCache.obtener(tokenProvider)?.puedeModerar == true
+    }
+
+    fun retirar(postId: String, motivo: String) {
+        scope.launch {
+            enviandoRetiro = true
+            try {
+                val resp = ApiClient.api<ModeracionApi>(tokenProvider)
+                    .retirarPost(postId, RetirarPostRequest(motivo))
+                if (!resp.isSuccessful) throw HttpException(resp)
+                posts = posts.filter { it.id != postId }
+                retirandoId = null
+                Toast.makeText(context, "Publicación retirada.", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                val msg = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            } finally {
+                enviandoRetiro = false
+            }
+        }
+    }
 
     val finCercano by remember {
         derivedStateOf {
@@ -328,6 +360,12 @@ fun FeedScreen(
                                 { onAuthorClick(handle) }
                             },
                             isActive = post.id == activePostId,
+                            onMentionClick = onAuthorClick,
+                            onRetirar = if (puedeModerar) {
+                                { retirandoId = post.id }
+                            } else {
+                                null
+                            },
                         )
                     }
 
@@ -346,6 +384,14 @@ fun FeedScreen(
                 }
             }
         }
+    }
+
+    retirandoId?.let { postId ->
+        RetirarPostDialogo(
+            enviando = enviandoRetiro,
+            onConfirmar = { motivo -> retirar(postId, motivo) },
+            onCerrar = { retirandoId = null },
+        )
     }
 }
 

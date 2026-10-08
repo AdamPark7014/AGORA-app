@@ -5,11 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -32,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import mx.agora.mobile.nativeapp.ui.components.AgoraMarcaHorizontal
 import mx.agora.mobile.nativeapp.ui.components.AgoraProgressDots
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 
@@ -93,14 +96,19 @@ fun WelcomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TextButton(
-            onClick = onFinished,
-            modifier = Modifier.align(Alignment.End),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Saltar", color = AgoraColors.TextoMedio)
+            AgoraMarcaHorizontal(isotipo = 32.dp)
+            TextButton(onClick = onFinished) {
+                Text("Saltar", color = AgoraColors.TextoMedio)
+            }
         }
 
         HorizontalPager(

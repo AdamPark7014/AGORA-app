@@ -1,6 +1,7 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -15,8 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -44,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -66,6 +71,8 @@ import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.GamificacionPublicSection
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.util.EnlacesWeb
+import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
@@ -78,13 +85,17 @@ fun PerfilAjenoScreen(
     onBack: () -> Unit,
     onMensaje: (String) -> Unit,
     onAjustes: () -> Unit,
+    /** Abre la lista de seguidores o seguidos ([TipoConexion]). */
+    onConexiones: (tipo: String) -> Unit = {},
 ) {
+    val context = LocalContext.current
     var perfil by remember { mutableStateOf<PerfilAjenoDto?>(null) }
     var gamificacion by remember { mutableStateOf<GamificacionDto?>(null) }
     var publicaciones by remember { mutableStateOf<List<PerfilPublicacionDto>>(emptyList()) }
     var cursor by remember { mutableStateOf<String?>(null) }
     var siguiendo by remember { mutableStateOf(false) }
     var bloqueado by remember { mutableStateOf(false) }
+    var silenciado by remember { mutableStateOf(false) }
     var cargando by remember { mutableStateOf(true) }
     var ocupado by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -104,7 +115,9 @@ fun PerfilAjenoScreen(
                 perfil = datos
                 siguiendo = datos.yoLeSigo
                 if (miHandle != null && miHandle != handle) {
-                    bloqueado = ApiClient.api<BloqueosApi>(tokenProvider).estado(handle).bloqueado
+                    val estado = ApiClient.api<BloqueosApi>(tokenProvider).estado(handle)
+                    bloqueado = estado.bloqueado
+                    silenciado = estado.silenciado
                 }
                 if (!datos.restringido) {
                     val p = api.publicaciones(handle)
@@ -159,9 +172,40 @@ fun PerfilAjenoScreen(
                 if (bloqueado) {
                     api.quitar(handle)
                     bloqueado = false
+                    silenciado = false
                 } else {
                     val resp = api.aplicar(handle, BloquearRequest(soloSilencio = false))
                     bloqueado = resp.bloqueado
+                    silenciado = resp.silenciado
+                }
+            } catch (e: Exception) {
+                error = mensajeDe(e)
+            } finally {
+                ocupado = false
+            }
+        }
+    }
+
+    /**
+     * Silenciar: dejo de ver sus publicaciones sin que se entere ni se rompa el
+     * contacto (bloquear, en cambio, es "no nos vemos").
+     */
+    fun alternarSilencio() {
+        scope.launch {
+            ocupado = true
+            error = null
+            try {
+                val api = ApiClient.api<BloqueosApi>(tokenProvider)
+                if (silenciado) {
+                    api.quitar(handle)
+                    silenciado = false
+                    bloqueado = false
+                    snackbarHostState.showSnackbar("Ya no está silenciado.")
+                } else {
+                    val resp = api.aplicar(handle, BloquearRequest(soloSilencio = true))
+                    silenciado = resp.silenciado
+                    bloqueado = resp.bloqueado
+                    snackbarHostState.showSnackbar("Silenciado. No verás sus publicaciones.")
                 }
             } catch (e: Exception) {
                 error = mensajeDe(e)
@@ -284,6 +328,11 @@ fun PerfilAjenoScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { compartirEnlace(context, EnlacesWeb.perfil(handle), "@$handle en Ágora") }) {
+                        Icon(Icons.Outlined.Share, contentDescription = AgoraCopy.compartir.accion)
+                    }
+                },
             )
         },
     ) { padding ->
@@ -319,6 +368,17 @@ fun PerfilAjenoScreen(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         ) {
+                            ApiClient.resolveUrl(p.portadaUrl)?.let { portada ->
+                                AsyncImage(
+                                    model = portada,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(3f)
+                                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
                             Column(
                                 modifier = Modifier.fillMaxWidth().padding(20.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -376,8 +436,16 @@ fun PerfilAjenoScreen(
 
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                     Text("${p.publicaciones ?: 0} posts", style = MaterialTheme.typography.bodySmall)
-                                    Text("${p.seguidores ?: 0} seguidores", style = MaterialTheme.typography.bodySmall)
-                                    Text("${p.siguiendo ?: 0} siguiendo", style = MaterialTheme.typography.bodySmall)
+                                    ContadorConexion(
+                                        texto = "${p.seguidores ?: 0} seguidores",
+                                        habilitado = !p.restringido,
+                                        onClick = { onConexiones(TipoConexion.SEGUIDORES) },
+                                    )
+                                    ContadorConexion(
+                                        texto = "${p.siguiendo ?: 0} siguiendo",
+                                        habilitado = !p.restringido,
+                                        onClick = { onConexiones(TipoConexion.SIGUIENDO) },
+                                    )
                                 }
 
                                 GamificacionPublicSection(
@@ -425,12 +493,22 @@ fun PerfilAjenoScreen(
                                                 }
                                             }
                                         }
-                                        OutlinedButton(
-                                            onClick = { alternarBloqueo() },
-                                            enabled = !ocupado,
+                                        Row(
                                             modifier = Modifier.padding(top = 8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                                         ) {
-                                            Text(if (bloqueado) "Desbloquear" else "Bloquear")
+                                            OutlinedButton(
+                                                onClick = { alternarSilencio() },
+                                                enabled = !ocupado,
+                                            ) {
+                                                Text(if (silenciado) "Quitar silencio" else "Silenciar")
+                                            }
+                                            OutlinedButton(
+                                                onClick = { alternarBloqueo() },
+                                                enabled = !ocupado,
+                                            ) {
+                                                Text(if (bloqueado) "Desbloquear" else "Bloquear")
+                                            }
                                         }
                                     }
                                 }
@@ -499,6 +577,25 @@ fun PerfilAjenoScreen(
             }
         }
     }
+}
+
+/** "N seguidores" / "N siguiendo" tocable (abre la lista) cuando el perfil es visible. */
+@Composable
+internal fun ContadorConexion(
+    texto: String,
+    habilitado: Boolean,
+    onClick: () -> Unit,
+) {
+    Text(
+        texto,
+        style = MaterialTheme.typography.bodySmall,
+        fontWeight = if (habilitado) FontWeight.SemiBold else FontWeight.Normal,
+        color = if (habilitado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .clickable(enabled = habilitado, onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+    )
 }
 
 @Composable

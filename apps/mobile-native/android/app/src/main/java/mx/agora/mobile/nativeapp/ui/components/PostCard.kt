@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,9 +19,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.RemoveCircleOutline
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,10 +45,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -51,8 +63,11 @@ import mx.agora.mobile.nativeapp.data.api.PostDto
 import mx.agora.mobile.nativeapp.data.api.PostsApi
 import mx.agora.mobile.nativeapp.data.api.ReaccionarRequest
 import mx.agora.mobile.nativeapp.data.api.VotarEncuestaRequest
+import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.util.EnlacesWeb
 import mx.agora.mobile.nativeapp.ui.util.HapticType
+import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
 import mx.agora.mobile.nativeapp.ui.util.rememberHaptics
 
@@ -78,7 +93,13 @@ fun PostCard(
     onAuthorClick: (() -> Unit)? = null,
     isActive: Boolean = false,
     modifier: Modifier = Modifier,
+    /** Abre el perfil de un @mencionado. Sin esto las menciones son texto plano. */
+    onMentionClick: ((String) -> Unit)? = null,
+    /** Solo para staff con permiso de moderar: muestra "Retirar" en el menú. */
+    onRetirar: (() -> Unit)? = null,
 ) {
+    val context = LocalContext.current
+    var menuAbierto by remember(post.id) { mutableStateOf(false) }
     var miReaccion by remember(post.id) { mutableStateOf(post.miReaccion) }
     var totalReacciones by remember(post.id) { mutableIntStateOf(post.numReactions) }
     var encuesta by remember(post.id) { mutableStateOf(post.encuesta) }
@@ -163,12 +184,36 @@ fun PostCard(
                     guardado = post.miGuardado,
                     tokenProvider = tokenProvider,
                 )
+                if (onRetirar != null) {
+                    Box {
+                        IconButton(onClick = { menuAbierto = true }, modifier = Modifier.size(36.dp)) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = "Más opciones",
+                                tint = AgoraColors.TextoMedio,
+                            )
+                        }
+                        DropdownMenu(expanded = menuAbierto, onDismissRequest = { menuAbierto = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Retirar (moderación)") },
+                                onClick = {
+                                    menuAbierto = false
+                                    onRetirar()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Outlined.RemoveCircleOutline, contentDescription = null)
+                                },
+                            )
+                        }
+                    }
+                }
             }
 
             if (post.texto.isNotBlank()) {
                 TextoConHashtags(
                     texto = post.texto,
                     onHashtagClick = onHashtagClick,
+                    onMentionClick = onMentionClick,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
@@ -205,6 +250,7 @@ fun PostCard(
                 numComments = post.numComments,
                 onReaccionar = ::reaccionar,
                 onCommentsClick = onPostClick,
+                onCompartir = { compartirEnlace(context, EnlacesWeb.publicacion(post.id)) },
                 modifier = Modifier.padding(top = 10.dp),
             )
         }
@@ -219,6 +265,7 @@ fun ReaccionesRow(
     onReaccionar: (String) -> Unit,
     onCommentsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onCompartir: (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -252,6 +299,17 @@ fun ReaccionesRow(
                 )
                 .padding(horizontal = 4.dp, vertical = 6.dp),
         )
+        if (onCompartir != null) {
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = onCompartir, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Outlined.Share,
+                    contentDescription = AgoraCopy.compartir.accion,
+                    tint = AgoraColors.TextoMedio,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
     }
 }
 
@@ -326,36 +384,68 @@ private fun ReaccionButton(
     }
 }
 
+/**
+ * Mismo patrón que `partirTextoSocial` (packages/shared): @menciones de 3–30
+ * caracteres y #hashtags de 2–40 letras o números (con acentos).
+ */
+private val TOKEN_SOCIAL = Regex("(@[a-z][a-z0-9_]{2,29}|#[\\p{L}\\p{N}_]{2,40})", RegexOption.IGNORE_CASE)
+
+/**
+ * Texto de un post con #hashtags y @menciones tocables. Usa LinkAnnotation:
+ * un toque fuera de los enlaces sigue llegando a la tarjeta (abre el detalle).
+ */
 @Composable
 fun TextoConHashtags(
     texto: String,
     onHashtagClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onMentionClick: ((String) -> Unit)? = null,
 ) {
-    val partes = remember(texto) { texto.split(Regex("(#\\w+)")) }
-    val annotated = buildAnnotatedString {
-        partes.forEach { parte ->
-            if (parte.startsWith("#")) {
-                pushStringAnnotation(tag = "hashtag", annotation = parte.drop(1))
-                withStyle(SpanStyle(color = AgoraColors.Naranja, fontWeight = FontWeight.SemiBold)) {
-                    append(parte)
+    val alHashtag by rememberUpdatedState(onHashtagClick)
+    val alMencion by rememberUpdatedState(onMentionClick)
+    val conMenciones = onMentionClick != null
+    val estiloEnlace = TextLinkStyles(
+        style = SpanStyle(color = AgoraColors.Naranja, fontWeight = FontWeight.SemiBold),
+    )
+    val annotated = remember(texto, conMenciones, AgoraColors.oscuro) {
+        buildAnnotatedString {
+            var ultimo = 0
+            TOKEN_SOCIAL.findAll(texto).forEach { m ->
+                if (m.range.first > ultimo) append(texto.substring(ultimo, m.range.first))
+                val token = m.value
+                when {
+                    token.startsWith("#") -> {
+                        val tag = token.drop(1)
+                        withLink(
+                            LinkAnnotation.Clickable(
+                                tag = "hashtag:$tag",
+                                styles = estiloEnlace,
+                                linkInteractionListener = { alHashtag(tag) },
+                            ),
+                        ) { append(token) }
+                    }
+                    conMenciones -> {
+                        val handle = token.drop(1).lowercase()
+                        withLink(
+                            LinkAnnotation.Clickable(
+                                tag = "mencion:$handle",
+                                styles = estiloEnlace,
+                                linkInteractionListener = { alMencion?.invoke(handle) },
+                            ),
+                        ) { append(token) }
+                    }
+                    else -> append(token)
                 }
-                pop()
-            } else {
-                append(parte)
+                ultimo = m.range.last + 1
             }
+            if (ultimo < texto.length) append(texto.substring(ultimo))
         }
     }
 
-    ClickableText(
+    Text(
         text = annotated,
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.bodyMedium.copy(color = AgoraColors.Texto),
         modifier = modifier,
-        onClick = { offset ->
-            annotated.getStringAnnotations("hashtag", offset, offset).firstOrNull()?.let {
-                onHashtagClick(it.item)
-            }
-        },
     )
 }
 

@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.ExpoPushTokenRequest
@@ -40,5 +41,21 @@ object PushRegistration {
                 Log.d(TAG, "Token FCM registrado: …${fcmToken.takeLast(8)}")
             }.onFailure { Log.w(TAG, "Error registrando FCM: ${it.message}") }
         }
+    }
+
+    /**
+     * Al cerrar sesión: el dispositivo deja de recibir avisos de esta cuenta.
+     * Recibe el token de sesión porque se llama justo antes de borrarlo.
+     * Nunca lanza; si Firebase o la red no responden, se sigue con el cierre.
+     */
+    suspend fun desregistrarDispositivo(tokenSesion: String) {
+        runCatching {
+            val fcmToken = withTimeoutOrNull(4_000) {
+                FirebaseMessaging.getInstance().token.await()
+            } ?: return
+            ApiClient.api<PushApi> { tokenSesion }
+                .desuscribirFcm(FcmPushTokenRequest(fcmToken))
+            Log.d(TAG, "Token FCM dado de baja: …${fcmToken.takeLast(8)}")
+        }.onFailure { Log.w(TAG, "Error dando de baja FCM: ${it.message}") }
     }
 }

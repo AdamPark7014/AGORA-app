@@ -90,6 +90,7 @@ fun GuardadosScreen(
                             onAuthorClick = post.autor?.handle?.let { handle ->
                                 { onAuthorClick(handle) }
                             },
+                            onMentionClick = onAuthorClick,
                         )
                     }
                 }

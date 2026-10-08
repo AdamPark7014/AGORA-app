@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,9 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -32,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
+import mx.agora.mobile.nativeapp.data.api.CatalogoDto
 import mx.agora.mobile.nativeapp.data.api.DirectorioApi
 import mx.agora.mobile.nativeapp.data.api.DirectorioPersonaDto
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
@@ -46,6 +51,10 @@ fun DirectorioScreen(
 ) {
     var q by remember { mutableStateOf("") }
     var generacion by remember { mutableStateOf<Int?>(null) }
+    var catalogo by remember { mutableStateOf<CatalogoDto?>(null) }
+    var escuela by remember { mutableStateOf<String?>(null) }
+    var carrera by remember { mutableStateOf<String?>(null) }
+    var colegio by remember { mutableStateOf<String?>(null) }
     var resultados by remember { mutableStateOf<List<DirectorioPersonaDto>>(emptyList()) }
     var cursor by remember { mutableStateOf<String?>(null) }
     var cargando by remember { mutableStateOf(true) }
@@ -62,6 +71,9 @@ fun DirectorioScreen(
                     q = q.trim().ifBlank { null },
                     generacion = generacion,
                     cursor = desde,
+                    escuela = escuela,
+                    carrera = carrera,
+                    colegio = colegio,
                 )
                 resultados = if (desde != null) resultados + datos.resultados else datos.resultados
                 cursor = datos.siguienteCursor
@@ -73,7 +85,11 @@ fun DirectorioScreen(
         }
     }
 
-    LaunchedEffect(q, generacion) {
+    LaunchedEffect(Unit) {
+        catalogo = runCatching { ApiClient.catalogo.todo() }.getOrNull()
+    }
+
+    LaunchedEffect(q, generacion, escuela, carrera, colegio) {
         delay(300)
         buscar()
     }
@@ -88,6 +104,45 @@ fun DirectorioScreen(
             placeholder = { Text("Nombre o @handle") },
             singleLine = true,
         )
+
+        catalogo?.let { cat ->
+            val escuelaElegida = cat.escuelas.firstOrNull { it.slug == escuela }
+            Row(
+                modifier = Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FiltroDesplegable(
+                    etiqueta = "Escuela",
+                    todas = "Todas las escuelas",
+                    seleccion = escuela,
+                    opciones = cat.escuelas.map { it.slug to it.nombre },
+                    onElegir = {
+                        escuela = it
+                        carrera = null
+                    },
+                )
+                FiltroDesplegable(
+                    etiqueta = "Carrera",
+                    todas = "Todas las carreras",
+                    seleccion = carrera,
+                    opciones = escuelaElegida?.carreras.orEmpty().map { it.slug to it.nombre },
+                    onElegir = { carrera = it },
+                    habilitado = escuelaElegida != null,
+                )
+                if (cat.colegios.isNotEmpty()) {
+                    FiltroDesplegable(
+                        etiqueta = "Colegio",
+                        todas = "Todos los colegios",
+                        seleccion = colegio,
+                        opciones = cat.colegios.map { it.slug to it.nombre },
+                        onElegir = { colegio = it },
+                    )
+                }
+            }
+        }
 
         LazyRow(
             modifier = Modifier.padding(bottom = 8.dp),
@@ -170,6 +225,46 @@ fun DirectorioScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Chip con menú: null = sin filtro. Muestra el nombre elegido en lugar de la etiqueta. */
+@Composable
+private fun FiltroDesplegable(
+    etiqueta: String,
+    todas: String,
+    seleccion: String?,
+    opciones: List<Pair<String, String>>,
+    onElegir: (String?) -> Unit,
+    habilitado: Boolean = true,
+) {
+    var abierto by remember { mutableStateOf(false) }
+    val nombre = opciones.firstOrNull { it.first == seleccion }?.second
+    Box {
+        FilterChip(
+            selected = seleccion != null,
+            onClick = { abierto = true },
+            enabled = habilitado,
+            label = { Text("${nombre ?: etiqueta} ▾", maxLines = 1) },
+        )
+        DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
+            DropdownMenuItem(
+                text = { Text(todas) },
+                onClick = {
+                    abierto = false
+                    onElegir(null)
+                },
+            )
+            opciones.forEach { (slug, texto) ->
+                DropdownMenuItem(
+                    text = { Text(texto) },
+                    onClick = {
+                        abierto = false
+                        onElegir(slug)
+                    },
+                )
             }
         }
     }

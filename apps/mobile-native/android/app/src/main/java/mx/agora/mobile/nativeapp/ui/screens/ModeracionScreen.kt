@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import mx.agora.mobile.nativeapp.data.YoCache
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.ModeracionApi
 import mx.agora.mobile.nativeapp.data.api.ModeracionColaItemDto
@@ -51,6 +52,12 @@ fun ModeracionScreen(
     var dialogoItem by remember { mutableStateOf<ModeracionColaItemDto?>(null) }
     var dialogoAccion by remember { mutableStateOf<String?>(null) }
     var motivo by remember { mutableStateOf("") }
+    /** Suspender exige USUARIO_SUSPENDER, más que moderar: no todo el staff lo ve. */
+    var puedeSuspender by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        puedeSuspender = YoCache.obtener(tokenProvider)?.puedeSuspender == true
+    }
 
     fun recargar() {
         scope.launch {
@@ -82,36 +89,36 @@ fun ModeracionScreen(
                 dialogoAccion = null
                 motivo = ""
             } catch (e: Exception) {
-                error = mensajeDe(e)
+                error = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
             } finally {
                 resolviendo = null
             }
         }
     }
 
-    SubScreenScaffold(title = "Moderación", onBack = onBack) { _ ->
+    SubScreenScaffold(title = "Moderación", onBack = onBack) { padding ->
         when {
             cargando -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             }
             error != null && items.isEmpty() -> {
                 AgoraErrorState(
                     message = error!!,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().padding(padding),
                     onRetry = { recargar() },
                 )
             }
             items.isEmpty() -> {
                 AgoraEmptyState(
                     state = AgoraCopy.emptyModeracion,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().padding(padding),
                 )
             }
             else -> {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item {
@@ -150,6 +157,15 @@ fun ModeracionScreen(
                                         dialogoAccion = "RETIRAR_CONTENIDO"
                                         motivo = ""
                                     },
+                                    onSuspender = if (puedeSuspender && item.autor?.suspendido != true) {
+                                        {
+                                            dialogoItem = item
+                                            dialogoAccion = "SUSPENDER_USUARIO"
+                                            motivo = ""
+                                        }
+                                    } else {
+                                        null
+                                    },
                                 )
                             }
                         }
@@ -167,7 +183,13 @@ fun ModeracionScreen(
                 dialogoAccion = null
             },
             title = {
-                Text(if (dialogoAccion == "RETIRAR_CONTENIDO") "Retirar contenido" else "Cerrar sin acción")
+                Text(
+                    when (dialogoAccion) {
+                        "RETIRAR_CONTENIDO" -> "Retirar contenido"
+                        "SUSPENDER_USUARIO" -> "Suspender autor"
+                        else -> "Cerrar sin acción"
+                    },
+                )
             },
             text = {
                 OutlinedTextField(
@@ -205,6 +227,7 @@ private fun RowAcciones(
     cargando: Boolean,
     onSinAccion: () -> Unit,
     onRetirar: () -> Unit,
+    onSuspender: (() -> Unit)? = null,
 ) {
     androidx.compose.foundation.layout.Row(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -215,6 +238,18 @@ private fun RowAcciones(
         }
         Button(onClick = onRetirar, enabled = !cargando, modifier = Modifier.weight(1f)) {
             Text(if (cargando) "…" else "Retirar")
+        }
+    }
+    if (onSuspender != null) {
+        OutlinedButton(
+            onClick = onSuspender,
+            enabled = !cargando,
+            modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.error,
+            ),
+        ) {
+            Text("Suspender autor")
         }
     }
 }

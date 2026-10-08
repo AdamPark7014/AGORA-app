@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -22,20 +23,21 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.AuthRepository
+import mx.agora.mobile.nativeapp.data.YoCache
 import mx.agora.mobile.nativeapp.data.api.ApiClient
-import mx.agora.mobile.nativeapp.data.api.AuthApi
+import mx.agora.mobile.nativeapp.data.api.MensajesApi
 import mx.agora.mobile.nativeapp.data.api.YoResponse
+import mx.agora.mobile.nativeapp.ui.components.AgoraPieLegal
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 
 private data class EnlaceMas(
@@ -87,10 +89,25 @@ fun MasScreen(
     modifier: Modifier = Modifier,
 ) {
     var yo by remember { mutableStateOf<YoResponse?>(null) }
-    val scope = rememberCoroutineScope()
+    var mensajesSinLeer by remember { mutableIntStateOf(0) }
+    var cerrando by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        yo = runCatching { ApiClient.api<AuthApi> { auth.token() }.yo() }.getOrNull()
+        yo = YoCache.obtener { auth.token() }
+    }
+    LaunchedEffect(Unit) {
+        mensajesSinLeer = runCatching {
+            ApiClient.api<MensajesApi> { auth.token() }.noLeidos().total
+        }.getOrDefault(0)
+    }
+
+    val seccionesVisibles = if (yo?.puedeModerar == true) {
+        secciones + SeccionMas(
+            titulo = "Equipo",
+            enlaces = listOf(EnlaceMas("moderacion", "🛡️", "Moderación", "Cola de reportes")),
+        )
+    } else {
+        secciones
     }
 
     Column(
@@ -149,7 +166,7 @@ fun MasScreen(
             }
         }
 
-        secciones.forEach { seccion ->
+        seccionesVisibles.forEach { seccion ->
             Text(
                 seccion.titulo,
                 style = MaterialTheme.typography.labelLarge,
@@ -180,6 +197,10 @@ fun MasScreen(
                                     color = AgoraColors.TextoMedio,
                                 )
                             }
+                            val pendientes = if (item.ruta == "mensajes") mensajesSinLeer else 0
+                            if (pendientes > 0) {
+                                Badge { Text(if (pendientes > 99) "99+" else pendientes.toString()) }
+                            }
                             Text("›", color = AgoraColors.TextMuted)
                         }
                         if (index < seccion.enlaces.lastIndex) {
@@ -209,16 +230,20 @@ fun MasScreen(
 
         OutlinedButton(
             onClick = {
-                scope.launch {
-                    runCatching { ApiClient.api<AuthApi> { auth.token() } }
-                    auth.logout()
-                    onLogout()
-                }
+                cerrando = true
+                onLogout()
             },
+            enabled = !cerrando,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Cerrar sesión", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+            Text(
+                if (cerrando) "Cerrando sesión…" else "Cerrar sesión",
+                color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.Bold,
+            )
         }
+
+        AgoraPieLegal(modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
     }
 }
 

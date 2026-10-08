@@ -19,15 +19,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,22 +61,41 @@ fun PostMediaGrid(
     val videos = media.filter { it.esVideoMedia() }
     val imagenes = media.filter { !it.esVideoMedia() }
     val floatingReactions = remember(postId) { mutableStateListOf<FloatingReaction>() }
+    /** Índice de la imagen abierta en el visor a pantalla completa. */
+    var visor by remember(postId) { mutableStateOf<Int?>(null) }
+    /** Dónde quedó cada miniatura (coordenadas de la raíz) para saber cuál se tocó. */
+    val limites = remember(postId) { mutableStateMapOf<Int, Rect>() }
+    var origen by remember(postId) { mutableStateOf(Offset.Zero) }
+
+    fun miniatura(indice: Int): Modifier =
+        Modifier.onGloballyPositioned { limites[indice] = it.boundsInRoot() }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .onGloballyPositioned { origen = it.positionInRoot() }
             .then(
-                if (onDoubleTapReact != null && imagenes.isNotEmpty()) {
-                    Modifier.pointerInput(postId) {
+                if (imagenes.isNotEmpty()) {
+                    Modifier.pointerInput(postId, onDoubleTapReact != null) {
                         detectTapGestures(
-                            onDoubleTap = { offset ->
-                                onDoubleTapReact()
-                                floatingReactions.add(
-                                    FloatingReaction(
-                                        id = System.nanoTime(),
-                                        offset = offset,
-                                    ),
-                                )
+                            onTap = { offset ->
+                                val punto = origen + offset
+                                limites.entries
+                                    .firstOrNull { (indice, rect) -> indice < imagenes.size && rect.contains(punto) }
+                                    ?.let { visor = it.key }
+                            },
+                            onDoubleTap = if (onDoubleTapReact != null) {
+                                { offset ->
+                                    onDoubleTapReact()
+                                    floatingReactions.add(
+                                        FloatingReaction(
+                                            id = System.nanoTime(),
+                                            offset = offset,
+                                        ),
+                                    )
+                                }
+                            } else {
+                                null
                             },
                         )
                     }
@@ -101,7 +127,7 @@ fun PostMediaGrid(
                     AsyncImage(
                         model = ApiClient.resolveUrl(imagenes[0].url),
                         contentDescription = null,
-                        modifier = Modifier
+                        modifier = miniatura(0)
                             .fillMaxWidth()
                             .aspectRatio(4f / 3f)
                             .clip(RoundedCornerShape(8.dp)),
@@ -113,11 +139,11 @@ fun PostMediaGrid(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        imagenes.take(2).forEach { img ->
+                        imagenes.take(2).forEachIndexed { indice, img ->
                             AsyncImage(
                                 model = ApiClient.resolveUrl(img.url),
                                 contentDescription = null,
-                                modifier = Modifier
+                                modifier = miniatura(indice)
                                     .weight(1f)
                                     .aspectRatio(1f)
                                     .clip(RoundedCornerShape(8.dp)),
@@ -134,7 +160,7 @@ fun PostMediaGrid(
                         AsyncImage(
                             model = ApiClient.resolveUrl(imagenes[0].url),
                             contentDescription = null,
-                            modifier = Modifier
+                            modifier = miniatura(0)
                                 .weight(1f)
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(8.dp)),
@@ -144,12 +170,12 @@ fun PostMediaGrid(
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            imagenes.drop(1).take(2).forEach { img ->
+                            imagenes.drop(1).take(2).forEachIndexed { i, img ->
                                 Box {
                                     AsyncImage(
                                         model = ApiClient.resolveUrl(img.url),
                                         contentDescription = null,
-                                        modifier = Modifier
+                                        modifier = miniatura(i + 1)
                                             .fillMaxWidth()
                                             .aspectRatio(if (imagenes.size == 3) 2f else 1f)
                                             .clip(RoundedCornerShape(8.dp)),
@@ -184,6 +210,14 @@ fun PostMediaGrid(
                 onFinished = { floatingReactions.remove(reaction) },
             )
         }
+    }
+
+    visor?.let { inicio ->
+        VisorImagenes(
+            urls = imagenes.mapNotNull { ApiClient.resolveUrl(it.url) },
+            inicio = inicio,
+            onCerrar = { visor = null },
+        )
     }
 }
 

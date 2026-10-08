@@ -78,6 +78,22 @@ object ApiClient {
 
     fun feedApi(tokenProvider: () -> String?): FeedApi = api(tokenProvider)
 
+    /**
+     * Mensaje legible que manda la API en el cuerpo del error (`{ mensaje, errores? }`).
+     * Prefiere el detalle por campo, como la web. Null si no hay cuerpo útil.
+     * Ojo: lee el cuerpo, así que solo sirve una vez por excepción.
+     */
+    fun mensajeDelServidor(error: Throwable): String? {
+        val http = error as? retrofit2.HttpException ?: return null
+        val cuerpo = runCatching { http.response()?.errorBody()?.string() }.getOrNull()
+        if (cuerpo.isNullOrBlank()) return null
+        val datos = runCatching { moshi.adapter(ApiErrorBody::class.java).fromJson(cuerpo) }.getOrNull()
+            ?: return null
+        return datos.errores?.firstOrNull()?.mensaje?.takeIf { it.isNotBlank() }
+            ?: datos.mensaje?.takeIf { it.isNotBlank() }
+            ?: datos.message?.takeIf { it.isNotBlank() }
+    }
+
     /** Convierte `/api/media/archivo/...` en URL absoluta para Coil. */
     fun resolveUrl(path: String?): String? {
         if (path.isNullOrBlank()) return null

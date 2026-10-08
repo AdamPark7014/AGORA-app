@@ -2,6 +2,7 @@ package mx.agora.mobile.nativeapp.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +15,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -48,7 +50,30 @@ fun NotificacionesScreen(
     var cargando by remember { mutableStateOf(true) }
     var refrescando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    /** Cursor de la siguiente página (la API pagina de 30 en 30). */
+    var cursor by remember { mutableStateOf<String?>(null) }
+    var cargandoMas by remember { mutableStateOf(false) }
+    var errorMas by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    fun cargarMas() {
+        val desde = cursor ?: return
+        if (cargandoMas) return
+        scope.launch {
+            cargandoMas = true
+            errorMas = false
+            try {
+                val resp = ApiClient.api<NotificacionesApi>(tokenProvider).listar(cursor = desde)
+                val vistos = notificaciones.mapTo(HashSet()) { it.id }
+                notificaciones = notificaciones + resp.notificaciones.filter { it.id !in vistos }
+                cursor = resp.siguienteCursor
+            } catch (_: Exception) {
+                errorMas = true
+            } finally {
+                cargandoMas = false
+            }
+        }
+    }
 
     fun cargar(refresh: Boolean = false) {
         scope.launch {
@@ -56,7 +81,10 @@ fun NotificacionesScreen(
             error = null
             try {
                 val api = ApiClient.api<NotificacionesApi>(tokenProvider)
-                notificaciones = api.listar().notificaciones
+                val resp = api.listar()
+                notificaciones = resp.notificaciones
+                cursor = resp.siguienteCursor
+                errorMas = false
                 runCatching { api.marcarLeidas() }
             } catch (e: Exception) {
                 error = mensajeDe(e)
@@ -98,6 +126,25 @@ fun NotificacionesScreen(
                 ) {
                     items(notificaciones, key = { it.id }) { n ->
                         NotificacionCard(n, onNavigateUrl)
+                    }
+                    if (cursor != null) {
+                        item(key = "mas") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                when {
+                                    cargandoMas -> CircularProgressIndicator()
+                                    errorMas -> TextButton(onClick = { cargarMas() }) {
+                                        Text("Reintentar")
+                                    }
+                                    // Llegar al final pide la siguiente página.
+                                    else -> LaunchedEffect(cursor) { cargarMas() }
+                                }
+                            }
+                        }
                     }
                 }
             }

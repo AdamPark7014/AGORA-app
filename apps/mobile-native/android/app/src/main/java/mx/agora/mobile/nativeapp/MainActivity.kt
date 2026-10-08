@@ -8,6 +8,7 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
@@ -17,6 +18,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.AuthRepository
+import mx.agora.mobile.nativeapp.data.ModoTema
+import mx.agora.mobile.nativeapp.data.PreferenciasTema
 import mx.agora.mobile.nativeapp.data.PendingPostSync
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.GamificacionApi
@@ -45,7 +48,9 @@ class MainActivity : FragmentActivity() {
         val auth = AuthRepository(applicationContext)
         this.auth = auth
         AgoraNotifications.ensureChannels(applicationContext)
-        handleDeepLinkIntent(intent)
+        // Al recrearse (rotación o cambio de tema en Ajustes) el intent de
+        // arranque es el mismo: volver a procesarlo repetiría la navegación.
+        if (savedInstanceState == null) handleDeepLinkIntent(intent)
 
         if (auth.token() != null) {
             solicitarPermisoNotificacionesSiFalta()
@@ -55,8 +60,16 @@ class MainActivity : FragmentActivity() {
             registrarActividadGamificacion(auth)
         }
 
+        // Cambiar el tema en Ajustes guarda la preferencia y recrea la Activity.
+        val modoTema = PreferenciasTema.leer(applicationContext)
+
         setContent {
-            AgoraTheme {
+            val oscuro = when (modoTema) {
+                ModoTema.SISTEMA -> isSystemInDarkTheme()
+                ModoTema.CLARO -> false
+                ModoTema.OSCURO -> true
+            }
+            AgoraTheme(oscuro = oscuro) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     AgoraApp(
                         auth = auth,

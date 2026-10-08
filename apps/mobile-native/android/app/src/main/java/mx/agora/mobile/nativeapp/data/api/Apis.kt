@@ -1,6 +1,7 @@
 package mx.agora.mobile.nativeapp.data.api
 
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -22,6 +23,14 @@ interface AuthApi {
 
     @GET("auth/yo")
     suspend fun yo(): YoResponse
+
+    /** Público: si el código llegó al buzón. 404 si la API ya no conoce el envío. */
+    @GET("auth/otp/entrega/{envioId}")
+    suspend fun entregaOtp(@Path("envioId") envioId: String): Response<EntregaOtpResponse>
+
+    /** Cierra la sesión en el servidor (204). Requiere el token. */
+    @POST("auth/salir")
+    suspend fun salir(): Response<Unit>
 }
 
 interface FeedApi {
@@ -118,6 +127,19 @@ interface PerfilApi {
         @Query("cursor") cursor: String? = null,
         @Query("limite") limite: Int? = null,
     ): PerfilPublicacionesResponse
+
+    @GET("perfil/{handle}/seguidores")
+    suspend fun seguidores(@Path("handle") handle: String): ListaPersonasResponse
+
+    @GET("perfil/{handle}/siguiendo")
+    suspend fun siguiendo(@Path("handle") handle: String): ListaPersonasResponse
+
+    /**
+     * PATCH con JSON armado a mano. Moshi omite los null, y quitar el
+     * cumpleaños exige mandar `cumpleMes: null` y `cumpleDia: null` explícitos.
+     */
+    @PATCH("perfil")
+    suspend fun actualizarJson(@Body body: RequestBody): PerfilMioDto
 }
 
 interface MensajesApi {
@@ -139,6 +161,10 @@ interface MensajesApi {
 
     @POST("mensajes/abrir")
     suspend fun abrir(@Body body: AbrirConversacionRequest): AbrirConversacionResponse
+
+    /** Total de mensajes sin leer en todas las conversaciones: `{ total }`. */
+    @GET("mensajes/no-leidos")
+    suspend fun noLeidos(): SinLeerResponse
 }
 
 interface CatalogoApi {
@@ -157,7 +183,7 @@ interface EventosApi {
     suspend fun enVivo(@Query("horas") horas: Int? = null): EventosEnVivoResponse
 
     @GET("eventos")
-    suspend fun proximos(): EventosResponse
+    suspend fun proximos(@Query("tipo") tipo: String? = null): EventosResponse
 
     @POST("eventos")
     suspend fun crear(@Body body: CrearEventoRequest): CrearEventoResponse
@@ -275,6 +301,13 @@ interface ModeracionApi {
         @Path("id") id: String,
         @Body body: ResolverReporteRequest,
     ): Response<Unit>
+
+    /** Retiro directo desde el feed o el detalle (staff con MODERACION_ACTUAR). */
+    @POST("moderacion/posts/{id}/retirar")
+    suspend fun retirarPost(
+        @Path("id") id: String,
+        @Body body: RetirarPostRequest,
+    ): Response<Unit>
 }
 
 interface BusquedaApi {
@@ -291,6 +324,9 @@ interface DirectorioApi {
         @Query("q") q: String? = null,
         @Query("generacion") generacion: Int? = null,
         @Query("cursor") cursor: String? = null,
+        @Query("escuela") escuela: String? = null,
+        @Query("carrera") carrera: String? = null,
+        @Query("colegio") colegio: String? = null,
     ): DirectorioResponse
 }
 

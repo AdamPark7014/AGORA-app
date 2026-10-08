@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,9 +8,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -23,6 +31,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -34,8 +44,11 @@ import mx.agora.mobile.nativeapp.data.api.MarketplaceApi
 import mx.agora.mobile.nativeapp.data.api.MensajesApi
 import mx.agora.mobile.nativeapp.data.api.AbrirConversacionRequest
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.VisorImagenes
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.util.EnlacesWeb
+import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
 import mx.agora.mobile.nativeapp.ui.util.formatearPrecio
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
@@ -52,6 +65,9 @@ fun MarketplaceDetailScreen(
     var cargando by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    /** Índice de la imagen abierta en el visor a pantalla completa. */
+    var visor by remember { mutableStateOf<Int?>(null) }
 
     fun cargar() {
         scope.launch {
@@ -91,15 +107,36 @@ fun MarketplaceDetailScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item.imagenes.firstOrNull()?.let { media ->
+                val urls = item.imagenes.mapNotNull { ApiClient.resolveUrl(it.url) }
+                urls.firstOrNull()?.let { principal ->
                     AsyncImage(
-                        model = ApiClient.resolveUrl(media.url),
+                        model = principal,
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(220.dp),
+                            .height(220.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { visor = 0 },
                         contentScale = ContentScale.Crop,
                     )
+                }
+                if (urls.size > 1) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        itemsIndexed(urls) { indice, url ->
+                            AsyncImage(
+                                model = url,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { visor = indice },
+                                contentScale = ContentScale.Crop,
+                            )
+                        }
+                    }
+                }
+                visor?.let { inicio ->
+                    VisorImagenes(urls = urls, inicio = inicio, onCerrar = { visor = null })
                 }
 
                 Text(
@@ -169,6 +206,14 @@ fun MarketplaceDetailScreen(
                             Text("Ver perfil del vendedor")
                         }
                     }
+                }
+
+                OutlinedButton(
+                    onClick = { compartirEnlace(context, EnlacesWeb.anuncio(anuncioId), item.titulo) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(AgoraCopy.compartir.accion, modifier = Modifier.padding(start = 8.dp))
                 }
 
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }

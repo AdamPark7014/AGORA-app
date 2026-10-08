@@ -101,6 +101,7 @@ fun HashtagScreen(
                             onAuthorClick = post.autor?.handle?.let { handle ->
                                 { onAuthorClick(handle) }
                             },
+                            onMentionClick = onAuthorClick,
                         )
                     }
                     if (cursor != null) {

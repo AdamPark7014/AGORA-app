@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
@@ -16,6 +17,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -42,6 +44,24 @@ import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.util.formatearFecha
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
+/** Mismo orden y etiquetas que el filtro de la web (`apps/web/app/eventos`). */
+private val filtrosTipo = listOf(
+    null to "Todos",
+    "FIESTA" to "Fiesta",
+    "ACADEMICO" to "Académico",
+    "DEPORTIVO" to "Deportivo",
+    "CULTURAL" to "Cultural",
+    "ORGANIZACION" to "Organización",
+    "OTRO" to "Otro",
+)
+
+/** "cupo 40 · quedan 12" / "cupo 40 · lleno"; null si el evento no tiene cupo. */
+internal fun textoCupo(cupo: Int?, vanAIr: Int): String? {
+    if (cupo == null) return null
+    val quedan = (cupo - vanAIr).coerceAtLeast(0)
+    return if (quedan == 0) "cupo $cupo · lleno" else "cupo $cupo · quedan $quedan"
+}
+
 private val iconoTipo = mapOf(
     "FIESTA" to "🎉",
     "ACADEMICO" to "📚",
@@ -62,6 +82,7 @@ fun EventosScreen(
     var cargando by remember { mutableStateOf(true) }
     var refrescando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var tipo by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun cargar(refresh: Boolean = false) {
@@ -69,7 +90,7 @@ fun EventosScreen(
             if (refresh) refrescando = true else cargando = true
             error = null
             try {
-                eventos = ApiClient.api<EventosApi>(tokenProvider).proximos().eventos
+                eventos = ApiClient.api<EventosApi>(tokenProvider).proximos(tipo = tipo).eventos
             } catch (e: Exception) {
                 error = mensajeDe(e)
             } finally {
@@ -79,7 +100,7 @@ fun EventosScreen(
         }
     }
 
-    LaunchedEffect(Unit) { cargar() }
+    LaunchedEffect(tipo) { cargar() }
 
     AgoraPullToRefreshBox(
         isRefreshing = refrescando,
@@ -95,6 +116,20 @@ fun EventosScreen(
             ) {
                 Button(onClick = onCrearClick) {
                     Text("+ Crear evento")
+                }
+            }
+
+            LazyRow(
+                modifier = Modifier.padding(bottom = 4.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(filtrosTipo, key = { it.first ?: "todos" }) { (valor, etiqueta) ->
+                    FilterChip(
+                        selected = tipo == valor,
+                        onClick = { tipo = valor },
+                        label = { Text(etiqueta) },
+                    )
                 }
             }
 
@@ -183,7 +218,11 @@ private fun EventoCard(
                 Text(it, style = MaterialTheme.typography.bodyMedium)
             }
             Text(
-                "${evento.vanAIr} van · ${evento.costoMxn?.let { "$$it MXN" } ?: "Gratis"}",
+                listOfNotNull(
+                    "${evento.vanAIr} van",
+                    textoCupo(evento.cupo, evento.vanAIr),
+                    evento.costoMxn?.let { "$$it MXN" } ?: "Gratis",
+                ).joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -192,8 +231,13 @@ private fun EventoCard(
                     Text("✓ Voy (tocar para quitar)")
                 }
             } else {
-                Button(onClick = { onAsistencia(true) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Voy")
+                val lleno = evento.cupo != null && evento.vanAIr >= evento.cupo
+                Button(
+                    onClick = { onAsistencia(true) },
+                    enabled = !lleno,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (lleno) "Sin lugares" else "Voy")
                 }
             }
         }

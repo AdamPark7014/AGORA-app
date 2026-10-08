@@ -13,6 +13,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -20,12 +24,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.ui.MainShell
 import mx.agora.mobile.nativeapp.ui.screens.AjustesScreen
 import mx.agora.mobile.nativeapp.ui.screens.AnonimoScreen
 import mx.agora.mobile.nativeapp.ui.screens.AventonesScreen
 import mx.agora.mobile.nativeapp.ui.screens.BuscarScreen
+import mx.agora.mobile.nativeapp.ui.screens.ConexionesScreen
 import mx.agora.mobile.nativeapp.ui.screens.CreateAnuncioScreen
 import mx.agora.mobile.nativeapp.ui.screens.CreateEventoScreen
 import mx.agora.mobile.nativeapp.ui.screens.DirectorioScreen
@@ -44,6 +50,7 @@ import mx.agora.mobile.nativeapp.ui.screens.PostDetailScreen
 import mx.agora.mobile.nativeapp.ui.screens.ProfileScreen
 import mx.agora.mobile.nativeapp.ui.screens.PrivacidadScreen
 import mx.agora.mobile.nativeapp.ui.screens.TerminosScreen
+import mx.agora.mobile.nativeapp.ui.screens.TipoConexion
 
 object AgoraRoutes {
     const val MAIN = "main"
@@ -69,6 +76,7 @@ object AgoraRoutes {
     const val NOTIFICACIONES = "notificaciones"
     const val EVENTO = "evento/{id}"
     const val EVENTOS_CREAR = "eventos/crear"
+    const val CONEXIONES = "conexiones/{handle}/{tipo}"
 
     fun post(id: String) = "post/$id"
     fun mensaje(id: String) = "mensaje/$id"
@@ -76,6 +84,7 @@ object AgoraRoutes {
     fun hashtag(tag: String) = "hashtag/${java.net.URLEncoder.encode(tag, Charsets.UTF_8)}"
     fun marketplaceDetalle(id: String) = "marketplace/$id"
     fun evento(id: String) = "evento/$id"
+    fun conexiones(handle: String, tipo: String) = "conexiones/$handle/$tipo"
 }
 
 @Composable
@@ -84,6 +93,19 @@ fun AgoraNavHost(
     onLogout: () -> Unit,
     navController: NavHostController = rememberNavController(),
 ) {
+    val scope = rememberCoroutineScope()
+    var cerrandoSesion by remember { mutableStateOf(false) }
+
+    /** Cierre completo (push + `auth/salir` + local) y luego vuelve al login. */
+    fun cerrarSesion() {
+        if (cerrandoSesion) return
+        cerrandoSesion = true
+        scope.launch {
+            auth.cerrarSesion()
+            onLogout()
+        }
+    }
+
     val pendingDeepLink by DeepLinkBus.pendingRoute.collectAsState()
     LaunchedEffect(pendingDeepLink) {
         val route = pendingDeepLink
@@ -100,7 +122,7 @@ fun AgoraNavHost(
         composable(AgoraRoutes.MAIN) {
             MainShell(
                 auth = auth,
-                onLogout = onLogout,
+                onLogout = ::cerrarSesion,
                 onNavigateToPost = { id -> navController.navigate(AgoraRoutes.post(id)) },
                 onNavigateToMensajes = { navController.navigate(AgoraRoutes.MENSAJES) },
                 onNavigateToPerfil = { handle -> navController.navigate(AgoraRoutes.perfil(handle)) },
@@ -126,6 +148,7 @@ fun AgoraNavHost(
                 onBack = { navController.popBackStack() },
                 onDeleted = { navController.popBackStack() },
                 onHashtagClick = { tag -> navController.navigate(AgoraRoutes.hashtag(tag)) },
+                onAuthorClick = { handle -> navController.navigate(AgoraRoutes.perfil(handle)) },
             )
         }
 
@@ -165,17 +188,38 @@ fun AgoraNavHost(
                 onBack = { navController.popBackStack() },
                 onMensaje = { conversacionId -> navController.navigate(AgoraRoutes.mensaje(conversacionId)) },
                 onAjustes = { navController.navigate(AgoraRoutes.AJUSTES) },
+                onConexiones = { tipo -> navController.navigate(AgoraRoutes.conexiones(handle, tipo)) },
             )
         }
 
+        composable(
+            route = AgoraRoutes.CONEXIONES,
+            arguments = listOf(
+                navArgument("handle") { type = NavType.StringType },
+                navArgument("tipo") { type = NavType.StringType },
+            ),
+        ) { entry ->
+            val handle = entry.arguments?.getString("handle") ?: return@composable
+            val tipo = entry.arguments?.getString("tipo") ?: TipoConexion.SEGUIDORES
+            val titulo = if (tipo == TipoConexion.SIGUIENDO) "@$handle sigue a" else "Seguidores de @$handle"
+            SecondaryScaffold(title = titulo, onBack = { navController.popBackStack() }) { padding ->
+                ConexionesScreen(
+                    handle = handle,
+                    tipo = tipo,
+                    tokenProvider = { auth.token() },
+                    onPerfil = { h -> navController.navigate(AgoraRoutes.perfil(h)) },
+                    modifier = Modifier.padding(padding),
+                )
+            }
+        }
+
         composable(AgoraRoutes.PERFIL_YO) {
-            SecondaryScaffold(title = "Yo", onBack = { navController.popBackStack() }) { _ ->
+            SecondaryScaffold(title = "Yo", onBack = { navController.popBackStack() }) { padding ->
                 ProfileScreen(
                     auth = auth,
-                    onLogout = {
-                        auth.logout()
-                        onLogout()
-                    },
+                    onLogout = ::cerrarSesion,
+                    modifier = Modifier.padding(padding),
+                    onConexiones = { handle, tipo -> navController.navigate(AgoraRoutes.conexiones(handle, tipo)) },
                     onMensajes = { navController.navigate(AgoraRoutes.MENSAJES) },
                     onAjustes = { navController.navigate(AgoraRoutes.AJUSTES) },
                     onMarketplace = { navController.navigate(AgoraRoutes.MARKETPLACE) },
@@ -215,15 +259,13 @@ fun AgoraNavHost(
                             "directorio" -> navController.navigate(AgoraRoutes.DIRECTORIO)
                             "ajustes" -> navController.navigate(AgoraRoutes.AJUSTES)
                             "perfil-yo" -> navController.navigate(AgoraRoutes.PERFIL_YO)
+                            "moderacion" -> navController.navigate(AgoraRoutes.MODERACION)
                             else -> if (route.startsWith("perfil/")) navController.navigate(route)
                         }
                     },
                     onTerminos = { navController.navigate(AgoraRoutes.TERMINOS) },
                     onPrivacidad = { navController.navigate(AgoraRoutes.PRIVACIDAD) },
-                    onLogout = {
-                        auth.logout()
-                        onLogout()
-                    },
+                    onLogout = ::cerrarSesion,
                 )
             }
         }
@@ -326,6 +368,7 @@ fun AgoraNavHost(
                     tokenProvider = { auth.token() },
                     onPerfilClick = { handle -> navController.navigate(AgoraRoutes.perfil(handle)) },
                     modifier = Modifier.padding(padding),
+                    onMensajeClick = { conversacionId -> navController.navigate(AgoraRoutes.mensaje(conversacionId)) },
                 )
             }
         }

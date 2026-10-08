@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,15 +29,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.AnonimoApi
 import mx.agora.mobile.nativeapp.data.api.AnonimoPostDto
 import mx.agora.mobile.nativeapp.data.api.ApiClient
+import mx.agora.mobile.nativeapp.data.api.CrearReporteRequest
 import mx.agora.mobile.nativeapp.data.api.PostsApi
 import mx.agora.mobile.nativeapp.data.api.PublicarAnonimoRequest
 import mx.agora.mobile.nativeapp.data.api.ReaccionarRequest
+import mx.agora.mobile.nativeapp.data.api.ReportesApi
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
+import mx.agora.mobile.nativeapp.ui.components.ReportarDialogo
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
@@ -60,7 +65,24 @@ fun AnonimoScreen(
     var cargando by remember { mutableStateOf(true) }
     var enviando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    /** Post anónimo que se está reportando (se reporta igual que uno normal). */
+    var reportandoId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    fun reportar(postId: String, motivo: String) {
+        reportandoId = null
+        scope.launch {
+            try {
+                val resp = ApiClient.api<ReportesApi>(tokenProvider)
+                    .reportar(CrearReporteRequest(postId = postId, motivo = motivo))
+                if (!resp.isSuccessful) throw retrofit2.HttpException(resp)
+                Toast.makeText(context, "Gracias. Un moderador lo va a revisar.", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                error = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+            }
+        }
+    }
 
     fun cargarFeed() {
         scope.launch {
@@ -197,11 +219,20 @@ fun AnonimoScreen(
                                     }
                                 }
                             },
+                            onReportar = { reportandoId = post.id },
                         )
                     }
                 }
             }
         }
+    }
+
+    reportandoId?.let { postId ->
+        ReportarDialogo(
+            titulo = "Reportar publicación",
+            onMotivo = { motivo -> reportar(postId, motivo) },
+            onCerrar = { reportandoId = null },
+        )
     }
 }
 
@@ -210,6 +241,7 @@ private fun AnonimoPostCard(
     post: AnonimoPostDto,
     onReaccionar: (String) -> Unit,
     onBorrar: () -> Unit,
+    onReportar: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -225,6 +257,10 @@ private fun AnonimoPostCard(
                 Text(post.alias, style = MaterialTheme.typography.titleSmall)
                 if (post.esMio) {
                     TextButton(onClick = onBorrar) { Text("Borrar") }
+                } else {
+                    TextButton(onClick = onReportar) {
+                        Text("Reportar", color = AgoraColors.TextoMedio)
+                    }
                 }
             }
             Text(haceCuanto(post.createdAt), style = MaterialTheme.typography.labelSmall, color = AgoraColors.TextoMedio)

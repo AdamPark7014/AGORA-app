@@ -15,17 +15,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -35,11 +42,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.api.ApiClient
+import mx.agora.mobile.nativeapp.data.api.MensajesApi
 import mx.agora.mobile.nativeapp.data.api.NotificacionesApi
+import mx.agora.mobile.nativeapp.ui.components.AgoraMarcaHorizontal
 import mx.agora.mobile.nativeapp.ui.screens.EventosScreen
 import mx.agora.mobile.nativeapp.ui.screens.FeedScreen
 import mx.agora.mobile.nativeapp.ui.screens.NotificacionesScreen
@@ -53,6 +66,7 @@ private data class Tab(
     val icon: @Composable (badge: Int, scale: Float, badgeScale: Float) -> Unit,
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainShell(
     auth: AuthRepository,
@@ -72,9 +86,29 @@ fun MainShell(
     var avisosSinLeer by remember { mutableIntStateOf(0) }
     var prevAvisosSinLeer by remember { mutableIntStateOf(0) }
     var badgePulse by remember { mutableIntStateOf(0) }
+    var mensajesSinLeer by remember { mutableIntStateOf(0) }
+    /** Sube cada vez que la pantalla vuelve al frente (app reanudada o regreso de otra ruta). */
+    var reanudaciones by remember { mutableIntStateOf(0) }
     val haptics = rememberHaptics()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(tab) {
+    DisposableEffect(lifecycleOwner) {
+        val observador = LifecycleEventObserver { _, evento ->
+            if (evento == Lifecycle.Event.ON_RESUME) reanudaciones++
+        }
+        lifecycleOwner.lifecycle.addObserver(observador)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observador) }
+    }
+
+    LaunchedEffect(reanudaciones) {
+        mensajesSinLeer = withContext(Dispatchers.IO) {
+            runCatching {
+                ApiClient.api<MensajesApi> { auth.token() }.noLeidos().total
+            }.getOrDefault(0)
+        }
+    }
+
+    LaunchedEffect(tab, reanudaciones) {
         if (tab == 3) {
             avisosSinLeer = 0
             prevAvisosSinLeer = 0
@@ -131,6 +165,34 @@ fun MainShell(
     )
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { AgoraMarcaHorizontal(isotipo = 28.dp, estilo = MaterialTheme.typography.titleLarge) },
+                actions = {
+                    IconButton(onClick = onNavigateToMensajes) {
+                        BadgedBox(
+                            badge = {
+                                if (mensajesSinLeer > 0) {
+                                    Badge {
+                                        Text(if (mensajesSinLeer > 99) "99+" else mensajesSinLeer.toString())
+                                    }
+                                }
+                            },
+                        ) {
+                            Icon(
+                                Icons.Outlined.MailOutline,
+                                contentDescription = if (mensajesSinLeer > 0) {
+                                    "Mensajes, $mensajesSinLeer sin leer"
+                                } else {
+                                    "Mensajes"
+                                },
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AgoraColors.Superficie),
+            )
+        },
         bottomBar = {
             NavigationBar(containerColor = AgoraColors.Superficie) {
                 tabs.forEachIndexed { index, item ->

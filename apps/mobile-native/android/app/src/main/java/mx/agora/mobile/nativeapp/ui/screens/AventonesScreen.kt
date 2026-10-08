@@ -37,10 +37,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import mx.agora.mobile.nativeapp.data.api.AbrirConversacionRequest
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.AventonDto
 import mx.agora.mobile.nativeapp.data.api.AventonesApi
 import mx.agora.mobile.nativeapp.data.api.CrearAventonRequest
+import mx.agora.mobile.nativeapp.data.api.MensajesApi
 import mx.agora.mobile.nativeapp.data.gamificacion.GamificacionEvents
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
@@ -73,7 +75,10 @@ fun AventonesScreen(
     tokenProvider: () -> String?,
     onPerfilClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
+    /** Abre la conversación con el conductor (id de conversación). */
+    onMensajeClick: (String) -> Unit = {},
 ) {
+    var contactando by remember { mutableStateOf<String?>(null) }
     var aventones by remember { mutableStateOf<List<AventonDto>>(emptyList()) }
     var sentido by remember { mutableStateOf("") }
     var cargando by remember { mutableStateOf(true) }
@@ -188,6 +193,21 @@ fun AventonesScreen(
                                     }
                                 },
                                 onPerfilClick = onPerfilClick,
+                                contactando = contactando == aventon.id,
+                                onContactar = { handle ->
+                                    scope.launch {
+                                        contactando = aventon.id
+                                        try {
+                                            val chat = ApiClient.api<MensajesApi>(tokenProvider)
+                                                .abrir(AbrirConversacionRequest(handle))
+                                            onMensajeClick(chat.id)
+                                        } catch (e: Exception) {
+                                            error = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                                        } finally {
+                                            contactando = null
+                                        }
+                                    }
+                                },
                             )
                         }
                     }
@@ -294,6 +314,8 @@ private fun AventonCard(
     onApartar: () -> Unit,
     onCancelar: () -> Unit,
     onPerfilClick: (String) -> Unit,
+    contactando: Boolean = false,
+    onContactar: (handle: String) -> Unit = {},
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -313,6 +335,16 @@ private fun AventonCard(
             aventon.conductor?.let { conductor ->
                 TextButton(onClick = { conductor.handle?.let(onPerfilClick) }) {
                     Text(conductor.nombre ?: conductor.handle ?: "Conductor")
+                }
+            }
+            val handleConductor = aventon.conductor?.handle
+            if (!aventon.esMio && handleConductor != null) {
+                OutlinedButton(
+                    onClick = { onContactar(handleConductor) },
+                    enabled = !contactando,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (contactando) "Abriendo chat…" else "Contactar")
                 }
             }
             if (!aventon.esMio && aventon.ocupados < aventon.lugares) {

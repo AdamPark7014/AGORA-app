@@ -27,7 +27,13 @@ data class YoResponse(
     val tienePerfil: Boolean? = null,
     val esStaff: Boolean = false,
     val puedeModerar: Boolean = false,
+    val puedeSuspender: Boolean = false,
+    val fotoUrl: String? = null,
 )
+
+/** Estado de la entrega del código OTP (`GET auth/otp/entrega/{envioId}`). */
+@JsonClass(generateAdapter = true)
+data class EntregaOtpResponse(val estado: String)
 
 @JsonClass(generateAdapter = true)
 data class AutorDto(
@@ -213,6 +219,9 @@ data class PerfilMioDto(
     val intereses: List<String> = emptyList(),
     val busco: String? = null,
     val visibilidad: String? = null,
+    val portadaUrl: String? = null,
+    val cumpleMes: Int? = null,
+    val cumpleDia: Int? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -262,6 +271,8 @@ data class EventoDto(
     val vanAIr: Int = 0,
     val miRespuesta: String? = null,
     val comunidad: ComunidadDto? = null,
+    val cupo: Int? = null,
+    val finAt: String? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -378,6 +389,24 @@ data class PerfilAjenoDto(
     val restringido: Boolean = false,
     val yoLeSigo: Boolean = false,
     val verificado: Boolean = false,
+    val portadaUrl: String? = null,
+    val colegio: String? = null,
+    val suspendido: Boolean = false,
+)
+
+/** Fila de `GET perfil/{handle}/seguidores` y `/siguiendo`. */
+@JsonClass(generateAdapter = true)
+data class PersonaListaDto(
+    val handle: String,
+    val nombre: String,
+    val fotoUrl: String? = null,
+    val verificado: Boolean = false,
+)
+
+@JsonClass(generateAdapter = true)
+data class ListaPersonasResponse(
+    val personas: List<PersonaListaDto> = emptyList(),
+    val restringido: Boolean = false,
 )
 
 @JsonClass(generateAdapter = true)
@@ -651,6 +680,10 @@ data class ActualizarPerfilRequest(
     val intereses: List<String>? = null,
     val busco: String? = null,
     val visibilidad: String? = null,
+    val portadaMediaId: String? = null,
+    /** Mes y día van juntos o ninguno (la API rechaza solo uno). */
+    val cumpleMes: Int? = null,
+    val cumpleDia: Int? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -743,6 +776,10 @@ data class ResolverReporteRequest(
     val accion: String,
     val motivo: String,
 )
+
+/** `POST moderacion/posts/{id}/retirar`: el motivo lo ve el autor (3–500). */
+@JsonClass(generateAdapter = true)
+data class RetirarPostRequest(val motivo: String)
 
 @JsonClass(generateAdapter = true)
 data class AnalyticsEventoRequest(
