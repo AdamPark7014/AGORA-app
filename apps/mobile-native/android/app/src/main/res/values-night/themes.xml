@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Agora" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">#FF6B26</item>
+        <item name="android:windowBackground">#0D1210</item>
+        <item name="android:statusBarColor">#0D1210</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

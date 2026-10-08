@@ -2,37 +2,48 @@ package mx.agora.mobile.nativeapp.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+/**
+ * Tokens de color con variante clara y oscura (la oscura es la misma paleta
+ * que la web). `AgoraTheme` fija [oscuro] según el sistema; cambiar el modo
+ * recrea la Activity, así que leer un flag simple basta y sirve también fuera
+ * de funciones @Composable (lambdas de dibujo, valores por defecto).
+ */
 object AgoraColors {
+    @Volatile
+    var oscuro: Boolean = false
+
+    private fun par(claro: Long, noche: Long): Color = Color(if (oscuro) noche else claro)
+
     // Brand
-    val Naranja = Color(0xFFE35205)
-    val NaranjaSuave = Color(0xFFFFF0E8)
-    val NaranjaOscuro = Color(0xFFB84004)
+    val Naranja get() = par(0xFFE35205, 0xFFFF6B26)
+    val NaranjaSuave get() = par(0xFFFFF0E8, 0xFF2A1509)
+    val NaranjaOscuro get() = par(0xFFB84004, 0xFFFF8547)
 
     // Surfaces
-    val Fondo = Color(0xFFF7F5F2)
-    val Superficie = Color(0xFFFFFFFF)
-    val SurfaceElevated = Color(0xFFFFFCFA)
+    val Fondo get() = par(0xFFF7F5F2, 0xFF0D1210)
+    val Superficie get() = par(0xFFFFFFFF, 0xFF16191D)
+    val SurfaceElevated get() = par(0xFFFFFCFA, 0xFF1E2227)
 
-    // Text
-    val Texto = Color(0xFF1A1A1A)
-    val TextoMedio = Color(0xFF6B6B6B)
-    val TextMuted = Color(0xFF9A9590)
+    // Text (TextMuted >= 4.5:1 sobre Superficie en ambos modos)
+    val Texto get() = par(0xFF1A1A1A, 0xFFE7E9EA)
+    val TextoMedio get() = par(0xFF6B6B6B, 0xFF9AA4AF)
+    val TextMuted get() = par(0xFF6F6A65, 0xFF7D8792)
 
     // Borders & dividers
-    val Borde = Color(0xFFE8E4DF)
-    val BordeSutil = Color(0xFFF0ECE8)
+    val Borde get() = par(0xFFE8E4DF, 0xFF2A2F36)
+    val BordeSutil get() = par(0xFFF0ECE8, 0xFF1E2227)
 
     // Semantic
-    val Success = Color(0xFF2E7D4F)
-    val SuccessSuave = Color(0xFFE8F5EC)
-    val Danger = Color(0xFFC62828)
-    val DangerSuave = Color(0xFFFDECEA)
-    val Warning = Color(0xFFE6A817)
-    val WarningSuave = Color(0xFFFFF8E6)
+    val Success get() = par(0xFF2E7D4F, 0xFF7FC9A8)
+    val SuccessSuave get() = par(0xFFE8F5EC, 0xFF0D2925)
+    val Danger get() = par(0xFFC62828, 0xFFF26161)
+    val DangerSuave get() = par(0xFFFDECEA, 0xFF3A1414)
+    val Warning get() = par(0xFFE6A817, 0xFFF2C14E)
+    val WarningSuave get() = par(0xFFFFF8E6, 0xFF2A2210)
 
     // Interactive
-    val ChipSelected = Color(0xFFFFF0E8)
-    val ChipSelectedText = Naranja
-    val SkeletonBase = Color(0xFFE8E4DF)
-    val SkeletonHighlight = Color(0xFFF5F2EF)
+    val ChipSelected get() = NaranjaSuave
+    val ChipSelectedText get() = Naranja
+    val SkeletonBase get() = par(0xFFE8E4DF, 0xFF2A2F36)
+    val SkeletonHighlight get() = par(0xFFF5F2EF, 0xFF3D434B)
 }

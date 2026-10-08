@@ -143,7 +143,7 @@ fun PostCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = if (onAuthorClick != null) Modifier.clickable(onClick = onAuthorClick) else Modifier,
             ) {
-                AvatarIniciales(post.autor?.nombre ?: "?")
+                AgoraAvatar(post.autor?.nombre, post.autor?.fotoUrl)
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         post.autor?.nombre ?: "Cuenta eliminada",
@@ -323,26 +323,6 @@ private fun ReaccionButton(
                 maxLines = 1,
             )
         }
-    }
-}
-
-@Composable
-private fun AvatarIniciales(nombre: String) {
-    val iniciales = nombre
-        .split(" ")
-        .take(2)
-        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-        .joinToString("")
-        .ifBlank { "?" }
-
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(AgoraColors.NaranjaSuave),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(iniciales, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = AgoraColors.Naranja)
     }
 }
 

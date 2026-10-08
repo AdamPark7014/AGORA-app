@@ -16,18 +16,28 @@ object ApiClient {
         .add(KotlinJsonAdapterFactory())
         .build()
 
-    private fun httpClient(tokenProvider: (() -> String?)? = null): OkHttpClient {
+    /**
+     * Un solo cliente para toda la app: cada `api(...)` deriva de este con
+     * `newBuilder()`, que comparte pool de conexiones y dispatcher. Antes cada
+     * llamada creaba su propio cliente y no se reutilizaba ninguna conexión TLS.
+     */
+    private val base: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor()
         logging.level = if (BuildConfig.DEBUG) {
             HttpLoggingInterceptor.Level.BASIC
         } else {
             HttpLoggingInterceptor.Level.NONE
         }
-
-        return OkHttpClient.Builder()
+        OkHttpClient.Builder()
             .connectTimeout(18, TimeUnit.SECONDS)
             .readTimeout(22, TimeUnit.SECONDS)
             .writeTimeout(22, TimeUnit.SECONDS)
+            .addNetworkInterceptor(logging)
+            .build()
+    }
+
+    private fun httpClient(tokenProvider: (() -> String?)? = null): OkHttpClient {
+        return base.newBuilder()
             .addInterceptor { chain ->
                 val original = chain.request()
                 val token = tokenProvider?.invoke()
@@ -47,7 +57,6 @@ object ApiClient {
                 }
                 response
             }
-            .addInterceptor(logging)
             .build()
     }
 
