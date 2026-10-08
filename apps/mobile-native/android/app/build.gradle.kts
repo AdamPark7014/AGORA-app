@@ -49,8 +49,11 @@ android {
 
     buildTypes {
         debug {
-            // Emulador Android → localhost del host de desarrollo.
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:4200/api\"")
+            // Emulador Android → localhost del host de desarrollo. Para probar el
+            // debug contra produccion: -PDEBUG_API_BASE_URL=https://udlagora.com/api
+            val apiDebug = (project.findProperty("DEBUG_API_BASE_URL") as String?)?.trim()
+                ?.takeIf { it.isNotEmpty() } ?: "http://10.0.2.2:4200/api"
+            buildConfigField("String", "API_BASE_URL", "\"$apiDebug\"")
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Isotipo de Ágora (la Á como arco de portal). Misma geometría que apps/web/public/icono.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path android:pathData="M512.00,256.00L511.78,342.00L511.12,369.38L510.02,389.15L508.47,405.09L506.48,418.58L504.02,430.33L501.09,440.72L497.69,450.01L493.78,458.37L489.36,465.90L484.40,472.71L478.86,478.86L472.71,484.40L465.90,489.36L458.37,493.78L450.01,497.69L440.72,501.09L430.33,504.02L418.58,506.48L405.09,508.47L389.15,510.02L369.38,511.12L342.00,511.78L256.00,512.00L170.00,511.78L142.62,511.12L122.85,510.02L106.91,508.47L93.42,506.48L81.67,504.02L71.28,501.09L61.99,497.69L53.63,493.78L46.10,489.36L39.29,484.40L33.14,478.86L27.60,472.71L22.64,465.90L18.22,458.37L14.31,450.01L10.91,440.72L7.98,430.33L5.52,418.58L3.53,405.09L1.98,389.15L0.88,369.38L0.22,342.00L0.00,256.00L0.22,170.00L0.88,142.62L1.98,122.85L3.53,106.91L5.52,93.42L7.98,81.67L10.91,71.28L14.31,61.99L18.22,53.63L22.64,46.10L27.60,39.29L33.14,33.14L39.29,27.60L46.10,22.64L53.63,18.22L61.99,14.31L71.28,10.91L81.67,7.98L93.42,5.52L106.91,3.53L122.85,1.98L142.62,0.88L170.00,0.22L256.00,0.00L342.00,0.22L369.38,0.88L389.15,1.98L405.09,3.53L418.58,5.52L430.33,7.98L440.72,10.91L450.01,14.31L458.37,18.22L465.90,22.64L472.71,27.60L478.86,33.14L484.40,39.29L489.36,46.10L493.78,53.63L497.69,61.99L501.09,71.28L504.02,81.67L506.48,93.42L508.47,106.91L510.02,122.85L511.12,142.62L511.78,170.00Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="77" android:startY="0"
+                    android:endX="435" android:endY="512">
+                    <item android:offset="0" android:color="#FFFF7A2F" />
+                    <item android:offset="0.55" android:color="#FFE85A0C" />
+                    <item android:offset="1" android:color="#FFC94104" />
+                </gradient>
+            </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M138 426 V268 A118 118 0 0 1 374 268 V426 H314 V262 A58 58 0 0 0 198 262 V426 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M197 282 H315 V326 H197 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M254.7 105.2 L296.1 43.9 L329.3 66.2 L287.9 127.6 Z" />
+</vector>

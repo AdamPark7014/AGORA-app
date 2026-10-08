@@ -1,0 +1,63 @@
+name: ios
+
+# Compila la app de iOS en un Mac de GitHub, la corre en el simulador y sube
+# capturas como artefacto. No hay Mac en el equipo: este es el unico lugar donde
+# el codigo Swift se compila de verdad antes de llegar a TestFlight.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile-native/ios/**'
+      - '.github/workflows/ios.yml'
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulador:
+    runs-on: macos-15
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/mobile-native/ios
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generar proyecto (XcodeGen)
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Compilar para simulador
+        run: |
+          set -o pipefail
+          xcodebuild -project AgoraApp.xcodeproj -target AgoraApp \
+            -configuration Release -sdk iphonesimulator \
+            CODE_SIGNING_ALLOWED=NO build | tee xcodebuild.log | grep -E "error:|warning: unused|BUILD" || true
+          test -d build/Release-iphonesimulator/AgoraApp.app
+
+      - name: Correr en el simulador y capturar
+        run: |
+          DEV=$(xcrun simctl list devices available | grep -m1 -E 'iPhone 1[5-7]( Pro)? \(' | sed -E 's/.*\(([A-F0-9-]{36})\).*/\1/')
+          echo "Simulador: $DEV"
+          xcrun simctl boot "$DEV"
+          xcrun simctl bootstatus "$DEV" -b
+          xcrun simctl install "$DEV" build/Release-iphonesimulator/AgoraApp.app
+          xcrun simctl launch "$DEV" mx.agora.mobile.AgoraApp
+          sleep 20
+          mkdir -p capturas
+          xcrun simctl io "$DEV" screenshot capturas/01-inicio.png
+          xcrun simctl ui "$DEV" appearance dark
+          sleep 3
+          xcrun simctl io "$DEV" screenshot capturas/02-inicio-oscuro.png
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-capturas
+          path: |
+            apps/mobile-native/ios/capturas
+            apps/mobile-native/ios/xcodebuild.log
+          if-no-files-found: warn

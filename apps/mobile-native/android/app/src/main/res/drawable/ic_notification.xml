@@ -1,11 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Monocromo para status bar; tint naranja en AgoraNotifications.setColor -->
+<!-- Icono de notificacion: silueta del isotipo (Android solo usa el canal alfa). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M12,4 L18,18 H15 L13.5,14 H10.5 L9,18 H6 Z M10.5,12 H13.5 L12,8.5 Z" />
+    <group
+        android:scaleX="0.05236"
+        android:scaleY="0.05236"
+        android:translateX="-1.403"
+        android:translateY="0.096">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M138 426 V268 A118 118 0 0 1 374 268 V426 H314 V262 A58 58 0 0 0 198 262 V426 Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M197 282 H315 V326 H197 Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M254.7 105.2 L296.1 43.9 L329.3 66.2 L287.9 127.6 Z" />
+    </group>
 </vector>
