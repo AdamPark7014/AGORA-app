@@ -9,73 +9,77 @@ struct CampusPulseBanner: View {
     @State private var cumples: [CumpleDto] = []
 
     var body: some View {
-        if !trending.isEmpty || !cumples.isEmpty {
-            VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
-                if !trending.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("🔥 Trending hoy")
-                            .font(.caption.bold())
-                            .foregroundStyle(AgoraDesign.Colors.naranja)
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(trending, id: \.tag) { item in
-                                    Button {
-                                        onHashtagTap(item.tag)
-                                    } label: {
-                                        Text("#\(item.tag)")
-                                            .font(.caption.weight(.semibold))
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 8)
-                                            .background(AgoraDesign.Colors.naranjaSuave)
-                                            .foregroundStyle(AgoraDesign.Colors.naranja)
-                                            .clipShape(Capsule())
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if !cumples.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("🎂 Cumplen hoy")
-                            .font(.caption.bold())
-                            .foregroundStyle(AgoraDesign.Colors.naranja)
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 10) {
-                                ForEach(cumples, id: \.handle) { persona in
-                                    Button {
-                                        onPerfilTap(persona.handle)
-                                    } label: {
-                                        VStack(spacing: 4) {
-                                            cumpleAvatar(persona)
-                                            Text(primerNombre(persona.nombre))
-                                                .font(.caption2)
-                                                .lineLimit(1)
-                                                .foregroundStyle(AgoraDesign.Colors.texto)
+        // VStack siempre presente: con `.task` dentro del `if` (listas vacías al
+        // inicio) la carga nunca se disparaba y el banner no aparecía.
+        VStack(spacing: 0) {
+            if !trending.isEmpty || !cumples.isEmpty {
+                VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
+                    if !trending.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("🔥 Trending hoy")
+                                .font(.caption.bold())
+                                .foregroundStyle(AgoraDesign.Colors.naranja)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(trending, id: \.tag) { item in
+                                        Button {
+                                            onHashtagTap(item.tag)
+                                        } label: {
+                                            Text("#\(item.tag)")
+                                                .font(.caption.weight(.semibold))
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 8)
+                                                .background(AgoraDesign.Colors.naranjaSuave)
+                                                .foregroundStyle(AgoraDesign.Colors.naranja)
+                                                .clipShape(Capsule())
                                         }
-                                        .frame(width: 64)
+                                        .buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
                                 }
                             }
                         }
-                        Text("Mándale un mensaje, cuesta nada.")
-                            .font(.caption2)
-                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    }
+
+                    if !cumples.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("🎂 Cumplen hoy")
+                                .font(.caption.bold())
+                                .foregroundStyle(AgoraDesign.Colors.naranja)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 10) {
+                                    ForEach(cumples, id: \.handle) { persona in
+                                        Button {
+                                            onPerfilTap(persona.handle)
+                                        } label: {
+                                            VStack(spacing: 4) {
+                                                cumpleAvatar(persona)
+                                                Text(primerNombre(persona.nombre))
+                                                    .font(.caption2)
+                                                    .lineLimit(1)
+                                                    .foregroundStyle(AgoraDesign.Colors.texto)
+                                            }
+                                            .frame(width: 64)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                            Text("Mándale un mensaje, cuesta nada.")
+                                .font(.caption2)
+                                .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                        }
                     }
                 }
+                .padding(AgoraDesign.Spacing.sm + 2)
+                .background(AgoraDesign.Colors.superficie)
+                .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
+                .overlay {
+                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium)
+                        .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
+                }
             }
-            .padding(AgoraDesign.Spacing.sm + 2)
-            .background(AgoraDesign.Colors.superficie)
-            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
-            .overlay {
-                RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium)
-                    .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
-            }
-            .task { await cargar() }
         }
+        .task { await cargar() }
     }
 
     @ViewBuilder

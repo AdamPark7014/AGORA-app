@@ -9,10 +9,11 @@ private let etiquetasTipoEvento: [String: String] = [
     "OTRO": "Otro",
 ]
 
+/// La API solo acepta VOY / ME_INTERESA (`RESPUESTAS_ASISTENCIA`); repetir la
+/// misma respuesta la retira, así que no hace falta un «No voy».
 private let respuestasEvento: [(String, String)] = [
     ("VOY", "Voy"),
     ("ME_INTERESA", "Me interesa"),
-    ("NO_VOY", "No voy"),
 ]
 
 /// Detalle de evento — paridad con `EventoDetalleScreen.kt`.
@@ -36,44 +37,54 @@ struct EventoDetalleView: View {
                 }
             } else if let evento {
                 ScrollView {
+                    // Agrupado: en iOS 16 un ViewBuilder admite como máximo 10 hijos por bloque.
                     VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
-                        Text(etiquetasTipoEvento[evento.tipo] ?? evento.tipo)
-                            .font(.subheadline.bold())
-                            .foregroundStyle(AgoraDesign.Colors.naranja)
+                        Group {
+                            Text(etiquetasTipoEvento[evento.tipo] ?? evento.tipo)
+                                .font(.subheadline.bold())
+                                .foregroundStyle(AgoraDesign.Colors.naranja)
 
-                        Text(evento.titulo)
-                            .font(.title2.bold())
+                            Text(evento.titulo)
+                                .font(.title2.bold())
 
-                        Text(FormatUtils.formatearFecha(evento.inicioAt))
-                            .font(.subheadline)
-                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
-
-                        if let lugar = evento.lugar, !lugar.isEmpty {
-                            Text("📍 \(lugar)")
+                            Text(FormatUtils.formatearFecha(evento.inicioAt))
                                 .font(.subheadline)
                                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                        }
 
-                        if let comunidad = evento.comunidad {
-                            Text(comunidad.nombre)
-                                .font(.subheadline)
-                                .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                        }
+                            if let lugar = evento.lugar, !lugar.isEmpty {
+                                Text("📍 \(lugar)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                            }
 
-                        if let costo = evento.costoMxn {
-                            Text("\(FormatUtils.formatearPrecio(costo)) MXN")
-                                .font(.headline)
-                        }
+                            if let comunidad = evento.comunidad {
+                                Text(comunidad.nombre)
+                                    .font(.subheadline)
+                                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                            }
 
-                        if let descripcion = evento.descripcion, !descripcion.isEmpty {
-                            Text(descripcion)
-                                .font(.body)
-                                .padding(.top, AgoraDesign.Spacing.xs)
+                            if let costo = evento.costoMxn {
+                                Text("\(FormatUtils.formatearPrecio(costo)) MXN")
+                                    .font(.headline)
+                            }
+
+                            if let descripcion = evento.descripcion, !descripcion.isEmpty {
+                                Text(descripcion)
+                                    .font(.body)
+                                    .padding(.top, AgoraDesign.Spacing.xs)
+                            }
                         }
 
                         Text("\(evento.vanAIr ?? 0) personas van")
                             .font(.caption)
                             .foregroundStyle(AgoraDesign.Colors.textoMedio)
+
+                        if let cupo = evento.cupo {
+                            let libres = max(0, cupo - (evento.vanAIr ?? 0))
+                            Text(libres == 0 ? "Cupo lleno (\(cupo) lugares)" : "Cupo: \(cupo) · quedan \(libres) lugares")
+                                .font(.caption.bold())
+                                .foregroundStyle(libres == 0 ? AgoraDesign.Colors.danger : AgoraDesign.Colors.naranja)
+                        }
 
                         respuestasChips(evento: evento)
 
@@ -109,6 +120,16 @@ struct EventoDetalleView: View {
         .background(AgoraDesign.Colors.fondo)
         .navigationTitle("Evento")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if let url = EnlacesWeb.evento(eventoId) {
+                    ShareLink(item: url, subject: Text(evento?.titulo ?? "Evento en Ágora")) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Compartir evento")
+                }
+            }
+        }
         .task(id: eventoId) { await cargar() }
     }
 

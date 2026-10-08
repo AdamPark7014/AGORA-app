@@ -2,6 +2,8 @@ import SwiftUI
 
 /// Cola de moderación staff — paridad con `ModeracionScreen.kt`.
 struct ModeracionView: View {
+    @ObservedObject private var session = SessionStore.shared
+
     @State private var items: [ModeracionColaItemDto] = []
     @State private var cargando = true
     @State private var error: String?
@@ -56,6 +58,14 @@ struct ModeracionView: View {
                                     dialogoAccion = "SIN_ACCION"
                                 }
                                 .buttonStyle(.bordered)
+                                if session.currentUser?.puedeSuspender == true, item.autor != nil {
+                                    Button("Suspender") {
+                                        dialogoItem = item
+                                        dialogoAccion = "SUSPENDER_USUARIO"
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .tint(AgoraDesign.Colors.danger)
+                                }
                             }
                             .disabled(resolviendo == item.reporteId)
                         }
@@ -73,10 +83,12 @@ struct ModeracionView: View {
             get: { dialogoItem != nil },
             set: { if !$0 { dialogoItem = nil; dialogoAccion = nil; motivo = "" } }
         )) {
-            TextField("Motivo (opcional)", text: $motivo)
-            Button("Confirmar") {
+            TextField("Motivo (obligatorio)", text: $motivo)
+            Button(dialogoAccion == "SUSPENDER_USUARIO" ? "Suspender cuenta" : "Confirmar", role: dialogoAccion == "SIN_ACCION" ? nil : .destructive) {
+                // Se captura ya: al cerrarse la alerta el binding limpia `motivo`.
+                let motivoEscrito = motivo
                 if let item = dialogoItem, let accion = dialogoAccion {
-                    Task { await resolver(item: item, accion: accion) }
+                    Task { await resolver(item: item, accion: accion, motivo: motivoEscrito) }
                 }
             }
             Button("Cancelar", role: .cancel) {
@@ -85,7 +97,18 @@ struct ModeracionView: View {
                 motivo = ""
             }
         } message: {
-            Text("Acción: \(dialogoAccion ?? "")")
+            Text(mensajeDialogo)
+        }
+    }
+
+    private var mensajeDialogo: String {
+        switch dialogoAccion ?? "" {
+        case "RETIRAR_CONTENIDO":
+            return "Se retira el contenido. El autor verá el motivo (mínimo 3 caracteres)."
+        case "SUSPENDER_USUARIO":
+            return "Se suspende la cuenta del autor, se cierran sus sesiones y se retira el contenido. Escribe el motivo."
+        default:
+            return "Se cierra el reporte sin acción. Escribe el motivo (mínimo 3 caracteres)."
         }
     }
 
@@ -101,15 +124,20 @@ struct ModeracionView: View {
         }
     }
 
-    private func resolver(item: ModeracionColaItemDto, accion: String) async {
+    private func resolver(item: ModeracionColaItemDto, accion: String, motivo: String) async {
+        let motivoLimpio = motivo.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard motivoLimpio.count >= 3 else {
+            error = "Escribe el motivo (mínimo 3 caracteres)."
+            return
+        }
         resolviendo = item.reporteId
         defer { resolviendo = nil }
         do {
-            try await AgoraApi.resolverReporte(id: item.reporteId, accion: accion, motivo: motivo)
+            try await AgoraApi.resolverReporte(id: item.reporteId, accion: accion, motivo: motivoLimpio)
             items.removeAll { $0.reporteId == item.reporteId }
             dialogoItem = nil
             dialogoAccion = nil
-            motivo = ""
+            self.motivo = ""
             error = nil
         } catch {
             self.error = FormatUtils.mensajeDe(error)

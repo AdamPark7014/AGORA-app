@@ -45,32 +45,34 @@ struct CreateAnuncioView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
-                Text("Nuevo anuncio")
-                    .font(.title2.bold())
+                Group {
+                    Text("Nuevo anuncio")
+                        .font(.title2.bold())
 
-                TextField("Título", text: $titulo)
-                    .textFieldStyle(.roundedBorder)
+                    TextField("Título", text: $titulo)
+                        .textFieldStyle(.roundedBorder)
 
-                ZStack(alignment: .topLeading) {
-                    TextEditor(text: $descripcion)
-                        .frame(minHeight: 120)
-                        .padding(4)
-                        .background(Color(.secondarySystemGroupedBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
-                    if descripcion.isEmpty {
-                        Text("Descripción")
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 12)
-                            .allowsHitTesting(false)
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: $descripcion)
+                            .frame(minHeight: 120)
+                            .padding(4)
+                            .background(Color(.secondarySystemGroupedBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
+                        if descripcion.isEmpty {
+                            Text("Descripción")
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 12)
+                                .allowsHitTesting(false)
+                        }
                     }
-                }
 
-                TextField("Precio MXN", text: $precio)
-                    .textFieldStyle(.roundedBorder)
-                    .keyboardType(.numberPad)
-                    .onChange(of: precio) { newValue in
-                        precio = newValue.filter(\.isNumber)
+                    TextField("Precio MXN", text: $precio)
+                        .textFieldStyle(.roundedBorder)
+                        .keyboardType(.numberPad)
+                        .onChange(of: precio) { newValue in
+                            precio = newValue.filter(\.isNumber)
+                }
                     }
 
                 Text("Categoría")
@@ -166,7 +168,8 @@ struct CreateAnuncioView: View {
             if let image = UIImage(data: data) {
                 previewImage = image
             }
-            let subida = try await MediaRepository.subir(imageData: data)
+            // Siempre JPEG: el servidor rechaza HEIC y así no viajan los metadatos EXIF.
+            let subida = try await MediaRepository.subirFoto(data)
             imagenId = subida.id
         } catch {
             previewImage = nil

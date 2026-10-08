@@ -100,7 +100,7 @@ actor MensajesSseClient {
             texto: payload.texto,
             createdAt: payload.createdAt,
             mio: miHandle != nil && handle == miHandle,
-            autor: payload.autor.map { AutorDto(handle: $0.handle, nombre: $0.nombre, fotoUrl: $0.fotoUrl) }
+            autor: payload.autor.map { AutorDto(handle: $0.handle, nombre: $0.nombre, fotoUrl: $0.fotoUrl, verificado: nil) }
         )
     }
 }

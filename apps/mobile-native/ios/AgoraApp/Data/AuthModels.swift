@@ -21,4 +21,11 @@ struct YoResponse: Decodable {
     let email: String?
     let tienePerfil: Bool?
     let puedeModerar: Bool?
+    let puedeSuspender: Bool?
+}
+
+/// `GET auth/otp/entrega/:envioId` — si el código llegó al buzón.
+/// Estados: enviado, demorado, entregado, rebotado, bloqueado, error.
+struct EstadoEntregaOtpResponse: Decodable {
+    let estado: String
 }

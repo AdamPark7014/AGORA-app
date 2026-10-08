@@ -32,7 +32,11 @@ struct WelcomeScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
+            HStack(spacing: AgoraDesign.Spacing.xs) {
+                AgoraIsotipo(tamano: 32)
+                Text(AgoraCopy.appName)
+                    .font(.headline.bold())
+                    .foregroundStyle(AgoraDesign.Colors.texto)
                 Spacer()
                 Button("Saltar", action: onFinished)
                     .font(.subheadline)
@@ -55,6 +59,7 @@ struct WelcomeScreen: View {
                         }
                         Text(item.title)
                             .font(.title2.bold())
+                            .foregroundStyle(AgoraDesign.Colors.texto)
                             .multilineTextAlignment(.center)
                         Text(item.description)
                             .font(.body)

@@ -7,6 +7,8 @@ struct PerfilAjenoView: View {
     var onMensaje: (String) -> Void = { _ in }
     var onAjustes: () -> Void = {}
     var onPostTap: (String) -> Void = { _ in }
+    var onSeguidores: (String) -> Void = { _ in }
+    var onSiguiendo: (String) -> Void = { _ in }
 
     @State private var perfil: PerfilAjenoDto?
     @State private var gamificacion: GamificacionDto?
@@ -14,6 +16,8 @@ struct PerfilAjenoView: View {
     @State private var cursor: String?
     @State private var siguiendo = false
     @State private var bloqueado = false
+    /// Silenciado: no ves sus publicaciones y no se le avisa.
+    @State private var silenciado = false
     @State private var cargando = true
     @State private var ocupado = false
     @State private var error: String?
@@ -46,6 +50,16 @@ struct PerfilAjenoView: View {
         .background(AgoraDesign.Colors.fondo)
         .navigationTitle("@\(handle)")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if let url = EnlacesWeb.perfil(handle) {
+                    ShareLink(item: url) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Compartir perfil")
+                }
+            }
+        }
         .refreshable { await cargar() }
         .task(id: handle) { await cargar() }
         .sheet(isPresented: $mostrarSheetRetar) {
@@ -61,38 +75,65 @@ struct PerfilAjenoView: View {
         let nombreCompleto = "\(p.nombre) \(p.apellidos)".trimmingCharacters(in: .whitespaces)
 
         VStack(spacing: AgoraDesign.Spacing.xs) {
-            fotoPerfil(nombre: nombreCompleto, url: p.fotoUrl)
+            Group {
+                if let portada = ApiClient.shared.resolveUrl(p.portadaUrl) {
+                    AsyncImage(url: portada) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            AgoraDesign.Colors.naranjaSuave
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 110)
+                    .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
+                }
+                fotoPerfil(nombre: nombreCompleto, url: p.fotoUrl)
 
-            Text("\(nombreCompleto)\(p.verificado == true ? " ✓" : "")")
-                .font(.title2.bold())
-            Text("@\(p.handle)")
-                .font(.subheadline)
-                .foregroundStyle(AgoraDesign.Colors.textoMedio)
-
-            if let bio = p.bio, !bio.isEmpty {
-                Text(bio)
-                    .font(.body)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 4)
-            }
-
-            if let carrera = p.carrera, !carrera.isEmpty {
-                Text("\(p.escuela ?? "") · \(carrera)".trimmingCharacters(in: CharacterSet(charactersIn: " ·")))
-                    .font(.caption)
+                Text("\(nombreCompleto)\(p.verificado == true ? " ✓" : "")")
+                    .font(.title2.bold())
+                Text("@\(p.handle)")
+                    .font(.subheadline)
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
-            }
 
-            if let ciudad = p.ciudadOrigen {
-                Text("📍 \(ciudad)").font(.caption)
-            }
-            if let ig = p.instagram {
-                Text("📷 @\(ig)").font(.caption)
+                if let bio = p.bio, !bio.isEmpty {
+                    Text(bio)
+                        .font(.body)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
+                }
+
+                if let carrera = p.carrera, !carrera.isEmpty {
+                    Text("\(p.escuela ?? "") · \(carrera)".trimmingCharacters(in: CharacterSet(charactersIn: " ·")))
+                        .font(.caption)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                }
+
+                if let ciudad = p.ciudadOrigen {
+                    Text("📍 \(ciudad)").font(.caption)
+                }
+                if let ig = p.instagram {
+                    Text("📷 @\(ig)").font(.caption)
+                }
             }
 
             HStack(spacing: AgoraDesign.Spacing.md) {
                 Text("\(p.publicaciones ?? 0) posts").font(.caption)
-                Text("\(p.seguidores ?? 0) seguidores").font(.caption)
-                Text("\(p.siguiendo ?? 0) siguiendo").font(.caption)
+                Button {
+                    onSeguidores(p.handle)
+                } label: {
+                    Text("\(p.seguidores ?? 0) seguidores").font(.caption)
+                }
+                .buttonStyle(.plain)
+                .disabled(p.restringido == true)
+                Button {
+                    onSiguiendo(p.handle)
+                } label: {
+                    Text("\(p.siguiendo ?? 0) siguiendo").font(.caption)
+                }
+                .buttonStyle(.plain)
+                .disabled(p.restringido == true)
             }
             .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
@@ -144,15 +185,33 @@ struct PerfilAjenoView: View {
                     .padding(.top, 4)
                 }
 
-                Button {
-                    Task { await alternarBloqueo() }
-                } label: {
-                    Text(bloqueado ? "Desbloquear" : "Bloquear")
-                        .frame(maxWidth: .infinity)
+                HStack(spacing: 10) {
+                    Button {
+                        Task { await alternarSilencio() }
+                    } label: {
+                        Text(silenciado ? "Dejar de silenciar" : "Silenciar")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(ocupado || bloqueado)
+
+                    Button {
+                        Task { await alternarBloqueo() }
+                    } label: {
+                        Text(bloqueado ? "Desbloquear" : "Bloquear")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(ocupado)
                 }
-                .buttonStyle(.bordered)
-                .disabled(ocupado)
                 .padding(.top, 4)
+
+                if silenciado {
+                    Text("Silenciado: no verás sus publicaciones. No se le avisa.")
+                        .font(.caption)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                        .multilineTextAlignment(.center)
+                }
             }
 
             if let intereses = p.intereses, !intereses.isEmpty {
@@ -332,7 +391,9 @@ struct PerfilAjenoView: View {
             perfil = datos
             siguiendo = datos.yoLeSigo ?? false
             if let miHandle, miHandle != handle {
-                bloqueado = (try? await AgoraApi.estadoBloqueo(handle: handle).bloqueado) ?? false
+                let estado = try? await AgoraApi.estadoBloqueo(handle: handle)
+                bloqueado = estado?.bloqueado ?? false
+                silenciado = estado?.silenciado ?? false
             }
             if datos.restringido != true {
                 let pubs = try await AgoraApi.publicacionesPerfil(handle: handle)
@@ -377,7 +438,28 @@ struct PerfilAjenoView: View {
             } else {
                 let resp = try await AgoraApi.bloquear(handle: handle)
                 bloqueado = resp.bloqueado
+                silenciado = resp.silenciado ?? false
             }
+        } catch {
+            self.error = FormatUtils.mensajeDe(error)
+        }
+    }
+
+    /// `POST bloqueos/:handle` con `soloSilencio: true`; quitarlo es `DELETE`.
+    private func alternarSilencio() async {
+        ocupado = true
+        error = nil
+        defer { ocupado = false }
+        do {
+            if silenciado {
+                try await AgoraApi.desbloquear(handle: handle)
+                silenciado = false
+            } else {
+                let resp = try await AgoraApi.bloquear(handle: handle, soloSilencio: true)
+                silenciado = resp.silenciado ?? true
+                bloqueado = resp.bloqueado
+            }
+            Haptics.toggle()
         } catch {
             self.error = FormatUtils.mensajeDe(error)
         }

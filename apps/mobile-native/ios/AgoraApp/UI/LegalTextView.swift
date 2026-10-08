@@ -1,6 +1,7 @@
 import SwiftUI
 
-private struct LegalSection {
+/// Interno (no `private`): es el tipo de una propiedad interna de `LegalTextView`.
+struct LegalSection {
     let titulo: String
     let parrafos: [String]
 }

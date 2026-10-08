@@ -11,6 +11,24 @@ struct DirectorioView: View {
     @State private var cargando = true
     @State private var cargandoMas = false
     @State private var busquedaTask: Task<Void, Never>?
+    /// Filtros del catálogo (`GET catalogo`): slugs; vacío = todos.
+    @State private var catalogo: CatalogoDto?
+    @State private var escuela = ""
+    @State private var carrera = ""
+    @State private var colegio = ""
+
+    private var escuelas: [EscuelaDto] { catalogo?.escuelas ?? [] }
+    private var colegios: [ColegioDto] { catalogo?.colegios ?? [] }
+
+    /// Con escuela elegida, solo sus carreras; si no, todas.
+    private var carrerasDisponibles: [CarreraDto] {
+        if !escuela.isEmpty, let elegida = escuelas.first(where: { $0.slug == escuela }) {
+            return elegida.carreras ?? []
+        }
+        return escuelas
+            .flatMap { $0.carreras ?? [] }
+            .sorted { $0.nombre.localizedCaseInsensitiveCompare($1.nombre) == .orderedAscending }
+    }
 
     private var generaciones: [Int] {
         let ano = Calendar.current.component(.year, from: Date())
@@ -33,6 +51,10 @@ struct DirectorioView: View {
                 }
                 .padding(.horizontal, AgoraDesign.Spacing.sm)
                 .padding(.bottom, AgoraDesign.Spacing.xs)
+            }
+
+            if catalogo != nil {
+                filtrosCatalogo
             }
 
             Group {
@@ -93,7 +115,98 @@ struct DirectorioView: View {
         .navigationTitle("Directorio")
         .onChange(of: q) { _ in programarBusqueda() }
         .onChange(of: generacion) { _ in programarBusqueda() }
+        .onChange(of: escuela) { _ in programarBusqueda() }
+        .onChange(of: carrera) { _ in programarBusqueda() }
+        .onChange(of: colegio) { _ in programarBusqueda() }
         .task { await buscar(desde: nil) }
+        .task { await cargarCatalogo() }
+    }
+
+    private var filtrosCatalogo: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                filtroMenu(
+                    escuelas.first(where: { $0.slug == escuela })?.nombre ?? "Escuela",
+                    activo: !escuela.isEmpty
+                ) {
+                    Button("Todas las escuelas") {
+                        escuela = ""
+                        carrera = ""
+                    }
+                    ForEach(escuelas) { e in
+                        Button(e.nombre) {
+                            escuela = e.slug
+                            carrera = ""
+                        }
+                    }
+                }
+
+                filtroMenu(
+                    carrerasDisponibles.first(where: { $0.slug == carrera })?.nombre ?? "Carrera",
+                    activo: !carrera.isEmpty
+                ) {
+                    Button("Todas las carreras") { carrera = "" }
+                    ForEach(carrerasDisponibles) { c in
+                        Button(c.nombre) { carrera = c.slug }
+                    }
+                }
+
+                filtroMenu(
+                    colegios.first(where: { $0.slug == colegio })?.nombre ?? "Colegio",
+                    activo: !colegio.isEmpty
+                ) {
+                    Button("Todos los colegios") { colegio = "" }
+                    ForEach(colegios) { c in
+                        Button(c.nombre) { colegio = c.slug }
+                    }
+                }
+
+                if !escuela.isEmpty || !carrera.isEmpty || !colegio.isEmpty {
+                    Button("Limpiar") {
+                        escuela = ""
+                        carrera = ""
+                        colegio = ""
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(AgoraDesign.Colors.naranja)
+                }
+            }
+            .padding(.horizontal, AgoraDesign.Spacing.sm)
+            .padding(.bottom, AgoraDesign.Spacing.xs)
+        }
+    }
+
+    private func filtroMenu<Opciones: View>(
+        _ titulo: String,
+        activo: Bool,
+        @ViewBuilder opciones: () -> Opciones
+    ) -> some View {
+        let contenido = opciones()
+        return Menu {
+            contenido
+        } label: {
+            HStack(spacing: 4) {
+                Text(titulo)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+            }
+            .font(.subheadline)
+            .padding(.horizontal, AgoraDesign.Spacing.sm)
+            .padding(.vertical, AgoraDesign.Spacing.xs)
+            .background(activo ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
+            .foregroundStyle(activo ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.texto)
+            .clipShape(Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(activo ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.borde, lineWidth: 1)
+            }
+        }
+    }
+
+    private func cargarCatalogo() async {
+        guard catalogo == nil else { return }
+        catalogo = try? await AgoraApi.catalogo()
     }
 
     private func subtitulo(_ persona: DirectorioPersonaDto) -> String {
@@ -144,7 +257,10 @@ struct DirectorioView: View {
             let resp = try await AgoraApi.directorio(
                 q: q.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : q,
                 generacion: generacion,
-                cursor: desde
+                cursor: desde,
+                escuela: escuela.isEmpty ? nil : escuela,
+                carrera: carrera.isEmpty ? nil : carrera,
+                colegio: colegio.isEmpty ? nil : colegio
             )
             let nuevos = resp.resultados ?? []
             resultados = desde != nil ? resultados + nuevos : nuevos

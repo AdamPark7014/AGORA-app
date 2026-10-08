@@ -25,13 +25,14 @@ enum AgoraAnalytics {
         }
     }
 
+    // Sin etiqueta: los llamadores usan `AgoraAnalytics.publicar([...])`.
     static func login() { track(nombre: "login") }
 
-    static func publicar(props: [String: String] = [:]) { track(nombre: "publicar", propiedades: props) }
+    static func publicar(_ props: [String: String] = [:]) { track(nombre: "publicar", propiedades: props) }
 
-    static func dmEnviado(props: [String: String] = [:]) { track(nombre: "dm_enviado", propiedades: props) }
+    static func dmEnviado(_ props: [String: String] = [:]) { track(nombre: "dm_enviado", propiedades: props) }
 
-    static func eventoAsistencia(props: [String: String] = [:]) {
+    static func eventoAsistencia(_ props: [String: String] = [:]) {
         track(nombre: "evento_asistencia", propiedades: props)
     }
 }

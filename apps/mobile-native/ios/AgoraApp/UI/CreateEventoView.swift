@@ -37,23 +37,25 @@ struct CreateEventoView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
-                Text("Nuevo evento")
-                    .font(.title3.bold())
+                Group {
+                    Text("Nuevo evento")
+                        .font(.title3.bold())
 
-                campo("Título", text: $titulo)
-                campo("Lugar", text: $lugar)
+                    campo("Título", text: $titulo)
+                    campo("Lugar", text: $lugar)
 
-                Text("Descripción")
-                    .font(.subheadline.bold())
-                TextEditor(text: $descripcion)
-                    .frame(minHeight: 100)
-                    .padding(8)
-                    .background(AgoraDesign.Colors.superficie)
-                    .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: AgoraDesign.Radii.small)
-                            .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
-                    }
+                    Text("Descripción")
+                        .font(.subheadline.bold())
+                    TextEditor(text: $descripcion)
+                        .frame(minHeight: 100)
+                        .padding(8)
+                        .background(AgoraDesign.Colors.superficie)
+                        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: AgoraDesign.Radii.small)
+                                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+                        }
+                }
 
                 Text("Tipo")
                     .font(.subheadline.bold())

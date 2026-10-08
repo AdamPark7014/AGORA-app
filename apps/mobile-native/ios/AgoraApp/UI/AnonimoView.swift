@@ -15,6 +15,7 @@ struct AnonimoView: View {
     @State private var cargando = true
     @State private var enviando = false
     @State private var error: String?
+    @State private var aviso: String?
 
     var body: some View {
         Group {
@@ -47,7 +48,8 @@ struct AnonimoView: View {
                                 AnonimoPostCard(
                                     post: post,
                                     onReaccionar: { tipo in Task { await reaccionar(post: post, tipo: tipo) } },
-                                    onBorrar: { Task { await borrar(post: post) } }
+                                    onBorrar: { Task { await borrar(post: post) } },
+                                    onReportar: { motivo in Task { await reportar(post: post, motivo: motivo) } }
                                 )
                             }
                         }
@@ -61,6 +63,15 @@ struct AnonimoView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await cargarFeed() }
         .task { await cargarInicial() }
+        .alert(
+            aviso ?? "",
+            isPresented: Binding(
+                get: { aviso != nil },
+                set: { if !$0 { aviso = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        }
     }
 
     private var tarjetaPublicar: some View {
@@ -165,6 +176,15 @@ struct AnonimoView: View {
         }
     }
 
+    private func reportar(post: AnonimoPostDto, motivo: String) async {
+        do {
+            try await AgoraApi.reportar(postId: post.id, motivo: motivo)
+            aviso = "Gracias. Un moderador lo revisará."
+        } catch {
+            aviso = FormatUtils.mensajeDe(error)
+        }
+    }
+
     private func borrar(post: AnonimoPostDto) async {
         do {
             try await AgoraApi.borrarAnonimo(id: post.id)
@@ -179,6 +199,9 @@ private struct AnonimoPostCard: View {
     let post: AnonimoPostDto
     let onReaccionar: (String) -> Void
     let onBorrar: () -> Void
+    let onReportar: (String) -> Void
+
+    @State private var eligiendoMotivo = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -190,6 +213,21 @@ private struct AnonimoPostCard: View {
                     Button("Borrar", action: onBorrar)
                         .font(.caption)
                         .foregroundStyle(AgoraDesign.Colors.danger)
+                } else {
+                    Menu {
+                        Button(role: .destructive) {
+                            eligiendoMotivo = true
+                        } label: {
+                            Label("Reportar", systemImage: "flag")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.subheadline)
+                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                            .frame(width: 32, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Más opciones")
                 }
             }
 
@@ -223,6 +261,14 @@ private struct AnonimoPostCard: View {
         .overlay {
             RoundedRectangle(cornerRadius: AgoraDesign.Radii.card)
                 .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
+        }
+        .confirmationDialog("¿Por qué la reportas?", isPresented: $eligiendoMotivo, titleVisibility: .visible) {
+            ForEach(motivosReporte) { motivo in
+                Button(motivo.etiqueta) {
+                    onReportar(motivo.id)
+                }
+            }
+            Button("Cancelar", role: .cancel) {}
         }
     }
 }

@@ -5,9 +5,12 @@ import UIKit
 struct MainTabView: View {
     @EnvironmentObject var session: SessionStore
     @ObservedObject private var deepLinkBus = DeepLinkBus.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var tab = 0
     @State private var avisosSinLeer = 0
+    /// Mensajes directos sin leer (`GET mensajes/no-leidos`): globo en «Más».
+    @State private var mensajesSinLeer = 0
     @State private var prevAvisosSinLeer = 0
     @State private var badgePulseToken = 0
     @State private var feedReloadKey = 0
@@ -73,7 +76,8 @@ struct MainTabView: View {
                     onNavigate: { ruta in navegarDesdeMas(ruta) },
                     onTerminos: { masPath.append(AppRoute.terminos) },
                     onPrivacidad: { masPath.append(AppRoute.privacidad) },
-                    onLogout: { AuthRepository.shared.logout() }
+                    onLogout: { AuthRepository.shared.logout() },
+                    mensajesSinLeer: mensajesSinLeer
                 )
                 .navigationDestination(for: AppRoute.self) { route in
                     hubDestination(route, path: $masPath)
@@ -87,6 +91,7 @@ struct MainTabView: View {
             AgoraAnimatedTabBar(
                 selection: $tab,
                 avisosSinLeer: avisosSinLeer,
+                mensajesSinLeer: mensajesSinLeer,
                 badgePulseToken: badgePulseToken
             )
         }
@@ -99,6 +104,18 @@ struct MainTabView: View {
                 prevAvisosSinLeer = 0
             } else {
                 Task { await actualizarBadge() }
+            }
+            Task { await actualizarMensajesSinLeer() }
+        }
+        .onChange(of: masPath.count) { _ in
+            // Al volver de una conversación el globo debe bajar.
+            Task { await actualizarMensajesSinLeer() }
+        }
+        .onChange(of: scenePhase) { fase in
+            guard fase == .active else { return }
+            Task {
+                await actualizarBadge()
+                await actualizarMensajesSinLeer()
             }
         }
         .onChange(of: avisosSinLeer) { newValue in
@@ -115,6 +132,8 @@ struct MainTabView: View {
         .task {
             PushRegistration.shared.registerIfNeeded()
             await actualizarBadge()
+            await actualizarMensajesSinLeer()
+            await AuthRepository.shared.refrescarPermisos()
             if let route = deepLinkBus.pendingRoute {
                 aplicarDeepLink(route)
                 deepLinkBus.consume()
@@ -287,7 +306,13 @@ struct MainTabView: View {
             PostDetailView(
                 postId: id,
                 onAuthorTap: { handle in path.wrappedValue.append(AppRoute.perfil(handle)) },
-                onHashtagTap: { tag in path.wrappedValue.append(AppRoute.hashtag(tag)) }
+                onHashtagTap: { tag in path.wrappedValue.append(AppRoute.hashtag(tag)) },
+                onEliminado: {
+                    if !path.wrappedValue.isEmpty {
+                        path.wrappedValue.removeLast()
+                    }
+                    feedReloadKey += 1
+                }
             )
         case .eventoDetalle(let id):
             EventoDetalleView(
@@ -342,20 +367,33 @@ struct MainTabView: View {
                     path.wrappedValue.append(AppRoute.mensajeDetalle(conversacionId))
                 },
                 onAjustes: { path.wrappedValue.append(AppRoute.ajustes) },
-                onPostTap: { id in path.wrappedValue.append(AppRoute.postDetail(id)) }
+                onPostTap: { id in path.wrappedValue.append(AppRoute.postDetail(id)) },
+                onSeguidores: { h in path.wrappedValue.append(AppRoute.seguidores(h)) },
+                onSiguiendo: { h in path.wrappedValue.append(AppRoute.siguiendo(h)) }
             )
+        case .seguidores(let handle):
+            SeguidoresView(handle: handle, modo: .seguidores) { h in
+                path.wrappedValue.append(AppRoute.perfil(h))
+            }
+        case .siguiendo(let handle):
+            SeguidoresView(handle: handle, modo: .siguiendo) { h in
+                path.wrappedValue.append(AppRoute.perfil(h))
+            }
         case .perfilYo:
+            // Mismo orden que las propiedades de ProfileView (init memberwise).
             ProfileView(
                 onLogout: { AuthRepository.shared.logout() },
                 onMensajesTap: { path.wrappedValue.append(AppRoute.mensajes) },
+                onAjustesTap: { path.wrappedValue.append(AppRoute.ajustes) },
+                onTerminosTap: { path.wrappedValue.append(AppRoute.terminos) },
+                onPrivacidadTap: { path.wrappedValue.append(AppRoute.privacidad) },
+                onModeracionTap: { path.wrappedValue.append(AppRoute.moderacion) },
                 onMarketplaceTap: { path.wrappedValue.append(AppRoute.marketplace) },
                 onAventonesTap: { path.wrappedValue.append(AppRoute.aventones) },
                 onAnonimoTap: { path.wrappedValue.append(AppRoute.anonimo) },
                 onMasTap: { tab = 4 },
-                onAjustesTap: { path.wrappedValue.append(AppRoute.ajustes) },
-                onTerminosTap: { path.wrappedValue.append(AppRoute.terminos) },
-                onPrivacidadTap: { path.wrappedValue.append(AppRoute.privacidad) },
-                onModeracionTap: { path.wrappedValue.append(AppRoute.moderacion) }
+                onSeguidoresTap: { h in path.wrappedValue.append(AppRoute.seguidores(h)) },
+                onSiguiendoTap: { h in path.wrappedValue.append(AppRoute.siguiendo(h)) }
             )
         case .ajustes:
             AjustesView()
@@ -391,9 +429,12 @@ struct MainTabView: View {
                 }
             )
         case .aventones:
-            AventonesView { handle in
-                path.wrappedValue.append(AppRoute.perfil(handle))
-            }
+            AventonesView(
+                onPerfil: { handle in path.wrappedValue.append(AppRoute.perfil(handle)) },
+                onMensaje: { conversacionId in
+                    path.wrappedValue.append(AppRoute.mensajeDetalle(conversacionId))
+                }
+            )
         case .hashtag(let tag):
             HashtagView(
                 tag: tag,
@@ -417,6 +458,15 @@ struct MainTabView: View {
             avisosSinLeer = 0
         }
     }
+
+    private func actualizarMensajesSinLeer() async {
+        do {
+            let resp = try await AgoraApi.mensajesNoLeidos()
+            mensajesSinLeer = max(0, resp.total)
+        } catch {
+            // Sin red: se conserva el último valor.
+        }
+    }
 }
 
 /// Rutas secundarias desde tabs principales.
@@ -430,6 +480,8 @@ enum AppRoute: Hashable {
     case directorio
     case guardados
     case perfil(String)
+    case seguidores(String)
+    case siguiendo(String)
     case perfilYo
     case ajustes
     case terminos
@@ -454,6 +506,7 @@ private struct AgoraTabItem: Identifiable {
 private struct AgoraAnimatedTabBar: View {
     @Binding var selection: Int
     let avisosSinLeer: Int
+    var mensajesSinLeer: Int = 0
     let badgePulseToken: Int
 
     @State private var iconScales: [Int: CGFloat] = [0: 1, 1: 1, 2: 1, 3: 1, 4: 1]
@@ -526,7 +579,24 @@ private struct AgoraAnimatedTabBar: View {
 
     @ViewBuilder
     private func tabIcon(_ item: AgoraTabItem, scale: CGFloat) -> some View {
-        if item.id == 3, avisosSinLeer > 0 {
+        if item.id == 4, mensajesSinLeer > 0 {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: item.icon)
+                    .font(.body)
+                    .foregroundStyle(selection == item.id ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.textoMedio)
+                    .scaleEffect(scale)
+
+                Text(mensajesSinLeer > 9 ? "9+" : "\(mensajesSinLeer)")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(AgoraDesign.Colors.naranja)
+                    .clipShape(Capsule())
+                    .offset(x: 10, y: -8)
+                    .accessibilityLabel("\(mensajesSinLeer) mensajes sin leer")
+            }
+        } else if item.id == 3, avisosSinLeer > 0 {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: item.icon)
                     .font(.body)

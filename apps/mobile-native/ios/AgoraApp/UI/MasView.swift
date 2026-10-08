@@ -47,6 +47,8 @@ struct MasView: View {
     let onTerminos: () -> Void
     let onPrivacidad: () -> Void
     let onLogout: () -> Void
+    /// Globo en la fila «Mensajes» (`GET mensajes/no-leidos`).
+    var mensajesSinLeer: Int = 0
 
     @EnvironmentObject var session: SessionStore
 
@@ -57,6 +59,7 @@ struct MasView: View {
             VStack(alignment: .leading, spacing: AgoraDesign.Spacing.md) {
                 Text("Más")
                     .font(.largeTitle.bold())
+                    .foregroundStyle(AgoraDesign.Colors.texto)
 
                 if let handle = perfil?.handle ?? session.currentUser?.handle {
                     tarjetaPerfil(handle: handle)
@@ -85,6 +88,16 @@ struct MasView: View {
                                             .foregroundStyle(AgoraDesign.Colors.textoMedio)
                                     }
                                     Spacer()
+                                    if enlace.ruta == "mensajes", mensajesSinLeer > 0 {
+                                        Text(mensajesSinLeer > 99 ? "99+" : "\(mensajesSinLeer)")
+                                            .font(.caption2.bold())
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 7)
+                                            .padding(.vertical, 3)
+                                            .background(AgoraDesign.Colors.naranja)
+                                            .clipShape(Capsule())
+                                            .accessibilityLabel("\(mensajesSinLeer) sin leer")
+                                    }
                                     Text("›")
                                         .foregroundStyle(AgoraDesign.Colors.textoMuted)
                                 }
@@ -122,6 +135,12 @@ struct MasView: View {
                 Button("Cerrar sesión", role: .destructive, action: onLogout)
                     .frame(maxWidth: .infinity)
                     .buttonStyle(.bordered)
+
+                VStack(spacing: AgoraDesign.Spacing.xs) {
+                    AgoraIsotipo(tamano: 28)
+                    AgoraCreditoLegal()
+                }
+                .padding(.top, AgoraDesign.Spacing.sm)
             }
             .padding(AgoraDesign.Spacing.md)
         }

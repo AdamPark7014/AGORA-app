@@ -38,9 +38,28 @@ final class PushRegistration {
         let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         do {
             _ = try await AgoraApi.suscribirApns(token: token)
+            ApnsTokenStore.guardar(token)
             print("[Push] token APNs registrado: …\(token.suffix(8))")
         } catch {
             print("[Push] error registrando APNs: \(error.localizedDescription)")
         }
+    }
+}
+
+/// Último token APNs registrado con la API. Hace falta para darlo de baja
+/// (`DELETE push/suscribir-apns`) al cerrar sesión.
+enum ApnsTokenStore {
+    private static let clave = "agora.push.apnsToken"
+
+    static func guardar(_ token: String) {
+        UserDefaults.standard.set(token, forKey: clave)
+    }
+
+    static func leer() -> String? {
+        UserDefaults.standard.string(forKey: clave)
+    }
+
+    static func borrar() {
+        UserDefaults.standard.removeObject(forKey: clave)
     }
 }

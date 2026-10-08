@@ -16,6 +16,14 @@ private let etiquetasPreferencia: [String: String] = [
     "RETO": "Retos y duelos",
 ]
 
+private let nombresMes = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+]
+
+/// Días por mes en año bisiesto (mismo criterio que `actualizarPerfilSchema`).
+private let diasPorMes = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
 /// Ajustes de perfil y notificaciones — paridad con `AjustesScreen.kt`.
 struct AjustesView: View {
     @State private var handle = ""
@@ -41,6 +49,16 @@ struct AjustesView: View {
     @State private var confirmandoBaja = false
     @State private var confirmacionBaja = ""
     @State private var eliminando = false
+    @State private var portadaUrl: String?
+    @State private var selectedPortada: PhotosPickerItem?
+    @State private var subiendoPortada = false
+    /// 0 = sin cumpleaños.
+    @State private var cumpleMes = 0
+    @State private var cumpleDia = 0
+    @State private var cumpleMesOriginal = 0
+    @State private var cumpleDiaOriginal = 0
+    /// Sistema / Claro / Oscuro; la raíz (`AgoraApp`) lee la misma clave.
+    @AppStorage(AgoraTema.claveAlmacen) private var apariencia = AgoraTema.sistema.rawValue
 
     var body: some View {
         Group {
@@ -49,66 +67,78 @@ struct AjustesView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
+                    // Agrupado: en iOS 16 un ViewBuilder admite como máximo 10 hijos por bloque.
                     VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
-                        Text("@\(handle)")
-                            .font(.title3.bold())
-                            .foregroundStyle(AgoraDesign.Colors.naranja)
+                        Group {
+                            Text("@\(handle)")
+                                .font(.title3.bold())
+                                .foregroundStyle(AgoraDesign.Colors.naranja)
 
-                        seccionFoto
-                        campoSoloLectura("Nombre", valor: nombre)
-                        campoSoloLectura("Apellidos", valor: apellidos)
-                        if let generacion {
-                            campoSoloLectura("Generación", valor: "Generación \(generacion)")
-                        }
-
-                        Text("Bio").font(.subheadline.bold())
-                        TextEditor(text: $bio)
-                            .frame(minHeight: 90)
-                            .padding(6)
-                            .background(Color(.secondarySystemGroupedBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
-                            .onChange(of: bio) { newValue in
-                                if newValue.count > 280 { bio = String(newValue.prefix(280)) }
+                            seccionFoto
+                            seccionPortada
+                            campoSoloLectura("Nombre", valor: nombre)
+                            campoSoloLectura("Apellidos", valor: apellidos)
+                            if let generacion {
+                                campoSoloLectura("Generación", valor: "Generación \(generacion)")
                             }
-                        Text("\(bio.count)/280")
-                            .font(.caption)
-                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                        }
 
-                        campoEditable("Ciudad de origen", text: $ciudad)
-                        campoEditable("Instagram (sin @)", text: $instagram)
-                        campoEditable("¿Qué buscas en Ágora?", text: $busco)
-                            .onChange(of: busco) { newValue in
-                                if newValue.count > 120 { busco = String(newValue.prefix(120)) }
+                        Group {
+                            Text("Bio").font(.subheadline.bold())
+                            TextEditor(text: $bio)
+                                .frame(minHeight: 90)
+                                .padding(6)
+                                .background(Color(.secondarySystemGroupedBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
+                                .onChange(of: bio) { newValue in
+                                    if newValue.count > 280 { bio = String(newValue.prefix(280)) }
+                                }
+                            Text("\(bio.count)/280")
+                                .font(.caption)
+                                .foregroundStyle(AgoraDesign.Colors.textoMedio)
+
+                            campoEditable("Ciudad de origen", text: $ciudad)
+                            campoEditable("Instagram (sin @)", text: $instagram)
+                            campoEditable("¿Qué buscas en Ágora?", text: $busco)
+                                .onChange(of: busco) { newValue in
+                                    if newValue.count > 120 { busco = String(newValue.prefix(120)) }
+                                }
+                        }
+
+                        Group {
+                            seccionCumple
+                            seccionIntereses
+                            seccionVisibilidad
+                            seccionComunidades
+                            seccionNotificaciones
+                            seccionApariencia
+                        }
+
+                        Group {
+                            if let error {
+                                Text(error).font(.footnote).foregroundStyle(AgoraDesign.Colors.danger)
+                            }
+                            if let aviso {
+                                Text(aviso).font(.footnote).foregroundStyle(AgoraDesign.Colors.naranja)
                             }
 
-                        seccionIntereses
-                        seccionVisibilidad
-                        seccionComunidades
-                        seccionNotificaciones
-
-                        if let error {
-                            Text(error).font(.footnote).foregroundStyle(AgoraDesign.Colors.danger)
-                        }
-                        if let aviso {
-                            Text(aviso).font(.footnote).foregroundStyle(AgoraDesign.Colors.naranja)
-                        }
-
-                        Button {
-                            Task { await guardar() }
-                        } label: {
-                            HStack {
-                                Spacer()
-                                if guardando { ProgressView().tint(.white) }
-                                else { Text("Guardar cambios").fontWeight(.semibold) }
-                                Spacer()
+                            Button {
+                                Task { await guardar() }
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    if guardando { ProgressView().tint(.white) }
+                                    else { Text("Guardar cambios").fontWeight(.semibold) }
+                                    Spacer()
+                                }
+                                .padding(.vertical, 14)
                             }
-                            .padding(.vertical, 14)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AgoraDesign.Colors.naranja)
-                        .disabled(guardando)
+                            .buttonStyle(.borderedProminent)
+                            .tint(AgoraDesign.Colors.naranja)
+                            .disabled(guardando)
 
-                        seccionEliminarCuenta
+                            seccionEliminarCuenta
+                        }
                     }
                     .padding(AgoraDesign.Spacing.md)
                 }
@@ -119,6 +149,13 @@ struct AjustesView: View {
         .task { await cargar() }
         .onChange(of: selectedPhoto) { item in
             Task { await subirFoto(item) }
+        }
+        .onChange(of: selectedPortada) { item in
+            Task { await subirPortada(item) }
+        }
+        .onChange(of: cumpleMes) { mes in
+            guard mes >= 1, mes <= 12 else { return }
+            if cumpleDia > diasPorMes[mes - 1] { cumpleDia = diasPorMes[mes - 1] }
         }
         .alert("¿Eliminar tu cuenta?", isPresented: $confirmandoBaja) {
             TextField(handle.isEmpty ? "ELIMINAR" : "@\(handle)", text: $confirmacionBaja)
@@ -204,6 +241,96 @@ struct AjustesView: View {
                 .buttonStyle(.bordered)
                 .disabled(subiendoFoto)
             }
+        }
+    }
+
+    private var seccionPortada: some View {
+        VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
+            Text("Portada").font(.subheadline.bold())
+            ZStack {
+                if let url = ApiClient.shared.resolveUrl(portadaUrl) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            AgoraDesign.Colors.naranjaSuave
+                        }
+                    }
+                } else {
+                    AgoraDesign.Colors.naranjaSuave
+                        .overlay {
+                            Text("Sin portada")
+                                .font(.caption)
+                                .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                        }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 110)
+            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
+
+            PhotosPicker(selection: $selectedPortada, matching: .images) {
+                Text(subiendoPortada ? "Subiendo…" : "Cambiar portada")
+            }
+            .buttonStyle(.bordered)
+            .disabled(subiendoPortada)
+        }
+    }
+
+    private var seccionCumple: some View {
+        VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
+            Text("Cumpleaños").font(.subheadline.bold())
+            Text("Solo día y mes. Ese día se lo avisamos a tu gente.")
+                .font(.caption)
+                .foregroundStyle(AgoraDesign.Colors.textoMedio)
+            HStack(spacing: AgoraDesign.Spacing.sm) {
+                Picker("Mes", selection: $cumpleMes) {
+                    Text("Mes").tag(0)
+                    ForEach(1...12, id: \.self) { mes in
+                        Text(nombresMes[mes - 1]).tag(mes)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Picker("Día", selection: $cumpleDia) {
+                    Text("Día").tag(0)
+                    ForEach(1...diasMesElegido, id: \.self) { dia in
+                        Text("\(dia)").tag(dia)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                if cumpleMes != 0 || cumpleDia != 0 {
+                    Button("Quitar") {
+                        cumpleMes = 0
+                        cumpleDia = 0
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+    }
+
+    private var diasMesElegido: Int {
+        guard cumpleMes >= 1, cumpleMes <= 12 else { return 31 }
+        return diasPorMes[cumpleMes - 1]
+    }
+
+    private var seccionApariencia: some View {
+        VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
+            Text("Apariencia")
+                .font(.headline)
+                .padding(.top, AgoraDesign.Spacing.xs)
+            Picker("Apariencia", selection: $apariencia) {
+                ForEach(AgoraTema.allCases) { tema in
+                    Text(tema.etiqueta).tag(tema.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            Text("Se aplica al instante.")
+                .font(.caption)
+                .foregroundStyle(AgoraDesign.Colors.textoMedio)
         }
     }
 
@@ -360,6 +487,11 @@ struct AjustesView: View {
             intereses = perfil.intereses ?? []
             visibilidad = perfil.visibilidad ?? "UNIVERSIDAD"
             fotoUrl = perfil.fotoUrl
+            portadaUrl = perfil.portadaUrl
+            cumpleMes = perfil.cumpleMes ?? 0
+            cumpleDia = perfil.cumpleDia ?? 0
+            cumpleMesOriginal = cumpleMes
+            cumpleDiaOriginal = cumpleDia
             comunidades = try await AgoraApi.misComunidades()
             preferencias = try await AgoraApi.preferenciasNotificacion().preferencias ?? []
             generacion = try await AgoraApi.perfilPorHandle(perfil.handle).generacion
@@ -369,11 +501,24 @@ struct AjustesView: View {
     }
 
     private func guardar() async {
+        let cumpleCambio = cumpleMes != cumpleMesOriginal || cumpleDia != cumpleDiaOriginal
+        if cumpleCambio && ((cumpleMes == 0) != (cumpleDia == 0)) {
+            error = "El cumpleaños necesita mes y día."
+            return
+        }
         guardando = true
         error = nil
         aviso = nil
         defer { guardando = false }
         do {
+            if cumpleCambio {
+                try await AgoraApi.actualizarCumple(
+                    mes: cumpleMes == 0 ? nil : cumpleMes,
+                    dia: cumpleDia == 0 ? nil : cumpleDia
+                )
+                cumpleMesOriginal = cumpleMes
+                cumpleDiaOriginal = cumpleDia
+            }
             _ = try await AgoraApi.actualizarPerfil(
                 ActualizarPerfilRequest(
                     bio: bio.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -401,7 +546,8 @@ struct AjustesView: View {
         defer { subiendoFoto = false }
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else { return }
-            let subida = try await MediaRepository.subir(imageData: data)
+            // Siempre JPEG: el servidor rechaza HEIC y así no viajan los metadatos EXIF.
+            let subida = try await MediaRepository.subirFoto(data)
             let actualizado = try await AgoraApi.actualizarPerfil(
                 ActualizarPerfilRequest(
                     bio: nil,
@@ -413,8 +559,35 @@ struct AjustesView: View {
                     visibilidad: nil
                 )
             )
-            fotoUrl = actualizado.fotoUrl ?? subida.url
+            fotoUrl = actualizado?.fotoUrl ?? subida.url
             aviso = "Foto actualizada."
+        } catch {
+            self.error = FormatUtils.mensajeDe(error)
+        }
+    }
+
+    private func subirPortada(_ item: PhotosPickerItem?) async {
+        guard let item else { return }
+        subiendoPortada = true
+        error = nil
+        defer { subiendoPortada = false }
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else { return }
+            let subida = try await MediaRepository.subirFoto(data)
+            let actualizado = try await AgoraApi.actualizarPerfil(
+                ActualizarPerfilRequest(
+                    bio: nil,
+                    fotoMediaId: nil,
+                    ciudadOrigen: nil,
+                    instagram: nil,
+                    intereses: nil,
+                    busco: nil,
+                    visibilidad: nil,
+                    portadaMediaId: subida.id
+                )
+            )
+            portadaUrl = actualizado?.portadaUrl ?? subida.url
+            aviso = "Portada actualizada."
         } catch {
             self.error = FormatUtils.mensajeDe(error)
         }

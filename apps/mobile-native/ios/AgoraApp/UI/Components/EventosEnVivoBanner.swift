@@ -7,7 +7,9 @@ struct EventosEnVivoBanner: View {
     @State private var eventos: [EventoEnVivoDto] = []
 
     var body: some View {
-        Group {
+        // VStack y no Group: los modificadores de un Group se aplican a cada hijo,
+        // y con el contenido vacío `.task` nunca se disparaba (el banner no cargaba).
+        VStack(spacing: 0) {
             if !eventos.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("🔴 En vivo / pronto")

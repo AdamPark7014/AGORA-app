@@ -10,8 +10,7 @@ enum DeepLinkParser {
         case "agora":
             return pathToRoute(agoraUriToPath(url))
         case "http", "https":
-            let host = url.host?.lowercased()
-            guard let host, webHosts.contains(host) else { return nil }
+            guard let host = url.host?.lowercased(), webHosts.contains(host) else { return nil }
             return pathToRoute(url.path)
         default:
             return nil

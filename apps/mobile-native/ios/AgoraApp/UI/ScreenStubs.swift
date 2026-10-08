@@ -49,35 +49,24 @@ struct FeedView: View {
                         }
                     }
 
-                    Section {
-                        PreguntaDelDiaBanner()
-                            .listRowInsets(EdgeInsets(
-                                top: AgoraDesign.Spacing.xs,
-                                leading: AgoraDesign.Spacing.sm,
-                                bottom: AgoraDesign.Spacing.xxs,
-                                trailing: AgoraDesign.Spacing.sm
-                            ))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
+                    Group {
+                        Section {
+                            PreguntaDelDiaBanner()
+                                .listRowInsets(EdgeInsets(
+                                    top: AgoraDesign.Spacing.xs,
+                                    leading: AgoraDesign.Spacing.sm,
+                                    bottom: AgoraDesign.Spacing.xxs,
+                                    trailing: AgoraDesign.Spacing.sm
+                                ))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
 
-                    Section {
-                        CampusPulseBanner(
-                            onHashtagTap: onHashtagTap,
-                            onPerfilTap: onAuthorTap
-                        )
-                        .listRowInsets(EdgeInsets(
-                            top: AgoraDesign.Spacing.xxs,
-                            leading: AgoraDesign.Spacing.sm,
-                            bottom: AgoraDesign.Spacing.xxs,
-                            trailing: AgoraDesign.Spacing.sm
-                        ))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                    }
-
-                    Section {
-                        EventosEnVivoBanner(onEventoTap: onEventoTap)
+                        Section {
+                            CampusPulseBanner(
+                                onHashtagTap: onHashtagTap,
+                                onPerfilTap: onAuthorTap
+                            )
                             .listRowInsets(EdgeInsets(
                                 top: AgoraDesign.Spacing.xxs,
                                 leading: AgoraDesign.Spacing.sm,
@@ -86,79 +75,92 @@ struct FeedView: View {
                             ))
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
-                    }
+                        }
 
-                    Section {
-                        RachaBadgeRow()
-                            .listRowInsets(EdgeInsets(
-                                top: AgoraDesign.Spacing.xxs,
-                                leading: AgoraDesign.Spacing.sm,
-                                bottom: AgoraDesign.Spacing.xxs,
-                                trailing: AgoraDesign.Spacing.sm
-                            ))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
+                        Section {
+                            EventosEnVivoBanner(onEventoTap: onEventoTap)
+                                .listRowInsets(EdgeInsets(
+                                    top: AgoraDesign.Spacing.xxs,
+                                    leading: AgoraDesign.Spacing.sm,
+                                    bottom: AgoraDesign.Spacing.xxs,
+                                    trailing: AgoraDesign.Spacing.sm
+                                ))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
 
-                    Section {
-                        RetoSemanalBanner()
-                            .listRowInsets(EdgeInsets(
-                                top: AgoraDesign.Spacing.xxs,
-                                leading: AgoraDesign.Spacing.sm,
-                                bottom: AgoraDesign.Spacing.xxs,
-                                trailing: AgoraDesign.Spacing.sm
-                            ))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
+                        Section {
+                            RachaBadgeRow()
+                                .listRowInsets(EdgeInsets(
+                                    top: AgoraDesign.Spacing.xxs,
+                                    leading: AgoraDesign.Spacing.sm,
+                                    bottom: AgoraDesign.Spacing.xxs,
+                                    trailing: AgoraDesign.Spacing.sm
+                                ))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
 
-                    Section {
-                        RetosAmigosRow()
-                            .listRowInsets(EdgeInsets(
-                                top: AgoraDesign.Spacing.xxs,
-                                leading: AgoraDesign.Spacing.sm,
-                                bottom: AgoraDesign.Spacing.xxs,
-                                trailing: AgoraDesign.Spacing.sm
-                            ))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
+                        Section {
+                            RetoSemanalBanner()
+                                .listRowInsets(EdgeInsets(
+                                    top: AgoraDesign.Spacing.xxs,
+                                    leading: AgoraDesign.Spacing.sm,
+                                    bottom: AgoraDesign.Spacing.xxs,
+                                    trailing: AgoraDesign.Spacing.sm
+                                ))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
 
-                    Section {
-                        RetosRankingSemanalRow(onPerfilTap: onAuthorTap)
-                        RetosHistorialRow(onPerfilTap: onAuthorTap)
-                            .listRowInsets(EdgeInsets(
-                                top: AgoraDesign.Spacing.xxs,
-                                leading: AgoraDesign.Spacing.sm,
-                                bottom: AgoraDesign.Spacing.xxs,
-                                trailing: AgoraDesign.Spacing.sm
-                            ))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
+                        Section {
+                            RetosAmigosRow()
+                                .listRowInsets(EdgeInsets(
+                                    top: AgoraDesign.Spacing.xxs,
+                                    leading: AgoraDesign.Spacing.sm,
+                                    bottom: AgoraDesign.Spacing.xxs,
+                                    trailing: AgoraDesign.Spacing.sm
+                                ))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
 
-                    Section {
-                        LeaderboardRachasRow(onPerfilTap: onAuthorTap)
-                            .listRowInsets(EdgeInsets(
-                                top: AgoraDesign.Spacing.xxs,
-                                leading: AgoraDesign.Spacing.sm,
-                                bottom: AgoraDesign.Spacing.xxs,
-                                trailing: AgoraDesign.Spacing.sm
-                            ))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
+                        Section {
+                            RetosRankingSemanalRow(onPerfilTap: onAuthorTap)
+                            RetosHistorialRow(onPerfilTap: onAuthorTap)
+                                .listRowInsets(EdgeInsets(
+                                    top: AgoraDesign.Spacing.xxs,
+                                    leading: AgoraDesign.Spacing.sm,
+                                    bottom: AgoraDesign.Spacing.xxs,
+                                    trailing: AgoraDesign.Spacing.sm
+                                ))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
 
-                    Section {
-                        CampusTipBanner()
-                            .listRowInsets(EdgeInsets(
-                                top: AgoraDesign.Spacing.xxs,
-                                leading: AgoraDesign.Spacing.sm,
-                                bottom: AgoraDesign.Spacing.xxs,
-                                trailing: AgoraDesign.Spacing.sm
-                            ))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
+                        Section {
+                            LeaderboardRachasRow(onPerfilTap: onAuthorTap)
+                                .listRowInsets(EdgeInsets(
+                                    top: AgoraDesign.Spacing.xxs,
+                                    leading: AgoraDesign.Spacing.sm,
+                                    bottom: AgoraDesign.Spacing.xxs,
+                                    trailing: AgoraDesign.Spacing.sm
+                                ))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
+
+                        Section {
+                            CampusTipBanner()
+                                .listRowInsets(EdgeInsets(
+                                    top: AgoraDesign.Spacing.xxs,
+                                    leading: AgoraDesign.Spacing.sm,
+                                    bottom: AgoraDesign.Spacing.xxs,
+                                    trailing: AgoraDesign.Spacing.sm
+                                ))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
                     }
 
                     Section {
@@ -188,7 +190,11 @@ struct FeedView: View {
                                 onAuthorTap: post.autor?.handle.map { handle in
                                     { onAuthorTap(handle) }
                                 },
-                                onHashtagTap: onHashtagTap
+                                onHashtagTap: onHashtagTap,
+                                onMencionTap: onAuthorTap,
+                                onEliminado: { id in
+                                    posts.removeAll { $0.id == id }
+                                }
                             )
                             .listRowInsets(EdgeInsets(
                                 top: AgoraDesign.Spacing.xxs,
@@ -217,6 +223,8 @@ struct FeedView: View {
                     }
                 }
                 .listStyle(.plain)
+                // Banners sin datos quedan en 0 pt en vez del alto mínimo de fila.
+                .environment(\.defaultMinListRowHeight, 0)
                 .scrollContentBackground(.hidden)
                 .background(AgoraDesign.Colors.fondo)
                 .animation(AgoraDesign.Animation.spring, value: posts.map(\.id))
@@ -338,6 +346,16 @@ private let iconoTipoEvento: [String: String] = [
     "OTRO": "📌",
 ]
 
+private let filtrosTipoEvento: [(valor: String, etiqueta: String)] = [
+    ("", "Todos"),
+    ("FIESTA", "🎉 Fiesta"),
+    ("ACADEMICO", "📚 Académico"),
+    ("DEPORTIVO", "⚽ Deportivo"),
+    ("CULTURAL", "🎭 Cultural"),
+    ("ORGANIZACION", "🏛️ Organización"),
+    ("OTRO", "📌 Otro"),
+]
+
 struct EventosView: View {
     var onEventoTap: (String) -> Void = { _ in }
     var onCreateTap: () -> Void = {}
@@ -345,6 +363,8 @@ struct EventosView: View {
     @State private var eventos: [EventoDto] = []
     @State private var cargando = true
     @State private var error: String?
+    /// Filtro por tipo (`GET eventos?tipo=`), igual que el select de la web.
+    @State private var tipo = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -359,6 +379,35 @@ struct EventosView: View {
             }
             .padding(.horizontal, AgoraDesign.Spacing.sm)
             .padding(.vertical, AgoraDesign.Spacing.xs)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(filtrosTipoEvento, id: \.valor) { filtro in
+                        Button {
+                            tipo = filtro.valor
+                        } label: {
+                            Text(filtro.etiqueta)
+                                .font(.subheadline)
+                                .lineLimit(1)
+                                .padding(.horizontal, AgoraDesign.Spacing.sm)
+                                .padding(.vertical, AgoraDesign.Spacing.xs)
+                                .background(tipo == filtro.valor ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
+                                .foregroundStyle(tipo == filtro.valor ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.texto)
+                                .clipShape(Capsule())
+                                .overlay {
+                                    Capsule()
+                                        .stroke(
+                                            tipo == filtro.valor ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.borde,
+                                            lineWidth: 1
+                                        )
+                                }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, AgoraDesign.Spacing.sm)
+                .padding(.bottom, AgoraDesign.Spacing.xs)
+            }
 
             Group {
                 if cargando && eventos.isEmpty {
@@ -399,7 +448,7 @@ struct EventosView: View {
         }
         .navigationTitle("Eventos")
         .refreshable { await cargar() }
-        .task { await cargar() }
+        .task(id: tipo) { await cargar() }
     }
 
     private func cargar() async {
@@ -407,7 +456,7 @@ struct EventosView: View {
         error = nil
         defer { cargando = false }
         do {
-            let resp = try await AgoraApi.eventosProximos()
+            let resp = try await AgoraApi.eventosProximos(tipo: tipo.isEmpty ? nil : tipo)
             eventos = resp.eventos ?? []
         } catch {
             self.error = FormatUtils.mensajeDe(error)
@@ -436,6 +485,22 @@ private struct EventoCardView: View {
     private var icono: String { iconoTipoEvento[evento.tipo] ?? "📌" }
     private var yaVoy: Bool { evento.miRespuesta == "VOY" }
 
+    /// «12 van · cupo 40 (28 libres) · Gratis».
+    private var resumenAsistencia: String {
+        let van = evento.vanAIr ?? 0
+        var partes = ["\(van) van"]
+        if let cupo = evento.cupo {
+            let libres = max(0, cupo - van)
+            partes.append(libres == 0 ? "cupo lleno (\(cupo))" : "cupo \(cupo) (\(libres) libres)")
+        }
+        if let costo = evento.costoMxn, costo > 0 {
+            partes.append("$\(costo) MXN")
+        } else {
+            partes.append("Gratis")
+        }
+        return partes.joined(separator: " · ")
+    }
+
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 8) {
@@ -456,7 +521,7 @@ private struct EventoCardView: View {
                         .foregroundStyle(.primary)
                         .lineLimit(3)
                 }
-                Text("\(evento.vanAIr ?? 0) van · \(evento.costoMxn.map { "$\($0) MXN" } ?? "Gratis")")
+                Text(resumenAsistencia)
                     .font(.caption)
                     .foregroundStyle(AgoraTheme.accent)
 
@@ -583,6 +648,9 @@ struct ProfileView: View {
     var onAventonesTap: (() -> Void)?
     var onAnonimoTap: (() -> Void)?
     var onMasTap: (() -> Void)?
+    /// Listas de seguidores / seguidos del propio perfil (reciben el @).
+    var onSeguidoresTap: ((String) -> Void)?
+    var onSiguiendoTap: ((String) -> Void)?
 
     @EnvironmentObject var session: SessionStore
 
@@ -622,6 +690,20 @@ struct ProfileView: View {
 
                                 GamificacionProfileSection(gamificacion: gamificacion)
 
+                                if let miHandle = perfil?.handle ?? session.currentUser?.handle {
+                                    HStack(spacing: AgoraDesign.Spacing.md) {
+                                        if let onSeguidoresTap {
+                                            Button("Seguidores") { onSeguidoresTap(miHandle) }
+                                                .font(.caption.bold())
+                                        }
+                                        if let onSiguiendoTap {
+                                            Button("Siguiendo") { onSiguiendoTap(miHandle) }
+                                                .font(.caption.bold())
+                                        }
+                                    }
+                                    .foregroundStyle(AgoraDesign.Colors.naranja)
+                                }
+
                                 if let email = session.currentUser?.email {
                                     Text(email)
                                         .font(.caption)
@@ -630,20 +712,22 @@ struct ProfileView: View {
                             }
                         }
 
-                        if let onMensajesTap {
-                            enlacePerfil(titulo: "Mensajes", icono: "bubble.left.and.bubble.right", action: onMensajesTap)
-                        }
-                        if let onMarketplaceTap {
-                            enlacePerfil(titulo: "Marketplace", icono: "bag", action: onMarketplaceTap)
-                        }
-                        if let onAventonesTap {
-                            enlacePerfil(titulo: "Aventones", icono: "car", action: onAventonesTap)
-                        }
-                        if let onAnonimoTap {
-                            enlacePerfil(titulo: "Sin nombre", icono: "theatermasks", action: onAnonimoTap)
-                        }
-                        if let onMasTap {
-                            enlacePerfil(titulo: "Más opciones", icono: "line.3.horizontal", action: onMasTap)
+                        Group {
+                            if let onMensajesTap {
+                                enlacePerfil(titulo: "Mensajes", icono: "bubble.left.and.bubble.right", action: onMensajesTap)
+                            }
+                            if let onMarketplaceTap {
+                                enlacePerfil(titulo: "Marketplace", icono: "bag", action: onMarketplaceTap)
+                            }
+                            if let onAventonesTap {
+                                enlacePerfil(titulo: "Aventones", icono: "car", action: onAventonesTap)
+                            }
+                            if let onAnonimoTap {
+                                enlacePerfil(titulo: "Sin nombre", icono: "theatermasks", action: onAnonimoTap)
+                            }
+                            if let onMasTap {
+                                enlacePerfil(titulo: "Más opciones", icono: "line.3.horizontal", action: onMasTap)
+                            }
                         }
                         if let onAjustesTap {
                             enlacePerfil(titulo: "Ajustes", icono: "gearshape", action: onAjustesTap)
@@ -745,7 +829,8 @@ struct ProfileView: View {
 
 // MARK: - Flow layout (chips)
 
-private struct FlowLayout: Layout {
+/// Interno (no `private`): también lo usa `PublicarView.swift`.
+struct FlowLayout: Layout {
     var spacing: CGFloat = 8
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {

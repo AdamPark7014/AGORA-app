@@ -11,7 +11,9 @@ struct RachaBadgeRow: View {
     @State private var gamificacion: GamificacionDto?
 
     var body: some View {
-        Group {
+        // VStack y no Group: los modificadores de un Group se aplican a cada hijo,
+        // y con el contenido vacío `.task` nunca se disparaba (el banner no cargaba).
+        VStack(spacing: 0) {
             if let data = gamificacion, data.rachaActual > 0 || !data.badges.isEmpty || data.comparacionCampus != nil || (data.duelosGanados ?? 0) > 0 {
                 VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
                     HStack(spacing: AgoraDesign.Spacing.sm) {

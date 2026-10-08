@@ -25,6 +25,8 @@ private struct NuevoAventonForm {
 /// Aventones compartidos — paridad con `AventonesScreen.kt`.
 struct AventonesView: View {
     var onPerfil: (String) -> Void = { _ in }
+    /// Abre el chat con el conductor (id de conversación de `POST mensajes/abrir`).
+    var onMensaje: (String) -> Void = { _ in }
 
     @State private var aventones: [AventonDto] = []
     @State private var sentido = ""
@@ -33,6 +35,7 @@ struct AventonesView: View {
     @State private var mostrarModal = false
     @State private var enviando = false
     @State private var nuevo = NuevoAventonForm()
+    @State private var contactando: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -76,7 +79,9 @@ struct AventonesView: View {
                             aventon: aventon,
                             onApartar: { Task { await apartar(aventon) } },
                             onCancelar: { Task { await cancelar(aventon) } },
-                            onPerfil: onPerfil
+                            onPerfil: onPerfil,
+                            onContactar: { handle in Task { await contactar(handle: handle, aventonId: aventon.id) } },
+                            contactando: contactando == aventon.id
                         )
                         .listRowInsets(EdgeInsets(
                             top: AgoraDesign.Spacing.xxs,
@@ -230,6 +235,19 @@ struct AventonesView: View {
         }
     }
 
+    private func contactar(handle: String, aventonId: String) async {
+        guard contactando == nil else { return }
+        contactando = aventonId
+        error = nil
+        defer { contactando = nil }
+        do {
+            let chat = try await AgoraApi.abrirConversacion(handle: handle)
+            onMensaje(chat.id)
+        } catch {
+            self.error = FormatUtils.mensajeDe(error)
+        }
+    }
+
     private func cancelar(_ aventon: AventonDto) async {
         do {
             try await AgoraApi.cancelarAventon(id: aventon.id)
@@ -245,6 +263,8 @@ private struct AventonCardView: View {
     let onApartar: () -> Void
     let onCancelar: () -> Void
     let onPerfil: (String) -> Void
+    var onContactar: (String) -> Void = { _ in }
+    var contactando = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -263,6 +283,23 @@ private struct AventonCardView: View {
                 }
                 .font(.subheadline)
                 .foregroundStyle(AgoraDesign.Colors.naranja)
+            }
+            if aventon.esMio != true, let handle = aventon.conductor?.handle {
+                Button {
+                    onContactar(handle)
+                } label: {
+                    HStack {
+                        Spacer()
+                        if contactando {
+                            ProgressView()
+                        } else {
+                            Label("Contactar", systemImage: "bubble.left")
+                        }
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(contactando)
             }
             if aventon.esMio == true {
                 Button("Cancelar aventón", role: .destructive, action: onCancelar)

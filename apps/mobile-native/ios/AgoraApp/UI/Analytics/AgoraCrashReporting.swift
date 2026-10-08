@@ -9,7 +9,8 @@ enum AgoraCrashReporting {
         installed = true
         NSSetUncaughtExceptionHandler { exception in
             let stack = exception.callStackSymbols.prefix(40).joined(separator: "\n")
-            report(
+            // Calificado: un puntero a función C no puede capturar `self` (el metatipo).
+            AgoraCrashReporting.report(
                 mensaje: exception.reason ?? "UncaughtException",
                 stack: stack
             )

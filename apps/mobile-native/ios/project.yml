@@ -7,7 +7,8 @@ options:
 
 settings:
   base:
-    SWIFT_VERSION: "5.9"
+    # Xcode solo acepta 4.0 / 4.2 / 5.0 / 6.0 aquí; "5.0" = modo de lenguaje Swift 5.
+    SWIFT_VERSION: "5.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     IPHONEOS_DEPLOYMENT_TARGET: "16.0"

@@ -17,6 +17,37 @@ enum ApiError: Error, LocalizedError {
         case .decoding(let e): return "Decodificación: \(e.localizedDescription)"
         }
     }
+
+    /// Código HTTP si el error vino del servidor.
+    var codigoHttp: Int? {
+        if case .http(let code, _) = self {
+            return code
+        }
+        return nil
+    }
+
+    /// Mensaje legible del cuerpo `{ mensaje, errores? }` que devuelve la API
+    /// (mismo criterio que `ErrorApi` en la web: primero el error de campo).
+    var mensajeServidor: String? {
+        guard case .http(_, let cuerpoCrudo) = self,
+              let cuerpo = cuerpoCrudo,
+              let data = cuerpo.data(using: .utf8),
+              let objeto = try? JSONSerialization.jsonObject(with: data),
+              let json = objeto as? [String: Any]
+        else { return nil }
+        if let errores = json["errores"] as? [[String: Any]],
+           let primero = errores.first?["mensaje"] as? String,
+           !primero.isEmpty {
+            return primero
+        }
+        if let mensaje = json["mensaje"] as? String, !mensaje.isEmpty {
+            return mensaje
+        }
+        if let mensaje = json["message"] as? String, !mensaje.isEmpty {
+            return mensaje
+        }
+        return nil
+    }
 }
 
 final class ApiClient {
@@ -60,6 +91,35 @@ final class ApiClient {
 
     func delete(_ path: String, token: String? = nil) async throws {
         _ = try await request(path, method: "DELETE", token: token)
+    }
+
+    /// POST JSON que además devuelve la respuesta HTTP, para leer cabeceras
+    /// (p. ej. `X-Envio-Id` de `auth/otp/solicitar`).
+    func postJSONConRespuesta<T: Encodable>(
+        _ path: String,
+        body: T,
+        token: String? = nil
+    ) async throws -> (Data, HTTPURLResponse) {
+        let req = try jsonRequest(path, method: "POST", body: body, token: token)
+        return try await performConRespuesta(req, avisarSiExpira: true)
+    }
+
+    /// POST JSON que no dispara el aviso global de sesión expirada.
+    /// Se usa al cerrar sesión, cuando un 401 ya no importa.
+    func postJSONSilencioso<T: Encodable>(_ path: String, body: T, token: String? = nil) async throws {
+        let req = try jsonRequest(path, method: "POST", body: body, token: token)
+        _ = try await performConRespuesta(req, avisarSiExpira: false)
+    }
+
+    /// DELETE con cuerpo JSON (p. ej. `DELETE push/suscribir-apns` con `{ token }`).
+    func deleteJSON<T: Encodable>(
+        _ path: String,
+        body: T,
+        token: String? = nil,
+        avisarSiExpira: Bool = true
+    ) async throws {
+        let req = try jsonRequest(path, method: "DELETE", body: body, token: token)
+        _ = try await performConRespuesta(req, avisarSiExpira: avisarSiExpira)
     }
 
     /// Sube un archivo multipart (`archivo` por defecto). Paridad con `MediaApi.subir`.
@@ -107,6 +167,16 @@ final class ApiClient {
         body: T,
         token: String?
     ) async throws -> Data {
+        let req = try jsonRequest(path, method: method, body: body, token: token)
+        return try await perform(req)
+    }
+
+    private func jsonRequest<T: Encodable>(
+        _ path: String,
+        method: String,
+        body: T,
+        token: String?
+    ) throws -> URLRequest {
         var req = try buildRequest(path, method: method, token: token)
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -115,7 +185,7 @@ final class ApiClient {
         } catch {
             throw ApiError.decoding(error)
         }
-        return try await perform(req)
+        return req
     }
 
     private func request(_ path: String, method: String, query: [String: String] = [:], token: String? = nil) async throws -> Data {
@@ -145,6 +215,15 @@ final class ApiClient {
     }
 
     private func perform(_ req: URLRequest) async throws -> Data {
+        let (data, _) = try await performConRespuesta(req, avisarSiExpira: true)
+        return data
+    }
+
+    /// Ejecuta la petición y devuelve cuerpo + respuesta HTTP (cabeceras incluidas).
+    private func performConRespuesta(
+        _ req: URLRequest,
+        avisarSiExpira: Bool
+    ) async throws -> (Data, HTTPURLResponse) {
         do {
             let (data, response) = try await session.data(for: req)
             guard let http = response as? HTTPURLResponse else {
@@ -152,7 +231,7 @@ final class ApiClient {
             }
             guard (200..<300).contains(http.statusCode) else {
                 let msg = String(data: data, encoding: .utf8)
-                if http.statusCode == 401 {
+                if http.statusCode == 401 && avisarSiExpira {
                     let path = req.url?.path ?? ""
                     if !path.contains("/auth/") {
                         SessionEvents.notifyExpired()
@@ -160,7 +239,7 @@ final class ApiClient {
                 }
                 throw ApiError.http(http.statusCode, msg)
             }
-            return data
+            return (data, http)
         } catch let e as ApiError {
             throw e
         } catch {

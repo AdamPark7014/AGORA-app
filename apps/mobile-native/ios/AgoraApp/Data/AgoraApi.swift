@@ -31,6 +31,17 @@ enum AgoraApi {
     return try ApiClient.decodeOne(data)
   }
 
+  /// `PATCH posts/:id` — solo el autor; la API vuelve a moderar el texto.
+  static func editarPost(id: String, texto: String) async throws -> EditarPostResponse {
+    let data = try await client.patchJSON("posts/\(id)", body: EditarPostRequest(texto: texto))
+    return try ApiClient.decodeOne(data)
+  }
+
+  /// `DELETE posts/:id` (204) — solo el autor.
+  static func borrarPost(id: String) async throws {
+    try await client.delete("posts/\(id)")
+  }
+
   // MARK: Perfil
 
   static func perfilMio() async throws -> PerfilMioDto {
@@ -43,14 +54,37 @@ enum AgoraApi {
     return try ApiClient.decodeOne(data)
   }
 
-  static func actualizarPerfil(_ body: ActualizarPerfilRequest) async throws -> PerfilMioDto {
+  /// `PATCH perfil` responde `{ ok: true }` (no el perfil): decodificar
+  /// `PerfilMioDto` fallaba y la app mostraba error aunque se hubiera guardado.
+  /// Devuelve el perfil solo si algún día la API lo manda.
+  @discardableResult
+  static func actualizarPerfil(_ body: ActualizarPerfilRequest) async throws -> PerfilMioDto? {
     let data = try await client.patchJSON("perfil", body: body)
-    return try ApiClient.decodeOne(data)
+    return try? ApiClient.decodeOne(data)
   }
 
   static func seguir(handle: String) async throws -> SeguirResponse {
     let data = try await client.postJSON("perfil/\(handle)/seguir", body: EmptyBody())
     return try ApiClient.decodeOne(data)
+  }
+
+  static func seguidores(handle: String) async throws -> ListaPersonasResponse {
+    // Sin pre-codificar: `appendingPathComponent` ya codifica (antes "%" salía doble).
+    let encoded = handle
+    let data = try await client.get("perfil/\(encoded)/seguidores")
+    return try ApiClient.decodeOne(data)
+  }
+
+  static func siguiendo(handle: String) async throws -> ListaPersonasResponse {
+    // Sin pre-codificar: `appendingPathComponent` ya codifica (antes "%" salía doble).
+    let encoded = handle
+    let data = try await client.get("perfil/\(encoded)/siguiendo")
+    return try ApiClient.decodeOne(data)
+  }
+
+  /// Cumpleaños (mes + día) o `nil` en ambos para quitarlo.
+  static func actualizarCumple(mes: Int?, dia: Int?) async throws {
+    _ = try await client.patchJSON("perfil", body: ActualizarCumpleRequest(cumpleMes: mes, cumpleDia: dia))
   }
 
   static func publicacionesPerfil(handle: String, cursor: String? = nil, limite: Int? = nil) async throws -> PerfilPublicacionesResponse {
@@ -97,8 +131,10 @@ enum AgoraApi {
 
   // MARK: Eventos
 
-  static func eventosProximos() async throws -> EventosResponse {
-    let data = try await client.get("eventos")
+  static func eventosProximos(tipo: String? = nil) async throws -> EventosResponse {
+    var query: [String: String] = [:]
+    if let tipo, !tipo.isEmpty { query["tipo"] = tipo }
+    let data = try await client.get("eventos", query: query)
     return try ApiClient.decodeOne(data)
   }
 
@@ -232,6 +268,12 @@ enum AgoraApi {
     )
   }
 
+  /// Total de mensajes sin leer (`{ total }`), para el globo de Mensajes.
+  static func mensajesNoLeidos() async throws -> SinLeerResponse {
+    let data = try await client.get("mensajes/no-leidos")
+    return try ApiClient.decodeOne(data)
+  }
+
   static func abrirConversacion(handle: String) async throws -> AbrirConversacionResponse {
     let data = try await client.postJSON(
       "mensajes/abrir",
@@ -262,11 +304,21 @@ enum AgoraApi {
     return try ApiClient.decodeOne(data)
   }
 
-  static func directorio(q: String? = nil, generacion: Int? = nil, cursor: String? = nil) async throws -> DirectorioResponse {
+  static func directorio(
+    q: String? = nil,
+    generacion: Int? = nil,
+    cursor: String? = nil,
+    escuela: String? = nil,
+    carrera: String? = nil,
+    colegio: String? = nil
+  ) async throws -> DirectorioResponse {
     var query: [String: String] = [:]
     if let q, !q.isEmpty { query["q"] = q }
     if let generacion { query["generacion"] = String(generacion) }
     if let cursor { query["cursor"] = cursor }
+    if let escuela, !escuela.isEmpty { query["escuela"] = escuela }
+    if let carrera, !carrera.isEmpty { query["carrera"] = carrera }
+    if let colegio, !colegio.isEmpty { query["colegio"] = colegio }
     let data = try await client.get("directorio", query: query)
     return try ApiClient.decodeOne(data)
   }
@@ -297,6 +349,24 @@ enum AgoraApi {
   static func suscribirApns(token: String) async throws -> PushSubscribeResponse {
     let data = try await client.postJSON("push/suscribir-apns", body: ApnsPushTokenRequest(token: token))
     return try ApiClient.decodeOne(data)
+  }
+
+  /// `DELETE push/suscribir-apns` con `{ token }` (204). `sesion` permite usar
+  /// el token de sesión capturado justo antes de cerrar sesión.
+  static func desuscribirApns(token: String, sesion: String? = nil) async throws {
+    try await client.deleteJSON(
+      "push/suscribir-apns",
+      body: ApnsPushTokenRequest(token: token),
+      token: sesion,
+      avisarSiExpira: false
+    )
+  }
+
+  // MARK: - Sesión
+
+  /// `POST auth/salir` (204): invalida la sesión en el servidor.
+  static func salir(sesion: String? = nil) async throws {
+    try await client.postJSONSilencioso("auth/salir", body: EmptyBody(), token: sesion)
   }
 
   // MARK: - Marketplace
@@ -360,7 +430,8 @@ enum AgoraApi {
   static func publicacionesHashtag(tag: String, cursor: String? = nil) async throws -> HashtagPublicacionesResponse {
     var query: [String: String] = [:]
     if let cursor { query["cursor"] = cursor }
-    let encoded = tag.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? tag
+    // Sin pre-codificar: `appendingPathComponent` ya codifica (antes "%" salía doble).
+    let encoded = tag
     let data = try await client.get("hashtags/\(encoded)", query: query)
     return try ApiClient.decodeOne(data)
   }
@@ -401,9 +472,17 @@ enum AgoraApi {
   }
 
   static func resolverReporte(id: String, accion: String, motivo: String) async throws {
-    try await client.postJSON(
+    _ = try await client.postJSON(
       "moderacion/reportes/\(id)/resolver",
       body: ResolverReporteRequest(accion: accion, motivo: motivo)
+    )
+  }
+
+  /// Retiro directo de una publicación por staff (`MODERACION_ACTUAR`).
+  static func retirarPost(id: String, motivo: String) async throws {
+    _ = try await client.postJSON(
+      "moderacion/posts/\(id)/retirar",
+      body: RetirarPostRequest(motivo: motivo)
     )
   }
 
@@ -415,7 +494,8 @@ enum AgoraApi {
   }
 
   static func gamificacionPorHandle(_ handle: String) async throws -> GamificacionDto {
-    let encoded = handle.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? handle
+    // Sin pre-codificar: `appendingPathComponent` ya codifica (antes "%" salía doble).
+    let encoded = handle
     let data = try await client.get("gamificacion/\(encoded)")
     return try ApiClient.decodeOne(data)
   }
@@ -426,7 +506,8 @@ enum AgoraApi {
   }
 
   static func gamificacionLeaderboard(limite: Int = 5) async throws -> LeaderboardResponseDto {
-    let data = try await client.get("gamificacion/leaderboard?limite=\(limite)")
+    // La query va en `query:`: en la ruta, `appendingPathComponent` convertía "?" en %3F (404).
+    let data = try await client.get("gamificacion/leaderboard", query: ["limite": String(limite)])
     return try ApiClient.decodeOne(data)
   }
 
@@ -446,7 +527,8 @@ enum AgoraApi {
   }
 
   static func retosPuede(handle: String) async throws -> PuedeRetarResponse {
-    let encoded = handle.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? handle
+    // Sin pre-codificar: `appendingPathComponent` ya codifica (antes "%" salía doble).
+    let encoded = handle
     let data = try await client.get("retos/puede/\(encoded)")
     return try ApiClient.decodeOne(data)
   }

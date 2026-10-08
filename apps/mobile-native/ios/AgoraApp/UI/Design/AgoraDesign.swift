@@ -1,30 +1,50 @@
 import SwiftUI
+import UIKit
 
-// MARK: - Colors (paridad con `AgoraColors.kt`)
+// MARK: - Colors (paridad con `AgoraColors.kt`; modo oscuro = tokens de `apps/web/app/globals.css`)
 
 enum AgoraDesign {
     enum Colors {
-        static let naranja = Color(red: 227 / 255, green: 82 / 255, blue: 5 / 255)
-        static let naranjaSuave = Color(red: 1, green: 240 / 255, blue: 232 / 255)
-        static let naranjaOscuro = Color(red: 184 / 255, green: 64 / 255, blue: 4 / 255)
+        static let naranja = dinamico(claro: (227, 82, 5), oscuro: (255, 107, 38))
+        static let naranjaSuave = dinamico(claro: (255, 240, 232), oscuro: (42, 21, 9))
+        static let naranjaOscuro = dinamico(claro: (184, 64, 4), oscuro: (255, 133, 71))
 
-        static let fondo = Color(red: 247 / 255, green: 245 / 255, blue: 242 / 255)
-        static let superficie = Color.white
-        static let superficieElevada = Color(red: 1, green: 252 / 255, blue: 250 / 255)
+        static let fondo = dinamico(claro: (247, 245, 242), oscuro: (13, 18, 16))
+        static let superficie = dinamico(claro: (255, 255, 255), oscuro: (22, 25, 29))
+        static let superficieElevada = dinamico(claro: (255, 252, 250), oscuro: (30, 34, 39))
 
-        static let texto = Color(red: 26 / 255, green: 26 / 255, blue: 26 / 255)
-        static let textoMedio = Color(red: 107 / 255, green: 107 / 255, blue: 107 / 255)
-        static let textoMuted = Color(red: 154 / 255, green: 149 / 255, blue: 144 / 255)
+        static let texto = dinamico(claro: (26, 26, 26), oscuro: (231, 233, 234))
+        static let textoMedio = dinamico(claro: (107, 107, 107), oscuro: (154, 164, 175))
+        static let textoMuted = dinamico(claro: (154, 149, 144), oscuro: (125, 135, 146))
 
-        static let borde = Color(red: 232 / 255, green: 228 / 255, blue: 223 / 255)
-        static let bordeSutil = Color(red: 240 / 255, green: 236 / 255, blue: 232 / 255)
+        static let borde = dinamico(claro: (232, 228, 223), oscuro: (42, 47, 54))
+        static let bordeSutil = dinamico(claro: (240, 236, 232), oscuro: (34, 38, 44))
 
-        static let success = Color(red: 46 / 255, green: 125 / 255, blue: 79 / 255)
-        static let danger = Color(red: 198 / 255, green: 40 / 255, blue: 40 / 255)
-        static let dangerSuave = Color(red: 253 / 255, green: 236 / 255, blue: 234 / 255)
+        static let success = dinamico(claro: (46, 125, 79), oscuro: (127, 201, 168))
+        static let danger = dinamico(claro: (198, 40, 40), oscuro: (242, 97, 97))
+        static let dangerSuave = dinamico(claro: (253, 236, 234), oscuro: (58, 24, 24))
 
-        static let skeletonBase = Color(red: 232 / 255, green: 228 / 255, blue: 223 / 255)
-        static let skeletonHighlight = Color(red: 245 / 255, green: 242 / 255, blue: 239 / 255)
+        static let skeletonBase = dinamico(claro: (232, 228, 223), oscuro: (34, 38, 44))
+        static let skeletonHighlight = dinamico(claro: (245, 242, 239), oscuro: (46, 51, 58))
+
+        /// Color que cambia solo con el modo claro/oscuro del sistema (o el que
+        /// fije el usuario en Ajustes → Apariencia).
+        private static func dinamico(claro: (Int, Int, Int), oscuro: (Int, Int, Int)) -> Color {
+            let uiClaro = uiColor(claro)
+            let uiOscuro = uiColor(oscuro)
+            return Color(UIColor { rasgos in
+                rasgos.userInterfaceStyle == .dark ? uiOscuro : uiClaro
+            })
+        }
+
+        private static func uiColor(_ rgb: (Int, Int, Int)) -> UIColor {
+            UIColor(
+                red: CGFloat(rgb.0) / 255,
+                green: CGFloat(rgb.1) / 255,
+                blue: CGFloat(rgb.2) / 255,
+                alpha: 1
+            )
+        }
     }
 
     enum Spacing {
@@ -70,6 +90,30 @@ enum AgoraCopy {
     static let loginEnter = "Entrar"
     static let loginVerifying = "Verificando…"
     static let loginChangeEmail = "Cambiar correo"
+    static let loginResend = "Reenviar código"
+    static let loginPie = "Vence en 10 minutos y solo sirve una vez. Llega de contacto@zynoratek.com («Ágora · Zynora Tek»). En Outlook: busca Zynora o Ágora, revisa Correo no deseado y la pestaña Otros."
+    static let loginAvisoOutlook = "Si no lo ves en la bandeja principal, busca \"Ágora\" o \"udlagora\" y revisa Correo no deseado, la pestaña Otros y Cuarentena en Outlook."
+    static let loginDemasiadosIntentos = "Ya pediste un código hace poco. Usa el último que te llegó o espera un minuto."
+
+    // Entrega del código (paridad con `copy.login.codigo.entrega` en la web)
+    static let entregaEnviado = "Enviando tu código…"
+    static let entregaDemorado = "Outlook está tardando en aceptarlo. Se reintenta solo; dale un minuto."
+    static let entregaEntregado = "Entregado en tu buzón UDLAP. Si no está en la bandeja principal, revisa la pestaña Otros o Correo no deseado."
+    static func entregaRebotado(_ email: String) -> String {
+        "Outlook rechazó \(email): esa dirección no existe en UDLAP. Revisa que esté bien escrita."
+    }
+    static let entregaBloqueado = "Esa dirección había rebotado antes y estaba en pausa. Ya la liberamos: pide el código otra vez."
+    static let entregaError = "No pudimos entregarlo. Intenta de nuevo en un minuto."
+    static let entregaSinNoticias = "Sigue en camino. Si en un par de minutos no aparece, reenvíalo."
+
+    // Legal / crédito
+    static let legalNoAfiliada = "Ágora no está afiliada a la Universidad de las Américas Puebla."
+    static let creditoPrefijo = "Developed by"
+    static let creditoNombre = "Zynora Tek"
+    static let creditoUrl = "https://zynoratek.com"
+
+    // Compartir (rutas públicas de la web)
+    static let webBase = "https://udlagora.com"
 
     // Registro
     static let registroTitle = "Crea tu perfil"

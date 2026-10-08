@@ -8,7 +8,9 @@ struct PreguntaDelDiaBanner: View {
     @State private var confettiTrigger = 0
 
     var body: some View {
-        Group {
+        // VStack y no Group: los modificadores de un Group se aplican a cada hijo,
+        // y con el contenido vacío `.task` nunca se disparaba (el banner no cargaba).
+        VStack(spacing: 0) {
             if let pregunta {
                 ZStack {
                     bannerContent(pregunta)

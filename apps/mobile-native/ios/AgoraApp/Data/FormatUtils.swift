@@ -38,11 +38,16 @@ enum FormatUtils {
   static func mensajeDe(_ error: Error) -> String {
     if let api = error as? ApiError {
       switch api {
-      case .http(let code, _):
+      case .http(let code, let cuerpo):
+        // -1: error armado en la app con un texto ya legible.
+        if code == -1, let cuerpo, !cuerpo.isEmpty { return cuerpo }
+        // La API responde `{ mensaje }` en español: es mejor que el genérico.
+        if code != 401, let servidor = api.mensajeServidor { return servidor }
         switch code {
         case 401: return "Sesión expirada. Vuelve a entrar."
         case 403: return "No tienes permiso para esto."
         case 404: return "No encontrado."
+        case 429: return "Demasiados intentos. Espera un momento."
         default: return "Error del servidor (\(code))."
         }
       default:

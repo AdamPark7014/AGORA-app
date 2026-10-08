@@ -49,6 +49,9 @@ struct PostDto: Codable, Identifiable {
     let numReactions: Int?
     let miReaccion: String?
     let miGuardado: Bool?
+    /// Publicación de la zona sin nombre: sin autor, con alias.
+    let anonimo: Bool?
+    let alias: String?
 }
 
 struct FeedResponse: Codable {
@@ -86,6 +89,17 @@ struct PostDetalleDto: Decodable {
     let miReaccion: String?
     let miGuardado: Bool?
     let comentarios: [ComentarioDto]?
+    let anonimo: Bool?
+    let alias: String?
+}
+
+/// `PATCH posts/:id` — solo el autor; las anónimas no se editan.
+struct EditarPostRequest: Encodable {
+    let texto: String
+}
+
+struct EditarPostResponse: Decodable {
+    let aviso: String?
 }
 
 struct ComentarioDto: Decodable, Identifiable {
@@ -158,6 +172,9 @@ struct PerfilMioDto: Codable {
     let intereses: [String]?
     let busco: String?
     let visibilidad: String?
+    let portadaUrl: String?
+    let cumpleMes: Int?
+    let cumpleDia: Int?
 }
 
 struct PerfilAjenoDto: Decodable {
@@ -178,6 +195,21 @@ struct PerfilAjenoDto: Decodable {
     let restringido: Bool?
     let yoLeSigo: Bool?
     let verificado: Bool?
+    let portadaUrl: String?
+}
+
+/// Fila de `GET perfil/:handle/seguidores` y `/siguiendo`.
+struct PersonaListaDto: Decodable, Identifiable {
+    var id: String { handle }
+    let handle: String
+    let nombre: String
+    let fotoUrl: String?
+    let verificado: Bool?
+}
+
+struct ListaPersonasResponse: Decodable {
+    let restringido: Bool?
+    let personas: [PersonaListaDto]?
 }
 
 struct PerfilPublicacionDto: Decodable, Identifiable {
@@ -206,6 +238,33 @@ struct ActualizarPerfilRequest: Encodable {
     let intereses: [String]?
     let busco: String?
     let visibilidad: String?
+    var portadaMediaId: String? = nil
+}
+
+/// Cumpleaños por separado: se manda `null` explícito para quitarlo
+/// (el `Encodable` sintetizado omitiría los nil).
+struct ActualizarCumpleRequest: Encodable {
+    let cumpleMes: Int?
+    let cumpleDia: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case cumpleMes
+        case cumpleDia
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        if let cumpleMes {
+            try c.encode(cumpleMes, forKey: .cumpleMes)
+        } else {
+            try c.encodeNil(forKey: .cumpleMes)
+        }
+        if let cumpleDia {
+            try c.encode(cumpleDia, forKey: .cumpleDia)
+        } else {
+            try c.encodeNil(forKey: .cumpleDia)
+        }
+    }
 }
 
 struct SilenciarComunidadRequest: Encodable {
@@ -224,6 +283,8 @@ struct CrearReporteRequest: Encodable {
 
 struct BloqueoEstadoDto: Decodable {
     let bloqueado: Bool
+    /// `true` cuando solo está silenciado (no lo ves, él sí te ve).
+    let silenciado: Bool?
 }
 
 struct BloquearRequest: Encodable {
@@ -250,7 +311,8 @@ struct CarreraDto: Decodable, Identifiable {
     let nombre: String
 }
 
-struct EscuelaDto: Decodable {
+struct EscuelaDto: Decodable, Identifiable {
+    var id: String { slug }
     let slug: String
     let nombre: String
     let carreras: [CarreraDto]?
@@ -280,6 +342,7 @@ struct EventoDto: Decodable, Identifiable {
     let vanAIr: Int?
     let miRespuesta: String?
     let comunidad: ComunidadDto?
+    let cupo: Int?
 }
 
 struct EventosResponse: Decodable {
@@ -671,6 +734,11 @@ struct ModeracionColaResponse: Decodable {
 
 struct ResolverReporteRequest: Encodable {
     let accion: String
+    let motivo: String
+}
+
+/// `POST moderacion/posts/:id/retirar` — motivo obligatorio (3–500).
+struct RetirarPostRequest: Encodable {
     let motivo: String
 }
 

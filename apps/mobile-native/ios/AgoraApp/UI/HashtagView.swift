@@ -40,7 +40,8 @@ struct HashtagView: View {
                                 onAuthorTap: post.autor?.handle.map { handle in
                                     { onAuthorTap(handle) }
                                 },
-                                onHashtagTap: onHashtagTap
+                                onHashtagTap: onHashtagTap,
+                                onMencionTap: onAuthorTap
                             )
                             .listRowInsets(EdgeInsets(
                                 top: AgoraDesign.Spacing.xxs,

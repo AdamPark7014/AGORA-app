@@ -5,6 +5,10 @@ struct PostDetailView: View {
     let postId: String
     var onAuthorTap: ((String) -> Void)?
     var onHashtagTap: ((String) -> Void)?
+    /// Se llama tras borrar o retirar la publicación (el contenedor hace pop).
+    var onEliminado: (() -> Void)?
+
+    @ObservedObject private var session = SessionStore.shared
 
     @State private var post: PostDetalleDto?
     @State private var cargando = true
@@ -16,6 +20,22 @@ struct PostDetailView: View {
     @State private var encuesta: EncuestaDto?
     @State private var votando = false
     @State private var heartTrigger = 0
+    @State private var textoEditado: String?
+    @State private var editando = false
+    @State private var confirmandoBorrar = false
+    @State private var eligiendoMotivo = false
+    @State private var retirando = false
+    @State private var motivoRetiro = ""
+    @State private var aviso: String?
+
+    private var esMia: Bool {
+        guard let post else { return false }
+        return PublicacionPermisos.esMia(
+            autorHandle: post.autor?.handle,
+            anonimo: post.anonimo,
+            miHandle: session.currentUser?.handle
+        )
+    }
 
     var body: some View {
         Group {
@@ -26,104 +46,7 @@ struct PostDetailView: View {
                     Task { await cargar() }
                 }
             } else if let post {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
-                        HStack(spacing: AgoraDesign.Spacing.xs) {
-                            Button {
-                                if let handle = post.autor?.handle { onAuthorTap?(handle) }
-                            } label: {
-                                Text(post.autor?.nombre ?? "Alguien")
-                                    .font(.headline)
-                                    .foregroundStyle(AgoraDesign.Colors.texto)
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(onAuthorTap == nil || post.autor?.handle == nil)
-                            Text("· \(post.comunidad.nombre) · \(FormatUtils.haceCuanto(post.createdAt))")
-                                .font(.caption)
-                                .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                        }
-
-                        if !post.texto.isEmpty {
-                            if let onHashtagTap {
-                                TextoConHashtags(texto: post.texto, onHashtagTap: onHashtagTap)
-                            } else {
-                                Text(post.texto).font(.body)
-                            }
-                        }
-
-                        if let media = post.media?.first(where: { $0.esVideo != true }),
-                           let url = ApiClient.shared.resolveUrl(media.url) {
-                            ZStack {
-                                AsyncImage(url: url) { phase in
-                                    switch phase {
-                                    case .success(let image):
-                                        image.resizable().scaledToFill()
-                                    default:
-                                        Color(.secondarySystemGroupedBackground)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 220)
-                                .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
-
-                                if heartTrigger > 0 {
-                                    FloatingHeartOverlay()
-                                        .id(heartTrigger)
-                                }
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture(count: 2) {
-                                heartTrigger += 1
-                                Task { await reaccionar("ME_LATE") }
-                            }
-                        }
-
-                        if let encuesta {
-                            EncuestaBloque(
-                                encuesta: encuesta,
-                                onVotar: { opcionId in Task { await votar(opcionId: opcionId) } },
-                                votando: votando
-                            )
-                        }
-
-                        HStack(alignment: .bottom) {
-                            ReaccionesRow(
-                                miReaccion: miReaccion,
-                                totalReacciones: totalReacciones,
-                                numComments: post.numComments ?? 0,
-                                onReaccionar: { tipo in Task { await reaccionar(tipo) } }
-                            )
-                            Spacer()
-                            GuardarButton(postId: postId, guardado: guardado) { nuevo in
-                                guardado = nuevo
-                            }
-                        }
-
-                        Text("Comentarios")
-                            .font(.subheadline.bold())
-                            .padding(.top, AgoraDesign.Spacing.xs)
-
-                        ForEach(post.comentarios ?? []) { comentario in
-                            ComentarioRowView(comentario: comentario)
-                        }
-
-                        TextField("Escribe un comentario…", text: $textoComentario, axis: .vertical)
-                            .lineLimit(2...4)
-                            .textFieldStyle(.roundedBorder)
-
-                        Button {
-                            Task { await comentar() }
-                        } label: {
-                            Text("Comentar")
-                                .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AgoraDesign.Colors.naranja)
-                        .disabled(textoComentario.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                    .padding(AgoraDesign.Spacing.md)
-                }
+                contenido(post)
             } else {
                 AgoraEmptyState(
                     emoji: "📄",
@@ -132,10 +55,210 @@ struct PostDetailView: View {
                 )
             }
         }
+        .agoraScreenBackground()
         .navigationTitle("Publicación")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if post != nil {
+                    menuOpciones
+                }
+            }
+        }
         .refreshable { await cargar() }
         .task(id: postId) { await cargar() }
+        .confirmationDialog("¿Por qué la reportas?", isPresented: $eligiendoMotivo, titleVisibility: .visible) {
+            ForEach(motivosReporte) { motivo in
+                Button(motivo.etiqueta) {
+                    Task { await reportar(motivo.id) }
+                }
+            }
+            Button("Cancelar", role: .cancel) {}
+        }
+        .confirmationDialog("¿Borrar esta publicación?", isPresented: $confirmandoBorrar, titleVisibility: .visible) {
+            Button("Borrar", role: .destructive) {
+                Task { await borrar() }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("No se puede deshacer.")
+        }
+        .alert("Retirar publicación", isPresented: $retirando) {
+            TextField("Motivo (lo verá el autor)", text: $motivoRetiro)
+            Button("Retirar", role: .destructive) {
+                Task { await retirar() }
+            }
+            Button("Cancelar", role: .cancel) {
+                motivoRetiro = ""
+            }
+        } message: {
+            Text("Escribe el motivo: mínimo 3 caracteres.")
+        }
+        .alert(
+            aviso ?? "",
+            isPresented: Binding(
+                get: { aviso != nil },
+                set: { if !$0 { aviso = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        }
+        .sheet(isPresented: $editando) {
+            EditarPublicacionSheet(postId: postId, textoInicial: textoEditado ?? post?.texto ?? "") { nuevo, avisoModeracion in
+                textoEditado = nuevo
+                if let avisoModeracion, !avisoModeracion.isEmpty {
+                    aviso = avisoModeracion
+                }
+            }
+        }
+    }
+
+    private func contenido(_ post: PostDetalleDto) -> some View {
+        let texto = textoEditado ?? post.texto
+        let esAnonimo = post.anonimo == true
+        return ScrollView {
+            VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
+                HStack(spacing: AgoraDesign.Spacing.xs) {
+                    Button {
+                        if let handle = post.autor?.handle { onAuthorTap?(handle) }
+                    } label: {
+                        Text(esAnonimo ? (post.alias ?? "Sin nombre") : (post.autor?.nombre ?? "Alguien"))
+                            .font(.headline)
+                            .foregroundStyle(AgoraDesign.Colors.texto)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(onAuthorTap == nil || post.autor?.handle == nil)
+                    Text("· \(post.comunidad.nombre) · \(FormatUtils.haceCuanto(post.createdAt))")
+                        .font(.caption)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                }
+
+                if !texto.isEmpty {
+                    if let onHashtagTap {
+                        TextoConHashtags(
+                            texto: texto,
+                            onHashtagTap: onHashtagTap,
+                            onMencionTap: onAuthorTap
+                        )
+                    } else {
+                        Text(texto)
+                            .font(.body)
+                            .foregroundStyle(AgoraDesign.Colors.texto)
+                    }
+                }
+
+                if let media = post.media, !media.isEmpty {
+                    ZStack {
+                        PostMediaCarousel(
+                            media: media,
+                            altura: 260,
+                            onToque: nil,
+                            onDobleToque: {
+                                heartTrigger += 1
+                                Task { await reaccionar("ME_LATE") }
+                            }
+                        )
+
+                        if heartTrigger > 0 {
+                            FloatingHeartOverlay()
+                                .id(heartTrigger)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                }
+
+                if let encuesta {
+                    EncuestaBloque(
+                        encuesta: encuesta,
+                        onVotar: { opcionId in Task { await votar(opcionId: opcionId) } },
+                        votando: votando
+                    )
+                }
+
+                HStack(alignment: .bottom) {
+                    ReaccionesRow(
+                        miReaccion: miReaccion,
+                        totalReacciones: totalReacciones,
+                        numComments: post.numComments ?? 0,
+                        onReaccionar: { tipo in Task { await reaccionar(tipo) } }
+                    )
+                    Spacer()
+                    GuardarButton(postId: postId, guardado: guardado) { nuevo in
+                        guardado = nuevo
+                    }
+                }
+
+                Text("Comentarios")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(AgoraDesign.Colors.texto)
+                    .padding(.top, AgoraDesign.Spacing.xs)
+
+                ForEach(post.comentarios ?? []) { comentario in
+                    ComentarioRowView(comentario: comentario)
+                }
+
+                TextField("Escribe un comentario…", text: $textoComentario, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.roundedBorder)
+
+                Button {
+                    Task { await comentar() }
+                } label: {
+                    Text("Comentar")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AgoraDesign.Colors.naranja)
+                .disabled(textoComentario.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                if let error {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(AgoraDesign.Colors.danger)
+                }
+            }
+            .padding(AgoraDesign.Spacing.md)
+        }
+    }
+
+    private var menuOpciones: some View {
+        Menu {
+            if let url = EnlacesWeb.publicacion(postId) {
+                ShareLink(item: url) {
+                    Label("Compartir", systemImage: "square.and.arrow.up")
+                }
+            }
+            if esMia {
+                Button {
+                    editando = true
+                } label: {
+                    Label("Editar", systemImage: "pencil")
+                }
+                Button(role: .destructive) {
+                    confirmandoBorrar = true
+                } label: {
+                    Label("Borrar", systemImage: "trash")
+                }
+            } else {
+                Button(role: .destructive) {
+                    eligiendoMotivo = true
+                } label: {
+                    Label("Reportar", systemImage: "flag")
+                }
+            }
+            if session.currentUser?.puedeModerar == true && !esMia {
+                Button(role: .destructive) {
+                    motivoRetiro = ""
+                    retirando = true
+                } label: {
+                    Label("Retirar (moderación)", systemImage: "shield.lefthalf.filled")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .accessibilityLabel("Más opciones")
     }
 
     private func cargar() async {
@@ -145,6 +268,7 @@ struct PostDetailView: View {
         do {
             let detalle = try await AgoraApi.postDetalle(id: postId)
             post = detalle
+            textoEditado = nil
             miReaccion = detalle.miReaccion
             totalReacciones = detalle.numReactions ?? 0
             guardado = detalle.miGuardado ?? false
@@ -195,6 +319,40 @@ struct PostDetailView: View {
             self.error = FormatUtils.mensajeDe(error)
         }
     }
+
+    private func reportar(_ motivo: String) async {
+        do {
+            try await AgoraApi.reportar(postId: postId, motivo: motivo)
+            aviso = "Gracias. Un moderador lo revisará."
+        } catch {
+            aviso = FormatUtils.mensajeDe(error)
+        }
+    }
+
+    private func borrar() async {
+        do {
+            try await AgoraApi.borrarPost(id: postId)
+            Haptics.success()
+            onEliminado?()
+        } catch {
+            aviso = FormatUtils.mensajeDe(error)
+        }
+    }
+
+    private func retirar() async {
+        let motivo = motivoRetiro.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard motivo.count >= 3 else {
+            aviso = "Escribe el motivo (mínimo 3 caracteres)."
+            return
+        }
+        do {
+            try await AgoraApi.retirarPost(id: postId, motivo: motivo)
+            motivoRetiro = ""
+            onEliminado?()
+        } catch {
+            aviso = FormatUtils.mensajeDe(error)
+        }
+    }
 }
 
 private struct FloatingHeartOverlay: View {
@@ -224,8 +382,10 @@ private struct ComentarioRowView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(comentario.autor?.nombre ?? "Alguien")
                 .font(.caption.bold())
+                .foregroundStyle(AgoraDesign.Colors.texto)
             Text(comentario.texto)
                 .font(.subheadline)
+                .foregroundStyle(AgoraDesign.Colors.texto)
             Text(FormatUtils.haceCuanto(comentario.createdAt))
                 .font(.caption2)
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)

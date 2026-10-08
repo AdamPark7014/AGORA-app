@@ -1,5 +1,7 @@
 import SwiftUI
 import PhotosUI
+import UIKit
+import UniformTypeIdentifiers
 
 private let limiteTextoPublicar = 2000
 private let maxAdjuntos = 4
@@ -10,6 +12,7 @@ private struct AdjuntoLocal: Identifiable {
     var preview: UIImage?
     var mediaId: String?
     var subiendo = false
+    var esVideo = false
 }
 
 /// Publicar con hasta 4 fotos y encuesta opcional — paridad con `PublicarScreen.kt`.
@@ -59,25 +62,27 @@ struct PublicarView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                if !network.isOnline {
-                    OfflineBanner()
-                }
-                if let mensajeCola {
-                    Text(mensajeCola)
-                        .font(.caption)
-                        .foregroundStyle(AgoraDesign.Colors.naranja)
-                }
+                Group {
+                    if !network.isOnline {
+                        OfflineBanner()
+                    }
+                    if let mensajeCola {
+                        Text(mensajeCola)
+                            .font(.caption)
+                            .foregroundStyle(AgoraDesign.Colors.naranja)
+                    }
 
-                Text("Publicar en").font(.subheadline.bold())
+                    Text("Publicar en").font(.subheadline.bold())
 
-                if cargandoComunidades {
-                    ProgressView()
-                } else if comunidades.isEmpty {
-                    Text("No tienes comunidades asignadas.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    comunidadPicker
+                    if cargandoComunidades {
+                        ProgressView()
+                    } else if comunidades.isEmpty {
+                        Text("No tienes comunidades asignadas.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        comunidadPicker
+                    }
                 }
 
                 TextEditor(text: $texto)
@@ -109,6 +114,14 @@ struct PublicarView: View {
                                             .scaledToFill()
                                             .frame(width: 88, height: 88)
                                             .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    } else if adj.esVideo {
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color.black.opacity(0.85))
+                                            .frame(width: 88, height: 88)
+                                            .overlay {
+                                                Image(systemName: "video.fill")
+                                                    .foregroundStyle(.white)
+                                            }
                                     }
                                     if adj.subiendo {
                                         ProgressView()
@@ -220,7 +233,8 @@ struct PublicarView: View {
     private func agregarAdjunto(_ item: PhotosPickerItem?) async {
         guard let item, adjuntos.count < maxAdjuntos else { return }
         pickerItem = nil
-        var adj = AdjuntoLocal(item: item)
+        let tipoVideo = item.supportedContentTypes.first { $0.conforms(to: .movie) }
+        let adj = AdjuntoLocal(item: item, esVideo: tipoVideo != nil)
         adjuntos.append(adj)
         guard let idx = adjuntos.firstIndex(where: { $0.id == adj.id }) else { return }
         adjuntos[idx].subiendo = true
@@ -228,16 +242,37 @@ struct PublicarView: View {
             guard let data = try await item.loadTransferable(type: Data.self) else {
                 throw ApiError.http(-1, "No se pudo leer el archivo.")
             }
-            if let image = UIImage(data: data) {
-                adjuntos[idx].preview = image
+            let subida: MediaUploadResponse
+            if let tipoVideo {
+                // Videos tal cual; el servidor detecta mp4/mov por los bytes.
+                let mime = tipoVideo.preferredMIMEType ?? "video/quicktime"
+                subida = try await MediaRepository.subirVideo(data, mimeType: mime)
+            } else {
+                if let image = UIImage(data: data), let i = adjuntos.firstIndex(where: { $0.id == adj.id }) {
+                    adjuntos[i].preview = image
+                }
+                // Siempre JPEG: el servidor rechaza HEIC y así no viajan los metadatos EXIF.
+                subida = try await MediaRepository.subirFoto(data)
             }
-            let subida = try await MediaRepository.subir(imageData: data)
-            adjuntos[idx].mediaId = subida.id
-            adjuntos[idx].subiendo = false
+            if let i = adjuntos.firstIndex(where: { $0.id == adj.id }) {
+                adjuntos[i].mediaId = subida.id
+                adjuntos[i].subiendo = false
+            }
         } catch {
             adjuntos.removeAll { $0.id == adj.id }
             self.error = FormatUtils.mensajeDe(error)
         }
+    }
+
+    /// `ApiClient` envuelve los errores de red en `ApiError.transport`; antes se
+    /// buscaba un `URLError` directo y la cola sin conexión nunca se activaba.
+    static func esSinConexion(_ error: Error) -> Bool {
+        var base: Error = error
+        if case .transport(let interno)? = error as? ApiError {
+            base = interno
+        }
+        guard let urlError = base as? URLError else { return false }
+        return urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost
     }
 
     private func publicar() async {
@@ -277,7 +312,7 @@ struct PublicarView: View {
             mensajeCola = nil
             onPublicado()
         } catch let err {
-            if let urlErr = err as? URLError, urlErr.code == .notConnectedToInternet {
+            if PublicarView.esSinConexion(err) {
                 PendingPostQueue.enqueue(comunidadSlug: slug, texto: limpio, mediaIds: ids)
                 mensajeCola = "Guardado en cola — se enviará al reconectar."
                 texto = ""

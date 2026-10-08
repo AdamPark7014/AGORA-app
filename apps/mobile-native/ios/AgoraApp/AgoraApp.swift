@@ -4,6 +4,8 @@ import SwiftUI
 struct AgoraApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var session = SessionStore.shared
+    /// Ajustes → Apariencia (Sistema / Claro / Oscuro).
+    @AppStorage(AgoraTema.claveAlmacen) private var apariencia = AgoraTema.sistema.rawValue
 
     var body: some Scene {
         WindowGroup {
@@ -11,6 +13,7 @@ struct AgoraApp: App {
                 .environmentObject(session)
                 .environmentObject(DeepLinkBus.shared)
                 .tint(AgoraDesign.Colors.naranja)
+                .preferredColorScheme((AgoraTema(rawValue: apariencia) ?? .sistema).esquema)
                 .onOpenURL { url in
                     guard let route = DeepLinkParser.parse(url: url) else { return }
                     let loggedIn = SessionStore.shared.token != nil
@@ -18,8 +21,9 @@ struct AgoraApp: App {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .agoraPushDeepLink)) { note in
                     guard let raw = note.object as? String else { return }
-                    let url = URL(string: raw) ?? URL(string: "agora://\(raw)")
-                    guard let url, let route = DeepLinkParser.parse(url: url) else { return }
+                    // `guard let url` sobre un `let url` del mismo ámbito no compila.
+                    guard let url = URL(string: raw) ?? URL(string: "agora://\(raw)"),
+                          let route = DeepLinkParser.parse(url: url) else { return }
                     let loggedIn = SessionStore.shared.token != nil
                     PendingDeepLink.enqueue(route: route, isLoggedIn: loggedIn)
                 }

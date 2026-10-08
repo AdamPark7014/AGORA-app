@@ -23,19 +23,9 @@ struct MarketplaceDetailView: View {
             } else if let item = anuncio {
                 ScrollView {
                     VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
-                        if let media = item.imagenes?.first,
-                           let url = ApiClient.shared.resolveUrl(media.url) {
-                            AsyncImage(url: url) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image.resizable().scaledToFill()
-                                default:
-                                    AgoraDesign.Colors.skeletonBase
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 220)
-                            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
+                        if let imagenes = item.imagenes, !imagenes.isEmpty {
+                            // Todas las fotos; tocar una abre el visor con zoom.
+                            PostMediaCarousel(media: imagenes, altura: 260)
                         }
 
                         Text("$\(FormatUtils.formatearPrecio(item.precioMxn)) MXN")
@@ -70,6 +60,16 @@ struct MarketplaceDetailView: View {
         .background(AgoraDesign.Colors.fondo)
         .navigationTitle("Anuncio")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if let url = EnlacesWeb.anuncio(anuncioId) {
+                    ShareLink(item: url, subject: Text(anuncio?.titulo ?? "Anuncio en Ágora")) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Compartir anuncio")
+                }
+            }
+        }
         .task(id: anuncioId) { await cargar() }
     }
 

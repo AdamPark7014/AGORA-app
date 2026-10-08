@@ -9,14 +9,25 @@ struct SessionUser: Codable, Equatable {
     var nombre: String?
     var tienePerfil: Bool
     var puedeModerar: Bool
+    /// Solo administradores: habilita «Suspender» en la cola de moderación.
+    var puedeSuspender: Bool
 
-    init(token: String, email: String, handle: String?, nombre: String?, tienePerfil: Bool, puedeModerar: Bool = false) {
+    init(
+        token: String,
+        email: String,
+        handle: String?,
+        nombre: String?,
+        tienePerfil: Bool,
+        puedeModerar: Bool = false,
+        puedeSuspender: Bool = false
+    ) {
         self.token = token
         self.email = email
         self.handle = handle
         self.nombre = nombre
         self.tienePerfil = tienePerfil
         self.puedeModerar = puedeModerar
+        self.puedeSuspender = puedeSuspender
     }
 
     init(from decoder: Decoder) throws {
@@ -27,6 +38,7 @@ struct SessionUser: Codable, Equatable {
         nombre = try c.decodeIfPresent(String.self, forKey: .nombre)
         tienePerfil = try c.decode(Bool.self, forKey: .tienePerfil)
         puedeModerar = try c.decodeIfPresent(Bool.self, forKey: .puedeModerar) ?? false
+        puedeSuspender = try c.decodeIfPresent(Bool.self, forKey: .puedeSuspender) ?? false
     }
 }
 
