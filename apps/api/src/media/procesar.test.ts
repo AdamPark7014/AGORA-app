@@ -52,3 +52,34 @@ test('un archivo con cabecera de JPEG pero cuerpo roto se rechaza', async () => 
   const roto = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 7)]);
   await assert.rejects(procesarImagen(roto, 'image/jpeg'), ImagenInvalida);
 });
+
+test('un GIF animado conserva sus cuadros y pierde los comentarios', async () => {
+  const cuadros = await Promise.all(
+    ['#e85d04', '#154734', '#ffffff'].map((c) =>
+      sharp({ create: { width: 40, height: 30, channels: 3, background: c } }).png().toBuffer(),
+    ),
+  );
+  const gif = await sharp(cuadros, { join: { animated: true } }).gif().toBuffer();
+  const conComentario = Buffer.concat([gif.subarray(0, gif.length - 1), Buffer.from([0x21, 0xfe, 0x05]), Buffer.from('hola!'), Buffer.from([0x00, 0x3b])]);
+
+  const procesada = await procesarImagen(conComentario, 'image/gif');
+
+  assert.equal(procesada.mime, 'image/gif');
+  assert.equal((await sharp(procesada.datos).metadata()).pages, 3);
+  assert.equal(procesada.alto, 30);
+  assert.equal(procesada.datos.includes(Buffer.from('hola!')), false);
+});
+
+test('un WEBP animado sigue animado', async () => {
+  const cuadros = await Promise.all(
+    ['#e85d04', '#154734'].map((c) =>
+      sharp({ create: { width: 40, height: 30, channels: 3, background: c } }).png().toBuffer(),
+    ),
+  );
+  const webp = await sharp(cuadros, { join: { animated: true } }).webp().toBuffer();
+
+  const procesada = await procesarImagen(webp, 'image/webp');
+
+  assert.equal((await sharp(procesada.datos).metadata()).pages, 2);
+  assert.equal(procesada.alto, 30);
+});

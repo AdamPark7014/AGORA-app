@@ -186,3 +186,49 @@ test('verificarCodigo incorrecto incrementa intentos y no abre sesion', async ()
     }
   });
 });
+
+test('volver a entrar no levanta una suspension', async () => {
+  await withSessionSecret(async () => {
+    const { hashCodigo, vencimientoDesde } = await import('@agora/auth');
+    const ahora = new Date('2026-10-08T12:00:00Z');
+    let estadoGuardado: string | undefined;
+
+    const prisma = {
+      user: {
+        findUnique: async () => ({
+          id: 'u1',
+          email: 'a@udlap.mx',
+          estado: 'SUSPENDIDO',
+          emailVerifiedAt: ahora,
+          profile: { id: 'p1' },
+        }),
+        update: (args: { data: { estado: string } }) => {
+          estadoGuardado = args.data.estado;
+          return Promise.resolve({});
+        },
+      },
+      otpCode: {
+        findFirst: async () => ({
+          id: 'otp1',
+          codeHash: hashCodigo('111111', 'a@udlap.mx', process.env.SESSION_SECRET!),
+          expiresAt: vencimientoDesde(ahora),
+          consumedAt: null,
+          intentos: 0,
+        }),
+        update: async () => ({}),
+      },
+      session: { create: () => Promise.resolve({}) },
+      $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
+    } as unknown as PrismaService;
+
+    const prevCod = process.env.DEV_OTP_MAESTRO;
+    try {
+      delete process.env.DEV_OTP_MAESTRO;
+      await new AuthService(prisma, correoMock).verificarCodigo('a@udlap.mx', '111111', {}, ahora);
+      assert.equal(estadoGuardado, 'SUSPENDIDO');
+    } finally {
+      if (prevCod === undefined) delete process.env.DEV_OTP_MAESTRO;
+      else process.env.DEV_OTP_MAESTRO = prevCod;
+    }
+  });
+});

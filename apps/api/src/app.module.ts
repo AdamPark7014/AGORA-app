@@ -7,7 +7,7 @@ import { PrismaService } from './prisma/prisma.service.js';
 import { CorreoService } from './correo/correo.service.js';
 import { CorreoController } from './correo/correo.controller.js';
 import { EntregaService } from './correo/entrega.service.js';
-import { SesionGuard } from './comun/sesion.guard.js';
+import { SesionGuard, SesionGuardBaja } from './comun/sesion.guard.js';
 import { AuthService } from './auth/auth.service.js';
 import { AuthController } from './auth/auth.controller.js';
 import { CatalogoController } from './catalogo/catalogo.controller.js';
@@ -122,6 +122,7 @@ import { CuentaService } from './cuenta/cuenta.service.js';
     CorreoService,
     EntregaService,
     SesionGuard,
+    SesionGuardBaja,
     AuthService,
     PerfilService,
     DirectorioService,

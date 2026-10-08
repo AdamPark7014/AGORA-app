@@ -46,6 +46,7 @@ import {
   validarSubida,
   type Almacen,
 } from './almacen.js';
+import { limpiarMetadatosVideo } from './metadatos-video.js';
 import { ImagenInvalida, procesarImagen } from './procesar.js';
 
 @Controller('media')
@@ -93,7 +94,10 @@ export class MediaController {
     let ancho: number | null = null;
     let alto: number | null = null;
     let miniatura: Buffer | null = null;
-    if (!esVideo(mime)) {
+    if (esVideo(mime)) {
+      // MP4/MOV traen la ubicacion de grabacion; WebM no lleva GPS.
+      if (mime !== 'video/webm') datos = limpiarMetadatosVideo(archivo.buffer).datos;
+    } else {
       try {
         const procesada = await procesarImagen(archivo.buffer, mime);
         ({ datos, ancho, alto, miniatura } = procesada);

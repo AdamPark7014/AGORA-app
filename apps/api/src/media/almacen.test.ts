@@ -162,3 +162,33 @@ test('la cuota diaria corta por numero de archivos y por peso', () => {
   assert.equal(excedeCuota({ archivos: CUOTA_DIARIA.archivos, bytes: 0 }, 1024), true);
   assert.equal(excedeCuota({ archivos: 1, bytes: CUOTA_DIARIA.bytes - 10 }, 11), true);
 });
+
+/** Cabecera `ftyp` con marca principal y compatibles, como la escribe cada formato. */
+const ftyp = (principal: string, ...compatibles: string[]): Buffer => {
+  const marcas = [principal, '\0\0\0\0', ...compatibles];
+  const cuerpo = Buffer.from(marcas.join(''), 'latin1');
+  const caja = Buffer.alloc(8 + cuerpo.length);
+  caja.writeUInt32BE(caja.length, 0);
+  caja.write('ftyp', 4, 'latin1');
+  cuerpo.copy(caja, 8);
+  return Buffer.concat([caja, Buffer.alloc(32)]);
+};
+
+test('una foto HEIC del iPhone no se confunde con un video MP4', () => {
+  assert.equal(detectarMime(ftyp('heic', 'mif1', 'heic')), 'image/heic');
+  assert.equal(detectarMime(ftyp('mif1', 'mif1', 'heic')), 'image/heic');
+  const v = validarSubida(ftyp('heic', 'mif1'), 1000);
+  assert.equal(v.ok, false);
+});
+
+test('AVIF se reconoce como imagen (sharp la re-codifica)', () => {
+  assert.equal(detectarMime(ftyp('avif', 'mif1', 'avif')), 'image/avif');
+  assert.equal(validarSubida(ftyp('avif', 'mif1'), 1000).ok, true);
+});
+
+test('MP4 y MOV siguen siendo video; una marca desconocida no', () => {
+  assert.equal(detectarMime(ftyp('isom', 'isom', 'mp41')), 'video/mp4');
+  assert.equal(detectarMime(ftyp('mp42', 'isom')), 'video/mp4');
+  assert.equal(detectarMime(ftyp('qt  ', 'qt  ')), 'video/quicktime');
+  assert.equal(detectarMime(ftyp('M4A ', 'isom')), null);
+});

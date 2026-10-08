@@ -42,6 +42,8 @@ export const MIMES_IMAGEN = new Set([
   'image/png',
   'image/webp',
   'image/gif',
+  // Se re-codifica a JPEG con sharp; nunca se guarda como AVIF.
+  'image/avif',
 ]);
 
 /**
@@ -80,11 +82,17 @@ export type ValidacionSubida =
 
 export const validarSubida = (datos: Buffer, size: number): ValidacionSubida => {
   const mime = detectarMime(datos);
+  if (mime === 'image/heic') {
+    return {
+      ok: false,
+      motivo: 'Las fotos HEIC no se pueden subir. Exportala como JPG o actualiza la app.',
+    };
+  }
   if (!mime || !MIMES_PERMITIDOS.has(mime)) {
     return {
       ok: false,
       motivo:
-        'Solo se aceptan imagenes (JPG, PNG, WEBP, GIF) o videos (MP4, WEBM, MOV).',
+        'Solo se aceptan imagenes (JPG, PNG, WEBP, GIF, AVIF) o videos (MP4, WEBM, MOV).',
     };
   }
   const tope = topeDe(mime);
@@ -138,13 +146,38 @@ export const detectarMime = (datos: Buffer): string | null => {
     return 'video/webm';
   }
 
-  // MP4 y MOV: caja 'ftyp' en el byte 4, y la marca del contenedor despues.
-  if (datos.toString('ascii', 4, 8) === 'ftyp') {
-    const marca = datos.toString('ascii', 8, 12);
-    // 'qt  ' es QuickTime; el resto de marcas conocidas son MP4 y derivados.
-    return marca.startsWith('qt') ? 'video/quicktime' : 'video/mp4';
-  }
+  // ISO-BMFF (MP4, MOV, HEIC, AVIF): caja 'ftyp' en el byte 4 con la marca
+  // principal y las compatibles. Antes todo 'ftyp' era video/mp4, y una foto
+  // HEIC del iPhone se guardaba como "video" sin pasar por sharp: con su GPS.
+  if (datos.toString('ascii', 4, 8) === 'ftyp') return mimeIsoBmff(datos);
 
+  return null;
+};
+
+/** Marcas de video MP4 y derivados que reproducen los navegadores. */
+const MARCAS_MP4 = new Set([
+  'isom', 'iso2', 'iso3', 'iso4', 'iso5', 'iso6', 'mp41', 'mp42', 'avc1', 'M4V ',
+  'M4VP', 'MSNV', 'dash', 'mmp4', 'f4v ', '3gp4', '3gp5', '3gp6', '3g2a',
+]);
+
+/** Fotos HEIF/HEIC (iPhone). sharp precompilado no decodifica HEVC. */
+const MARCAS_HEIC = new Set(['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs']);
+
+const mimeIsoBmff = (datos: Buffer): string | null => {
+  const tamanoFtyp = datos.length >= 4 ? datos.readUInt32BE(0) : 0;
+  const finFtyp = Math.min(Math.max(tamanoFtyp, 16), datos.length, 256);
+  const marcas = [datos.toString('latin1', 8, 12)];
+  for (let i = 16; i + 4 <= finFtyp; i += 4) marcas.push(datos.toString('latin1', i, i + 4));
+  const principal = marcas[0]!;
+
+  // Las imagenes se miran primero: un HEIC puede declarar 'mif1' de principal
+  // y la marca concreta entre las compatibles.
+  if (marcas.some((m) => m === 'avif' || m === 'avis')) return 'image/avif';
+  if (marcas.some((m) => MARCAS_HEIC.has(m))) return 'image/heic';
+  if (principal === 'mif1' || principal === 'msf1') return 'image/heic';
+
+  if (principal.startsWith('qt')) return 'video/quicktime';
+  if (MARCAS_MP4.has(principal)) return 'video/mp4';
   return null;
 };
 

@@ -220,9 +220,9 @@ test('SUSPENDER_USUARIO revoca sesiones del autor', async () => {
       },
     },
     user: {
-      update: (args: unknown) => {
-        llamadas.push(['user.update', args]);
-        return Promise.resolve({});
+      updateMany: (args: unknown) => {
+        llamadas.push(['user.updateMany', args]);
+        return Promise.resolve({ count: 1 });
       },
     },
     session: {
@@ -260,4 +260,34 @@ test('SUSPENDER_USUARIO revoca sesiones del autor', async () => {
     }),
     'debe borrar sesiones del suspendido',
   );
+});
+
+test('un moderador no puede levantar la suspension que puso un admin', async () => {
+  const { prisma } = prismaComentario('RETIRADO');
+  await assert.rejects(
+    () =>
+      servicio(prisma).resolver('r1', 'mod', { accion: 'LEVANTAR_SUSPENSION', motivo: 'x' }, ['moderador']),
+    (err: unknown) => err instanceof ForbiddenException,
+  );
+});
+
+test('levantar una suspension solo reactiva cuentas suspendidas, nunca una dada de baja', async () => {
+  const { prisma, llamadas } = prismaComentario('RETIRADO');
+  const usuarios: unknown[] = [];
+  (prisma as unknown as { user: unknown }).user = {
+    updateMany: (args: unknown) => {
+      usuarios.push(args);
+      return Promise.resolve({ count: 0 });
+    },
+  };
+  await servicio(prisma).resolver('r1', 'adm', { accion: 'LEVANTAR_SUSPENSION', motivo: 'x' }, ['admin']);
+  assert.deepEqual(usuarios, [{ where: { id: 'autor', estado: 'SUSPENDIDO' }, data: { estado: 'ACTIVO' } }]);
+  assert.ok(llamadas.some(([op]) => op === 'moderationAction.create'));
+});
+
+test('restaurar no revive un comentario que su autor borro', async () => {
+  const { prisma, llamadas } = prismaComentario('BORRADO_POR_AUTOR');
+  await servicio(prisma).resolver('r1', 'mod', { accion: 'RESTAURAR_CONTENIDO', motivo: 'x' }, ['moderador']);
+  assert.ok(!llamadas.some(([op]) => op === 'comment.update'));
+  assert.ok(!llamadas.some(([op]) => op.startsWith('post.')));
 });

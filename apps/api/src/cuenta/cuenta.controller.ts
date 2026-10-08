@@ -3,11 +3,12 @@ import type { Response } from 'express';
 import { eliminarCuentaSchema, type EliminarCuenta } from '@agora/contracts';
 
 import { ZodPipe } from '../comun/zod.pipe.js';
-import { COOKIE_SESION, SesionGuard, type RequestConSesion } from '../comun/sesion.guard.js';
+import { COOKIE_SESION, SesionGuardBaja, type RequestConSesion } from '../comun/sesion.guard.js';
 import { CuentaService } from './cuenta.service.js';
 
 @Controller('cuenta')
-@UseGuards(SesionGuard)
+// Un suspendido tambien puede darse de baja: ver SesionGuardBaja.
+@UseGuards(SesionGuardBaja)
 export class CuentaController {
   constructor(private readonly cuenta: CuentaService) {}
 

@@ -28,6 +28,9 @@ export const COOKIE_SESION = 'agora_sesion';
 
 @Injectable()
 export class SesionGuard implements CanActivate {
+  /** Ver SesionGuardBaja: la unica ruta que un suspendido si puede usar. */
+  protected readonly permiteSuspendido: boolean = false;
+
   constructor(private readonly prisma: PrismaService) {}
 
   async canActivate(contexto: ExecutionContext): Promise<boolean> {
@@ -50,7 +53,7 @@ export class SesionGuard implements CanActivate {
     if (sesion.user.estado === 'BAJA') {
       throw new UnauthorizedException('Esta cuenta ya no esta activa.');
     }
-    if (sesion.user.estado === 'SUSPENDIDO') {
+    if (sesion.user.estado === 'SUSPENDIDO' && !this.permiteSuspendido) {
       throw new UnauthorizedException('Tu cuenta esta suspendida.');
     }
 
@@ -64,6 +67,16 @@ export class SesionGuard implements CanActivate {
     req.tokenSesion = token;
     return true;
   }
+}
+
+/**
+ * Igual que SesionGuard, pero deja pasar a una cuenta suspendida. Solo para
+ * darse de baja: el derecho de cancelacion (LFPDPPP) y las reglas de las
+ * tiendas no dejan de aplicar porque la cuenta este suspendida.
+ */
+@Injectable()
+export class SesionGuardBaja extends SesionGuard {
+  protected override readonly permiteSuspendido = true;
 }
 
 /**

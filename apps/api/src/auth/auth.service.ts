@@ -20,6 +20,7 @@ import {
   vencimientoSesion,
   verificarCodigo,
 } from '@agora/auth';
+import type { EstadoUsuario } from '@agora/db';
 import { comunidadesDelPerfil, SLUG_COMUNIDAD_CAMPUS_UDLAP } from '@agora/shared';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -196,19 +197,30 @@ export class AuthService {
    * no es lo que corre en produccion.
    */
   private async abrirSesion(
-    usuario: { id: string; emailVerifiedAt: Date | null; profile: { id: string } | null },
+    usuario: {
+      id: string;
+      estado: EstadoUsuario;
+      emailVerifiedAt: Date | null;
+      profile: { id: string } | null;
+    },
     contexto: { userAgent?: string; ip?: string },
     ahora: Date,
   ): Promise<{ token: string; expiraEn: Date; tienePerfil: boolean }> {
     const token = generarTokenSesion();
     const expiraEn = vencimientoSesion(ahora);
 
+    // Una suspension la levanta la moderacion, no volver a pedir el codigo:
+    // antes entrar de nuevo ponia la cuenta en ACTIVO. La sesion se crea igual
+    // (SesionGuard la rechaza en todo salvo darse de baja).
+    const estado: EstadoUsuario =
+      usuario.estado === 'SUSPENDIDO' ? 'SUSPENDIDO' : usuario.profile ? 'ACTIVO' : 'PENDIENTE';
+
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: usuario.id },
         data: {
           emailVerifiedAt: usuario.emailVerifiedAt ?? ahora,
-          estado: usuario.profile ? 'ACTIVO' : 'PENDIENTE',
+          estado,
           lastSeenAt: ahora,
         },
       }),

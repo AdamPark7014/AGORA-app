@@ -178,12 +178,14 @@ export class ModeracionService {
     rolesModerador: readonly RoleKey[],
   ) {
     // MODERACION_ACTUAR abre la ruta, pero suspender es de admin: sin esto un
-    // moderador suspendia cuentas a traves de un reporte.
+    // moderador suspendia cuentas a traves de un reporte. Levantar una
+    // suspension es la misma decision al reves: si no, cualquier moderador
+    // deshacia la de un admin desde otro reporte.
     if (
-      datos.accion === 'SUSPENDER_USUARIO' &&
+      (datos.accion === 'SUSPENDER_USUARIO' || datos.accion === 'LEVANTAR_SUSPENSION') &&
       !algunRolTienePermiso(rolesModerador, PERMISSIONS.USUARIO_SUSPENDER)
     ) {
-      throw new ForbiddenException('Suspender una cuenta requiere rol de administrador.');
+      throw new ForbiddenException('Suspender o levantar una suspension requiere rol de administrador.');
     }
 
     const reporte = await this.prisma.report.findUnique({
@@ -206,6 +208,8 @@ export class ModeracionService {
     const comentario = reporte.comment;
     const cambiarComentario = (estado: 'RETIRADO' | 'PUBLICADO') => {
       if (!comentario) return;
+      // Lo que su autor borro no lo revive la moderacion.
+      if (comentario.estado === 'BORRADO_POR_AUTOR') return;
       operaciones.push(
         this.prisma.comment.update({ where: { id: comentario.id }, data: { estado } }),
       );
@@ -251,9 +255,11 @@ export class ModeracionService {
 
     if (datos.accion === 'RESTAURAR_CONTENIDO') {
       if (reporte.postId) {
+        // updateMany con filtro: restaurar no publica lo que el autor borro
+        // (ni lo de una cuenta dada de baja, que queda BORRADO_POR_AUTOR).
         operaciones.push(
-          this.prisma.post.update({
-            where: { id: reporte.postId },
+          this.prisma.post.updateMany({
+            where: { id: reporte.postId, estado: { not: 'BORRADO_POR_AUTOR' } },
             data: { estado: 'PUBLICADO' },
           }),
         );
@@ -263,7 +269,11 @@ export class ModeracionService {
 
     if (datos.accion === 'SUSPENDER_USUARIO' && autorId) {
       operaciones.push(
-        this.prisma.user.update({ where: { id: autorId }, data: { estado: 'SUSPENDIDO' } }),
+        // Una cuenta dada de baja no se "suspende": seguiria pareciendo viva.
+        this.prisma.user.updateMany({
+          where: { id: autorId, estado: { not: 'BAJA' } },
+          data: { estado: 'SUSPENDIDO' },
+        }),
         this.prisma.session.deleteMany({ where: { userId: autorId } }),
       );
       // Suspender no basta: el contenido denunciado también se retira.
@@ -276,8 +286,13 @@ export class ModeracionService {
     }
 
     if (datos.accion === 'LEVANTAR_SUSPENSION' && autorId) {
+      // Solo si de verdad esta suspendida: antes una cuenta dada de baja
+      // volvia a ACTIVO por esta via.
       operaciones.push(
-        this.prisma.user.update({ where: { id: autorId }, data: { estado: 'ACTIVO' } }),
+        this.prisma.user.updateMany({
+          where: { id: autorId, estado: 'SUSPENDIDO' },
+          data: { estado: 'ACTIVO' },
+        }),
       );
     }
 

@@ -8,8 +8,9 @@ import sharp from 'sharp';
  * colegio). Re-codificar con sharp descarta todos los metadatos. De paso se
  * aplica la orientacion, se limita el tamano y se genera la miniatura del feed.
  *
- * Los GIF se guardan tal cual (pueden ser animados y no llevan EXIF); solo se
- * leen sus dimensiones.
+ * Los GIF y los WEBP pueden ser animados: se re-codifican con todos sus
+ * cuadros (`animated`), lo que tambien descarta comentarios y XMP. Antes el GIF
+ * se guardaba tal cual y el WEBP animado se quedaba en su primer cuadro.
  */
 
 export const LADO_MAX = 2048;
@@ -31,20 +32,26 @@ export class ImagenInvalida extends Error {}
 
 export const procesarImagen = async (datos: Buffer, mime: string): Promise<ImagenProcesada> => {
   try {
+    const redimensionar = { width: LADO_MAX, height: LADO_MAX, fit: 'inside', withoutEnlargement: true } as const;
+
     if (mime === 'image/gif') {
-      const meta = await sharp(datos, { limitInputPixels: LIMITE_PIXELES }).metadata();
-      return {
-        datos,
-        mime,
-        ancho: meta.width ?? null,
-        alto: meta.pageHeight ?? meta.height ?? null,
-        miniatura: null,
-      };
+      const { data, info } = await sharp(datos, {
+        limitInputPixels: LIMITE_PIXELES,
+        failOn: 'error',
+        animated: true,
+      })
+        .resize(redimensionar)
+        .gif()
+        .toBuffer({ resolveWithObject: true });
+      return { datos: data, mime, ancho: info.width, alto: info.pageHeight ?? info.height, miniatura: null };
     }
 
-    let tubo = sharp(datos, { limitInputPixels: LIMITE_PIXELES, failOn: 'error' })
-      .rotate()
-      .resize({ width: LADO_MAX, height: LADO_MAX, fit: 'inside', withoutEnlargement: true });
+    // Un WEBP animado no se rota: la orientacion EXIF es de fotos, y rotar
+    // varias paginas a la vez no lo soporta sharp.
+    const animado = mime === 'image/webp';
+    let tubo = sharp(datos, { limitInputPixels: LIMITE_PIXELES, failOn: 'error', animated: animado });
+    if (!animado) tubo = tubo.rotate();
+    tubo = tubo.resize(redimensionar);
 
     // PNG se queda en PNG (transparencias, capturas de pantalla); WEBP en WEBP;
     // el resto a JPEG.
@@ -61,7 +68,8 @@ export const procesarImagen = async (datos: Buffer, mime: string): Promise<Image
 
     const { data, info } = await tubo.toBuffer({ resolveWithObject: true });
 
-    const necesitaMiniatura = info.width > LADO_MINIATURA || info.height > LADO_MINIATURA;
+    const necesitaMiniatura =
+      info.width > LADO_MINIATURA || (info.pageHeight ?? info.height) > LADO_MINIATURA;
     const miniatura = necesitaMiniatura
       ? await sharp(data)
           .resize({ width: LADO_MINIATURA, height: LADO_MINIATURA, fit: 'inside' })
@@ -69,7 +77,9 @@ export const procesarImagen = async (datos: Buffer, mime: string): Promise<Image
           .toBuffer()
       : null;
 
-    return { datos: data, mime: salida, ancho: info.width, alto: info.height, miniatura };
+    // En un animado `height` es la tira con todos los cuadros; `pageHeight`, uno.
+    const alto = info.pageHeight ?? info.height;
+    return { datos: data, mime: salida, ancho: info.width, alto, miniatura };
   } catch (e) {
     throw new ImagenInvalida(e instanceof Error ? e.message : 'Imagen invalida');
   }

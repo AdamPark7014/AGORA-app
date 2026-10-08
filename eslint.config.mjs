@@ -36,6 +36,8 @@ export default tseslint.config(
       'packages/db/generated/**',
       // Las apps nativas son Kotlin y Swift; aqui no hay nada que mirar.
       'apps/mobile-native/**',
+      // Borradores de los agentes y del worker local (no versionados).
+      '.ai/**',
     ],
   },
 

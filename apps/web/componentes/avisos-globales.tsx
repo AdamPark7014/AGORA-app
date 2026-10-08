@@ -33,7 +33,13 @@ export function AvisosGlobales() {
     }
     function alConfirmar(e: Event) {
       e.preventDefault();
-      setPregunta((e as CustomEvent<DetalleConfirmar>).detail);
+      const nueva = (e as CustomEvent<DetalleConfirmar>).detail;
+      // Una pregunta nueva reemplaza a la abierta: la anterior se contesta
+      // "no" en vez de dejar su promesa colgada para siempre.
+      setPregunta((anterior) => {
+        anterior?.responder(false);
+        return nueva;
+      });
     }
     window.addEventListener(EVENTO_AVISO, alAvisar);
     window.addEventListener(EVENTO_CONFIRMAR, alConfirmar);

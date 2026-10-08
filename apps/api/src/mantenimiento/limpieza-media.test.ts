@@ -7,16 +7,19 @@ import { MantenimientoService } from './mantenimiento.service.js';
 const crear = (huerfanas: Array<{ id: string; url: string; thumbUrl: string | null }>, enPerfil: string[]) => {
   const borradosAlmacen: string[] = [];
   let borradasFilas: string[] = [];
+  const consulta = { sql: '', valores: [] as unknown[] };
   const prisma = {
+    // Hace de base de datos: aplica la misma exclusion de perfiles que el SQL.
+    $queryRaw: async (partes: TemplateStringsArray, ...valores: unknown[]) => {
+      consulta.sql = partes.join('$');
+      consulta.valores = valores;
+      return huerfanas.filter((m) => !enPerfil.includes(m.url));
+    },
     media: {
-      findMany: async () => huerfanas,
       deleteMany: async ({ where }: { where: { id: { in: string[] } } }) => {
         borradasFilas = where.id.in;
         return { count: where.id.in.length };
       },
-    },
-    profile: {
-      findMany: async () => enPerfil.map((url) => ({ fotoUrl: url, portadaUrl: null })),
     },
   } as unknown as PrismaService;
   const servicio = new MantenimientoService(prisma);
@@ -26,7 +29,7 @@ const crear = (huerfanas: Array<{ id: string; url: string; thumbUrl: string | nu
       borradosAlmacen.push(url);
     },
   };
-  return { servicio, borradosAlmacen, filas: () => borradasFilas };
+  return { servicio, borradosAlmacen, filas: () => borradasFilas, consulta };
 };
 
 test('borra archivos huerfanos y su miniatura, pero no la foto de un perfil', async () => {
@@ -58,4 +61,18 @@ test('si el almacen falla, la fila se conserva para el siguiente barrido', async
 
   assert.deepEqual(r, { archivos: 1, fallidos: 1 });
   assert.deepEqual(filas(), ['ok']);
+});
+
+test('las fotos de perfil se excluyen en la consulta, no despues', async () => {
+  // Si se filtraran despues del LIMIT, 500 fotos de perfil (las filas mas
+  // viejas sin postId) llenarian cada lote y nunca se borraria nada.
+  const { servicio, consulta } = crear([], []);
+
+  await servicio.limpiarMedia(500);
+
+  assert.match(consulta.sql, /NOT EXISTS/);
+  assert.match(consulta.sql, /"profiles"/);
+  assert.match(consulta.sql, /"fotoUrl"/);
+  assert.match(consulta.sql, /"portadaUrl"/);
+  assert.ok(consulta.valores.includes(500));
 });

@@ -86,9 +86,13 @@ export class PerfilService {
       if (!mediaId) return undefined;
       const media = await this.prisma.media.findFirst({
         where: { id: mediaId, postId: null, anuncioId: null, ownerId: userId },
-        select: { url: true },
+        select: { url: true, mime: true },
       });
       if (!media) throw new BadRequestException('Esa imagen ya no esta disponible.');
+      // Un video como foto de perfil se veria roto en todos los avatares.
+      if (!media.mime.startsWith('image/')) {
+        throw new BadRequestException('La foto de perfil y la portada tienen que ser imagenes.');
+      }
       return media.url;
     };
 

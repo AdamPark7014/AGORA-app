@@ -79,34 +79,34 @@ export class MantenimientoService {
    */
   @Cron('30 4 * * *', { name: 'limpieza-media' })
   async limpiarMedia(lote = 500): Promise<{ archivos: number; fallidos: number }> {
-    const candidatos = await this.prisma.media.findMany({
-      where: {
-        postId: null,
-        anuncioId: null,
-        createdAt: { lt: limite(RETENCION.mediaHuerfanaMs) },
-      },
-      select: { id: true, url: true, thumbUrl: true },
-      take: lote,
-      orderBy: { createdAt: 'asc' },
-    });
+    // Foto y portada de perfil se guardan por URL, no por relacion, asi que
+    // la exclusion va dentro de la consulta. Si se filtrara despues, las fotos
+    // de perfil (las filas mas viejas sin postId) llenarian el lote entero y
+    // en cuanto hubiera 500 la limpieza no volveria a borrar nada.
+    const candidatos = await this.prisma.$queryRaw<
+      Array<{ id: string; url: string; thumbUrl: string | null }>
+    >`
+      SELECT m."id", m."url", m."thumbUrl"
+      FROM "media" m
+      WHERE m."postId" IS NULL
+        AND m."anuncioId" IS NULL
+        AND m."createdAt" < ${limite(RETENCION.mediaHuerfanaMs)}
+        AND NOT EXISTS (
+          SELECT 1 FROM "profiles" p
+          WHERE p."fotoUrl" = m."url" OR p."portadaUrl" = m."url"
+        )
+      ORDER BY m."createdAt" ASC
+      LIMIT ${lote}
+    `;
     if (candidatos.length === 0) {
       this.log.log('limpieza-media: 0 archivos');
       return { archivos: 0, fallidos: 0 };
     }
 
-    // Foto y portada de perfil se guardan por URL, no por relacion.
-    const urls = candidatos.map((m) => m.url);
-    const enPerfil = await this.prisma.profile.findMany({
-      where: { OR: [{ fotoUrl: { in: urls } }, { portadaUrl: { in: urls } }] },
-      select: { fotoUrl: true, portadaUrl: true },
-    });
-    const usadas = new Set(enPerfil.flatMap((p) => [p.fotoUrl, p.portadaUrl]));
-
     const almacen = this.almacen ?? (this.almacen = crearAlmacen());
     const borrados: string[] = [];
     let fallidos = 0;
     for (const m of candidatos) {
-      if (usadas.has(m.url)) continue;
       try {
         await almacen.borrar(m.url);
         if (m.thumbUrl) await almacen.borrar(m.thumbUrl);

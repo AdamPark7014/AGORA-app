@@ -18,16 +18,39 @@ export function marcarWelcomeVisto(): void {
   }
 }
 
+/** Origen ficticio: solo sirve para que `URL` resuelva rutas relativas. */
+const ORIGEN_LOCAL = 'https://agora.invalid';
+
 /**
  * El `?siguiente=` que deja el middleware al mandar al login. Solo rutas de
- * esta misma app: `//otro.sitio` o `/\otro.sitio` serian un redirect abierto
- * para phishing con nuestro dominio.
+ * esta misma app: cualquier cosa que el navegador resuelva fuera de nuestro
+ * origen es un redirect abierto para phishing con nuestro dominio.
+ *
+ * No basta con mirar el prefijo: el navegador descarta tabuladores y saltos
+ * de linea al interpretar una URL, asi que `/\t/evil.com` pasa un
+ * `startsWith('//')` y termina en `https://evil.com/`. Por eso se rechaza todo
+ * caracter de control y toda barra invertida, y se resuelve con `URL` igual
+ * que lo hara el navegador.
  */
 export function siguienteSeguro(valor: string | null | undefined): string | null {
   if (!valor || !valor.startsWith('/')) return null;
-  if (valor.startsWith('//') || valor.startsWith('/\\')) return null;
-  if (valor === '/' || valor.startsWith('/registro') || valor.startsWith('/bienvenida')) return null;
-  return valor;
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f\\]/.test(valor)) return null;
+
+  let url: URL;
+  try {
+    url = new URL(valor, ORIGEN_LOCAL);
+  } catch {
+    return null;
+  }
+  if (url.origin !== ORIGEN_LOCAL) return null;
+
+  // `/..//evil.com` se normaliza a la ruta `//evil.com`: dentro de nuestro
+  // origen para `URL`, pero otro dominio en cuanto se navega a ella.
+  const ruta = url.pathname;
+  if (ruta.startsWith('//')) return null;
+  if (ruta === '/' || ruta.startsWith('/registro') || ruta.startsWith('/bienvenida')) return null;
+  return `${ruta}${url.search}${url.hash}`;
 }
 
 export function destinoTrasLogin(tienePerfil: boolean, siguiente?: string | null): string {

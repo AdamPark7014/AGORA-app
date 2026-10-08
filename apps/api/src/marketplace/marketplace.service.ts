@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { ActualizarAnuncio, CrearAnuncio, ListarAnuncios } from '@agora/contracts';
-import { DECISIONES, moderarTexto } from '@agora/moderation';
+import { DECISIONES, masSevero, moderarImagen, moderarTexto } from '@agora/moderation';
 import { Prisma } from '@agora/db';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -22,22 +22,34 @@ export class MarketplaceService {
     });
     if (!usuario) throw new NotFoundException('Usuario no encontrado.');
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (apiKey && moderacionPreviaActiva()) {
-      const veredicto = await moderarTexto(`${datos.titulo}\n${datos.descripcion}`, { apiKey });
-      if (veredicto.decision === DECISIONES.RETIRAR) {
-        throw new BadRequestException(veredicto.motivo ?? 'Ese contenido cruza una línea roja.');
+    // Solo se aceptan imagenes que subio esta misma persona y aun sin dueno:
+    // si no se comprobara el dueno, cualquiera con el id podria colgar en su
+    // anuncio la foto de otro (incluida la de perfil, que nunca se adjunta a
+    // nada). Misma regla que en publicaciones y perfil.
+    let urls: string[] = [];
+    if (datos.imagenIds.length > 0) {
+      const libres = await this.prisma.media.findMany({
+        where: { id: { in: datos.imagenIds }, postId: null, anuncioId: null, ownerId: userId },
+        select: { url: true },
+      });
+      if (libres.length !== datos.imagenIds.length) {
+        throw new BadRequestException('Alguna de esas imágenes ya no está disponible.');
       }
+      urls = libres.map((m) => m.url);
     }
 
-    // Solo se aceptan imagenes propias y aun sin dueno: si no se comprobara,
-    // cualquiera podria colgar la foto de otro anuncio en el suyo.
-    if (datos.imagenIds.length > 0) {
-      const libres = await this.prisma.media.count({
-        where: { id: { in: datos.imagenIds }, postId: null, anuncioId: null },
-      });
-      if (libres !== datos.imagenIds.length) {
-        throw new BadRequestException('Alguna de esas imágenes ya no está disponible.');
+    // Las fotos pasan por la misma moderacion que las de las publicaciones.
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (apiKey && moderacionPreviaActiva()) {
+      const publicas = urls.filter((url) => url.startsWith('https://'));
+      const veredicto = masSevero(
+        await Promise.all([
+          moderarTexto(`${datos.titulo}\n${datos.descripcion}`, { apiKey }),
+          ...publicas.map((url) => moderarImagen(url, { apiKey })),
+        ]),
+      );
+      if (veredicto.decision === DECISIONES.RETIRAR) {
+        throw new BadRequestException(veredicto.motivo ?? 'Ese contenido cruza una línea roja.');
       }
     }
 

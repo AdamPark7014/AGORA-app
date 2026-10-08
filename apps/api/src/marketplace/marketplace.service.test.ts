@@ -37,7 +37,8 @@ test('crear rechaza imagenes ya ligadas a otro anuncio o post', async () => {
 
     const prisma = {
       user: { findUnique: async () => ({ universityId: 'uni-1' }) },
-      media: { count: async () => 1 },
+      // Solo una de las dos es de esta persona y esta libre.
+      media: { findMany: async () => [{ url: '/m/img1.jpg' }] },
       anuncio: {
         create: async () => {
           throw new Error('no debe crear');
@@ -111,4 +112,47 @@ test('detalle de otra universidad no existe', async () => {
     () => servicio.detalle('a1', 'yo'),
     (err: unknown) => err instanceof NotFoundException,
   );
+});
+
+test('crear solo acepta imagenes que subio el mismo vendedor', async () => {
+  const prevKey = process.env.OPENAI_API_KEY;
+  const prevOpt = process.env.MODERACION_OPCIONAL;
+  try {
+    delete process.env.OPENAI_API_KEY;
+    process.env.MODERACION_OPCIONAL = 'true';
+
+    let filtro: unknown;
+    const prisma = {
+      user: { findUnique: async () => ({ universityId: 'uni-1' }) },
+      media: {
+        findMany: async (args: { where: unknown }) => {
+          filtro = args.where;
+          return [];
+        },
+      },
+    } as unknown as PrismaService;
+
+    await assert.rejects(
+      () =>
+        new MarketplaceService(prisma).crear('u1', {
+          titulo: 'Bici',
+          descripcion: 'Rodada',
+          categoria: 'OTRO',
+          precioMxn: 500,
+          imagenIds: ['foto-de-perfil-ajena'],
+        }),
+      (err: unknown) => err instanceof BadRequestException,
+    );
+    assert.deepEqual(filtro, {
+      id: { in: ['foto-de-perfil-ajena'] },
+      postId: null,
+      anuncioId: null,
+      ownerId: 'u1',
+    });
+  } finally {
+    if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = prevKey;
+    if (prevOpt === undefined) delete process.env.MODERACION_OPCIONAL;
+    else process.env.MODERACION_OPCIONAL = prevOpt;
+  }
 });

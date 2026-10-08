@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto';
 
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 
+import { crearAlmacen, type Almacen } from '../media/almacen.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
@@ -21,6 +22,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
  *
  * Su contenido (publicaciones, comentarios, mensajes, anuncios, eventos y
  * aventones) queda como BORRADO_POR_AUTOR: deja de verse en todas partes.
+ * Sus fotos y videos se borran del almacen, que es publico: ocultar la
+ * publicacion no basta si la URL del archivo sigue abriendo. Se conserva lo
+ * adjunto a una publicacion con reporte abierto, que es evidencia para
+ * moderacion.
  *
  * Solo queda un HMAC del correo en `audit_logs`, para poder atender un
  * requerimiento legal sobre la cuenta sin guardar el correo en claro.
@@ -28,6 +33,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 @Injectable()
 export class CuentaService {
   private readonly logger = new Logger(CuentaService.name);
+  /** Perezoso: crearlo en el constructor exigiria S3 configurado hasta en pruebas. */
+  private almacen?: Almacen;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -47,6 +54,26 @@ export class CuentaService {
           : 'Para confirmar escribe ELIMINAR.',
       );
     }
+
+    // Se leen antes de la transaccion, que borra el perfil.
+    const perfil = await this.prisma.profile.findUnique({
+      where: { userId },
+      select: { fotoUrl: true, portadaUrl: true },
+    });
+    const archivos = await this.prisma.media.findMany({
+      where: {
+        OR: [
+          { ownerId: userId },
+          // Filas anteriores a ownerId: se reconocen por lo que adjuntan.
+          { post: { is: { authorId: userId } } },
+          { anuncio: { is: { vendedorId: userId } } },
+        ],
+        NOT: {
+          post: { is: { reports: { some: { estado: { in: ['ABIERTO', 'EN_REVISION'] } } } } },
+        },
+      },
+      select: { id: true, url: true, thumbUrl: true },
+    });
 
     const emailHash = createHmac('sha256', process.env.SESSION_SECRET ?? '')
       .update(usuario.email)
@@ -102,6 +129,45 @@ export class CuentaService {
       }),
     ]);
 
-    this.logger.log(`Cuenta dada de baja: ${userId}`);
+    const borrados = await this.borrarArchivos(archivos, [perfil?.fotoUrl, perfil?.portadaUrl]);
+    this.logger.log(`Cuenta dada de baja: ${userId} (${borrados} archivos borrados)`);
+  }
+
+  /**
+   * Despues de la transaccion: si el almacen falla, la cuenta ya quedo dada
+   * de baja y el archivo se registra para reintentarlo, en vez de deshacer
+   * la baja por un error de red.
+   */
+  private async borrarArchivos(
+    archivos: Array<{ id: string; url: string; thumbUrl: string | null }>,
+    urlsPerfil: Array<string | null | undefined>,
+  ): Promise<number> {
+    const almacen = this.almacen ?? (this.almacen = crearAlmacen());
+    const borradas: string[] = [];
+    const urlsMedia = new Set(archivos.map((a) => a.url));
+
+    for (const a of archivos) {
+      try {
+        await almacen.borrar(a.url);
+        if (a.thumbUrl) await almacen.borrar(a.thumbUrl);
+        borradas.push(a.id);
+      } catch (e) {
+        this.logger.warn(`baja: no se pudo borrar ${a.url}: ${(e as Error).message}`);
+      }
+    }
+    if (borradas.length > 0) {
+      await this.prisma.media.deleteMany({ where: { id: { in: borradas } } });
+    }
+
+    // Fotos de perfil de antes de que /media guardara dueno: solo hay URL.
+    for (const url of urlsPerfil) {
+      if (!url || urlsMedia.has(url)) continue;
+      try {
+        await almacen.borrar(url);
+      } catch (e) {
+        this.logger.warn(`baja: no se pudo borrar ${url}: ${(e as Error).message}`);
+      }
+    }
+    return borradas.length;
   }
 }
