@@ -423,6 +423,27 @@ test('evaluarBadges otorga AVENTONERO SOCIAL y EARLY_BIRD con umbrales exactos',
   assert.equal(creates, 3);
 });
 
+test('la insignia SOCIAL no cuenta las publicaciones anonimas', async () => {
+  // La insignia se ve en el perfil: si las anonimas contaran, ganarla justo
+  // despues de un post anonimo delataria a su autor.
+  let filtro: { authorId: string; anonimo?: boolean } | undefined;
+  const prisma = {
+    respuestaPregunta: { findMany: async () => [] },
+    aventon: { count: async () => 0 },
+    post: {
+      count: async ({ where }: { where: { authorId: string; anonimo?: boolean } }) => {
+        filtro = where;
+        return 0;
+      },
+    },
+    userStreak: { findUnique: async () => null },
+    userBadge: { findMany: async () => [], create: async () => ({}) },
+  };
+
+  await crearServicio(prisma as unknown as PrismaService).evaluarBadges('u1');
+  assert.equal(filtro?.anonimo, false);
+});
+
 test('retoSemanal queda completado con 7 dias distintos en la semana ISO', async () => {
   const { inicio } = semanaIsoRango();
   const diasSemana = Array.from({ length: 7 }, (_, i) => ({

@@ -94,7 +94,8 @@ export class GamificacionService {
       this.contarDiasPregunta(userId),
       this.contarSemanaPregunta(userId),
       this.prisma.aventon.count({ where: { conductorId: userId } }),
-      this.prisma.post.count({ where: { authorId: userId } }),
+      // La insignia es publica: contar las anonimas delataria a su autor.
+      this.prisma.post.count({ where: { authorId: userId, anonimo: false } }),
       this.prisma.userStreak.findUnique({ where: { userId } }),
     ]);
 

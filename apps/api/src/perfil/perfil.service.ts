@@ -292,8 +292,14 @@ export class PerfilService {
     const [seguidores, siguiendo, publicaciones] = await Promise.all([
       this.prisma.follow.count({ where: { seguidoId: perfil.userId } }),
       this.prisma.follow.count({ where: { seguidorId: perfil.userId } }),
+      // Sin las anonimas: si el numero de alguien sube justo cuando sale un
+      // post en la zona anonima, el contador delata quien lo escribio.
       this.prisma.post.count({
-        where: { authorId: perfil.userId, estado: { in: ['PUBLICADO', 'EN_REVISION'] } },
+        where: {
+          authorId: perfil.userId,
+          anonimo: false,
+          estado: { in: ['PUBLICADO', 'EN_REVISION'] },
+        },
       }),
     ]);
 
