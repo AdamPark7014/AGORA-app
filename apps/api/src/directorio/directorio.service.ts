@@ -33,8 +33,28 @@ export class DirectorioService {
         { handle: { contains: q.toLowerCase() } },
       ];
     }
+    // Comunidades propias, sin "Toda la UDLAP" (ahi esta todo el mundo). Con
+    // ellas se decide quien me ve completo y quien en modo restringido, igual
+    // que en el perfil.
+    const mias = await this.prisma.membership.findMany({
+      where: { userId: solicitanteId, community: { tipo: { not: 'UNIVERSIDAD' } } },
+      select: { communityId: true },
+    });
+    const misComunidades = mias.map((m) => m.communityId);
+    const visibleCompleto: Prisma.ProfileWhereInput = {
+      OR: [
+        { visibilidad: 'UNIVERSIDAD' },
+        { userId: solicitanteId },
+        { user: { memberships: { some: { communityId: { in: misComunidades } } } } },
+      ],
+    };
+
     if (filtros.generacion) where.generacion = filtros.generacion;
     if (filtros.colegio) where.colegio = { slug: filtros.colegio };
+    // Filtrar por generacion o colegio revela ese dato de quien aparezca: un
+    // perfil restringido no debe salir en esos filtros (el colegio es donde
+    // vive).
+    if (filtros.generacion || filtros.colegio) where.AND = [visibleCompleto];
 
     // Carrera y escuela filtran sobre la misma relacion, asi que se arma una
     // sola condicion en vez de sobrescribir una con la otra.
@@ -50,7 +70,16 @@ export class DirectorioService {
       include: {
         carrera: { include: { escuela: true } },
         colegio: true,
-        user: { select: { roles: true } },
+        user: {
+          select: {
+            roles: true,
+            memberships: {
+              where: { communityId: { in: misComunidades } },
+              select: { communityId: true },
+              take: 1,
+            },
+          },
+        },
       },
       // Se pide uno de mas para saber si hay pagina siguiente sin un COUNT.
       take: filtros.limite + 1,
@@ -62,17 +91,25 @@ export class DirectorioService {
     const pagina = hayMas ? perfiles.slice(0, filtros.limite) : perfiles;
 
     return {
-      resultados: pagina.map((p) => ({
-        handle: p.handle,
-        nombre: p.nombre,
-        apellidos: p.apellidos,
-        fotoUrl: p.fotoUrl,
-        generacion: p.generacion,
-        carrera: p.carrera?.nombre ?? null,
-        escuela: p.carrera?.escuela.nombre ?? null,
-        colegio: p.colegio?.nombre ?? null,
-        verificado: esStaff(p.user.roles),
-      })),
+      resultados: pagina.map((p) => {
+        // Lo mismo que muestra el perfil restringido: nombre, foto y carrera.
+        // Generacion y colegio solo para quien comparte comunidad.
+        const restringido =
+          p.visibilidad === 'COMUNIDADES' &&
+          p.userId !== solicitanteId &&
+          p.user.memberships.length === 0;
+        return {
+          handle: p.handle,
+          nombre: p.nombre,
+          apellidos: p.apellidos,
+          fotoUrl: p.fotoUrl,
+          generacion: restringido ? null : p.generacion,
+          carrera: p.carrera?.nombre ?? null,
+          escuela: p.carrera?.escuela.nombre ?? null,
+          colegio: restringido ? null : (p.colegio?.nombre ?? null),
+          verificado: esStaff(p.user.roles),
+        };
+      }),
       siguienteCursor: hayMas ? (pagina[pagina.length - 1]?.id ?? null) : null,
     };
   }
