@@ -7,6 +7,7 @@ import {
   crearPostSchema,
   crearReporteSchema,
   handleSchema,
+  pushSubscriptionSchema,
   solicitarOtpSchema,
   verificarOtpSchema,
 } from './index.js';
@@ -142,4 +143,21 @@ test('el directorio trae limite por defecto y lo acota', () => {
   assert.equal(buscarDirectorioSchema.parse({}).limite, 20);
   assert.equal(buscarDirectorioSchema.parse({ limite: '35' }).limite, 35);
   assert.equal(buscarDirectorioSchema.safeParse({ limite: 500 }).success, false);
+});
+
+test('push: solo servicios de push reales, nunca hosts internos', () => {
+  const llaves = { p256dh: 'x', auth: 'y' };
+  const ok = (endpoint: string) => pushSubscriptionSchema.safeParse({ endpoint, keys: llaves }).success;
+
+  assert.ok(ok('https://fcm.googleapis.com/fcm/send/abc'));
+  assert.ok(ok('https://updates.push.services.mozilla.com/wpush/v2/abc'));
+  assert.ok(ok('https://web.push.apple.com/abc'));
+  assert.ok(ok('https://wns2-by3p.notify.windows.com/w/?token=abc'));
+
+  assert.ok(!ok('http://redis:6379/'));
+  assert.ok(!ok('http://fcm.googleapis.com/fcm/send/abc'));
+  assert.ok(!ok('https://10.0.0.5/'));
+  assert.ok(!ok('https://fcm.googleapis.com:8443/x'));
+  assert.ok(!ok('https://fcm.googleapis.com.evil.com/x'));
+  assert.ok(!ok('https://evilnotify.windows.com.attacker.io/x'));
 });

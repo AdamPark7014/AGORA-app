@@ -10,6 +10,9 @@ const EXPO_PREFIX = 'expo:';
 const FCM_PREFIX = 'fcm:';
 const APNS_PREFIX = 'apns:';
 
+/** Dispositivos con push por persona; los mas viejos se descartan. */
+export const MAX_SUSCRIPCIONES = 10;
+
 /**
  * Push web (VAPID), Expo, FCM (Android) y APNs (iOS nativo).
  *
@@ -74,8 +77,27 @@ export class PushService {
         auth: datos.keys.auth,
       },
     });
+    await this.recortar(userId);
 
     return { ok: true };
+  }
+
+  /**
+   * Cada aviso se manda a todas las suscripciones de la persona. Sin tope,
+   * alguien podia registrar miles y convertir cada aviso en miles de POST.
+   * Se quedan las mas recientes: un celular o navegador viejo es el que sobra.
+   */
+  private async recortar(userId: string): Promise<void> {
+    const sobrantes = await this.prisma.pushSubscription.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      skip: MAX_SUSCRIPCIONES,
+      select: { id: true },
+    });
+    if (sobrantes.length === 0) return;
+    await this.prisma.pushSubscription.deleteMany({
+      where: { id: { in: sobrantes.map((s) => s.id) } },
+    });
   }
 
   async suscribirExpo(userId: string, token: string) {
@@ -85,6 +107,7 @@ export class PushService {
       create: { userId, endpoint, p256dh: '-', auth: '-' },
       update: { userId },
     });
+    await this.recortar(userId);
     return { ok: true };
   }
 
@@ -95,6 +118,7 @@ export class PushService {
       create: { userId, endpoint, p256dh: '-', auth: '-' },
       update: { userId },
     });
+    await this.recortar(userId);
     return { ok: true };
   }
 
@@ -105,6 +129,7 @@ export class PushService {
       create: { userId, endpoint, p256dh: '-', auth: '-' },
       update: { userId },
     });
+    await this.recortar(userId);
     return { ok: true };
   }
 

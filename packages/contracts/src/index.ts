@@ -602,8 +602,38 @@ export const silenciarComunidadSchema = z.object({
 });
 export type SilenciarComunidad = z.infer<typeof silenciarComunidadSchema>;
 
+/**
+ * Servicios de push de los navegadores. La API hace POST al `endpoint` de cada
+ * suscripcion: si se aceptara cualquier URL, un usuario podia registrar
+ * `http://redis:6379` o una IP interna y usar el servidor para pegarle.
+ */
+const HOSTS_PUSH = [
+  'fcm.googleapis.com', // Chrome, Edge en Android, Opera
+  'updates.push.services.mozilla.com', // Firefox
+  'web.push.apple.com', // Safari
+] as const;
+const SUFIJOS_PUSH = ['.push.apple.com', '.notify.windows.com'] as const;
+
+export const esEndpointPushValido = (valor: string): boolean => {
+  let url: URL;
+  try {
+    url = new URL(valor);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || url.port !== '' || url.username || url.password) return false;
+  const host = url.hostname.toLowerCase();
+  return (
+    (HOSTS_PUSH as readonly string[]).includes(host) || SUFIJOS_PUSH.some((s) => host.endsWith(s))
+  );
+};
+
 export const pushSubscriptionSchema = z.object({
-  endpoint: z.string().url(),
+  endpoint: z
+    .string()
+    .url()
+    .max(1000)
+    .refine(esEndpointPushValido, 'Ese servicio de notificaciones no es valido.'),
   keys: z.object({
     p256dh: z.string().min(1),
     auth: z.string().min(1),
