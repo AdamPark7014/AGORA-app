@@ -1,8 +1,25 @@
 # RELEVO
 
-- **Último turno:** claude-code
-- **Fecha:** 2026-10-08
+- **Último turno:** claude-code (sesión en la nube, hilo de proyecto)
+- **Fecha:** 2026-10-12
 - **Rama:** main
+
+## Hecho en este turno (12-10)
+
+Auditoría completa (seguridad, rendimiento, UX, producción): 40 hallazgos priorizados, fuera del repo
+(archivo del proyecto `auditoria/auditoria-agora-2026-10-12.md`). Etapa 1 del plan, todo en `main`,
+**sin desplegar**:
+- `795e001` Rutas `auth/otp/*` cuentan siempre por IP (`@LimitePorIp`): un Bearer inventado ya no
+  abre un contador nuevo por petición.
+- `e10cc4a` Intentos del OTP reservados y canje con `updateMany` condicionado (carrera en paralelo).
+- `730ad3b` Contador de publicaciones del perfil e insignia SOCIAL sin anónimas (delataban autor).
+- `321b680`/`09f0a9f` `enSegundoPlano` + `unhandledRejection` en `main.ts` (un aviso fallido tumbaba
+  la API); el bloqueo corta `enviar`, `alternarSeguir` y avisos (`bloqueos/bloqueos.ts`), y bloquear
+  borra seguimientos en los dos sentidos.
+- `844a786` Bandeja de mensajes sin mensajes retirados.
+- `0d6da8b` Media con `thumbUrl/ancho/alto` (`aMediaVista`); la web usa `srcSet` (`lib/imagen.ts`).
+- `29660cf` CI: build con `NODE_ENV=production` (reproducido el fallo del admin en local).
+- API 205/205, lint y check-types en verde.
 
 ## Hecho en este turno (08-10)
 
@@ -57,7 +74,7 @@ Retomado desde el turno de Cursor del 07-10 (Fase 0 de ÁGORA 2.0, plan en
   Windows; nunca «Reset to factory defaults») y **GitHub Actions no corre ningún job desde el 27-09
   por un problema de cobro** de la cuenta. Con cualquiera de los dos: `pnpm test:e2e` (anonimo, cuenta…).
 - El CI fija `NODE_ENV=development` para todo el job y `next build` del admin falla así; el build debe
-  correr con `NODE_ENV=production` (pendiente ajustar `ci.yml`).
+  correr con `NODE_ENV=production` (arreglado el 12-10 en `ci.yml`).
 - iOS sin compilar: el workflow `.github/workflows/ios.yml` (macos-15, XcodeGen, simulador + capturas)
   es la primera compilación real en cuanto Actions vuelva. Pendiente en iOS: visor con zoom desde el feed.
 - Admin (`apps/admin`) sigue con el ícono viejo (no está desplegado).
