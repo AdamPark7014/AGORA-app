@@ -2063,6 +2063,53 @@ button.peligro:disabled {
   transform: scale(1.2);
 }
 
+.welcome-tope {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.welcome-avatar {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.welcome-cuerpo > button.secundario {
+  justify-self: center;
+}
+
+.welcome-personas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+}
+
+.welcome-personas li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.welcome-persona-texto {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+
+.welcome-persona-texto strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.welcome-presentarte {
+  display: grid;
+  gap: 12px;
+}
+
 /* --- Premium: transiciones, FAB, grids -------------------------------- */
 
 .pagina-centrada {

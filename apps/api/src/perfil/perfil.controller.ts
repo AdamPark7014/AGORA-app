@@ -44,6 +44,11 @@ export class PerfilController {
     return this.perfiles.misComunidades(req.usuario!.id);
   }
 
+  @Get('sugerencias')
+  async sugerencias(@Req() req: RequestConSesion) {
+    return this.perfiles.sugerencias(req.usuario!.id);
+  }
+
   @Patch('comunidades/:slug')
   async silenciarComunidad(
     @Req() req: RequestConSesion,

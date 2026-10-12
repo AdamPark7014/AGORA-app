@@ -11,7 +11,7 @@ import { esStaff } from '@agora/rbac';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from '../auth/auth.service.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
-import { hayBloqueo } from '../bloqueos/bloqueos.js';
+import { hayBloqueo, ocultosPara } from '../bloqueos/bloqueos.js';
 import { aMediaVista } from '../posts/vista-post.js';
 
 @Injectable()
@@ -150,6 +150,63 @@ export class PerfilService {
     });
     if (!perfil) throw new NotFoundException('Todavia no tienes perfil.');
     return perfil;
+  }
+
+  /**
+   * A quien seguir al llegar: primero gente de tu carrera, luego lo mas
+   * seguido del campus. Sin esto la bienvenida termina en un feed vacio.
+   */
+  async sugerencias(userId: string, limite = 8) {
+    const yo = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        universityId: true,
+        profile: { select: { carreraId: true } },
+        siguiendo: { select: { seguidoId: true } },
+      },
+    });
+    if (!yo) throw new NotFoundException('Todavia no tienes perfil.');
+
+    const fuera = [
+      userId,
+      ...yo.siguiendo.map((f) => f.seguidoId),
+      ...(await ocultosPara(this.prisma, userId)),
+    ];
+    const buscar = (extra: Record<string, unknown>, excluir: string[], cuantos: number) =>
+      this.prisma.profile.findMany({
+        where: {
+          ...extra,
+          userId: { notIn: excluir },
+          user: { estado: 'ACTIVO', universityId: yo.universityId },
+        },
+        select: {
+          userId: true,
+          handle: true,
+          nombre: true,
+          apellidos: true,
+          fotoUrl: true,
+          carrera: { select: { nombre: true } },
+        },
+        orderBy: [{ user: { seguidores: { _count: 'desc' } } }, { createdAt: 'desc' }],
+        take: cuantos,
+      });
+
+    const deMiCarrera = yo.profile?.carreraId
+      ? await buscar({ carreraId: yo.profile.carreraId }, fuera, limite)
+      : [];
+    const resto =
+      deMiCarrera.length < limite
+        ? await buscar({}, [...fuera, ...deMiCarrera.map((p) => p.userId)], limite - deMiCarrera.length)
+        : [];
+
+    return [...deMiCarrera, ...resto].map((p) => ({
+      handle: p.handle,
+      nombre: p.nombre,
+      apellidos: p.apellidos,
+      fotoUrl: p.fotoUrl,
+      carrera: p.carrera?.nombre ?? null,
+      deTuCarrera: deMiCarrera.includes(p),
+    }));
   }
 
   /**

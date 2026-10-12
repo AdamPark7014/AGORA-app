@@ -110,3 +110,43 @@ test('compartir "Toda la UDLAP" no abre un perfil restringido', async () => {
   await new PerfilService(prisma, {} as never, {} as never).listarSeguidores('alguien', YO);
   assert.deepEqual(filtro?.community?.tipo, { not: 'UNIVERSIDAD' });
 });
+
+test('sugerencias: primero mi carrera, sin mi, sin a quien sigo ni bloqueados', async () => {
+  const consultas: Array<{ where: { carreraId?: string; userId: { notIn: string[] } }; take: number }> = [];
+  const persona = (id: string) => ({
+    userId: id,
+    handle: id,
+    nombre: id,
+    apellidos: '',
+    fotoUrl: null,
+    carrera: { nombre: 'Actuaria' },
+  });
+  const prisma = {
+    user: {
+      findUnique: async () => ({
+        universityId: 'udlap',
+        profile: { carreraId: 'c-act' },
+        siguiendo: [{ seguidoId: 'u-sigo' }],
+      }),
+    },
+    block: { findMany: async () => [{ bloqueadorId: YO, bloqueadoId: 'u-bloq' }] },
+    profile: {
+      findMany: async (args: (typeof consultas)[number]) => {
+        consultas.push(args);
+        return args.where.carreraId ? [persona('u-carrera')] : [persona('u-campus')];
+      },
+    },
+  } as unknown as PrismaService;
+  const servicio = new PerfilService(prisma, {} as never, {} as never);
+
+  const r = await servicio.sugerencias(YO, 2);
+
+  assert.deepEqual(r.map((p) => [p.handle, p.deTuCarrera]), [
+    ['u-carrera', true],
+    ['u-campus', false],
+  ]);
+  assert.equal(consultas[0]!.where.carreraId, 'c-act');
+  assert.deepEqual(new Set(consultas[0]!.where.userId.notIn), new Set([YO, 'u-sigo', 'u-bloq']));
+  assert.ok(consultas[1]!.where.userId.notIn.includes('u-carrera'));
+  assert.equal(consultas[1]!.take, 1);
+});
