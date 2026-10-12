@@ -108,3 +108,29 @@ test('noLeidos sin participaciones es cero', async () => {
   const r = await servicio(prisma).noLeidos('yo');
   assert.deepEqual(r, { total: 0 });
 });
+
+test('enviar corta si te bloquearon despues de abrir la conversacion', async () => {
+  let creados = 0;
+  const prisma = {
+    conversationParticipant: {
+      findUnique: async () => ({ conversationId: 'c1', userId: 'yo', salioAt: null }),
+      findMany: async () => [{ userId: 'otro' }],
+    },
+    block: { findFirst: async () => ({ id: 'b1' }) },
+    message: {
+      create: async () => {
+        creados += 1;
+      },
+    },
+    $transaction: async () => {
+      creados += 1;
+      return [];
+    },
+  } as unknown as PrismaService;
+
+  await assert.rejects(
+    () => servicio(prisma).enviar('c1', 'yo', { texto: 'hola' }),
+    (err: unknown) => err instanceof ForbiddenException,
+  );
+  assert.equal(creados, 0);
+});

@@ -30,6 +30,19 @@ export class BloqueosService {
       update: { soloSilencio },
     });
 
+    // Bloquear corta el contacto en los dos sentidos: tambien los seguimientos.
+    // Silenciar no, porque el otro no debe enterarse.
+    if (!soloSilencio) {
+      await this.prisma.follow.deleteMany({
+        where: {
+          OR: [
+            { seguidorId: userId, seguidoId: otro.userId },
+            { seguidorId: otro.userId, seguidoId: userId },
+          ],
+        },
+      });
+    }
+
     return { bloqueado: !soloSilencio, silenciado: soloSilencio };
   }
 

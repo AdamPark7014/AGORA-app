@@ -1,10 +1,17 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { ActualizarPerfil, CrearPerfil } from '@agora/contracts';
 import { esStaff } from '@agora/rbac';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from '../auth/auth.service.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
+import { hayBloqueo } from '../bloqueos/bloqueos.js';
 
 @Injectable()
 export class PerfilService {
@@ -165,6 +172,12 @@ export class PerfilService {
     if (existente) {
       await this.prisma.follow.delete({ where: { id: existente.id } });
       return { siguiendo: false };
+    }
+
+    // Dejar de seguir siempre se puede; empezar a seguir a quien te bloqueo
+    // (o a quien bloqueaste) no.
+    if (await hayBloqueo(this.prisma, userId, otro.userId)) {
+      throw new ForbiddenException('No puedes seguir a esta persona.');
     }
 
     await this.prisma.follow.create({

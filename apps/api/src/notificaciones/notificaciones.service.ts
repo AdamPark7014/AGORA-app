@@ -3,7 +3,9 @@ import type { TipoNotificacion } from '@agora/db';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
+import { enSegundoPlano } from '../comun/segundo-plano.js';
 import { NotificacionesStreamService } from './notificaciones-stream.service.js';
+import { callarAvisoDe } from '../bloqueos/bloqueos.js';
 
 const TIPOS: TipoNotificacion[] = [
   'COMENTARIO',
@@ -58,19 +60,27 @@ export class NotificacionesService {
   }): Promise<void> {
     if (datos.actorId === datos.userId) return;
 
-    const inApp = await this.permitido(datos.userId, datos.tipo, 'inApp');
-    if (!inApp) return;
-
+    // Todo dentro del try: este metodo se llama sin await desde muchos sitios,
+    // y un rechazo que se escape aqui tumba el proceso entero.
     try {
+      if (datos.actorId && (await callarAvisoDe(this.prisma, datos.userId, datos.actorId))) return;
+
+      const inApp = await this.permitido(datos.userId, datos.tipo, 'inApp');
+      if (!inApp) return;
+
       await this.prisma.notificacion.create({ data: datos });
       const push = await this.permitido(datos.userId, datos.tipo, 'push');
       if (push) {
-        void this.push.enviar(datos.userId, {
-          titulo: 'Ágora',
-          cuerpo: datos.texto,
-          url: datos.url,
-          tipo: datos.tipo,
-        });
+        enSegundoPlano(
+          this.push.enviar(datos.userId, {
+            titulo: 'Ágora',
+            cuerpo: datos.texto,
+            url: datos.url,
+            tipo: datos.tipo,
+          }),
+          this.logger,
+          'Push',
+        );
       }
       const { total } = await this.sinLeer(datos.userId);
       this.stream.emitir(datos.userId, { tipo: 'actualizacion', total });

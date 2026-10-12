@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { moderacionPreviaActiva } from '../comun/moderacion.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
 import { MensajesStreamService } from './mensajes-stream.service.js';
+import { hayBloqueo } from '../bloqueos/bloqueos.js';
 
 @Injectable()
 export class MensajesService {
@@ -42,16 +43,9 @@ export class MensajesService {
     if (otro.user.estado === 'BAJA') throw new NotFoundException('Esa cuenta ya no esta activa.');
 
     // Un bloqueo corta la conversacion en los dos sentidos.
-    const bloqueo = await this.prisma.block.findFirst({
-      where: {
-        soloSilencio: false,
-        OR: [
-          { bloqueadorId: userId, bloqueadoId: otro.userId },
-          { bloqueadorId: otro.userId, bloqueadoId: userId },
-        ],
-      },
-    });
-    if (bloqueo) throw new ForbiddenException('No puedes escribirle a esta persona.');
+    if (await hayBloqueo(this.prisma, userId, otro.userId)) {
+      throw new ForbiddenException('No puedes escribirle a esta persona.');
+    }
 
     const clave = this.claveDirecta(userId, otro.userId);
 
@@ -216,6 +210,18 @@ export class MensajesService {
 
   async enviar(conversationId: string, userId: string, datos: EnviarMensaje) {
     await this.exigirParticipante(conversationId, userId);
+
+    // Revisar el bloqueo solo al abrir la conversacion no basta: si ya existia,
+    // quien fue bloqueado podia seguir escribiendo en ella.
+    const otrosParticipantes = await this.prisma.conversationParticipant.findMany({
+      where: { conversationId, userId: { not: userId } },
+      select: { userId: true },
+    });
+    for (const otro of otrosParticipantes) {
+      if (await hayBloqueo(this.prisma, userId, otro.userId)) {
+        throw new ForbiddenException('No puedes escribirle a esta persona.');
+      }
+    }
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (apiKey && moderacionPreviaActiva()) {
