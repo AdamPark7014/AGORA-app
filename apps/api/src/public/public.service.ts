@@ -32,7 +32,7 @@ export class PublicService {
         author: {
           select: {
             estado: true,
-            profile: { select: { handle: true, nombre: true, apellidos: true } },
+            profile: { select: { handle: true, nombre: true, apellidos: true, visibilidad: true } },
           },
         },
         media: { select: { url: true, mime: true }, take: 1, orderBy: { createdAt: 'asc' } },
@@ -47,17 +47,18 @@ export class PublicService {
       throw new NotFoundException('Esa publicación no existe.');
     }
 
-    const autor = post.anonimo
-      ? 'Anónimo'
-      : post.author.profile
-        ? `${post.author.profile.nombre} ${post.author.profile.apellidos}`.trim()
-        : 'Alguien en Ágora';
+    // Esto lo lee cualquiera en internet. Si el autor limito su perfil a sus
+    // comunidades, su nombre tampoco sale aqui.
+    const firmado = !post.anonimo && post.author.profile?.visibilidad === 'UNIVERSIDAD';
+    const autor = firmado && post.author.profile
+      ? `${post.author.profile.nombre} ${post.author.profile.apellidos}`.trim()
+      : null;
 
     const imagen =
       post.media.find((m) => m.mime.startsWith('image/'))?.url ?? null;
 
     return {
-      titulo: post.anonimo ? 'Publicación en Ágora' : `Publicación de ${autor}`,
+      titulo: autor ? `Publicación de ${autor}` : 'Publicación en Ágora',
       // Lo anonimo solo se lee con sesion: fuera de la red no hay moderacion
       // que respalde el texto y el extracto viaja a cualquier unfurl.
       descripcion: post.anonimo
@@ -92,8 +93,10 @@ export class PublicService {
 
     return {
       titulo: `@${perfil.handle} · Ágora`,
+      // Sin sesion ni limite: con el nombre completo aqui, recorrer handles
+      // bastaba para sacar nombres reales de quien limito su perfil.
       descripcion: restringido
-        ? `${nombre} en Ágora — perfil limitado a comunidades compartidas.`
+        ? 'Perfil limitado a comunidades compartidas. Entra con tu correo @udlap.mx para verlo.'
         : excerpt(
             [perfil.bio, perfil.carrera?.nombre].filter(Boolean).join(' · ') ||
               `${nombre} en la red verificada de la UDLAP.`,
@@ -113,6 +116,7 @@ export class PublicService {
         lugar: true,
         inicioAt: true,
         estado: true,
+        communityId: true,
         autor: { select: { estado: true } },
       },
     });
@@ -123,6 +127,17 @@ export class PublicService {
       evento.autor.estado === 'BAJA'
     ) {
       throw new NotFoundException('Ese evento no existe.');
+    }
+
+    // Un evento de una comunidad (carrera, colegio...) es para sus miembros:
+    // fuera de la red solo se anuncia que existe.
+    if (evento.communityId) {
+      return {
+        titulo: 'Evento en Ágora',
+        descripcion: 'Evento de una comunidad de la UDLAP. Entra con tu correo @udlap.mx para verlo.',
+        imagen: null,
+        canonical: `/eventos/${evento.id}`,
+      };
     }
 
     const cuando = evento.inicioAt.toLocaleString('es-MX', {

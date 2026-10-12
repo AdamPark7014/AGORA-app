@@ -5,7 +5,11 @@ import { PublicService } from './public.service.js';
 
 /**
  * Tarjetas mínimas para OG / crawlers. Sin SesionGuard.
- * No expone correo ni datos sensibles.
+ * No expone correo ni datos sensibles, ni el nombre de perfiles restringidos.
+ *
+ * Sin limite por IP a proposito: quien mas las pide es el servidor de la web
+ * (metadatos de cada pagina compartida), y todas sus peticiones salen de la
+ * misma IP. Lo que protege aqui es que la tarjeta no lleve nada privado.
  */
 @SkipThrottle()
 @Controller('public/tarjeta')
