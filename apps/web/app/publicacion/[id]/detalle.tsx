@@ -15,6 +15,7 @@ import { TextoConMenciones } from '@/componentes/texto-con-menciones';
 import { ArrowLeft } from '@/componentes/iconos';
 import { TiempoRelativo } from '@/componentes/tiempo';
 import { Flag, Ghost, MessageCircle } from 'lucide-react';
+import { atributosImagen } from '@/lib/imagen';
 
 interface Autor {
   handle: string;
@@ -25,6 +26,8 @@ interface Autor {
 
 interface Adjunto {
   url: string;
+  thumbUrl?: string | null;
+  ancho?: number | null;
   mime: string;
   esVideo: boolean;
 }
@@ -358,7 +361,7 @@ export default function Publicacion({ params }: { params: Promise<{ id: string }
                   }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={m.url} alt="" loading="lazy" />
+                  <img {...atributosImagen(m, post.media.length)} alt="" loading="lazy" />
                   {corazonesFlotantes
                     .filter((c) => c.url === m.url)
                     .map((c) => (

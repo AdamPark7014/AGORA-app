@@ -47,8 +47,37 @@ export type PostConRelaciones = Prisma.PostGetPayload<{
 /** Un archivo adjunto, ya resuelto si es video o no. */
 export interface MediaVista {
   url: string;
+  /**
+   * Version de 480 px para listas (feed, perfil, hashtag). `null` si la imagen
+   * ya era pequena, es animada o es video: entonces se usa `url`.
+   */
+  thumbUrl: string | null;
+  ancho: number | null;
+  alto: number | null;
   mime: string;
   esVideo: boolean;
+}
+
+/**
+ * Un adjunto de la base a lo que ve el cliente. Unica forma para todas las
+ * rutas: la miniatura existia desde el principio pero ninguna la mandaba, y el
+ * feed descargaba la foto de 2048 px para pintarla a 300.
+ */
+export function aMediaVista(m: {
+  url: string;
+  thumbUrl: string | null;
+  ancho: number | null;
+  alto: number | null;
+  mime: string;
+}): MediaVista {
+  return {
+    url: m.url,
+    thumbUrl: m.thumbUrl,
+    ancho: m.ancho,
+    alto: m.alto,
+    mime: m.mime,
+    esVideo: m.mime.startsWith('video/'),
+  };
 }
 
 /** La publicacion tal y como la recibe el cliente. */
@@ -108,11 +137,7 @@ export function aVistaPost(post: PostConRelaciones, miGuardado: boolean): VistaP
         }
       : null,
     comunidad: { slug: post.community.slug, nombre: post.community.nombre },
-    media: post.media.map((m) => ({
-      url: m.url,
-      mime: m.mime,
-      esVideo: m.mime.startsWith('video/'),
-    })),
+    media: post.media.map(aMediaVista),
     encuesta: post.poll
       ? {
           pregunta: post.poll.pregunta,

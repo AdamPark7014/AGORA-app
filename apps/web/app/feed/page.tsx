@@ -33,6 +33,7 @@ import { TextoConMenciones } from '@/componentes/texto-con-menciones';
 import { BarChart3, Flag, Image } from '@/componentes/iconos';
 import { TiempoRelativo } from '@/componentes/tiempo';
 import { Flame } from 'lucide-react';
+import { atributosImagen } from '@/lib/imagen';
 
 const PLACEHOLDERS = copy.feed.placeholders;
 
@@ -51,6 +52,8 @@ interface OpcionEncuesta {
 
 interface Adjunto {
   url: string;
+  thumbUrl?: string | null;
+  ancho?: number | null;
   mime: string;
   esVideo: boolean;
 }
@@ -885,7 +888,7 @@ function FeedInterno() {
                         }}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={m.url} alt="" loading="lazy" />
+                        <img {...atributosImagen(m, p.media.length)} alt="" loading="lazy" />
                         {corazonesFlotantes
                           .filter((c) => c.postId === p.id && c.url === m.url)
                           .map((c) => (

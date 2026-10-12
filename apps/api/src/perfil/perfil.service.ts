@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from '../auth/auth.service.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
 import { hayBloqueo } from '../bloqueos/bloqueos.js';
+import { aMediaVista } from '../posts/vista-post.js';
 
 @Injectable()
 export class PerfilService {
@@ -222,7 +223,7 @@ export class PerfilService {
       },
       include: {
         community: { select: { nombre: true } },
-        media: { select: { url: true, mime: true } },
+        media: { select: { url: true, thumbUrl: true, ancho: true, alto: true, mime: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: limite + 1,
@@ -240,10 +241,7 @@ export class PerfilService {
         comunidad: p.community.nombre,
         numComments: p.numComments,
         numReactions: p.numReactions,
-        media: p.media.map((m) => ({
-          url: m.url,
-          esVideo: m.mime.startsWith('video/'),
-        })),
+        media: p.media.map(aMediaVista),
       })),
       siguienteCursor: hayMas ? (pagina[pagina.length - 1]?.id ?? null) : null,
     };

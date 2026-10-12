@@ -3,6 +3,7 @@ import { extraerHashtags } from '@agora/shared';
 import { esStaff } from '@agora/rbac';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { aMediaVista } from '../posts/vista-post.js';
 
 const VISIBLES = ['PUBLICADO', 'EN_REVISION'] as const;
 
@@ -133,11 +134,7 @@ export class HashtagsService {
             }
           : null,
         comunidad: { slug: e.post.community.slug, nombre: e.post.community.nombre },
-        media: e.post.media.map((m) => ({
-          url: m.url,
-          mime: m.mime,
-          esVideo: m.mime.startsWith('video/'),
-        })),
+        media: e.post.media.map(aMediaVista),
         numComments: e.post.numComments,
         numReactions: e.post.numReactions,
         miReaccion: e.post.reactions[0]?.tipo ?? null,

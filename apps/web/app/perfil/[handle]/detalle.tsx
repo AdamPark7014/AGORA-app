@@ -15,6 +15,7 @@ import { EsqueletoPerfil } from '@/componentes/esqueleto';
 import { UserX, Inbox, Cake, Lock } from 'lucide-react';
 import { RachaBadges } from '@/componentes/racha-badges';
 import { TIPOS_RETO_AMIGO } from '@agora/contracts';
+import { atributosImagen } from '@/lib/imagen';
 import {
   crearReto,
   etiquetaTipoReto,
@@ -57,7 +58,7 @@ interface Publicacion {
   comunidad: string;
   numComments: number;
   numReactions: number;
-  media?: Array<{ url: string; esVideo: boolean }>;
+  media?: Array<{ url: string; thumbUrl?: string | null; ancho?: number | null; esVideo: boolean }>;
 }
 
 const MESES = [
@@ -490,7 +491,12 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
                       <video key={m.url} src={m.url} controls preload="metadata" />
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img key={m.url} src={m.url} alt="" loading="lazy" />
+                      <img
+                        key={m.url}
+                        {...atributosImagen(m, Math.min(p.media?.length ?? 1, 4))}
+                        alt=""
+                        loading="lazy"
+                      />
                     ),
                   )}
                 </div>

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BadRequestException } from '@nestjs/common';
 
-import { aVistaPost, type PostConRelaciones } from './vista-post.js';
+import { aMediaVista, aVistaPost, type PostConRelaciones } from './vista-post.js';
 import { PostsService } from './posts.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
@@ -66,5 +66,19 @@ test('editar rechaza publicaciones anonimas', async () => {
   await assert.rejects(
     () => servicio.editar('p1', 'u1', { texto: 'nuevo @alguien' }),
     (err: unknown) => err instanceof BadRequestException,
+  );
+});
+
+test('los adjuntos mandan la miniatura y las medidas para las listas', () => {
+  assert.deepEqual(
+    aMediaVista({ url: '/media/a.jpg', thumbUrl: '/media/a.webp', ancho: 2048, alto: 1536, mime: 'image/jpeg' }),
+    {
+      url: '/media/a.jpg',
+      thumbUrl: '/media/a.webp',
+      ancho: 2048,
+      alto: 1536,
+      mime: 'image/jpeg',
+      esVideo: false,
+    },
   );
 });
