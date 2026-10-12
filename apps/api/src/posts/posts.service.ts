@@ -23,6 +23,7 @@ import { NotificacionesService } from '../notificaciones/notificaciones.service.
 import { AuthService } from '../auth/auth.service.js';
 import { HashtagsService } from '../hashtags/hashtags.service.js';
 import { moderacionPreviaActiva } from '../comun/moderacion.js';
+import { enSegundoPlano } from '../comun/segundo-plano.js';
 import { aVistaPost, incluirVistaPost } from './vista-post.js';
 
 /** Lo que se ve en el feed. EN_REVISION sigue visible: la IA no borra sola. */
@@ -146,8 +147,16 @@ export class PostsService {
     }
 
     if (estado !== 'RETIRADO' && datos.texto) {
-      void this.notificarMenciones(datos.texto, userId, `/publicacion/${post.id}`);
-      void this.hashtags.sincronizar(post.id, datos.texto, usuario.universityId);
+      enSegundoPlano(
+        this.notificarMenciones(datos.texto, userId, `/publicacion/${post.id}`),
+        this.logger,
+        'Menciones',
+      );
+      enSegundoPlano(
+        this.hashtags.sincronizar(post.id, datos.texto, usuario.universityId),
+        this.logger,
+        'Hashtags',
+      );
     }
 
     const nuevasInsignias = await this.gamificacion.evaluarBadges(userId);
@@ -333,7 +342,11 @@ export class PostsService {
       });
     }
 
-    void this.notificarMenciones(datos.texto, userId, `/publicacion/${postId}`);
+    enSegundoPlano(
+      this.notificarMenciones(datos.texto, userId, `/publicacion/${postId}`),
+      this.logger,
+      'Menciones',
+    );
 
     return { id: comentario.id, aviso: veredicto.motivo ?? null };
   }
@@ -485,9 +498,19 @@ export class PostsService {
       where: { id: userId },
       select: { universityId: true },
     });
-    if (usuario) void this.hashtags.sincronizar(postId, datos.texto, usuario.universityId);
+    if (usuario) {
+      enSegundoPlano(
+        this.hashtags.sincronizar(postId, datos.texto, usuario.universityId),
+        this.logger,
+        'Hashtags',
+      );
+    }
 
-    void this.notificarMenciones(datos.texto, userId, `/publicacion/${postId}`);
+    enSegundoPlano(
+      this.notificarMenciones(datos.texto, userId, `/publicacion/${postId}`),
+      this.logger,
+      'Menciones',
+    );
 
     return { aviso: veredicto.motivo ?? null };
   }

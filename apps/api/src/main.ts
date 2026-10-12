@@ -132,6 +132,16 @@ async function arrancar(): Promise<void> {
 
   app.enableShutdownHooks();
 
+  // Red de seguridad: un rechazo que nadie capturo es un bug, pero en Node 22
+  // termina el proceso y con el se caen todas las conexiones en vivo. Se
+  // registra para arreglarlo y la API sigue de pie.
+  process.on('unhandledRejection', (motivo) => {
+    Logger.error(
+      `Promesa rechazada sin capturar: ${motivo instanceof Error ? (motivo.stack ?? motivo.message) : String(motivo)}`,
+      'Agora',
+    );
+  });
+
   await app.listen(PUERTO);
   Logger.log(
     `API en http://localhost:${PUERTO}/api · entorno ${process.env.NODE_ENV ?? 'development'} · origenes ${origenes.join(', ')}`,

@@ -12,6 +12,7 @@ import { Prisma } from '@agora/db';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { moderacionPreviaActiva } from '../comun/moderacion.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
+import { enSegundoPlano } from '../comun/segundo-plano.js';
 import { mapearEventoEnVivo, whereEventosEnVivo } from './eventos-en-vivo.js';
 
 const VISIBLES = ['PUBLICADO', 'EN_REVISION'] as const;
@@ -83,7 +84,11 @@ export class EventosService {
     });
 
     if (evento.estado === 'PUBLICADO') {
-      void this.notificarEventoNuevo(userId, evento.id, datos.titulo, communityId);
+      enSegundoPlano(
+        this.notificarEventoNuevo(userId, evento.id, datos.titulo, communityId),
+        this.logger,
+        'Aviso de evento nuevo',
+      );
     }
 
     return { ...evento, aviso: veredicto.motivo ?? null };
