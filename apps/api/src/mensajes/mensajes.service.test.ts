@@ -160,3 +160,31 @@ test('la bandeja no muestra mensajes retirados ni los cuenta como no leidos', as
   assert.deepEqual(filtroUltimo, visibles);
   assert.deepEqual(filtroNoLeidos?.estado, visibles.estado);
 });
+
+test('leer la conversacion solo marca leido si hay algo nuevo', async () => {
+  const ultimo = new Date('2026-10-12T12:00:00Z');
+  let filtroLeido: unknown;
+  const prisma = {
+    conversationParticipant: {
+      findUnique: async () => ({ id: 'p1', salioAt: null }),
+      findMany: async () => [],
+      updateMany: async ({ where }: { where: unknown }) => {
+        filtroLeido = where;
+        return { count: 0 };
+      },
+    },
+    message: {
+      findMany: async () => [
+        { id: 'm1', texto: 'hola', createdAt: ultimo, autorId: 'otro', autor: { profile: null } },
+      ],
+    },
+  } as unknown as PrismaService;
+
+  await servicio(prisma).mensajes('c1', 'yo', { limite: 30 } as never);
+
+  assert.deepEqual(filtroLeido, {
+    conversationId: 'c1',
+    userId: 'yo',
+    OR: [{ leidoAt: null }, { leidoAt: { lt: ultimo } }],
+  });
+});

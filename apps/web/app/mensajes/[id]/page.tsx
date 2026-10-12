@@ -6,6 +6,7 @@ import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { api, ErrorApi } from '@/lib/api';
 import { analytics } from '@/lib/analytics';
 import { usePolling } from '@/lib/use-polling';
+import { sesion } from '@/lib/sesion';
 import { copy } from '@/lib/copy';
 import { Avatar } from '@/componentes/avatar';
 import { EstadoError } from '@/componentes/estado-error';
@@ -20,13 +21,19 @@ interface Mensaje {
   autor: { handle: string; nombre: string; fotoUrl: string | null } | null;
 }
 
+/** Lo que manda `GET /mensajes/:id/stream` por cada mensaje nuevo. */
+interface EventoChat {
+  tipo?: string;
+  mensaje?: Omit<Mensaje, 'mio'> & { autorId: string };
+}
+
 /**
- * Ritmo del sondeo.
+ * Ritmo del sondeo, que ahora es solo la red de seguridad.
  *
- * Rapido mientras la conversacion esta viva, y hasta un minuto cuando lleva
- * rato callada. Una charla real pasa casi todo el tiempo en silencio: sin el
- * techo, cada chat abierto costaba 720 peticiones a la hora, casi todas
- * devolviendo lo mismo que la anterior.
+ * Los mensajes llegan por el flujo SSE al instante. Si el flujo no abre (red
+ * que corta conexiones largas, sesion caducada), se vuelve al sondeo: rapido
+ * mientras la conversacion esta viva y hasta un minuto cuando lleva rato
+ * callada. Con el flujo abierto basta un sondeo por minuto para reconciliar.
  */
 const CADA_MS = 4_000;
 const CADA_MS_MAXIMO = 60_000;
@@ -47,8 +54,19 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
   const [enviando, setEnviando] = useState(false);
   const [siguienteCursor, setSiguienteCursor] = useState<string | null>(null);
   const [cargandoAntiguos, setCargandoAntiguos] = useState(false);
+  const [enVivo, setEnVivo] = useState(false);
   const finRef = useRef<HTMLDivElement>(null);
   const cargaInicialHecha = useRef(false);
+  const miHandle = useRef<string | null>(null);
+  const marcarLeido = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    sesion()
+      .then((s) => {
+        miHandle.current = s.handle ?? null;
+      })
+      .catch(() => undefined);
+  }, []);
 
   /** Devuelve `true` si llegaron mensajes nuevos, para no frenar el sondeo. */
   const cargarRecientes = useCallback(async (irAlFinal: boolean): Promise<boolean> => {
@@ -100,9 +118,59 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
     void cargarRecientes(true);
   }, [id, cargarRecientes]);
 
+  useEffect(() => {
+    if (cargando || errorCarga || typeof EventSource === 'undefined') return;
+
+    const fuente = new EventSource(`/api/mensajes/${id}/stream`, { withCredentials: true });
+    fuente.onopen = () => setEnVivo(true);
+    fuente.onmessage = (evento) => {
+      let datos: EventoChat;
+      try {
+        datos = JSON.parse(evento.data) as EventoChat;
+      } catch {
+        return;
+      }
+      if (datos.tipo !== 'mensaje' || !datos.mensaje) return;
+
+      const yo = miHandle.current;
+      const { autorId: _autorId, ...m } = datos.mensaje;
+      const mio = yo != null && m.autor?.handle === yo;
+      // Sin saber quien soy no se puede decidir de que lado va la burbuja:
+      // mejor pedir la conversacion, que ya trae `mio`.
+      if (yo == null) {
+        void cargarRecientes(true);
+        return;
+      }
+      setMensajes((previos) =>
+        previos.some((p) => p.id === m.id) ? previos : [...previos, { ...m, mio }],
+      );
+      setTimeout(() => finRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
+      // Lo que escribe el otro con el chat abierto ya esta leido. Se agrupa
+      // una rafaga de mensajes en una sola consulta.
+      if (!mio) {
+        window.clearTimeout(marcarLeido.current);
+        marcarLeido.current = window.setTimeout(() => void cargarRecientes(false), 1_500);
+      }
+    };
+    // Igual que la campana: `EventSource` reintenta para siempre y no
+    // distingue una red caida de una sesion vencida. Se cierra y queda el
+    // sondeo rapido.
+    fuente.onerror = () => {
+      setEnVivo(false);
+      fuente.close();
+    };
+
+    return () => {
+      window.clearTimeout(marcarLeido.current);
+      fuente.close();
+      setEnVivo(false);
+    };
+  }, [id, cargando, errorCarga, cargarRecientes]);
+
   const { reiniciar: reanudarSondeo } = usePolling(
     () => cargarRecientes(false),
-    CADA_MS,
+    enVivo ? CADA_MS_MAXIMO : CADA_MS,
     !cargando && !errorCarga,
     CADA_MS_MAXIMO,
   );

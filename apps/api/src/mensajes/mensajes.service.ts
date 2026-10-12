@@ -179,10 +179,19 @@ export class MensajesService {
     const hayMas = mensajes.length > filtros.limite;
     const pagina = hayMas ? mensajes.slice(0, filtros.limite) : mensajes;
 
-    await this.prisma.conversationParticipant.update({
-      where: { conversationId_userId: { conversationId, userId } },
-      data: { leidoAt: new Date() },
-    });
+    // Solo se escribe si hay algo sin leer: con el chat abierto esta consulta
+    // se repite, y antes cada repeticion era un UPDATE aunque no cambiara nada.
+    const masNuevo = filtros.cursor ? undefined : mensajes[0];
+    if (masNuevo) {
+      await this.prisma.conversationParticipant.updateMany({
+        where: {
+          conversationId,
+          userId,
+          OR: [{ leidoAt: null }, { leidoAt: { lt: masNuevo.createdAt } }],
+        },
+        data: { leidoAt: new Date() },
+      });
+    }
 
     return {
       con: otro
