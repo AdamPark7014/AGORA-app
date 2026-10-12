@@ -49,6 +49,20 @@ bash deploy/install-traefik-route.sh
 curl -skI --resolve udlagora.com:443:127.0.0.1 https://udlagora.com/
 ```
 
+## Respaldo fuera del servidor (Postgres + media)
+
+**Lo de abajo solo deja dumps en el mismo disco del servidor.** El respaldo de verdad es
+`scripts/respaldo-externo.sh`: dump de Postgres + espejo de MinIO a un destino externo con rclone
+(cifrado con un remoto `crypt`), con retención de 30 días y aviso a healthchecks.io si un día no corre.
+Instrucciones de preparación y cron en la cabecera del script. Probar un restore una vez al mes.
+
+## Alertas
+
+- **Disco:** `scripts/vigilar-disco.sh` (cron cada 15 min) manda push por ntfy.sh al pasar el 80 %.
+- **Errores de la API:** `SENTRY_DSN` en `deploy/.env` (sentry.io, plan gratis).
+- **Caída:** monitor externo (UptimeRobot o healthchecks.io) sobre `https://udlagora.com/api/salud`.
+- **Respaldo que no corrió:** `RESPALDO_PING_URL` (healthchecks.io).
+
 ## Backup / restore Postgres
 
 Dumps gzip diarios en `/var/backups/udlagora/` (retención 7 días por defecto).
