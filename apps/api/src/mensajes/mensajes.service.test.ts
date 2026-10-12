@@ -134,3 +134,29 @@ test('enviar corta si te bloquearon despues de abrir la conversacion', async () 
   );
   assert.equal(creados, 0);
 });
+
+test('la bandeja no muestra mensajes retirados ni los cuenta como no leidos', async () => {
+  let filtroUltimo: unknown;
+  let filtroNoLeidos: { estado?: unknown } | undefined;
+  const prisma = {
+    conversationParticipant: {
+      findMany: async (args: {
+        include: { conversation: { include: { mensajes: { where: unknown } } } };
+      }) => {
+        filtroUltimo = args.include.conversation.include.mensajes.where;
+        return [];
+      },
+    },
+    message: {
+      groupBy: async (args: { where: { estado?: unknown } }) => {
+        filtroNoLeidos = args.where;
+        return [];
+      },
+    },
+  } as unknown as PrismaService;
+
+  await servicio(prisma).bandeja('yo');
+  const visibles = { estado: { in: ['PUBLICADO', 'EN_REVISION'] } };
+  assert.deepEqual(filtroUltimo, visibles);
+  assert.deepEqual(filtroNoLeidos?.estado, visibles.estado);
+});

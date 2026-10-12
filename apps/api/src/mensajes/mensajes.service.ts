@@ -83,7 +83,10 @@ export class MensajesService {
                 },
               },
             },
+            // Mismo filtro que la conversacion: un mensaje retirado por
+            // moderacion o borrado por su autor no puede asomar en la bandeja.
             mensajes: {
+              where: { estado: { in: ['PUBLICADO', 'EN_REVISION'] } },
               orderBy: { createdAt: 'desc' },
               take: 1,
               select: { texto: true, createdAt: true, autorId: true },
@@ -103,6 +106,7 @@ export class MensajesService {
       where: {
         conversationId: { in: conversacionIds },
         autorId: { not: userId },
+        estado: { in: ['PUBLICADO', 'EN_REVISION'] },
         OR: participaciones.map((p) => ({
           conversationId: p.conversationId,
           createdAt: { gt: p.leidoAt ?? new Date(0) },
