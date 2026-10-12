@@ -129,3 +129,12 @@ test('el slug de comunidad es estable e insensible a mayusculas', () => {
   assert.equal(slugComunidad('carrera', 'Derecho'), 'carrera:derecho');
   assert.equal(slugComunidad('generacion', 2024), 'generacion:2024');
 });
+
+test('un alias con + no cuenta como correo propio de la UDLAP', () => {
+  // ana+1@udlap.mx llega al buzon de ana: seria una cuenta extra de la misma persona.
+  assert.equal(esCorreoUdlap('ana+1@udlap.mx'), false);
+  assert.equal(esCorreoUdlap('ana+@udlap.mx'), false);
+  assert.equal(esCorreoUdlap('"ana"@udlap.mx'), false);
+  assert.equal(esCorreoUdlap('ana.lopez_2@udlap.mx'), true);
+  assert.equal(esCorreoUdlap('ana-lopez@udlap.mx'), true);
+});

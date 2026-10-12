@@ -30,8 +30,16 @@ export const esCorreoUdlap = (correo: string): boolean => {
   if (partes.length !== 2) return false;
   const [buzon, dominio] = partes;
   if (!buzon || !dominio) return false;
-  return dominio === UDLAP_EMAIL_DOMAIN;
+  return dominio === UDLAP_EMAIL_DOMAIN && BUZON_VALIDO.test(buzon);
 };
+
+/**
+ * Solo letras, numeros, punto, guion y guion bajo. Fuera el `+`: Microsoft
+ * 365 entrega `ana+1@udlap.mx` en el buzon de `ana@udlap.mx`, asi que con
+ * alias una persona podia abrir cuentas sin fin, volver tras una suspension y
+ * multiplicar el tope de codigos por buzon.
+ */
+const BUZON_VALIDO = /^[a-z0-9][a-z0-9._-]*$/;
 
 /** El buzon sin el dominio. Base del identificador publico sugerido. */
 export const buzonDeCorreo = (correo: string): string | undefined => {
