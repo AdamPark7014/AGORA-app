@@ -188,6 +188,11 @@ export default function Marketplace() {
         }
       />
 
+      <p className="tenue" style={{ margin: '0 0 12px', fontSize: '0.8rem' }}>
+        Entrega y paga en persona dentro del campus; no adelantes dinero.{' '}
+        <Link href="/reglas">Consejos de seguridad</Link>
+      </p>
+
       <div className="acciones" style={{ marginBottom: 16 }}>
         <select
           className="selector-pastilla"

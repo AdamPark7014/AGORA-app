@@ -171,6 +171,10 @@ export default function Aventones() {
       <p className="tenue" style={{ textAlign: 'center', margin: '0 0 18px', fontSize: '0.85rem' }}>
         Puebla ↔ Cholula · El bus no corre fines de semana
       </p>
+      <p className="tenue" style={{ textAlign: 'center', margin: '-10px 0 18px', fontSize: '0.8rem' }}>
+        Antes de subirte, avísale a alguien a dónde vas y con quién.{' '}
+        <Link href="/reglas">Consejos de seguridad</Link>
+      </p>
 
       <div className="acciones" style={{ marginBottom: 18 }}>
         <select
