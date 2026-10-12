@@ -3655,3 +3655,33 @@ button.perfil-cifra:hover strong {
   gap: 8px;
   margin-top: 18px;
 }
+
+/* --- Pregunta relampago ------------------------------------------------ */
+
+.pregunta-reloj {
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: var(--naranja);
+  font-variant-numeric: tabular-nums;
+  position: relative;
+  z-index: 1;
+}
+
+.pregunta-sello {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: var(--t-sm);
+  background: var(--superficie-2);
+  color: var(--texto-medio);
+  position: relative;
+  z-index: 1;
+}
+
+.pregunta-sello.a-tiempo {
+  background: var(--naranja-suave);
+  color: var(--naranja);
+  font-weight: 600;
+}
+

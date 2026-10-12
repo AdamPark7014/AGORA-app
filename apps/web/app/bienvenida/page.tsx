@@ -64,10 +64,10 @@ export default function Bienvenida() {
     api<Comunidad[]>('/perfil/mis-comunidades')
       .then((cs) => setCampus(cs.find((c) => c.tipo === 'UNIVERSIDAD')?.slug ?? cs[0]?.slug ?? null))
       .catch(() => undefined);
-    // La pregunta solo entra como paso si hoy hay una.
-    api<{ id: string } | null>('/pregunta/hoy')
+    // Si hoy todavia no cae (hora sorpresa), no hay nada que contestar.
+    api<{ id: string; abierta?: boolean } | null>('/pregunta/hoy')
       .then((p) => {
-        if (p?.id) setPasos(['foto', 'seguir', 'pregunta', 'presentarte']);
+        if (p?.id && p.abierta !== false) setPasos(['foto', 'seguir', 'pregunta', 'presentarte']);
       })
       .catch(() => undefined);
   }, []);

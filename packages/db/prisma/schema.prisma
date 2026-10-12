@@ -217,6 +217,8 @@ model Profile {
   /// Quien puede ver el perfil completo. Por omision toda la UDLAP: la red es
   /// cerrada de por si, y un directorio donde nadie se deja ver no sirve.
   visibilidad    VisibilidadPerfil @default(UNIVERSIDAD)
+  /// Push cuando cae la pregunta del dia.
+  avisoPregunta  Boolean  @default(true)
   carreraId      String?
   departamentoId String?
   colegioId      String?
@@ -533,6 +535,12 @@ model PreguntaDelDia {
   opciones     String[]
   /// Dia al que corresponde, a medianoche. Unica por universidad y dia.
   fecha        DateTime @db.Date
+  /// Hora sorpresa en que "cae" la pregunta y sale el push. Null en las
+  /// anteriores a la mecanica: esas cuentan como abiertas todo el dia.
+  abreAt       DateTime?
+  /// Cuando se mando el push. Marcarlo con un updateMany condicionado evita
+  /// mandarlo dos veces si corren dos instancias de la API.
+  avisadaAt    DateTime?
   createdAt    DateTime @default(now())
 
   university  University          @relation(fields: [universityId], references: [id], onDelete: Cascade)
@@ -549,6 +557,9 @@ model RespuestaPregunta {
   userId     String
   /// Indice dentro de `opciones`. Se valida contra su longitud al responder.
   opcion     Int
+  /// Contesto dentro de la ventana tras la hora sorpresa. Se fija con la
+  /// primera respuesta: rectificar despues no lo cambia.
+  aTiempo    Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   pregunta PreguntaDelDia @relation(fields: [preguntaId], references: [id], onDelete: Cascade)

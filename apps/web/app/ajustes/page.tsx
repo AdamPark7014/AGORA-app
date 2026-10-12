@@ -25,6 +25,7 @@ interface MiPerfil {
   intereses: string[];
   busco: string | null;
   visibilidad: 'UNIVERSIDAD' | 'COMUNIDADES';
+  avisoPregunta?: boolean;
 }
 
 const MESES = [
@@ -50,6 +51,7 @@ export default function Ajustes() {
   const [intereses, setIntereses] = useState<string[]>([]);
   const [nuevoInteres, setNuevoInteres] = useState('');
   const [visibilidad, setVisibilidad] = useState<'UNIVERSIDAD' | 'COMUNIDADES'>('UNIVERSIDAD');
+  const [avisoPregunta, setAvisoPregunta] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -72,6 +74,7 @@ export default function Ajustes() {
         setBusco(p.busco ?? '');
         setIntereses(p.intereses ?? []);
         setVisibilidad(p.visibilidad ?? 'UNIVERSIDAD');
+        setAvisoPregunta(p.avisoPregunta ?? true);
       })
       .catch((e) =>
         setError(
@@ -96,6 +99,17 @@ export default function Ajustes() {
       );
     } catch (e) {
       setError(e instanceof ErrorApi ? e.message : 'No se pudo actualizar la comunidad.');
+    }
+  }
+
+  /** Se guarda al momento, como los demás interruptores de avisos. */
+  async function alternarAvisoPregunta(activo: boolean) {
+    setAvisoPregunta(activo);
+    try {
+      await api('/perfil', { method: 'PATCH', body: JSON.stringify({ avisoPregunta: activo }) });
+    } catch (e) {
+      setAvisoPregunta(!activo);
+      setError(e instanceof ErrorApi ? e.message : 'No se pudo guardar el aviso.');
     }
   }
 
@@ -473,6 +487,16 @@ export default function Ajustes() {
             Recibe avisos en tu teléfono o computadora aunque no tengas Ágora abierta.
           </p>
           <SuscribirPush />
+          <label
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 12 }}
+          >
+            <span>⚡ Avísame cuando caiga la pregunta del día</span>
+            <input
+              type="checkbox"
+              checked={avisoPregunta}
+              onChange={(e) => void alternarAvisoPregunta(e.target.checked)}
+            />
+          </label>
         </div>
 
         <button type="submit" className="grande" disabled={guardando}>

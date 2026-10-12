@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { api } from '@/lib/api';
 import {
@@ -27,6 +27,18 @@ interface Pregunta {
   opciones: Opcion[];
   nuevasInsignias?: BadgeCodigo[];
   semanaPregunta?: SemanaPregunta;
+  /** Hora sorpresa. Null en preguntas de antes de la mecanica. */
+  abreAt?: string | null;
+  aTiempoHasta?: string | null;
+  abierta?: boolean;
+  aTiempo?: boolean | null;
+  totalATiempo?: number | null;
+  miCarrera?: { nombre: string; total: number; votos: Record<string, number> } | null;
+}
+
+function mmss(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 export function PreguntaDelDia() {
@@ -34,6 +46,35 @@ export function PreguntaDelDia() {
   const [semana, setSemana] = useState<SemanaPregunta | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [confetti, setConfetti] = useState(false);
+  const [ahora, setAhora] = useState(() => Date.now());
+
+  const cargarPregunta = useCallback(() => {
+    api<Pregunta>('/pregunta/hoy')
+      .then((p) => {
+        setPregunta(p);
+        if (p.semanaPregunta) setSemana(p.semanaPregunta);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  // Antes de la hora sorpresa: se vuelve a pedir justo cuando cae.
+  const abreMs = pregunta?.abreAt ? Date.parse(pregunta.abreAt) : null;
+  const esperando = pregunta?.abierta === false && abreMs != null;
+  useEffect(() => {
+    if (!esperando || abreMs == null) return;
+    const falta = Math.min(abreMs - Date.now() + 500, 2_000_000_000);
+    const t = window.setTimeout(cargarPregunta, Math.max(falta, 0));
+    return () => window.clearTimeout(t);
+  }, [esperando, abreMs, cargarPregunta]);
+
+  // Mientras corre la ventana "a tiempo", la cuenta regresiva avanza sola.
+  const hastaMs = pregunta?.aTiempoHasta ? Date.parse(pregunta.aTiempoHasta) : null;
+  const corriendo = !!pregunta && !pregunta.yaRespondi && !esperando && hastaMs != null && ahora < hastaMs;
+  useEffect(() => {
+    if (!corriendo) return;
+    const t = window.setInterval(() => setAhora(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [corriendo]);
 
   useEffect(() => {
     const cargarSemana = () => {
@@ -44,17 +85,11 @@ export function PreguntaDelDia() {
         .catch(() => undefined);
     };
 
-    api<Pregunta>('/pregunta/hoy')
-      .then((p) => {
-        setPregunta(p);
-        if (p.semanaPregunta) setSemana(p.semanaPregunta);
-      })
-      .catch(() => undefined);
-
+    cargarPregunta();
     cargarSemana();
     window.addEventListener(EVENTO_REFRESH_GAMIFICACION, cargarSemana);
     return () => window.removeEventListener(EVENTO_REFRESH_GAMIFICACION, cargarSemana);
-  }, []);
+  }, [cargarPregunta]);
 
   async function responder(indice: number) {
     if (!pregunta || enviando || pregunta.yaRespondi) return;
@@ -79,6 +114,24 @@ export function PreguntaDelDia() {
   if (!pregunta) return null;
 
   const progresoSemana = semana ?? pregunta.semanaPregunta;
+
+  if (esperando) {
+    return (
+      <div className="panel pregunta pregunta-destacada pregunta-esperando">
+        <p className="panel-titulo" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Sparkles size={14} strokeWidth={2} />
+          Pregunta del día
+        </p>
+        <p className="pregunta-texto">⚡ Hoy cae a una hora sorpresa.</p>
+        <p className="tenue" style={{ margin: 0 }}>
+          Te avisamos en cuanto salga. Contesta en los primeros 2 minutos y sales a tiempo;
+          antes de contestar no ves lo que dijeron los demás.
+        </p>
+      </div>
+    );
+  }
+
+  const carrera = pregunta.yaRespondi ? pregunta.miCarrera : null;
 
   return (
     <>
@@ -105,6 +158,18 @@ export function PreguntaDelDia() {
           Pregunta del día
           {pregunta.yaRespondi && ` · ${pregunta.total} respuestas`}
         </p>
+
+        {corriendo && hastaMs != null && (
+          <p className="pregunta-reloj" role="timer" aria-live="off">
+            ⚡ {mmss(hastaMs - ahora)} para contestar a tiempo
+          </p>
+        )}
+        {pregunta.yaRespondi && pregunta.aTiempo != null && pregunta.abreAt && (
+          <p className={`pregunta-sello${pregunta.aTiempo ? ' a-tiempo' : ''}`}>
+            {pregunta.aTiempo ? '⚡ Contestaste a tiempo' : 'Contestaste tarde'}
+            {pregunta.totalATiempo != null && ` · ${pregunta.totalATiempo} a tiempo hoy`}
+          </p>
+        )}
 
         {progresoSemana && (
           <div className="pregunta-semana">
@@ -155,6 +220,8 @@ export function PreguntaDelDia() {
                   {pregunta.yaRespondi && (
                     <span className="tenue">
                       {o.votos} · {porcentaje}%
+                      {carrera && carrera.total > 0 &&
+                        ` · tu carrera ${Math.round(((carrera.votos[o.indice] ?? 0) / carrera.total) * 100)}%`}
                     </span>
                   )}
                 </span>
@@ -169,7 +236,8 @@ export function PreguntaDelDia() {
           </p>
         ) : (
           <p className="tenue" style={{ margin: '10px 0 0', position: 'relative', zIndex: 1 }}>
-            {pregunta.total} de tu comunidad ya contestaron hoy.
+            {pregunta.total} de tu comunidad ya contestaron hoy
+            {carrera && carrera.total > 0 ? `, ${carrera.total} de ${carrera.nombre}.` : '.'}
           </p>
         )}
       </div>

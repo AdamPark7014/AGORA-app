@@ -122,6 +122,7 @@ export class PerfilService {
         ...(datos.intereses !== undefined ? { intereses: datos.intereses } : {}),
         ...(datos.busco !== undefined ? { busco: datos.busco } : {}),
         ...(datos.visibilidad !== undefined ? { visibilidad: datos.visibilidad } : {}),
+        ...(datos.avisoPregunta !== undefined ? { avisoPregunta: datos.avisoPregunta } : {}),
       },
     });
 
@@ -146,6 +147,7 @@ export class PerfilService {
         intereses: true,
         busco: true,
         visibilidad: true,
+        avisoPregunta: true,
       },
     });
     if (!perfil) throw new NotFoundException('Todavia no tienes perfil.');

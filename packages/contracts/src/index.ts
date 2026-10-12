@@ -481,6 +481,8 @@ export const actualizarPerfilSchema = z
     intereses: z.array(z.string().trim().min(1).max(30)).max(10).optional(),
     busco: z.string().trim().max(120).optional(),
     visibilidad: z.enum(VISIBILIDADES_PERFIL).optional(),
+    /** Push cuando cae la pregunta del dia. */
+    avisoPregunta: z.boolean().optional(),
   })
   .refine(
     (p) =>
