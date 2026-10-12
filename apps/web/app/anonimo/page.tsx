@@ -7,6 +7,8 @@ import { api, ErrorApi } from '@/lib/api';
 import { TiempoRelativo } from '@/componentes/tiempo';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
+import { EstadoError } from '@/componentes/estado-error';
+import { EsqueletoLista } from '@/componentes/esqueleto';
 import { EyeOff, Flag, Lock } from '@/componentes/iconos';
 
 interface Anonima {
@@ -44,6 +46,7 @@ export default function Anonimo() {
   const [posts, setPosts] = useState<Anonima[]>([]);
   const [texto, setTexto] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [errorCarga, setErrorCarga] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [cargando, setCargando] = useState(true);
@@ -52,12 +55,13 @@ export default function Anonimo() {
   const [avisoReporte, setAvisoReporte] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
+    setErrorCarga(false);
     try {
       const d = await api<{ publicaciones: Anonima[] }>('/anonimo');
       setPosts(d.publicaciones);
     } catch (e) {
       if (!(e instanceof ErrorApi && e.estado === 503)) {
-        setError('No se pudo cargar.');
+        setErrorCarga(true);
       }
     } finally {
       setCargando(false);
@@ -235,9 +239,13 @@ export default function Anonimo() {
         {error && <p className="error">{error}</p>}
       </form>
 
-      {cargando && <p className="tenue">Cargando…</p>}
+      {cargando && <EsqueletoLista cantidad={3} />}
 
-      {!cargando && posts.length === 0 && (
+      {errorCarga && (
+        <EstadoError onReintentar={() => void cargar()}>No se pudo cargar la zona sin nombre.</EstadoError>
+      )}
+
+      {!cargando && !errorCarga && posts.length === 0 && (
         <EstadoVacio icono={EyeOff} titulo="Todavía nadie ha dicho nada">
           Alguien tiene que empezar.
         </EstadoVacio>

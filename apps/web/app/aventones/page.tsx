@@ -10,6 +10,8 @@ import type { BadgeCodigo } from '@agora/contracts';
 import { Avatar } from '@/componentes/avatar';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
+import { EstadoError } from '@/componentes/estado-error';
+import { EsqueletoLista } from '@/componentes/esqueleto';
 import { Car, X, MessageCircle } from '@/componentes/iconos';
 import { Clock } from 'lucide-react';
 
@@ -42,6 +44,9 @@ export default function Aventones() {
   const [sentido, setSentido] = useState('');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Aparte de `error`: un fallo al cargar la lista no es lo mismo que un
+  // fallo al publicar, y solo el primero se arregla con "Reintentar".
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
@@ -57,13 +62,13 @@ export default function Aventones() {
 
   const cargar = useCallback(async (filtro: string) => {
     setCargando(true);
-    setError(null);
+    setErrorCarga(null);
     try {
       const q = filtro ? `?sentido=${filtro}` : '';
       const datos = await api<{ aventones: Aventon[] }>(`/aventones${q}`);
       setAventones(datos.aventones);
     } catch (e) {
-      setError(
+      setErrorCarga(
         e instanceof ErrorApi && e.estado === 401
           ? 'Necesitas iniciar sesión.'
           : 'No se pudieron cargar los aventones.',
@@ -277,7 +282,13 @@ export default function Aventones() {
 
       {error && !abierto && <p className="error">{error}</p>}
 
-      {!cargando && aventones.length === 0 && !error && (
+      {cargando && aventones.length === 0 && <EsqueletoLista cantidad={3} />}
+
+      {errorCarga && (
+        <EstadoError onReintentar={() => void cargar(sentido)}>{errorCarga}</EstadoError>
+      )}
+
+      {!cargando && aventones.length === 0 && !errorCarga && (
         <EstadoVacio icono={Car} titulo="No hay aventones publicados">
           Si manejas, ofrece uno. Alguien de tu zona lo va a agradecer.
         </EstadoVacio>

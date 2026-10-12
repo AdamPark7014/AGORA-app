@@ -8,6 +8,8 @@ import { api, ErrorApi } from '@/lib/api';
 import { Avatar } from '@/componentes/avatar';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
+import { EstadoError } from '@/componentes/estado-error';
+import { EsqueletoLista } from '@/componentes/esqueleto';
 import { LayoutGrid, MessageCircle, Plus, X } from '@/componentes/iconos';
 
 interface Anuncio {
@@ -42,6 +44,9 @@ export default function Marketplace() {
   const [q, setQ] = useState('');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Aparte de `error`: un fallo al cargar la lista no es lo mismo que un
+  // fallo al publicar, y solo el primero se arregla con "Reintentar".
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
@@ -58,7 +63,7 @@ export default function Marketplace() {
     if (desde) setCargandoMas(true);
     else {
       setCargando(true);
-      setError(null);
+      setErrorCarga(null);
     }
     const p = new URLSearchParams();
     if (cat) p.set('categoria', cat);
@@ -71,7 +76,7 @@ export default function Marketplace() {
       setAnuncios((prev) => (desde ? [...prev, ...datos.anuncios] : datos.anuncios));
       setCursor(datos.siguienteCursor ?? null);
     } catch (e) {
-      setError(
+      setErrorCarga(
         e instanceof ErrorApi && e.estado === 401
           ? 'Necesitas iniciar sesión.'
           : 'No se pudo cargar el marketplace.',
@@ -317,7 +322,13 @@ export default function Marketplace() {
 
       {error && !abierto && <p className="error">{error}</p>}
 
-      {!cargando && anuncios.length === 0 && !error && (
+      {cargando && anuncios.length === 0 && <EsqueletoLista cantidad={3} />}
+
+      {errorCarga && (
+        <EstadoError onReintentar={() => void cargar(categoria, q)}>{errorCarga}</EstadoError>
+      )}
+
+      {!cargando && anuncios.length === 0 && !errorCarga && (
         <EstadoVacio icono={LayoutGrid} titulo="Nadie vende nada todavía">
           ¿Tienes libros del semestre pasado? Sé el primero en publicar.
         </EstadoVacio>

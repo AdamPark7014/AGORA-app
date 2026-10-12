@@ -8,6 +8,8 @@ import { ToggleTema } from '@/componentes/proveedor-tema';
 import { SuscribirPush } from '@/componentes/suscribir-push';
 import { PreferenciasNotificaciones } from '@/componentes/preferencias-notificaciones';
 import { EliminarCuenta } from '@/componentes/eliminar-cuenta';
+import { EsqueletoPerfil } from '@/componentes/esqueleto';
+import { EstadoError } from '@/componentes/estado-error';
 
 interface MiPerfil {
   handle: string;
@@ -174,7 +176,11 @@ export default function Ajustes() {
   if (!perfil) {
     return (
       <main>
-        {error ? <p className="error">{error}</p> : <p className="tenue">Cargando…</p>}
+        {error ? (
+          <EstadoError onReintentar={() => window.location.reload()}>{error}</EstadoError>
+        ) : (
+          <EsqueletoPerfil />
+        )}
       </main>
     );
   }
