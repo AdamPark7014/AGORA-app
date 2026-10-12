@@ -1,5 +1,7 @@
 // Antes que nada: deja el .env cargado para todo lo que venga despues.
 import './comun/env.js';
+// Segundo: el reporte de errores, para que cubra tambien el arranque.
+import { reportarError } from './comun/sentry.js';
 
 import 'reflect-metadata';
 
@@ -136,6 +138,7 @@ async function arrancar(): Promise<void> {
   // termina el proceso y con el se caen todas las conexiones en vivo. Se
   // registra para arreglarlo y la API sigue de pie.
   process.on('unhandledRejection', (motivo) => {
+    reportarError(motivo);
     Logger.error(
       `Promesa rechazada sin capturar: ${motivo instanceof Error ? (motivo.stack ?? motivo.message) : String(motivo)}`,
       'Agora',

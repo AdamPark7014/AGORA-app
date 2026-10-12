@@ -10,6 +10,8 @@ import { Prisma } from '@agora/db';
 import type { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 
+import { reportarError } from './sentry.js';
+
 /**
  * Una sola forma de error para toda la API.
  *
@@ -131,6 +133,7 @@ export class ErrorFilter implements ExceptionFilter {
         `${cuerpo.trazaId}  ${req.method} ${req.originalUrl}  ${paraRegistro.message}`,
         paraRegistro.stack,
       );
+      reportarError(paraRegistro, { trazaId: cuerpo.trazaId, ruta: `${req.method} ${req.route?.path ?? req.path}` });
     }
 
     res.status(estado).json(cuerpo);
