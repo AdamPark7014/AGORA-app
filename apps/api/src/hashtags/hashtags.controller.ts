@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
 
 import { SesionGuard, type RequestConSesion } from '../comun/sesion.guard.js';
 import { HashtagsService } from './hashtags.service.js';
+import { limiteDeConsulta } from '../comun/consulta.js';
 
 @Controller('hashtags')
 @UseGuards(SesionGuard)
@@ -24,7 +25,7 @@ export class HashtagsController {
       req.usuario!.id,
       tag,
       cursor,
-      limite ? Math.min(Number(limite), 30) : 15,
+      limiteDeConsulta(limite, 15, 30),
     );
   }
 }

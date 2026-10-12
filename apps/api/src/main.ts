@@ -126,10 +126,13 @@ async function arrancar(): Promise<void> {
   // que ambos tienen que estar en la lista. Se enumeran explicitamente en vez
   // de aceptar un comodin: con `credentials: true` un comodin seria abrir la
   // sesion a cualquier sitio.
+  // Los localhost solo en desarrollo: en produccion, una variable que falte no
+  // puede dejar `http://localhost:3300` aceptado con credenciales.
+  const enProduccion = process.env.NODE_ENV === 'production';
   const origenes = [
-    process.env.NEXT_PUBLIC_WEB_URL ?? 'http://localhost:3200',
-    process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:3300',
-  ];
+    process.env.NEXT_PUBLIC_WEB_URL || (enProduccion ? '' : 'http://localhost:3200'),
+    process.env.NEXT_PUBLIC_ADMIN_URL || (enProduccion ? '' : 'http://localhost:3300'),
+  ].filter(Boolean);
   app.enableCors({ origin: origenes, credentials: true });
 
   app.enableShutdownHooks();

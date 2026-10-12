@@ -11,6 +11,7 @@ import {
 import { ZodPipe } from '../comun/zod.pipe.js';
 import { SesionGuard, type RequestConSesion } from '../comun/sesion.guard.js';
 import { PerfilService } from './perfil.service.js';
+import { limiteDeConsulta } from '../comun/consulta.js';
 
 @Controller('perfil')
 @UseGuards(SesionGuard)
@@ -68,7 +69,7 @@ export class PerfilController {
       handle.toLowerCase(),
       req.usuario!.id,
       cursor,
-      Number(limite) > 0 ? Math.min(Math.floor(Number(limite)), 40) : 20,
+      limiteDeConsulta(limite, 20, 40),
     );
   }
 

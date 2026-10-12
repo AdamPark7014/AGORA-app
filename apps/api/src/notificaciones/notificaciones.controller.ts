@@ -8,6 +8,7 @@ import { SesionGuard, type RequestConSesion } from '../comun/sesion.guard.js';
 import { ZodPipe } from '../comun/zod.pipe.js';
 import { NotificacionesService } from './notificaciones.service.js';
 import { NotificacionesStreamService } from './notificaciones-stream.service.js';
+import { limiteDeConsulta } from '../comun/consulta.js';
 
 const preferenciasSchema = z.object({
   preferencias: z.array(
@@ -52,8 +53,8 @@ export class NotificacionesController {
   ) {
     return this.notificaciones.listar(
       req.usuario!.id,
-      cursor,
-      limite ? Math.min(Number(limite), 50) : 30,
+      cursor || undefined,
+      limiteDeConsulta(limite, 30, 50),
     );
   }
 

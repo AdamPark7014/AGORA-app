@@ -2,6 +2,7 @@ import { Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/com
 
 import { SesionGuard, type RequestConSesion } from '../comun/sesion.guard.js';
 import { GuardadosService } from './guardados.service.js';
+import { limiteDeConsulta } from '../comun/consulta.js';
 
 @Controller()
 @UseGuards(SesionGuard)
@@ -17,7 +18,7 @@ export class GuardadosController {
     return this.guardados.listar(
       req.usuario!.id,
       cursor,
-      limite ? Math.min(Number(limite), 40) : 20,
+      limiteDeConsulta(limite, 20, 40),
     );
   }
 

@@ -479,12 +479,13 @@ export class PostsService {
       throw new BadRequestException(veredicto.motivo ?? 'Ese texto cruza una linea roja.');
     }
 
+    // Una publicacion en revision sigue en revision: editarla no puede ser la
+    // forma de sacarla de la cola (con la IA apagada siempre la publicaba).
+    const enRevision =
+      post.estado === 'EN_REVISION' || veredicto.decision === DECISIONES.PUBLICAR_Y_ENCOLAR;
     await this.prisma.post.update({
       where: { id: postId },
-      data: {
-        texto: datos.texto,
-        estado: veredicto.decision === DECISIONES.PUBLICAR_Y_ENCOLAR ? 'EN_REVISION' : 'PUBLICADO',
-      },
+      data: { texto: datos.texto, estado: enRevision ? 'EN_REVISION' : 'PUBLICADO' },
     });
 
     const usuario = await this.prisma.user.findUnique({
