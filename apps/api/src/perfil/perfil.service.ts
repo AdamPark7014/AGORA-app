@@ -408,7 +408,12 @@ export class PerfilService {
         ? this.prisma.membership.findFirst({
             where: {
               userId: solicitanteId,
-              community: { memberships: { some: { userId: perfil.userId } } },
+              // "Toda la UDLAP" no cuenta: ahi esta todo el mundo, y contarla
+              // dejaba el modo "solo mis comunidades" sin efecto para nadie.
+              community: {
+                tipo: { not: 'UNIVERSIDAD' },
+                memberships: { some: { userId: perfil.userId } },
+              },
             },
             select: { id: true },
           })

@@ -88,3 +88,25 @@ test('silenciar es unilateral: el silenciado sigue viendo a quien lo silencio', 
     OR: [{ bloqueadorId: YO }, { bloqueadoId: YO, soloSilencio: false }],
   });
 });
+
+test('compartir "Toda la UDLAP" no abre un perfil restringido', async () => {
+  // Todo el mundo es miembro del campus: si contara como comunidad compartida,
+  // "solo mis comunidades" no restringiria a nadie.
+  let filtro: { community?: { tipo?: unknown } } | undefined;
+  const prisma = {
+    profile: {
+      findUnique: async () => ({ userId: 'otro', visibilidad: 'COMUNIDADES', user: { estado: 'ACTIVO' } }),
+    },
+    block: { findFirst: async () => null },
+    membership: {
+      findFirst: async (args: { where: { community?: { tipo?: unknown } } }) => {
+        filtro = args.where;
+        return null;
+      },
+    },
+    follow: { findMany: async () => [] },
+  } as unknown as PrismaService;
+
+  await new PerfilService(prisma, {} as never, {} as never).listarSeguidores('alguien', YO);
+  assert.deepEqual(filtro?.community?.tipo, { not: 'UNIVERSIDAD' });
+});
