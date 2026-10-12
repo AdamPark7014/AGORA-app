@@ -21,6 +21,21 @@ export async function hayBloqueo(prisma: ConBloqueos, a: string, b: string): Pro
 }
 
 /**
+ * A quien no ve `userId` en listas (feed, hashtags, comentarios): a quien
+ * bloqueo o silencio, y a quien lo bloqueo. Silenciar es unilateral: el
+ * silenciado sigue viendo a quien lo silencio y no se entera.
+ */
+export async function ocultosPara(prisma: ConBloqueos, userId: string): Promise<Set<string>> {
+  const bloqueos = await prisma.block.findMany({
+    where: { OR: [{ bloqueadorId: userId }, { bloqueadoId: userId, soloSilencio: false }] },
+    select: { bloqueadorId: true, bloqueadoId: true },
+  });
+  return new Set(
+    bloqueos.flatMap((b) => [b.bloqueadorId, b.bloqueadoId]).filter((id) => id !== userId),
+  );
+}
+
+/**
  * ¿Debe callarse un aviso de `actor` para `destinatario`?
  *
  * Si el destinatario bloqueo **o silencio** al actor, no quiere saber de el:

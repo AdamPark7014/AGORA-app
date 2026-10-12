@@ -24,6 +24,7 @@ import { AuthService } from '../auth/auth.service.js';
 import { HashtagsService } from '../hashtags/hashtags.service.js';
 import { moderacionPreviaActiva } from '../comun/moderacion.js';
 import { enSegundoPlano } from '../comun/segundo-plano.js';
+import { hayBloqueo, ocultosPara } from '../bloqueos/bloqueos.js';
 import { aVistaPost, incluirVistaPost } from './vista-post.js';
 
 /** Lo que se ve en el feed. EN_REVISION sigue visible: la IA no borra sola. */
@@ -183,15 +184,7 @@ export class PostsService {
     });
     if (!usuario) return { publicaciones: [], siguienteCursor: null };
 
-    // A quien bloquee o silencie no lo veo, y quien me bloqueo no me ve a mi.
-    // Silenciar es unilateral: el silenciado me sigue viendo y no se entera.
-    const bloqueos = await this.prisma.block.findMany({
-      where: { OR: [{ bloqueadorId: userId }, { bloqueadoId: userId, soloSilencio: false }] },
-      select: { bloqueadorId: true, bloqueadoId: true },
-    });
-    const ocultos = new Set(
-      bloqueos.flatMap((b) => [b.bloqueadorId, b.bloqueadoId]).filter((id) => id !== userId),
-    );
+    const ocultos = await ocultosPara(this.prisma, userId);
 
     const where: Prisma.PostWhereInput = {
       community: { universityId: usuario.universityId },
@@ -249,8 +242,19 @@ export class PostsService {
       throw new NotFoundException('Esa publicacion no existe.');
     }
 
+    // Lo mismo que el feed: con el enlace directo tampoco se ve a quien te
+    // bloqueo (o bloqueaste), ni sus comentarios.
+    const ocultos = await ocultosPara(this.prisma, userId);
+    if (!post.anonimo && ocultos.has(post.authorId) && (await this.hayBloqueoCon(userId, post.authorId))) {
+      throw new NotFoundException('Esa publicacion no existe.');
+    }
+
     const comentarios = await this.prisma.comment.findMany({
-      where: { postId, estado: { in: [...VISIBLES] } },
+      where: {
+        postId,
+        estado: { in: [...VISIBLES] },
+        ...(ocultos.size > 0 ? { authorId: { notIn: [...ocultos] } } : {}),
+      },
       include: {
         author: {
           select: {
@@ -286,13 +290,7 @@ export class PostsService {
   }
 
   async comentar(postId: string, userId: string, datos: CrearComentario) {
-    const post = await this.prisma.post.findUnique({
-      where: { id: postId },
-      select: { id: true, communityId: true, estado: true },
-    });
-    if (!post || !VISIBLES.includes(post.estado as (typeof VISIBLES)[number])) {
-      throw new NotFoundException('Esa publicacion no existe.');
-    }
+    const post = await this.exigirVisible(postId, userId);
 
     const membresia = await this.prisma.membership.findUnique({
       where: { userId_communityId: { userId, communityId: post.communityId } },
@@ -353,13 +351,7 @@ export class PostsService {
 
   /** Reaccion tipo interruptor: la misma quita, otra distinta reemplaza. */
   async reaccionar(postId: string, userId: string, datos: Reaccionar) {
-    const post = await this.prisma.post.findUnique({
-      where: { id: postId },
-      select: { id: true, estado: true },
-    });
-    if (!post || !VISIBLES.includes(post.estado as (typeof VISIBLES)[number])) {
-      throw new NotFoundException('Esa publicacion no existe.');
-    }
+    await this.exigirVisible(postId, userId);
 
     const existente = await this.prisma.reaction.findUnique({
       where: { postId_userId: { postId, userId } },
@@ -416,6 +408,7 @@ export class PostsService {
    * aqui: se borran los votos previos del usuario en esa encuesta.
    */
   async votar(postId: string, userId: string, opcionId: string) {
+    await this.exigirVisible(postId, userId);
     const opcion = await this.prisma.pollOption.findUnique({
       where: { id: opcionId },
       include: { poll: { select: { id: true, postId: true, cierraAt: true } } },
@@ -513,6 +506,31 @@ export class PostsService {
     );
 
     return { aviso: veredicto.motivo ?? null };
+  }
+
+  private hayBloqueoCon(userId: string, otroId: string): Promise<boolean> {
+    return hayBloqueo(this.prisma, userId, otroId);
+  }
+
+  /**
+   * La publicacion existe, esta visible y no hay un bloqueo entre quien la
+   * pide y su autor. Antes reaccionar, votar y comentar solo miraban el
+   * estado: con el id se podia reaccionar a quien te bloqueo, y votar en una
+   * encuesta retirada. En las anonimas no se mira el bloqueo: un 404 ahi le
+   * diria al bloqueado quien la escribio.
+   */
+  private async exigirVisible(postId: string, userId: string) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true, communityId: true, estado: true, anonimo: true },
+    });
+    if (!post || !VISIBLES.includes(post.estado as (typeof VISIBLES)[number])) {
+      throw new NotFoundException('Esa publicacion no existe.');
+    }
+    if (!post.anonimo && post.authorId !== userId && (await this.hayBloqueoCon(userId, post.authorId))) {
+      throw new NotFoundException('Esa publicacion no existe.');
+    }
+    return post;
   }
 
   private async notificarMenciones(texto: string, actorId: string, url: string) {

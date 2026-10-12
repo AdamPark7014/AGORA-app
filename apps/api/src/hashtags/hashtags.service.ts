@@ -4,6 +4,7 @@ import { esStaff } from '@agora/rbac';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { aMediaVista } from '../posts/vista-post.js';
+import { ocultosPara } from '../bloqueos/bloqueos.js';
 
 const VISIBLES = ['PUBLICADO', 'EN_REVISION'] as const;
 
@@ -83,6 +84,9 @@ export class HashtagsService {
     const idsComunidad = misComunidades.map((m) => m.communityId);
     if (idsComunidad.length === 0) return { publicaciones: [], siguienteCursor: null };
 
+    // Mismo criterio que el feed: aqui tambien salia quien te bloqueo.
+    const ocultos = await ocultosPara(this.prisma, userId);
+
     const enlaces = await this.prisma.postHashtag.findMany({
       where: {
         hashtagId: hashtag.id,
@@ -90,6 +94,7 @@ export class HashtagsService {
           estado: { in: [...VISIBLES] },
           anonimo: false,
           communityId: { in: idsComunidad },
+          ...(ocultos.size > 0 ? { authorId: { notIn: [...ocultos] } } : {}),
         },
       },
       include: {
