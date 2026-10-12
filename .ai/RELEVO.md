@@ -4,6 +4,29 @@
 - **Fecha:** 2026-10-12
 - **Rama:** main
 
+## Hecho en este turno (12-10, etapas 2 a 4)
+
+Todo en `main`, **sin desplegar**. Plan de 4 etapas que pidió Adam ("haz todas una por una").
+- **Etapa 1 y 2** (blindar, red de seguridad): privacidad del perfil COMUNIDADES (la comunidad campus
+  la anulaba), directorio y tarjetas públicas sin datos de perfiles restringidos, bloqueos en feed,
+  detalle, comentar, hashtags; Sentry opcional (`SENTRY_DSN`); push solo a hosts conocidos y máx. 10
+  suscripciones; `/reglas`; CSP sin unsafe-eval en prod; logs con tope en compose; Traefik `/media`
+  solo GET/HEAD + CSP sandbox; `scripts/respaldo-externo.sh` y `scripts/vigilar-disco.sh` (runbook).
+- **Etapa 3:** `TarjetaPost` única (6 copias fuera; feed 1098→583 líneas), carril derecho en
+  escritorio y tira "Tu día" en móvil; bienvenida guiada (foto → seguir, `GET /perfil/sugerencias` →
+  pregunta → presentarte); esqueletos y Reintentar en aventones/marketplace/anónimo/ajustes; chat web
+  por SSE (`/mensajes/:id/stream` ya existía) con sondeo de respaldo; `leidoAt` solo si hay algo nuevo.
+- **Etapa 4:** pregunta del día relámpago (`pregunta/relampago.ts`): hora sorpresa 10–20 h (HMAC del
+  día con SESSION_SECRET), cron por minuto manda un push una sola vez, "a tiempo" = 2 min, tu carrera
+  vs campus. Interruptor `avisoPregunta` en Ajustes. **Migración nueva `20261012120000_pregunta_relampago`**
+  (solo columnas). Arreglado: la pregunta cambiaba a las 18:00 MX (contenedor en UTC).
+- **Pendiente de Adam:** billing de GitHub Actions; destino rclone + cron de respaldo y disco en el VPS;
+  DSN de Sentry; topic de ntfy; `install-traefik-route.sh`; datos del aviso de privacidad (borrador en
+  el archivo del proyecto `auditoria/aviso-privacidad-borrador.md`); correo desde udlagora.com (DNS).
+  Las apps nativas no muestran aún la hora sorpresa (ignoran los campos nuevos).
+- Ojo: `prisma migrate diff --shadow-database-url` con la base de desarrollo la **borra**.
+- API 224/224, e2e 24 ok (las de admin requieren :3300), tsc/eslint/build web en verde.
+
 ## Hecho en este turno (12-10)
 
 Auditoría completa (seguridad, rendimiento, UX, producción): 40 hallazgos priorizados, fuera del repo
