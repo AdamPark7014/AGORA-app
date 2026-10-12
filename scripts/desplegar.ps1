@@ -14,7 +14,7 @@
 
   Rollback:
     ssh ... "docker tag agora-api:prev-<fecha> agora-api:latest && docker tag agora-web:prev-<fecha> agora-web:latest &&
-             cd /var/www/udlagora-app && docker compose -f deploy/docker-compose.yml up -d --no-build api web"
+             cd /var/www/udlagora-app && docker compose -f deploy/docker-compose.yml up -d --no-build --no-deps api web"
   Ojo: el rollback no deshace migraciones (las de hoy solo agregan columnas, no estorban al código viejo).
 #>
 param(
@@ -58,7 +58,8 @@ if ($LASTEXITCODE -ne 0) { Falla 'No se pudieron etiquetar las imágenes actuale
 
 Paso '4/6 Subiendo el código'
 $tar = Join-Path $env:TEMP "agora-$commit.tar.gz"
-git archive --format=tar.gz -o $tar HEAD
+# autocrlf=false: el servidor es Linux; con CRLF el entrypoint de la api no arranca (07-10).
+git -c core.autocrlf=false archive --format=tar.gz -o $tar HEAD
 scp -i $Llave -P $Puerto $tar "${Servidor}:/tmp/agora-$commit.tar.gz"
 if ($LASTEXITCODE -ne 0) { Falla 'No se pudo subir el código.' }
 ssh @ssh "cd $Remoto && tar -xzf /tmp/agora-$commit.tar.gz && rm /tmp/agora-$commit.tar.gz && echo $commit > DESPLEGADO"
@@ -66,7 +67,8 @@ if ($LASTEXITCODE -ne 0) { Falla 'No se pudo extraer el código en el servidor.'
 Remove-Item $tar
 
 Paso '5/6 Construyendo api y web (tarda varios minutos)'
-ssh @ssh "cd $Remoto && docker compose -f deploy/docker-compose.yml up -d --build api web && docker compose -f deploy/docker-compose.yml ps api web"
+# --no-deps: sin él compose intenta recrear minio-init y su imagen minio/mc ya no se puede bajar (07-10).
+ssh @ssh "cd $Remoto && docker compose -f deploy/docker-compose.yml up -d --build --no-deps api web && docker compose -f deploy/docker-compose.yml ps api web"
 if ($LASTEXITCODE -ne 0) { Falla "La construcción falló. Rollback con las imágenes prev-$fecha (ver cabecera del script)." }
 
 Paso '6/6 Ruta de Traefik y smoke'
