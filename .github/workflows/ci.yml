@@ -107,6 +107,11 @@ jobs:
         run: pnpm check-types
 
       - name: Build (unit tests corren sobre dist/)
+        # `next build` exige NODE_ENV=production: con el development del job
+        # el admin falla al prerenderizar /404. El resto del job sigue en
+        # development porque el e2e entra con el codigo maestro de desarrollo.
+        env:
+          NODE_ENV: production
         run: pnpm build
 
       - name: Unit tests
