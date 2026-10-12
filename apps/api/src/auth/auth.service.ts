@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import {
+  MAX_INTENTOS,
   RESULTADO_ENVIO,
   RESULTADO_OTP,
   generarCodigo,
@@ -152,26 +153,32 @@ export class AuthService {
     if (!guardado) throw new UnauthorizedException('Codigo invalido o vencido.');
 
     const resultado = verificarCodigo(codigo, email, guardado, this.secreto, ahora);
+    // Mensaje unico: distinguir "vencido" de "incorrecto" le dice a un
+    // atacante si acerto el codigo pero llego tarde.
+    const invalido = new UnauthorizedException('Codigo invalido o vencido.');
 
-    if (resultado === RESULTADO_OTP.INCORRECTO) {
-      // Solo el codigo equivocado gasta intento. Expirado o usado ya no sirven
-      // de nada, asi que descontarlos solo castigaria al usuario legitimo.
-      await this.prisma.otpCode.update({
-        where: { id: guardado.id },
-        data: { intentos: { increment: 1 } },
-      });
+    // Expirado, usado o sin intentos ya no sirven de nada: no se descuenta
+    // nada, que solo castigaria al usuario legitimo.
+    if (resultado !== RESULTADO_OTP.VALIDO && resultado !== RESULTADO_OTP.INCORRECTO) {
+      throw invalido;
     }
 
-    if (resultado !== RESULTADO_OTP.VALIDO) {
-      // Mensaje unico: distinguir "vencido" de "incorrecto" le dice a un
-      // atacante si acerto el codigo pero llego tarde.
-      throw new UnauthorizedException('Codigo invalido o vencido.');
-    }
+    // El intento se reserva en la base *antes* de dar por bueno nada. Leer
+    // `intentos` arriba y escribir despues dejaba una ventana: cien
+    // verificaciones en paralelo leian todas "0 de 5" y el tope desaparecia.
+    // Con la condicion en el WHERE solo pasan las que de verdad caben.
+    const reservado = await this.prisma.otpCode.updateMany({
+      where: { id: guardado.id, consumedAt: null, intentos: { lt: MAX_INTENTOS } },
+      data: { intentos: { increment: 1 } },
+    });
+    if (reservado.count !== 1 || resultado === RESULTADO_OTP.INCORRECTO) throw invalido;
 
-    await this.prisma.otpCode.update({
-      where: { id: guardado.id },
+    // Mismo motivo: dos canjes simultaneos del mismo codigo, solo uno gana.
+    const consumido = await this.prisma.otpCode.updateMany({
+      where: { id: guardado.id, consumedAt: null },
       data: { consumedAt: ahora },
     });
+    if (consumido.count !== 1) throw invalido;
 
     return this.abrirSesion(usuario, contexto, ahora);
   }

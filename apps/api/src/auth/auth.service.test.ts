@@ -150,9 +150,10 @@ test('verificarCodigo incorrecto incrementa intentos y no abre sesion', async ()
           consumedAt: null,
           intentos: 0,
         }),
-        update: async ({ data }: { data: { intentos?: { increment: number }; consumedAt?: Date } }) => {
+        updateMany: async ({ data }: { data: { intentos?: { increment: number }; consumedAt?: Date } }) => {
           if (data.intentos) intentos += data.intentos.increment;
           if (data.consumedAt) throw new Error('no debe consumir codigo incorrecto');
+          return { count: 1 };
         },
       },
       session: {
@@ -215,7 +216,7 @@ test('volver a entrar no levanta una suspension', async () => {
           consumedAt: null,
           intentos: 0,
         }),
-        update: async () => ({}),
+        updateMany: async () => ({ count: 1 }),
       },
       session: { create: () => Promise.resolve({}) },
       $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
@@ -226,6 +227,104 @@ test('volver a entrar no levanta una suspension', async () => {
       delete process.env.DEV_OTP_MAESTRO;
       await new AuthService(prisma, correoMock).verificarCodigo('a@udlap.mx', '111111', {}, ahora);
       assert.equal(estadoGuardado, 'SUSPENDIDO');
+    } finally {
+      if (prevCod === undefined) delete process.env.DEV_OTP_MAESTRO;
+      else process.env.DEV_OTP_MAESTRO = prevCod;
+    }
+  });
+});
+
+/**
+ * Simula una tabla de un solo codigo que aplica las condiciones del WHERE como
+ * lo haria Postgres. Sirve para comprobar que el tope de intentos y el canje
+ * unico aguantan peticiones en paralelo.
+ */
+async function otpEnParalelo(codigoCorrecto: string, intentosIniciales = 0) {
+  const { hashCodigo, vencimientoDesde } = await import('@agora/auth');
+  const ahora = new Date('2026-10-12T12:00:00Z');
+  const fila = {
+    id: 'otp1',
+    codeHash: hashCodigo(codigoCorrecto, 'a@udlap.mx', process.env.SESSION_SECRET!),
+    expiresAt: vencimientoDesde(ahora),
+    consumedAt: null as Date | null,
+    intentos: intentosIniciales,
+  };
+  let sesiones = 0;
+  const prisma = {
+    user: {
+      findUnique: async () => ({
+        id: 'u1',
+        email: 'a@udlap.mx',
+        estado: 'ACTIVO',
+        emailVerifiedAt: ahora,
+        profile: { id: 'p1' },
+      }),
+      update: async () => ({}),
+    },
+    otpCode: {
+      // Todas las lecturas ven la fila tal como estaba: es la ventana de carrera.
+      findFirst: async () => ({ ...fila }),
+      updateMany: async ({
+        where,
+        data,
+      }: {
+        where: { consumedAt: null; intentos?: { lt: number } };
+        data: { intentos?: { increment: number }; consumedAt?: Date };
+      }) => {
+        await new Promise((r) => setImmediate(r));
+        if (fila.consumedAt !== null) return { count: 0 };
+        if (where.intentos && !(fila.intentos < where.intentos.lt)) return { count: 0 };
+        if (data.intentos) fila.intentos += data.intentos.increment;
+        if (data.consumedAt) fila.consumedAt = data.consumedAt;
+        return { count: 1 };
+      },
+    },
+    session: { create: () => Promise.resolve({}) },
+    $transaction: async (ops: Promise<unknown>[]) => {
+      sesiones += 1;
+      return Promise.all(ops);
+    },
+  } as unknown as PrismaService;
+  return { servicio: new AuthService(prisma, correoMock), fila, ahora, sesiones: () => sesiones };
+}
+
+test('verificaciones en paralelo no superan el tope de intentos', async () => {
+  await withSessionSecret(async () => {
+    const prevCod = process.env.DEV_OTP_MAESTRO;
+    try {
+      delete process.env.DEV_OTP_MAESTRO;
+      const { servicio, fila, ahora } = await otpEnParalelo('111111');
+      // Cincuenta adivinanzas a la vez: antes todas leian "0 de 5" y contaban.
+      await Promise.allSettled(
+        Array.from({ length: 50 }, (_, i) =>
+          servicio.verificarCodigo('a@udlap.mx', String(200000 + i), {}, ahora),
+        ),
+      );
+      assert.equal(fila.intentos, 5);
+      // Y con el tope gastado, ni el codigo correcto entra ya.
+      await assert.rejects(
+        () => servicio.verificarCodigo('a@udlap.mx', '111111', {}, ahora),
+        (err: unknown) => err instanceof UnauthorizedException,
+      );
+    } finally {
+      if (prevCod === undefined) delete process.env.DEV_OTP_MAESTRO;
+      else process.env.DEV_OTP_MAESTRO = prevCod;
+    }
+  });
+});
+
+test('el mismo codigo canjeado dos veces a la vez abre una sola sesion', async () => {
+  await withSessionSecret(async () => {
+    const prevCod = process.env.DEV_OTP_MAESTRO;
+    try {
+      delete process.env.DEV_OTP_MAESTRO;
+      const { servicio, ahora, sesiones } = await otpEnParalelo('111111');
+      const resultados = await Promise.allSettled([
+        servicio.verificarCodigo('a@udlap.mx', '111111', {}, ahora),
+        servicio.verificarCodigo('a@udlap.mx', '111111', {}, ahora),
+      ]);
+      assert.equal(resultados.filter((r) => r.status === 'fulfilled').length, 1);
+      assert.equal(sesiones(), 1);
     } finally {
       if (prevCod === undefined) delete process.env.DEV_OTP_MAESTRO;
       else process.env.DEV_OTP_MAESTRO = prevCod;
