@@ -25,7 +25,8 @@ export default function Terminos() {
       <p>
         Publica con respeto. Está prohibido el acoso, las amenazas, compartir datos personales
         de terceros sin permiso, contenido íntimo sin consentimiento y la suplantación de identidad.
-        El equipo de moderación puede retirar publicaciones que violen estas reglas.
+        El equipo de moderación puede retirar publicaciones que violen estas reglas. El detalle
+        está en las <Link href="/reglas">Reglas de la comunidad</Link>.
       </p>
 
       <h2>Tu responsabilidad</h2>

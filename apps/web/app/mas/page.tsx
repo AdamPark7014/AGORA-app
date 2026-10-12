@@ -178,7 +178,8 @@ export default function Mas() {
 
       <div style={{ marginTop: 16 }}>
         <p className="tenue" style={{ fontSize: '0.85rem' }}>
-          <Link href="/terminos">Términos</Link> · <Link href="/privacidad">Privacidad</Link>
+          <Link href="/reglas">Reglas</Link> · <Link href="/terminos">Términos</Link> ·{' '}
+          <Link href="/privacidad">Privacidad</Link>
         </p>
         <button type="button" className="secundario" onClick={salir} style={{ marginTop: 12 }}>
           Cerrar sesión
