@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { NextConfig } from 'next';
 
 const API = process.env.API_INTERNA ?? 'http://localhost:4200';
+const DESARROLLO = process.env.NODE_ENV !== 'production';
 
 const config: NextConfig = {
   reactStrictMode: true,
@@ -88,12 +89,15 @@ const config: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              // `unsafe-eval` y `http:` solo en desarrollo: el recargado en
+              // caliente de Next evalua codigo y MinIO local sirve por http.
+              // En produccion no hacen falta y solo abren la puerta a un XSS.
+              `script-src 'self' 'unsafe-inline'${DESARROLLO ? " 'unsafe-eval'" : ''}`,
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https: http:",
+              `img-src 'self' data: blob: https:${DESARROLLO ? ' http:' : ''}`,
               "font-src 'self' data:",
-              "connect-src 'self' https: wss: ws:",
-              "media-src 'self' blob: https: http:",
+              `connect-src 'self' https: wss:${DESARROLLO ? ' ws:' : ''}`,
+              `media-src 'self' blob: https:${DESARROLLO ? ' http:' : ''}`,
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

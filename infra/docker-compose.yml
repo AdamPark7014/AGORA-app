@@ -9,8 +9,10 @@ services:
       POSTGRES_USER: agora
       POSTGRES_PASSWORD: agora_local_dev
       POSTGRES_DB: agora
+    # Solo en esta maquina: con la contrasena fija de desarrollo, publicar en
+    # 0.0.0.0 dejaba la base abierta a cualquiera en la misma red (WiFi del campus).
     ports:
-      - '5442:5432'
+      - '127.0.0.1:5442:5432'
     volumes:
       - agora-postgres:/var/lib/postgresql/data
     healthcheck:
@@ -25,7 +27,7 @@ services:
     restart: unless-stopped
     command: ['redis-server', '--save', '60', '1', '--loglevel', 'warning']
     ports:
-      - '6382:6379'
+      - '127.0.0.1:6382:6379'
     volumes:
       - agora-redis:/data
     healthcheck:

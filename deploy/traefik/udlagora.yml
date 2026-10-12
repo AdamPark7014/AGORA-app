@@ -25,11 +25,15 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Solo lectura: GET/HEAD de archivos. Sin el filtro de metodo, toda la API
+    # S3 de MinIO (subir, borrar, administrar) quedaba alcanzable desde internet
+    # en el mismo origen que la app; la clave la frenaba, pero no deberia
+    # depender solo de eso.
     udlagora-media:
-      rule: Host(`udlagora.com`) && PathPrefix(`/media`)
+      rule: Host(`udlagora.com`) && PathPrefix(`/media`) && (Method(`GET`) || Method(`HEAD`))
       service: agora-minio
       entryPoints: [websecure]
-      middlewares: [strip-media-prefix]
+      middlewares: [strip-media-prefix, media-cabeceras]
       priority: 200
       tls:
         certResolver: letsencrypt
@@ -43,6 +47,13 @@ http:
     strip-media-prefix:
       stripPrefix:
         prefixes: ['/media']
+
+    # Las cabeceras de next.config no aplican a /media (no pasa por Next).
+    media-cabeceras:
+      headers:
+        customResponseHeaders:
+          X-Content-Type-Options: nosniff
+          Content-Security-Policy: "default-src 'none'; sandbox"
 
   services:
     agora-api:
