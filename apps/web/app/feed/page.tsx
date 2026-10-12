@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { NOMBRE_COMUNIDAD_CAMPUS_UDLAP, SLUG_COMUNIDAD_CAMPUS_UDLAP } from '@/lib/campus';
@@ -9,31 +8,19 @@ import { api, ErrorApi } from '@/lib/api';
 import { analytics } from '@/lib/analytics';
 import { sesion } from '@/lib/sesion';
 import { copy } from '@/lib/copy';
+import { useConsultaMedia } from '@/lib/pantalla';
+import type { Publicacion } from '@/lib/publicaciones';
 import { Avatar } from '@/componentes/avatar';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
 import { EstadoError } from '@/componentes/estado-error';
 import { EsqueletoFeed } from '@/componentes/esqueleto';
-import { Compartir } from '@/componentes/compartir';
-import { GuardarPost } from '@/componentes/guardar-post';
-import { Lightbox } from '@/componentes/lightbox';
-import { PreguntaDelDia } from '@/componentes/pregunta-del-dia';
-import { RachaBadges } from '@/componentes/racha-badges';
-import { RetoSemanal } from '@/componentes/reto-semanal';
-import { EventosEnVivo } from '@/componentes/eventos-en-vivo';
-import { RetosAmigos } from '@/componentes/retos-amigos';
-import { RetosRankingSemanal } from '@/componentes/retos-ranking-semanal';
-import { LeaderboardRachas } from '@/componentes/leaderboard-rachas';
-import { CampusTip } from '@/componentes/campus-tip';
-import { TuDia } from '@/componentes/tu-dia';
-import { avisar, confirmar } from '@/lib/avisos';
+import { TarjetaPost } from '@/componentes/tarjeta-post';
+import { TiraTuDia } from '@/componentes/tu-dia-feed';
 import { pingGamificacionSiNecesario, notificarInsigniasNuevas } from '@/lib/gamificacion';
 import type { BadgeCodigo } from '@agora/contracts';
-import { TextoConMenciones } from '@/componentes/texto-con-menciones';
-import { BarChart3, Flag, Image } from '@/componentes/iconos';
-import { TiempoRelativo } from '@/componentes/tiempo';
+import { BarChart3, Image } from '@/componentes/iconos';
 import { Flame } from 'lucide-react';
-import { atributosImagen } from '@/lib/imagen';
 
 const PLACEHOLDERS = copy.feed.placeholders;
 
@@ -43,55 +30,6 @@ interface Comunidad {
   tipo: string;
   silenciada?: boolean;
 }
-
-interface OpcionEncuesta {
-  id: string;
-  texto: string;
-  votos: number;
-}
-
-interface Adjunto {
-  url: string;
-  thumbUrl?: string | null;
-  ancho?: number | null;
-  mime: string;
-  esVideo: boolean;
-}
-
-interface Publicacion {
-  id: string;
-  texto: string;
-  media: Adjunto[];
-  estado: string;
-  createdAt: string;
-  autor: { handle: string; nombre: string; fotoUrl: string | null; verificado?: boolean } | null;
-  comunidad: { slug: string; nombre: string };
-  encuesta: { pregunta: string; opciones: OpcionEncuesta[] } | null;
-  numComments: number;
-  numReactions: number;
-  miReaccion: string | null;
-  miGuardado?: boolean;
-}
-
-const REACCIONES = [
-  { tipo: 'ME_LATE', etiqueta: 'Me late', emoji: '🔥' },
-  { tipo: 'ME_RIO', etiqueta: 'Me río', emoji: '😂' },
-  { tipo: 'APOYO', etiqueta: 'Apoyo', emoji: '🤝' },
-  { tipo: 'NO_MAMES', etiqueta: 'No mames', emoji: '😱' },
-] as const;
-
-/**
- * Motivos de reporte, en el mismo orden que la politica de contenido: las
- * cinco lineas rojas primero y "otro" al final.
- */
-const MOTIVOS_REPORTE = [
-  { valor: 'INTIMIDAD_SEXUAL', etiqueta: 'Contenido íntimo sin permiso' },
-  { valor: 'DATOS_PERSONALES', etiqueta: 'Datos personales' },
-  { valor: 'AMENAZA_VIOLENCIA', etiqueta: 'Amenaza de violencia' },
-  { valor: 'ACOSO_DIRIGIDO', etiqueta: 'Acoso dirigido' },
-  { valor: 'SUPLANTACION', etiqueta: 'Suplantación' },
-  { valor: 'OTRO', etiqueta: 'Otro' },
-] as const;
 
 /** Color de la etiqueta segun el tipo de comunidad: orienta de un vistazo. */
 const CLASE_COMUNIDAD: Record<string, string> = {
@@ -116,7 +54,6 @@ function FeedInterno() {
   const [comunidades, setComunidades] = useState<Comunidad[]>([]);
   const [comunidadSlug, setComunidadSlug] = useState(parametros.get('comunidad') ?? '');
   const [soloSiguiendo, setSoloSiguiendo] = useState(false);
-  const [lightbox, setLightbox] = useState<{ url: string; esVideo: boolean } | null>(null);
   const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
@@ -139,24 +76,15 @@ function FeedInterno() {
     esStaff: boolean;
     puedeModerar: boolean;
   } | null>(null);
-  /** Id de la publicacion cuyo menu de reporte esta abierto. */
-  const [reportando, setReportando] = useState<string | null>(null);
-  /** Id de la publicacion que el staff esta retirando. */
-  const [retirando, setRetirando] = useState<string | null>(null);
-  const [motivoRetiro, setMotivoRetiro] = useState('');
-  const [editando, setEditando] = useState<string | null>(null);
-  const [textoEditar, setTextoEditar] = useState('');
   /** Archivos ya subidos, esperando a que se publique. */
   const [adjuntos, setAdjuntos] = useState<Array<{ id: string; url: string; esVideo: boolean }>>([]);
   const [subiendo, setSubiendo] = useState(false);
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const compositorId = useId();
   const sentinelFeed = useRef<HTMLDivElement>(null);
-  /** Corazones flotantes al doble toque en imágenes del feed. */
-  const [corazonesFlotantes, setCorazonesFlotantes] = useState<
-    Array<{ id: string; postId: string; url: string; x: number; y: number }>
-  >([]);
-  const ultimoToqueImagen = useRef<{ postId: string; t: number } | null>(null);
+  // Sin carril derecho (celular, tablet) la gamificacion va en una tira;
+  // con carril, el carril la monta. Mismo corte que `Marco`.
+  const conCarrilDerecho = useConsultaMedia('(min-width: 1081px)');
 
   const cargarFeed = useCallback(async (slug: string, siguiendo: boolean) => {
     setCargando(true);
@@ -358,112 +286,6 @@ function FeedInterno() {
     }
   }
 
-  /**
-   * Reaccionar es optimista: la interfaz cambia al instante y el servidor
-   * confirma después.
-   *
-   * Es la acción correcta para esto — reversible, sin consecuencia y de éxito
-   * casi seguro. Esperar los ~150 ms del viaje de ida y vuelta hace que la app
-   * se sienta lenta sin ganar nada. Publicar y enviar mensaje **no** son
-   * optimistas: ahí el usuario necesita saber que de verdad quedó.
-   *
-   * Si el servidor rechaza, se revierte al estado exacto de antes.
-   */
-  function animarCorazonFlotante(
-    postId: string,
-    url: string,
-    evento: React.MouseEvent<HTMLElement>,
-  ) {
-    const rect = evento.currentTarget.getBoundingClientRect();
-    const id = `corazon-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const x = evento.clientX - rect.left;
-    const y = evento.clientY - rect.top;
-    setCorazonesFlotantes((previos) => [...previos, { id, postId, url, x, y }]);
-    window.setTimeout(() => {
-      setCorazonesFlotantes((previos) => previos.filter((c) => c.id !== id));
-    }, 750);
-  }
-
-  function tocarImagenPost(
-    postId: string,
-    url: string,
-    evento: React.MouseEvent<HTMLButtonElement>,
-  ) {
-    const ahora = Date.now();
-    const previo = ultimoToqueImagen.current;
-
-    if (previo?.postId === postId && ahora - previo.t < 350) {
-      ultimoToqueImagen.current = null;
-      evento.preventDefault();
-      animarCorazonFlotante(postId, url, evento);
-      void reaccionar(postId, 'ME_LATE');
-      return;
-    }
-
-    ultimoToqueImagen.current = { postId, t: ahora };
-    window.setTimeout(() => {
-      if (ultimoToqueImagen.current?.postId === postId && ultimoToqueImagen.current.t === ahora) {
-        ultimoToqueImagen.current = null;
-        setLightbox({ url, esVideo: false });
-      }
-    }, 350);
-  }
-
-  async function reaccionar(postId: string, tipo: string) {
-    const antes = publicaciones.find((p) => p.id === postId);
-    if (!antes) return;
-
-    const quita = antes.miReaccion === tipo;
-    const nueva = quita ? null : tipo;
-    const delta = quita ? -1 : antes.miReaccion ? 0 : 1;
-
-    setPublicaciones((previas) =>
-      previas.map((p) =>
-        p.id === postId ? { ...p, miReaccion: nueva, numReactions: p.numReactions + delta } : p,
-      ),
-    );
-
-    try {
-      const { miReaccion } = await api<{ miReaccion: string | null }>(
-        `/posts/${postId}/reacciones`,
-        { method: 'POST', body: JSON.stringify({ tipo }) },
-      );
-      // El servidor manda: si su respuesta difiere de lo que pintamos, gana él.
-      if (miReaccion !== nueva) {
-        setPublicaciones((previas) =>
-          previas.map((p) => (p.id === postId ? { ...p, miReaccion } : p)),
-        );
-      }
-    } catch {
-      setPublicaciones((previas) =>
-        previas.map((p) =>
-          p.id === postId
-            ? { ...p, miReaccion: antes.miReaccion, numReactions: antes.numReactions }
-            : p,
-        ),
-      );
-      avisar('No se pudo reaccionar.', 'error');
-    }
-  }
-
-  async function votar(postId: string, opcionId: string) {
-    try {
-      const { opciones: nuevas } = await api<{ opciones: OpcionEncuesta[] }>(
-        `/posts/${postId}/votos`,
-        { method: 'POST', body: JSON.stringify({ opcionId }) },
-      );
-      setPublicaciones((previas) =>
-        previas.map((p) =>
-          p.id === postId && p.encuesta
-            ? { ...p, encuesta: { ...p.encuesta, opciones: nuevas } }
-            : p,
-        ),
-      );
-    } catch {
-      avisar('No se pudo votar.', 'error');
-    }
-  }
-
   const tipoDe = (slug: string) => comunidades.find((c) => c.slug === slug)?.tipo ?? '';
   const comunidadActiva = comunidades.find((c) => c.slug === comunidadSlug);
   const comunidadesFiltro = comunidades.filter((c) => !c.silenciada && c.slug !== SLUG_COMUNIDAD_CAMPUS_UDLAP);
@@ -484,75 +306,6 @@ function FeedInterno() {
     router.replace('/feed?siguiendo=1');
   }
 
-  async function borrarPost(postId: string) {
-    if (!(await confirmar({ titulo: '¿Borrar esta publicación?', detalle: 'No se puede deshacer.', accion: 'Borrar', peligro: true }))) return;
-    try {
-      await api(`/posts/${postId}`, { method: 'DELETE' });
-      setPublicaciones((previas) => previas.filter((p) => p.id !== postId));
-    } catch (e) {
-      avisar(e instanceof ErrorApi ? e.message : 'No se pudo borrar.', 'error');
-    }
-  }
-
-  async function guardarEdicion(postId: string) {
-    try {
-      const r = await api<{ aviso: string | null }>(`/posts/${postId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ texto: textoEditar }),
-      });
-      setEditando(null);
-      setPublicaciones((previas) =>
-        previas.map((p) => (p.id === postId ? { ...p, texto: textoEditar } : p)),
-      );
-      if (r.aviso) avisar(r.aviso);
-    } catch (e) {
-      avisar(e instanceof ErrorApi ? e.message : 'No se pudo editar.', 'error');
-    }
-  }
-
-  /**
-   * Reportar. Sin este boton la cola de moderacion solo recibe lo que marca la
-   * IA, y el acoso dirigido —que un clasificador no detecta— no llega nunca.
-   */
-  async function reportar(postId: string, motivo: string) {
-    setReportando(null);
-    setError(null);
-    try {
-      const r = await api<{ yaExistia: boolean }>('/reportes', {
-        method: 'POST',
-        body: JSON.stringify({ postId, motivo }),
-      });
-      avisar(
-        r.yaExistia
-          ? 'Ya habías reportado esto. Un moderador lo va a ver.'
-          : 'Gracias. Un moderador lo va a revisar.',
-      );
-    } catch (e) {
-      avisar(e instanceof ErrorApi ? e.message : 'No se pudo reportar.', 'error');
-    }
-  }
-
-  async function retirarPost(postId: string) {
-    const motivo = motivoRetiro.trim();
-    if (motivo.length < 3) {
-      avisar('Escribe el motivo del retiro.', 'error');
-      return;
-    }
-    setError(null);
-    try {
-      await api(`/moderacion/posts/${postId}/retirar`, {
-        method: 'POST',
-        body: JSON.stringify({ motivo }),
-      });
-      setPublicaciones((previas) => previas.filter((p) => p.id !== postId));
-      setRetirando(null);
-      setMotivoRetiro('');
-      avisar('Publicación retirada.');
-    } catch (e) {
-      avisar(e instanceof ErrorApi ? e.message : 'No se pudo retirar.', 'error');
-    }
-  }
-
   function irAPublicar() {
     document.getElementById(compositorId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     document.querySelector<HTMLTextAreaElement>(`#${compositorId} textarea`)?.focus();
@@ -570,10 +323,6 @@ function FeedInterno() {
               : copy.feed.entradilla.campus
         }
       />
-
-      <div style={{ marginBottom: 12 }}>
-        <EventosEnVivo />
-      </div>
 
       <form className="tarjeta tarjeta-compositor" id={compositorId} onSubmit={publicar}>
         {/* Cuadro de chat, no formulario: escribir debe sentirse como mandar
@@ -726,17 +475,7 @@ function FeedInterno() {
         <div aria-live="polite">{error && <p className="error">{error}</p>}</div>
       </form>
 
-      <TuDia>
-        <div className="solo-movil">
-          <PreguntaDelDia />
-        </div>
-        <RachaBadges />
-        <RetoSemanal />
-        <RetosAmigos />
-        <RetosRankingSemanal />
-        <LeaderboardRachas />
-        <CampusTip />
-      </TuDia>
+      {conCarrilDerecho === false && <TiraTuDia />}
 
       {errorCarga && !cargando && (
         <EstadoError onReintentar={() => void cargarFeed(comunidadSlug, soloSiguiendo)}>
@@ -809,269 +548,19 @@ function FeedInterno() {
       )}
 
       <ul className="lista">
-        {publicaciones.map((p) => {
-          const totalVotos =
-            p.encuesta?.opciones.reduce((suma, o) => suma + o.votos, 0) ?? 0;
-
-          return (
-            <li key={p.id} className="tarjeta tarjeta-interactiva">
-              <div className="pub-cabeza">
-                <Avatar
-                  nombre={p.autor?.nombre ?? 'Alguien'}
-                  semilla={p.autor?.handle ?? p.id}
-                  fotoUrl={p.autor?.fotoUrl}
-                  verificado={p.autor?.verificado}
-                />
-                <div className="pub-identidad">
-                  {p.autor ? (
-                    <Link href={`/perfil/${p.autor.handle}`} className="pub-autor">
-                      {p.autor.nombre}
-                    </Link>
-                  ) : (
-                    <span className="pub-autor">Alguien</span>
-                  )}
-                  <div className="pub-meta">
-                    <TiempoRelativo fecha={p.createdAt} />
-                    {p.estado === 'EN_REVISION' && ' · en revisión'}
-                  </div>
-                </div>
-                <span
-                  className={`${CLASE_COMUNIDAD[tipoDe(p.comunidad.slug)] ?? 'etiqueta'} pub-comunidad`}
-                >
-                  {p.comunidad.nombre}
-                </span>
-              </div>
-
-              {editando === p.id ? (
-                <div style={{ marginTop: 8 }}>
-                  <textarea
-                    rows={3}
-                    maxLength={2000}
-                    value={textoEditar}
-                    onChange={(e) => setTextoEditar(e.target.value)}
-                    style={{ width: '100%' }}
-                  />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    <button type="button" onClick={() => guardarEdicion(p.id)}>
-                      Guardar
-                    </button>
-                    <button type="button" className="fantasma" onClick={() => setEditando(null)}>
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                p.texto && (
-                  <p className="pub-texto">
-                    <TextoConMenciones texto={p.texto} />
-                  </p>
-                )
-              )}
-
-              {p.media.length > 0 && (
-                <div className={`galeria n${Math.min(p.media.length, 4)}`}>
-                  {p.media.map((m) =>
-                    m.esVideo ? (
-                      // eslint-disable-next-line jsx-a11y/media-has-caption
-                      <video key={m.url} src={m.url} controls preload="metadata" />
-                    ) : (
-                      <button
-                        key={m.url}
-                        type="button"
-                        className="galeria-enlace galeria-doble-toque"
-                        onClick={(e) => tocarImagenPost(p.id, m.url, e)}
-                        onDoubleClick={(e) => {
-                          e.preventDefault();
-                          ultimoToqueImagen.current = null;
-                          animarCorazonFlotante(p.id, m.url, e);
-                          void reaccionar(p.id, 'ME_LATE');
-                        }}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img {...atributosImagen(m, p.media.length)} alt="" loading="lazy" />
-                        {corazonesFlotantes
-                          .filter((c) => c.postId === p.id && c.url === m.url)
-                          .map((c) => (
-                          <span
-                            key={c.id}
-                            className="reaccion-flotante"
-                            style={{ left: c.x, top: c.y }}
-                            aria-hidden="true"
-                          >
-                            🧡
-                          </span>
-                        ))}
-                      </button>
-                    ),
-                  )}
-                </div>
-              )}
-
-              {p.encuesta && (
-                <div className="encuesta">
-                  <p className="encuesta-pregunta">{p.encuesta.pregunta}</p>
-                  {p.encuesta.opciones.map((o) => {
-                    const porcentaje = totalVotos ? Math.round((o.votos / totalVotos) * 100) : 0;
-                    return (
-                      <button
-                        key={o.id}
-                        type="button"
-                        className="opcion"
-                        onClick={() => votar(p.id, o.id)}
-                      >
-                        <span
-                          className="opcion-barra"
-                          style={{ width: `${porcentaje}%` }}
-                        />
-                        <span className="opcion-contenido">
-                          <span>{o.texto}</span>
-                          <span className="tenue">
-                            {o.votos} · {porcentaje}%
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                  <p className="tenue" style={{ margin: '4px 0 0' }}>
-                    {totalVotos} {totalVotos === 1 ? 'voto' : 'votos'}
-                  </p>
-                </div>
-              )}
-
-              <div className="pub-pie">
-                {REACCIONES.map((r) => (
-                  <button
-                    key={r.tipo}
-                    type="button"
-                    className="reaccion"
-                    aria-pressed={p.miReaccion === r.tipo}
-                    onClick={() => reaccionar(p.id, r.tipo)}
-                  >
-                    <span className="reaccion-emoji" aria-hidden="true">{r.emoji}</span>
-                    {r.etiqueta}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="reaccion"
-                  title="Reportar"
-                  aria-label="Reportar publicación"
-                  aria-expanded={reportando === p.id}
-                  onClick={() => setReportando(reportando === p.id ? null : p.id)}
-                >
-                  <Flag size={16} strokeWidth={1.75} aria-hidden="true" />
-                </button>
-
-                <Compartir url={`/publicacion/${p.id}`} titulo="Publicación en Ágora" />
-
-                <GuardarPost postId={p.id} inicial={p.miGuardado} />
-
-                {yo?.handle && p.autor?.handle === yo.handle && (
-                  <>
-                    <button
-                      type="button"
-                      className="reaccion"
-                      title="Editar"
-                      aria-label="Editar publicación"
-                      onClick={() => {
-                        setEditando(p.id);
-                        setTextoEditar(p.texto);
-                      }}
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      type="button"
-                      className="reaccion"
-                      title="Borrar"
-                      aria-label="Borrar publicación"
-                      onClick={() => borrarPost(p.id)}
-                    >
-                      🗑
-                    </button>
-                  </>
-                )}
-
-                {yo?.puedeModerar && (
-                  <button
-                    type="button"
-                    className="reaccion"
-                    title="Retirar como moderador"
-                    aria-label="Retirar publicación"
-                    aria-expanded={retirando === p.id}
-                    onClick={() => {
-                      setRetirando(retirando === p.id ? null : p.id);
-                      setMotivoRetiro('');
-                    }}
-                  >
-                    🚫
-                  </button>
-                )}
-
-                {p.numReactions > 0 && (
-                  <span className="pub-cuentas" style={{ marginLeft: 4 }}>
-                    {p.numReactions} {p.numReactions === 1 ? 'reacción' : 'reacciones'}
-                  </span>
-                )}
-
-                <Link href={`/publicacion/${p.id}`} className="pub-cuentas" style={{ marginLeft: 'auto' }}>
-                  {p.numComments === 0
-                    ? 'Comentar'
-                    : `${p.numComments} ${p.numComments === 1 ? 'comentario' : 'comentarios'}`}
-                </Link>
-              </div>
-
-              {reportando === p.id && (
-                <div className="encuesta" style={{ marginTop: 12, marginBottom: 0 }}>
-                  <p className="encuesta-pregunta">¿Por qué lo reportas?</p>
-                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                    {MOTIVOS_REPORTE.map((m) => (
-                      <button
-                        key={m.valor}
-                        type="button"
-                        className="reaccion"
-                        onClick={() => reportar(p.id, m.valor)}
-                      >
-                        {m.etiqueta}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      className="fantasma"
-                      onClick={() => setReportando(null)}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {retirando === p.id && (
-                <div className="encuesta" style={{ marginTop: 12, marginBottom: 0 }}>
-                  <p className="encuesta-pregunta">Motivo del retiro (lo verá el autor)</p>
-                  <input
-                    value={motivoRetiro}
-                    onChange={(e) => setMotivoRetiro(e.target.value)}
-                    placeholder="Ej. datos personales de un tercero"
-                    maxLength={500}
-                  />
-                  <div className="acciones" style={{ marginTop: 10 }}>
-                    <button type="button" onClick={() => retirarPost(p.id)}>
-                      Retirar publicación
-                    </button>
-                    <button
-                      type="button"
-                      className="fantasma"
-                      onClick={() => setRetirando(null)}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-            </li>
-          );
-        })}
+        {publicaciones.map((p) => (
+          <TarjetaPost
+            key={p.id}
+            post={p}
+            yo={yo}
+            claseComunidad={CLASE_COMUNIDAD[tipoDe(p.comunidad.slug)] ?? 'etiqueta'}
+            permitirRetirar
+            actualizar={(cambio) =>
+              setPublicaciones((previas) => previas.map((x) => (x.id === p.id ? cambio(x) : x)))
+            }
+            onEliminada={(id) => setPublicaciones((previas) => previas.filter((x) => x.id !== id))}
+          />
+        ))}
       </ul>
 
       {cursor && (
@@ -1088,10 +577,6 @@ function FeedInterno() {
         <p className="tenue" style={{ textAlign: 'center', marginTop: 20 }}>
           Llegaste al final. Publica algo o vuelve más tarde.
         </p>
-      )}
-
-      {lightbox && (
-        <Lightbox url={lightbox.url} esVideo={lightbox.esVideo} onCerrar={() => setLightbox(null)} />
       )}
     </main>
   );

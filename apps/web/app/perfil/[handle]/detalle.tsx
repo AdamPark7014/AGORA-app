@@ -9,13 +9,17 @@ import { sesion } from '@/lib/sesion';
 import { copy } from '@/lib/copy';
 import { Avatar } from '@/componentes/avatar';
 import { MessageCircle, Settings } from '@/componentes/iconos';
-import { TiempoRelativo } from '@/componentes/tiempo';
+import { TarjetaPost } from '@/componentes/tarjeta-post';
 import { EstadoVacio } from '@/componentes/estado-vacio';
 import { EsqueletoPerfil } from '@/componentes/esqueleto';
 import { UserX, Inbox, Cake, Lock } from 'lucide-react';
 import { RachaBadges } from '@/componentes/racha-badges';
 import { TIPOS_RETO_AMIGO } from '@agora/contracts';
-import { atributosImagen } from '@/lib/imagen';
+import {
+  normalizarPublicacion,
+  type Publicacion,
+  type PublicacionApi,
+} from '@/lib/publicaciones';
 import {
   crearReto,
   etiquetaTipoReto,
@@ -51,16 +55,6 @@ interface Perfil {
   verificado?: boolean;
 }
 
-interface Publicacion {
-  id: string;
-  texto: string;
-  createdAt: string;
-  comunidad: string;
-  numComments: number;
-  numReactions: number;
-  media?: Array<{ url: string; thumbUrl?: string | null; ancho?: number | null; esVideo: boolean }>;
-}
-
 const MESES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
@@ -94,10 +88,10 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
       setPerfil(datos);
       setSiguiendo(datos.yoLeSigo ?? false);
       if (!datos.restringido) {
-        const p = await api<{ publicaciones: Publicacion[]; siguienteCursor: string | null }>(
+        const p = await api<{ publicaciones: PublicacionApi[]; siguienteCursor: string | null }>(
           `/perfil/${handle}/publicaciones`,
         );
-        setPublicaciones(p.publicaciones);
+        setPublicaciones(p.publicaciones.map(normalizarPublicacion));
         setSiguienteCursor(p.siguienteCursor);
       } else {
         setPublicaciones([]);
@@ -143,10 +137,10 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
     if (!siguienteCursor || cargandoMas) return;
     setCargandoMas(true);
     try {
-      const p = await api<{ publicaciones: Publicacion[]; siguienteCursor: string | null }>(
+      const p = await api<{ publicaciones: PublicacionApi[]; siguienteCursor: string | null }>(
         `/perfil/${handle}/publicaciones?cursor=${siguienteCursor}`,
       );
-      setPublicaciones((prev) => [...prev, ...p.publicaciones]);
+      setPublicaciones((prev) => [...prev, ...p.publicaciones.map(normalizarPublicacion)]);
       setSiguienteCursor(p.siguienteCursor);
     } catch {
       // Silencioso.
@@ -479,35 +473,7 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
       ) : (
         <ul className="lista">
           {publicaciones.map((p) => (
-            <li key={p.id} className="tarjeta">
-              <p className="pub-meta" style={{ margin: '0 0 8px' }}>
-                <TiempoRelativo fecha={p.createdAt} /> · {p.comunidad}
-              </p>
-              {p.media && p.media.length > 0 && (
-                <div className={`galeria n${Math.min(p.media.length, 4)}`} style={{ marginBottom: 10 }}>
-                  {p.media.slice(0, 4).map((m) =>
-                    m.esVideo ? (
-                      // eslint-disable-next-line jsx-a11y/media-has-caption
-                      <video key={m.url} src={m.url} controls preload="metadata" />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={m.url}
-                        {...atributosImagen(m, Math.min(p.media?.length ?? 1, 4))}
-                        alt=""
-                        loading="lazy"
-                      />
-                    ),
-                  )}
-                </div>
-              )}
-              <p className="pub-texto" style={{ marginBottom: 10 }}>
-                {p.texto}
-              </p>
-              <Link href={`/publicacion/${p.id}`} className="pub-cuentas">
-                {p.numReactions} reacciones · {p.numComments} comentarios
-              </Link>
-            </li>
+            <TarjetaPost key={p.id} post={p} variante="compacta" />
           ))}
         </ul>
       )}

@@ -30,9 +30,42 @@ export type GamificacionExtendida = GamificacionResponse & {
   comparacionCampus?: ComparacionCampus;
 };
 
-/** Estado de gamificación del usuario autenticado. */
+const VIDA_CACHE_MS = 30_000;
+let gamificacionEnVuelo: Promise<GamificacionExtendida> | null = null;
+let gamificacionCacheada: { valor: GamificacionExtendida; hasta: number } | null = null;
+
+/**
+ * Estado de gamificación del usuario autenticado.
+ *
+ * Racha, reto semanal, pregunta del dia y la tira del feed leen todos lo
+ * mismo, y al abrir el feed montaban a la vez: cuatro peticiones identicas a
+ * `/gamificacion/mio` por carga. Igual que `sesion()`, una promesa en vuelo
+ * compartida y una cache corta las juntan en una.
+ */
 export function obtenerGamificacion(): Promise<GamificacionExtendida> {
-  return api<GamificacionExtendida>('/gamificacion/mio');
+  if (gamificacionCacheada && Date.now() < gamificacionCacheada.hasta) {
+    return Promise.resolve(gamificacionCacheada.valor);
+  }
+  if (gamificacionEnVuelo) return gamificacionEnVuelo;
+
+  gamificacionEnVuelo = api<GamificacionExtendida>('/gamificacion/mio')
+    .then((valor) => {
+      gamificacionCacheada = { valor, hasta: Date.now() + VIDA_CACHE_MS };
+      return valor;
+    })
+    .finally(() => {
+      // Se suelta pase lo que pase: una promesa rechazada pegada aqui
+      // dejaria los widgets fallando hasta recargar.
+      gamificacionEnVuelo = null;
+    });
+
+  return gamificacionEnVuelo;
+}
+
+/** Tira la copia guardada: tras un ping, una respuesta o una insignia nueva. */
+export function olvidarGamificacion(): void {
+  gamificacionCacheada = null;
+  gamificacionEnVuelo = null;
 }
 
 /** Rachas e insignias públicas de un perfil (misma universidad). */
@@ -72,12 +105,16 @@ function mostrarToastInsignias(codigos: BadgeCodigo[]): void {
 export function notificarInsigniasNuevas(codigos?: BadgeCodigo[] | null): void {
   if (!codigos?.length) return;
   mostrarToastInsignias(codigos);
+  // Sin olvidar la cache, el evento haria que todos releyeran la copia vieja.
+  olvidarGamificacion();
   window.dispatchEvent(new CustomEvent(EVENTO_REFRESH_GAMIFICACION));
 }
 
 /** Registra actividad de hoy y evalúa insignias nuevas. */
 export function pingGamificacion(): Promise<GamificacionPingResponse> {
   return api<GamificacionPingResponse>('/gamificacion/ping', { method: 'POST' }).then((resp) => {
+    // El ping puede subir la racha de hoy: lo que hubiera en cache ya no vale.
+    olvidarGamificacion();
     notificarInsigniasNuevas(resp.nuevasInsignias);
     return resp;
   });

@@ -10,6 +10,7 @@ import { NOMBRE_COMUNIDAD_CAMPUS_UDLAP, SLUG_COMUNIDAD_CAMPUS_UDLAP } from '@/li
 import { Avatar } from './avatar';
 import { IconoNav } from './iconos';
 import { PreguntaDelDia } from './pregunta-del-dia';
+import { WidgetsTuDia } from './tu-dia-feed';
 import { Cake } from 'lucide-react';
 
 /**
@@ -170,6 +171,7 @@ interface Cumple {
 }
 
 export function CarrilDerecho() {
+  const ruta = usePathname();
   const [eventos, setEventos] = useState<EventoBreve[]>([]);
   const [gente, setGente] = useState<Persona[]>([]);
   const [cumples, setCumples] = useState<Cumple[]>([]);
@@ -198,6 +200,10 @@ export function CarrilDerecho() {
   return (
     <aside className="carril carril-derecho">
       <PreguntaDelDia />
+
+      {/* En el feed, la gamificacion vive aqui y no encima de las
+          publicaciones (ver componentes/tu-dia-feed.tsx). */}
+      {ruta === '/feed' && <WidgetsTuDia />}
 
       {trending.length > 0 && (
         <div className="panel">

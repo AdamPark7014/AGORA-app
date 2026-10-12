@@ -1,25 +1,13 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from '@/lib/api';
-import { Avatar } from '@/componentes/avatar';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
-import { TextoConMenciones } from '@/componentes/texto-con-menciones';
-import { TiempoRelativo } from '@/componentes/tiempo';
+import { TarjetaPost } from '@/componentes/tarjeta-post';
+import type { Publicacion } from '@/lib/publicaciones';
 import { Hash } from 'lucide-react';
-
-interface Publicacion {
-  id: string;
-  texto: string;
-  createdAt: string;
-  autor: { handle: string; nombre: string; fotoUrl: string | null; verificado?: boolean } | null;
-  comunidad: { slug: string; nombre: string };
-  numComments: number;
-  numReactions: number;
-}
 
 export default function HashtagPage({ params }: { params: Promise<{ tag: string }> }) {
   const [tag, setTag] = useState('');
@@ -91,42 +79,13 @@ export default function HashtagPage({ params }: { params: Promise<{ tag: string 
 
       <ul className="lista">
         {publicaciones.map((p) => (
-          <li key={p.id} className="tarjeta tarjeta-interactiva">
-            <div className="pub-cabeza">
-              <Avatar
-                nombre={p.autor?.nombre ?? 'Alguien'}
-                semilla={p.autor?.handle ?? p.id}
-                fotoUrl={p.autor?.fotoUrl}
-                verificado={p.autor?.verificado}
-              />
-              <div className="pub-identidad">
-                {p.autor ? (
-                  <Link href={`/perfil/${p.autor.handle}`} className="pub-autor">
-                    {p.autor.nombre}
-                  </Link>
-                ) : (
-                  <span className="pub-autor">Alguien</span>
-                )}
-                <div className="pub-meta">
-                  <TiempoRelativo fecha={p.createdAt} />
-                </div>
-              </div>
-              <span className="etiqueta naranja pub-comunidad">{p.comunidad.nombre}</span>
-            </div>
-            {p.texto && (
-              <p className="pub-texto">
-                <TextoConMenciones texto={p.texto} />
-              </p>
-            )}
-            <div className="pub-pie">
-              <Link href={`/publicacion/${p.id}`} className="reaccion" style={{ textDecoration: 'none' }}>
-                Ver publicación
-              </Link>
-              {p.numReactions > 0 && (
-                <span className="pub-cuentas">{p.numReactions} reacciones</span>
-              )}
-            </div>
-          </li>
+          <TarjetaPost
+            key={p.id}
+            post={p}
+            actualizar={(cambio) =>
+              setPublicaciones((prev) => prev.map((x) => (x.id === p.id ? cambio(x) : x)))
+            }
+          />
         ))}
       </ul>
 

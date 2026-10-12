@@ -8,7 +8,8 @@ import { Avatar } from '@/componentes/avatar';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
 import { Search } from '@/componentes/iconos';
-import { TextoConMenciones } from '@/componentes/texto-con-menciones';
+import { TarjetaPost } from '@/componentes/tarjeta-post';
+import { normalizarPublicacion, type PublicacionApi } from '@/lib/publicaciones';
 import { TiempoRelativo } from '@/componentes/tiempo';
 
 interface Persona {
@@ -17,14 +18,6 @@ interface Persona {
   fotoUrl: string | null;
   carrera: string | null;
   verificado?: boolean;
-}
-
-interface Publicacion {
-  id: string;
-  texto: string;
-  createdAt: string;
-  autor: { handle: string; nombre: string } | null;
-  comunidad: string;
 }
 
 interface Evento {
@@ -53,7 +46,7 @@ export default function Buscar() {
   const [q, setQ] = useState('');
   const [tipo, setTipo] = useState<(typeof TIPOS)[number]['valor']>('todo');
   const [personas, setPersonas] = useState<Persona[]>([]);
-  const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
+  const [publicaciones, setPublicaciones] = useState<PublicacionApi[]>([]);
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
   const [cargando, setCargando] = useState(false);
@@ -75,7 +68,7 @@ export default function Buscar() {
         const p = new URLSearchParams({ q: q.trim(), tipo });
         const datos = await api<{
           personas: Persona[];
-          publicaciones: Publicacion[];
+          publicaciones: PublicacionApi[];
           eventos: Evento[];
           anuncios: Anuncio[];
         }>(`/buscar?${p}`);
@@ -160,19 +153,7 @@ export default function Buscar() {
           <h2>Publicaciones</h2>
           <ul className="lista">
             {publicaciones.map((p) => (
-              <li key={p.id} className="tarjeta">
-                <p className="pub-meta" style={{ margin: '0 0 6px' }}>
-                  {p.autor && <Link href={`/perfil/${p.autor.handle}`} className="pub-autor">{p.autor.nombre}</Link>}
-                  {' · '}
-                  <TiempoRelativo fecha={p.createdAt} />
-                  {' · '}
-                  {p.comunidad}
-                </p>
-                <p className="pub-texto" style={{ marginBottom: 8 }}>
-                  <TextoConMenciones texto={p.texto} />
-                </p>
-                <Link href={`/publicacion/${p.id}`} className="pub-cuentas">Ver publicación</Link>
-              </li>
+              <TarjetaPost key={p.id} post={normalizarPublicacion(p)} variante="compacta" />
             ))}
           </ul>
         </>
