@@ -19,6 +19,7 @@ import {
   LIMITE_OTP_SOLICITAR,
   LIMITE_OTP_VERIFICAR,
 } from '../comun/almacen-limite.js';
+import { LimitePorIp } from '../comun/limite.guard.js';
 import { ZodPipe } from '../comun/zod.pipe.js';
 import {
   COOKIE_SESION,
@@ -57,6 +58,7 @@ export class AuthController {
    */
   @Post('otp/solicitar')
   @Throttle(LIMITE_OTP_SOLICITAR)
+  @LimitePorIp()
   @HttpCode(204)
   async solicitar(
     @Body(new ZodPipe(solicitarOtpSchema)) cuerpo: { email: string },
@@ -73,6 +75,7 @@ export class AuthController {
    * El id es opaco y de un solo envio; no revela a quien se mando.
    */
   @Get('otp/entrega/:envioId')
+  @LimitePorIp()
   async entregaCodigo(@Param('envioId') envioId: string): Promise<EstadoEnvio> {
     const estado = ID_ENVIO.test(envioId) ? await this.entrega.consultar(envioId) : null;
     if (!estado) throw new NotFoundException('Envio desconocido.');
@@ -82,6 +85,7 @@ export class AuthController {
   /** Mismo motivo: sin sesion; adivinar codigos se hace aqui (30/min, 300/h). */
   @Post('otp/verificar')
   @Throttle(LIMITE_OTP_VERIFICAR)
+  @LimitePorIp()
   async verificar(
     @Body(new ZodPipe(verificarOtpSchema))
     cuerpo: { email: string; codigo: string; modo: 'cookie' | 'token' },

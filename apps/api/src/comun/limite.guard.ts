@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { type ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { createHash } from 'node:crypto';
 
@@ -34,8 +34,8 @@ import { extraerToken, type RequestConSesion } from './sesion.guard.js';
  * Aparte del guard para poder probarla: es la decision de seguridad de todo
  * esto y no deberia hacer falta levantar Nest para comprobarla.
  */
-export function claveDeLimite(req: RequestConSesion): string {
-  const token = extraerToken(req);
+export function claveDeLimite(req: RequestConSesion, opciones: { porIp?: boolean } = {}): string {
+  const token = opciones.porIp ? undefined : extraerToken(req);
   if (token) return `s:${createHash('sha256').update(token).digest('base64url').slice(0, 24)}`;
 
   // `req.ips` viene poblado cuando TRUST_PROXY=true; ahi el primer elemento
@@ -43,9 +43,30 @@ export function claveDeLimite(req: RequestConSesion): string {
   return `ip:${req.ips?.[0] ?? req.ip ?? 'desconocida'}`;
 }
 
+const LIMITE_POR_IP = 'agora:limite-por-ip';
+
+/**
+ * Cuenta esta ruta siempre por IP, traiga el token que traiga.
+ *
+ * Para las rutas que se usan *antes* de tener sesion (pedir y verificar el
+ * codigo). Ahi nadie valida el token, asi que contar por token dejaba la
+ * puerta abierta: un `Authorization: Bearer <lo-que-sea>` distinto en cada
+ * peticion caia cada vez en un contador nuevo y el limite por IP desaparecia.
+ */
+export const LimitePorIp = (): MethodDecorator & ClassDecorator => SetMetadata(LIMITE_POR_IP, true);
+
 @Injectable()
 export class LimiteGuard extends ThrottlerGuard {
-  protected async getTracker(req: RequestConSesion): Promise<string> {
-    return claveDeLimite(req);
+  protected override async getTracker(
+    req: RequestConSesion,
+    contexto?: ExecutionContext,
+  ): Promise<string> {
+    const porIp =
+      contexto !== undefined &&
+      this.reflector.getAllAndOverride<boolean>(LIMITE_POR_IP, [
+        contexto.getHandler(),
+        contexto.getClass(),
+      ]) === true;
+    return claveDeLimite(req, { porIp });
   }
 }

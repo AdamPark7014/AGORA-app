@@ -65,3 +65,14 @@ test('una peticion sin IP reconocible sigue teniendo clave', () => {
   const clave = claveDeLimite(pedir({}));
   assert.equal(clave, 'ip:desconocida');
 });
+
+test('en las rutas sin sesion un token inventado no abre un contador nuevo', () => {
+  // Pedir y verificar el codigo se usan antes de tener sesion: nadie valida el
+  // token ahi. Si contara, un Bearer distinto por peticion saltaria el limite.
+  const ip = '203.0.113.9';
+  const a = claveDeLimite(pedir({ bearer: 'inventado-1', ip }), { porIp: true });
+  const b = claveDeLimite(pedir({ bearer: 'inventado-2', ip }), { porIp: true });
+
+  assert.equal(a, b);
+  assert.equal(a, `ip:${ip}`);
+});
