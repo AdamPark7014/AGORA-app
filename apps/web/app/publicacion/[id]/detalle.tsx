@@ -22,7 +22,13 @@ interface Comentario {
   autor: AutorPublicacion | null;
 }
 
-type Detalle = Publicacion & { comentarios: Comentario[] };
+interface PaginaComentarios {
+  comentarios: Comentario[];
+  /** Cursor de la pagina previa; null = ya estan todos. */
+  comentariosAnteriores?: string | null;
+}
+
+type Detalle = Publicacion & PaginaComentarios;
 
 export default function PaginaDetallePublicacion({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -34,6 +40,7 @@ export default function PaginaDetallePublicacion({ params }: { params: Promise<{
   const [enviando, setEnviando] = useState(false);
   const [reportandoComentario, setReportandoComentario] = useState<string | null>(null);
   const [yo, setYo] = useState<string | null>(null);
+  const [cargandoAnteriores, setCargandoAnteriores] = useState(false);
 
   const cargar = useCallback(async () => {
     try {
@@ -69,6 +76,30 @@ export default function PaginaDetallePublicacion({ params }: { params: Promise<{
       setError(e instanceof ErrorApi ? e.message : 'No se pudo comentar.');
     } finally {
       setEnviando(false);
+    }
+  }
+
+  async function verAnteriores() {
+    const cursor = post?.comentariosAnteriores;
+    if (!cursor || cargandoAnteriores) return;
+    setCargandoAnteriores(true);
+    try {
+      const pagina = await api<PaginaComentarios>(
+        `/posts/${id}/comentarios?antesDe=${encodeURIComponent(cursor)}`,
+      );
+      setPost((p) =>
+        p
+          ? {
+              ...p,
+              comentarios: [...pagina.comentarios, ...p.comentarios],
+              comentariosAnteriores: pagina.comentariosAnteriores ?? null,
+            }
+          : p,
+      );
+    } catch {
+      setError('No se pudieron cargar los comentarios anteriores.');
+    } finally {
+      setCargandoAnteriores(false);
     }
   }
 
@@ -155,6 +186,17 @@ export default function PaginaDetallePublicacion({ params }: { params: Promise<{
         </EstadoVacio>
       ) : (
         <div className="tarjeta" style={{ marginTop: 16 }}>
+          {post.comentariosAnteriores && (
+            <button
+              type="button"
+              className="reaccion"
+              style={{ marginBottom: 12 }}
+              disabled={cargandoAnteriores}
+              onClick={verAnteriores}
+            >
+              {cargandoAnteriores ? 'Cargando…' : 'Ver comentarios anteriores'}
+            </button>
+          )}
           {post.comentarios.map((c) => (
             <div key={c.id} className="comentario">
               <Avatar
