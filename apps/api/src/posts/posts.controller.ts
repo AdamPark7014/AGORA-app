@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -54,6 +55,16 @@ export class PostsController {
   @Get('posts/:id')
   async detalle(@Req() req: RequestConSesion, @Param('id') id: string) {
     return this.posts.detalle(id, req.usuario!.id);
+  }
+
+  @Get('posts/:id/comentarios')
+  async comentariosAnteriores(
+    @Req() req: RequestConSesion,
+    @Param('id') id: string,
+    @Query('antesDe') antesDe?: string,
+  ) {
+    if (!antesDe || antesDe.length > 64) throw new BadRequestException('Falta antesDe.');
+    return this.posts.comentariosAnteriores(id, req.usuario!.id, antesDe);
   }
 
   @Post('posts/:id/comentarios')

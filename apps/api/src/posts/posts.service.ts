@@ -29,6 +29,7 @@ import { aVistaPost, incluirVistaPost } from './vista-post.js';
 
 /** Lo que se ve en el feed. EN_REVISION sigue visible: la IA no borra sola. */
 const VISIBLES = ['PUBLICADO', 'EN_REVISION'] as const;
+const COMENTARIOS_POR_PAGINA = 50;
 
 @Injectable()
 export class PostsService {
@@ -249,7 +250,32 @@ export class PostsService {
       throw new NotFoundException('Esa publicacion no existe.');
     }
 
-    const comentarios = await this.prisma.comment.findMany({
+    const [pagina, guardado] = await Promise.all([
+      this.paginaComentarios(postId, ocultos),
+      this.prisma.guardado.findUnique({ where: { userId_postId: { userId, postId } } }),
+    ]);
+
+    return {
+      ...aVistaPost(post, Boolean(guardado)),
+      ...pagina,
+    };
+  }
+
+  /** Comentarios anteriores a `antesDe` (id), para "Ver comentarios anteriores". */
+  async comentariosAnteriores(postId: string, userId: string, antesDe: string) {
+    await this.exigirVisible(postId, userId);
+    const ocultos = await ocultosPara(this.prisma, userId);
+    return this.paginaComentarios(postId, ocultos, antesDe);
+  }
+
+  /**
+   * Los mas recientes primero en la consulta y en orden cronologico en la
+   * respuesta. Antes eran los 100 mas viejos: en una publicacion con mas de
+   * 100 comentarios los nuevos nunca aparecian. `comentariosAnteriores` es el
+   * cursor para pedir la pagina previa (null = ya no hay).
+   */
+  private async paginaComentarios(postId: string, ocultos: Set<string>, antesDe?: string) {
+    const filas = await this.prisma.comment.findMany({
       where: {
         postId,
         estado: { in: [...VISIBLES] },
@@ -263,17 +289,15 @@ export class PostsService {
           },
         },
       },
-      orderBy: { createdAt: 'asc' },
-      take: 100,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      ...(antesDe ? { cursor: { id: antesDe }, skip: 1 } : {}),
+      take: COMENTARIOS_POR_PAGINA + 1,
     });
-
-    const guardado = await this.prisma.guardado.findUnique({
-      where: { userId_postId: { userId, postId } },
-    });
+    const hayMas = filas.length > COMENTARIOS_POR_PAGINA;
+    const pagina = filas.slice(0, COMENTARIOS_POR_PAGINA).reverse();
 
     return {
-      ...aVistaPost(post, Boolean(guardado)),
-      comentarios: comentarios.map((c) => ({
+      comentarios: pagina.map((c) => ({
         id: c.id,
         texto: c.texto,
         createdAt: c.createdAt,
@@ -286,6 +310,7 @@ export class PostsService {
             }
           : null,
       })),
+      comentariosAnteriores: hayMas ? (pagina[0]?.id ?? null) : null,
     };
   }
 
@@ -357,27 +382,39 @@ export class PostsService {
       where: { postId_userId: { postId, userId } },
     });
 
+    // Doble toque rapido: dos peticiones leen el mismo estado. Cada rama es
+    // condicional para que la segunda no truene ni mueva el contador dos veces.
     if (existente?.tipo === datos.tipo) {
-      await this.prisma.$transaction([
-        this.prisma.reaction.delete({ where: { id: existente.id } }),
-        this.prisma.post.update({ where: { id: postId }, data: { numReactions: { decrement: 1 } } }),
-      ]);
+      await this.prisma.$transaction(async (tx) => {
+        const { count } = await tx.reaction.deleteMany({ where: { postId, userId, tipo: datos.tipo } });
+        if (count > 0) {
+          await tx.post.update({ where: { id: postId }, data: { numReactions: { decrement: 1 } } });
+        }
+      });
       return { miReaccion: null };
     }
 
     if (existente) {
       // Cambiar de reaccion no mueve el contador: sigue siendo una persona.
-      await this.prisma.reaction.update({
-        where: { id: existente.id },
+      await this.prisma.reaction.updateMany({
+        where: { postId, userId },
         data: { tipo: datos.tipo },
       });
       return { miReaccion: datos.tipo };
     }
 
-    await this.prisma.$transaction([
-      this.prisma.reaction.create({ data: { postId, userId, tipo: datos.tipo } }),
-      this.prisma.post.update({ where: { id: postId }, data: { numReactions: { increment: 1 } } }),
-    ]);
+    try {
+      await this.prisma.$transaction([
+        this.prisma.reaction.create({ data: { postId, userId, tipo: datos.tipo } }),
+        this.prisma.post.update({ where: { id: postId }, data: { numReactions: { increment: 1 } } }),
+      ]);
+    } catch (e) {
+      // La otra peticion del doble toque ya la creo: queda puesta, sin avisar dos veces.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        return { miReaccion: datos.tipo };
+      }
+      throw e;
+    }
 
     // Solo al crear una reaccion nueva. Cambiarla o quitarla no avisa: seria
     // ruido por algo que el autor ya sabe.
