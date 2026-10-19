@@ -1,8 +1,31 @@
 # RELEVO
 
-- **Último turno:** claude-code (sesión en la nube, hilo de proyecto)
-- **Fecha:** 2026-10-12
+- **Último turno:** claude-code (hilo de proyecto, en la compu de Adam)
+- **Fecha:** 2026-10-19
 - **Rama:** main
+
+## Hecho en este turno (19-10)
+
+Adam pidió terminar la app con Claude, sin Cursor. Todo en `main`, **sin desplegar**: el filtro de
+permisos bloqueó `scripts\desplegar.ps1` dos veces. Ojo: en el servidor hay respaldo de las 13:31 MX y
+etiquetas `prev-20261019-1331`, pero las imágenes `latest` son de hace 11 días y la CSP en vivo aún trae
+`'unsafe-eval'`: alguien corrió el script hoy y se cortó después del paso 3. Revisar el log al desplegar.
+- **Pregunta relámpago nativa** (punto 4 de `PARA-CURSOR.md`): Android (`7cab9cf`, assembleDebug y
+  unitarias en verde) e iOS (`c7e8169`, **SIN COMPILAR**): espera a la hora sorpresa y recarga al caer,
+  cuenta regresiva, sello a tiempo/tarde, "tu carrera X%", interruptor `avisoPregunta` en Ajustes.
+  El push `/feed` ya abría el feed en las dos.
+- **API** (`b854cd0`): reacciones a prueba de doble toque (deleteMany condicionado, P2002 = ya puesta,
+  sin aviso doble); el detalle trae los 50 comentarios **más recientes** + `comentariosAnteriores`, y
+  `GET /posts/:id/comentarios?antesDe=` da la página previa. Web: botón "Ver comentarios anteriores".
+  API 226/226, tsc y eslint en verde. Índice del feed: no se agregó; el filtro `estado IN (PUBLICADO,
+  EN_REVISION)` casi no descarta filas y ya existe `(communityId, createdAt desc)`.
+- **Avisos instalados en el VPS** (`/etc/cron.d/udlagora-vigilancia`, `scripts/instalar-vigilancia.sh`):
+  disco >80 % cada 15 min y caída de `/api/salud` cada 5 min (avisa una vez y al volver), tema ntfy
+  `udlagora-53c9f1958d79`. **El disco está en 88 %**: avisará cada 15 min hasta liberar espacio
+  (`docker builder prune --filter until=168h` libera ~6.5 GB de caché; nunca `volume prune`).
+- **Pendiente de Adam:** desplegar; suscribirse al tema en la app ntfy; DSN de Sentry; monitor externo
+  (UptimeRobot) para cuando cae el servidor entero; remitente `acceso@udlagora.com`; 3 datos del aviso
+  de privacidad. Sin respaldo externo (decisión de Adam).
 
 ## Hecho en este turno (12-10, etapas 2 a 4)
 
