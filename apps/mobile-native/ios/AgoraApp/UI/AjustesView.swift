@@ -14,6 +14,7 @@ private let etiquetasPreferencia: [String: String] = [
     "SEGUIDOR": "Nuevos seguidores",
     "INSIGNIA": "Insignias",
     "RETO": "Retos y duelos",
+    "PREGUNTA": "Pregunta del día",
 ]
 
 private let nombresMes = [
@@ -40,6 +41,7 @@ struct AjustesView: View {
     @State private var comunidades: [ComunidadDto] = []
     @State private var fotoUrl: String?
     @State private var preferencias: [PreferenciaNotificacionDto] = []
+    @State private var avisoPregunta = true
     @State private var cargando = true
     @State private var guardando = false
     @State private var subiendoFoto = false
@@ -400,6 +402,18 @@ struct AjustesView: View {
             Text("Notificaciones")
                 .font(.headline)
                 .padding(.top, AgoraDesign.Spacing.xs)
+            Toggle(isOn: Binding(
+                get: { avisoPregunta },
+                set: { activo in Task { await guardarAvisoPregunta(activo) } }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("⚡ Avísame cuando caiga la pregunta")
+                        .font(.subheadline.bold())
+                    Text("Sale a una hora sorpresa; tienes 2 minutos para contestar a tiempo.")
+                        .font(.caption)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                }
+            }
             ForEach(preferencias.indices, id: \.self) { index in
                 let pref = preferencias[index]
                 VStack(alignment: .leading, spacing: 4) {
@@ -492,6 +506,7 @@ struct AjustesView: View {
             cumpleDia = perfil.cumpleDia ?? 0
             cumpleMesOriginal = cumpleMes
             cumpleDiaOriginal = cumpleDia
+            avisoPregunta = perfil.avisoPregunta ?? true
             comunidades = try await AgoraApi.misComunidades()
             preferencias = try await AgoraApi.preferenciasNotificacion().preferencias ?? []
             generacion = try await AgoraApi.perfilPorHandle(perfil.handle).generacion
@@ -589,6 +604,17 @@ struct AjustesView: View {
             portadaUrl = actualizado?.portadaUrl ?? subida.url
             aviso = "Portada actualizada."
         } catch {
+            self.error = FormatUtils.mensajeDe(error)
+        }
+    }
+
+    private func guardarAvisoPregunta(_ activo: Bool) async {
+        let antes = avisoPregunta
+        avisoPregunta = activo
+        do {
+            try await AgoraApi.actualizarAvisoPregunta(activo)
+        } catch {
+            avisoPregunta = antes
             self.error = FormatUtils.mensajeDe(error)
         }
     }

@@ -87,6 +87,11 @@ enum AgoraApi {
     _ = try await client.patchJSON("perfil", body: ActualizarCumpleRequest(cumpleMes: mes, cumpleDia: dia))
   }
 
+  /// Push cuando cae la pregunta relámpago.
+  static func actualizarAvisoPregunta(_ activo: Bool) async throws {
+    _ = try await client.patchJSON("perfil", body: AvisoPreguntaRequest(avisoPregunta: activo))
+  }
+
   static func publicacionesPerfil(handle: String, cursor: String? = nil, limite: Int? = nil) async throws -> PerfilPublicacionesResponse {
     var query: [String: String] = [:]
     if let cursor { query["cursor"] = cursor }

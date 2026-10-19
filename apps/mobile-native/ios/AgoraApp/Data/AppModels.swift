@@ -175,6 +175,7 @@ struct PerfilMioDto: Codable {
     let portadaUrl: String?
     let cumpleMes: Int?
     let cumpleDia: Int?
+    var avisoPregunta: Bool? = nil
 }
 
 struct PerfilAjenoDto: Decodable {
@@ -493,6 +494,26 @@ struct PreguntaHoyDto: Decodable {
     let opciones: [PreguntaOpcionDto]?
     let nuevasInsignias: [String]?
     let semanaPregunta: SemanaPreguntaDto?
+    /// Hora sorpresa (ISO). nil = abierta todo el día (preguntas de antes de la mecánica).
+    let abreAt: String?
+    /// Fin de la ventana de 2 minutos para contestar "a tiempo" (ISO).
+    let aTiempoHasta: String?
+    /// false = todavía no cae. nil en APIs viejas = abierta.
+    let abierta: Bool?
+    let aTiempo: Bool?
+    let totalATiempo: Int?
+    let miCarrera: MiCarreraPreguntaDto?
+}
+
+struct MiCarreraPreguntaDto: Decodable {
+    let nombre: String
+    let total: Int
+    /// Llave = índice de la opción como texto.
+    let votos: [String: Int]
+}
+
+struct AvisoPreguntaRequest: Encodable {
+    let avisoPregunta: Bool
 }
 
 struct ResponderPreguntaRequest: Encodable {

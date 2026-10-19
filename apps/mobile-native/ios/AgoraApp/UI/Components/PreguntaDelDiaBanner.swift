@@ -12,16 +12,46 @@ struct PreguntaDelDiaBanner: View {
         // y con el contenido vacío `.task` nunca se disparaba (el banner no cargaba).
         VStack(spacing: 0) {
             if let pregunta {
-                ZStack {
-                    bannerContent(pregunta)
-                        .scaleEffect(celebrando ? 1.03 : 1)
-                        .animation(AgoraDesign.Animation.spring, value: celebrando)
+                if Self.esperando(pregunta) {
+                    tarjetaEsperando
+                } else {
+                    ZStack {
+                        bannerContent(pregunta)
+                            .scaleEffect(celebrando ? 1.03 : 1)
+                            .animation(AgoraDesign.Animation.spring, value: celebrando)
 
-                    ConfettiView(trigger: confettiTrigger)
+                        ConfettiView(trigger: confettiTrigger)
+                    }
                 }
             }
         }
         .task { await cargar() }
+        // Antes de la hora sorpresa: se vuelve a pedir justo cuando cae.
+        .task(id: pregunta?.abreAt) {
+            guard let pregunta, Self.esperando(pregunta),
+                  let abre = Self.fecha(pregunta.abreAt) else { return }
+            let falta = max(abre.timeIntervalSinceNow + 0.5, 0)
+            try? await Task.sleep(nanoseconds: UInt64(falta * 1_000_000_000))
+            if !Task.isCancelled { await cargar() }
+        }
+    }
+
+    private var tarjetaEsperando: some View {
+        VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
+            Text("Pregunta del día")
+                .font(.caption.bold())
+                .foregroundStyle(AgoraDesign.Colors.naranja)
+            Text("⚡ Hoy cae a una hora sorpresa.")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AgoraDesign.Colors.texto)
+            Text("Te avisamos en cuanto salga. Contesta en los primeros 2 minutos y sales a tiempo; antes de contestar no ves lo que dijeron los demás.")
+                .font(.caption)
+                .foregroundStyle(AgoraDesign.Colors.textoMedio)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(AgoraDesign.Spacing.sm + 2)
+        .background(AgoraDesign.Colors.naranjaSuave)
+        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
     }
 
     @ViewBuilder
@@ -35,6 +65,24 @@ struct PreguntaDelDiaBanner: View {
                 if celebrando {
                     Text("🎉").font(.title3)
                 }
+            }
+
+            if !actual.yaRespondi, let hasta = Self.fecha(actual.aTiempoHasta), hasta > Date() {
+                // Cuenta regresiva de la ventana "a tiempo"; al terminar desaparece sola.
+                TimelineView(.periodic(from: .now, by: 1)) { contexto in
+                    let falta = hasta.timeIntervalSince(contexto.date)
+                    if falta > 0 {
+                        Text("⚡ \(Self.mmss(falta)) para contestar a tiempo")
+                            .font(.caption.bold())
+                            .foregroundStyle(AgoraDesign.Colors.naranja)
+                    }
+                }
+            }
+            if actual.yaRespondi, let aTiempo = actual.aTiempo, actual.abreAt != nil {
+                Text((aTiempo ? "⚡ Contestaste a tiempo" : "Contestaste tarde")
+                     + (actual.totalATiempo.map { " · \($0) a tiempo hoy" } ?? ""))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(aTiempo ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.textoMedio)
             }
 
             Text(actual.texto)
@@ -123,7 +171,7 @@ struct PreguntaDelDiaBanner: View {
                     .font(.caption)
                     .fontWeight(seleccionada ? .bold : .regular)
                 Spacer()
-                Text("\(pct)%")
+                Text("\(pct)%" + Self.textoCarrera(actual.miCarrera, indice: opcion.indice))
                     .font(.caption2)
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
@@ -136,9 +184,39 @@ struct PreguntaDelDiaBanner: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
         }
-        Text("\(actual.total ?? 0) respuestas")
+        Text(Self.pieResultados(actual))
             .font(.caption2)
             .foregroundStyle(AgoraDesign.Colors.textoMedio)
+    }
+
+    private static func esperando(_ p: PreguntaHoyDto) -> Bool {
+        p.abierta == false && fecha(p.abreAt) != nil
+    }
+
+    private static func fecha(_ iso: String?) -> Date? {
+        guard let iso else { return nil }
+        let conFraccion = ISO8601DateFormatter()
+        conFraccion.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return conFraccion.date(from: iso) ?? ISO8601DateFormatter().date(from: iso)
+    }
+
+    private static func mmss(_ segundos: TimeInterval) -> String {
+        let s = max(0, Int(segundos.rounded(.up)))
+        return "\(s / 60):" + String(format: "%02d", s % 60)
+    }
+
+    private static func textoCarrera(_ carrera: MiCarreraPreguntaDto?, indice: Int) -> String {
+        guard let carrera, carrera.total > 0 else { return "" }
+        let votos = carrera.votos[String(indice)] ?? 0
+        return " · tu carrera \(votos * 100 / carrera.total)%"
+    }
+
+    private static func pieResultados(_ p: PreguntaHoyDto) -> String {
+        let total = p.total ?? 0
+        guard let carrera = p.miCarrera, carrera.total > 0 else {
+            return "\(total) de tu comunidad ya contestaron hoy."
+        }
+        return "\(total) de tu comunidad ya contestaron hoy, \(carrera.total) de \(carrera.nombre)."
     }
 
     private func cargar() async {
