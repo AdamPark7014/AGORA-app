@@ -169,6 +169,23 @@ data class PreguntaHoyDto(
     val opciones: List<PreguntaOpcionDto> = emptyList(),
     val nuevasInsignias: List<String>? = null,
     val semanaPregunta: SemanaPreguntaDto? = null,
+    /** Hora sorpresa (ISO). Null = abierta todo el día (preguntas de antes de la mecánica). */
+    val abreAt: String? = null,
+    /** Fin de la ventana de 2 minutos para contestar "a tiempo" (ISO). */
+    val aTiempoHasta: String? = null,
+    /** false = todavía no cae; no trae opciones útiles. */
+    val abierta: Boolean = true,
+    val aTiempo: Boolean? = null,
+    val totalATiempo: Int? = null,
+    val miCarrera: MiCarreraPreguntaDto? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class MiCarreraPreguntaDto(
+    val nombre: String,
+    val total: Int = 0,
+    /** Llave = índice de la opción como texto. */
+    val votos: Map<String, Int> = emptyMap(),
 )
 
 @JsonClass(generateAdapter = true)
@@ -222,6 +239,7 @@ data class PerfilMioDto(
     val portadaUrl: String? = null,
     val cumpleMes: Int? = null,
     val cumpleDia: Int? = null,
+    val avisoPregunta: Boolean? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -684,6 +702,8 @@ data class ActualizarPerfilRequest(
     /** Mes y día van juntos o ninguno (la API rechaza solo uno). */
     val cumpleMes: Int? = null,
     val cumpleDia: Int? = null,
+    /** Push cuando cae la pregunta relámpago. */
+    val avisoPregunta: Boolean? = null,
 )
 
 @JsonClass(generateAdapter = true)

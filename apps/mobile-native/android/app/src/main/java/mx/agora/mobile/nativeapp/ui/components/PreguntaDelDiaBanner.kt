@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -42,6 +43,7 @@ import mx.agora.mobile.nativeapp.data.gamificacion.GamificacionEvents
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.HapticType
 import mx.agora.mobile.nativeapp.ui.util.rememberHaptics
+import java.time.Instant
 
 @Composable
 fun PreguntaDelDiaBanner(
@@ -54,9 +56,34 @@ fun PreguntaDelDiaBanner(
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
 
-    LaunchedEffect(Unit) {
+    var ahora by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    // Sube cada vez que hay que volver a pedir la pregunta (al caer la hora sorpresa).
+    var recargas by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(recargas) {
         runCatching {
             pregunta = ApiClient.api<PreguntaApi>(tokenProvider).hoy()
+        }
+    }
+
+    val abreMs = isoAMs(pregunta?.abreAt)
+    val esperando = pregunta?.abierta == false && abreMs != null
+    val hastaMs = isoAMs(pregunta?.aTiempoHasta)
+    val corriendo = pregunta?.yaRespondi == false && !esperando &&
+        hastaMs != null && ahora < hastaMs
+
+    // Antes de la hora sorpresa: se vuelve a pedir justo cuando cae.
+    LaunchedEffect(esperando, abreMs) {
+        if (!esperando || abreMs == null) return@LaunchedEffect
+        delay((abreMs - System.currentTimeMillis() + 500).coerceAtLeast(0))
+        recargas++
+    }
+
+    // Mientras corre la ventana "a tiempo", la cuenta regresiva avanza sola.
+    LaunchedEffect(corriendo) {
+        while (corriendo) {
+            ahora = System.currentTimeMillis()
+            delay(1000)
         }
     }
 
@@ -71,6 +98,38 @@ fun PreguntaDelDiaBanner(
     )
 
     val actual = pregunta ?: return
+
+    if (esperando) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(AgoraColors.NaranjaSuave)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                "Pregunta del día",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = AgoraColors.Naranja,
+            )
+            Text(
+                "⚡ Hoy cae a una hora sorpresa.",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "Te avisamos en cuanto salga. Contesta en los primeros 2 minutos y sales a tiempo; " +
+                    "antes de contestar no ves lo que dijeron los demás.",
+                style = MaterialTheme.typography.bodySmall,
+                color = AgoraColors.TextoMedio,
+            )
+        }
+        return
+    }
+
+    val carrera = if (actual.yaRespondi) actual.miCarrera else null
 
     Box(
         modifier = modifier.fillMaxWidth(),
@@ -111,6 +170,25 @@ fun PreguntaDelDiaBanner(
             if (celebrando > 0) {
                 Text("🎉", style = MaterialTheme.typography.titleMedium)
             }
+        }
+        if (corriendo && hastaMs != null) {
+            Text(
+                "⚡ ${mmss(hastaMs - ahora)} para contestar a tiempo",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = AgoraColors.Naranja,
+            )
+        }
+        val aTiempo = actual.aTiempo
+        if (actual.yaRespondi && aTiempo != null && actual.abreAt != null) {
+            val sello = if (aTiempo) "⚡ Contestaste a tiempo" else "Contestaste tarde"
+            val cuantos = actual.totalATiempo?.let { " · $it a tiempo hoy" } ?: ""
+            Text(
+                sello + cuantos,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (aTiempo) AgoraColors.Naranja else AgoraColors.TextoMedio,
+            )
         }
         Text(
             actual.texto,
@@ -173,15 +251,19 @@ fun PreguntaDelDiaBanner(
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = if (seleccionada) FontWeight.Bold else FontWeight.Normal,
                     )
+                    val deCarrera = carrera?.takeIf { it.total > 0 }?.let {
+                        " · tu carrera ${(it.votos[opcion.indice.toString()] ?: 0) * 100 / it.total}%"
+                    } ?: ""
                     Text(
-                        "$pct%",
+                        "$pct%$deCarrera",
                         style = MaterialTheme.typography.labelSmall,
                         color = AgoraColors.TextoMedio,
                     )
                 }
             }
+            val deCarrera = carrera?.takeIf { it.total > 0 }?.let { ", ${it.total} de ${it.nombre}" } ?: ""
             Text(
-                "${actual.total} respuestas",
+                "${actual.total} de tu comunidad ya contestaron hoy$deCarrera.",
                 style = MaterialTheme.typography.labelSmall,
                 color = AgoraColors.TextoMedio,
             )
@@ -210,4 +292,12 @@ private fun ProgresoSemanaPregunta(semana: SemanaPreguntaDto) {
             trackColor = AgoraColors.Borde,
         )
     }
+}
+
+private fun isoAMs(iso: String?): Long? =
+    iso?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+
+internal fun mmss(ms: Long): String {
+    val s = ((ms + 999) / 1000).coerceAtLeast(0)
+    return "${s / 60}:${(s % 60).toString().padStart(2, '0')}"
 }

@@ -108,6 +108,7 @@ private val etiquetasPreferencia = mapOf(
     "SEGUIDOR" to "Nuevos seguidores",
     "INSIGNIA" to "Insignias",
     "RETO" to "Retos y duelos",
+    "PREGUNTA" to "Pregunta del día",
 )
 
 @Composable
@@ -163,6 +164,7 @@ private fun AjustesScreenContent(
     var cumpleDia by remember { mutableStateOf<Int?>(null) }
     /** Si el perfil ya tenía cumpleaños al cargar: quitarlo exige mandar null explícito. */
     var teniaCumple by remember { mutableStateOf(false) }
+    var avisoPregunta by remember { mutableStateOf(true) }
     var modoTema by remember { mutableStateOf(PreferenciasTema.leer(context)) }
     var preferencias by remember { mutableStateOf<List<PreferenciaNotificacionDto>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
@@ -257,6 +259,7 @@ private fun AjustesScreenContent(
             cumpleMes = perfil.cumpleMes
             cumpleDia = perfil.cumpleDia
             teniaCumple = perfil.cumpleMes != null && perfil.cumpleDia != null
+            avisoPregunta = perfil.avisoPregunta ?: true
             comunidades = api.misComunidades()
             preferencias = ApiClient.api<NotificacionesApi>(tokenProvider).preferencias().preferencias
             generacion = api.porHandle(perfil.handle).generacion
@@ -314,6 +317,20 @@ private fun AjustesScreenContent(
                     .actualizarPreferencias(ActualizarPreferenciasRequest(nuevas))
                     .preferencias
             } catch (e: Exception) {
+                error = mensajeDe(e)
+            }
+        }
+    }
+
+    fun alternarAvisoPregunta(activo: Boolean) {
+        val antes = avisoPregunta
+        avisoPregunta = activo
+        scope.launch {
+            try {
+                ApiClient.api<PerfilApi>(tokenProvider)
+                    .actualizar(ActualizarPerfilRequest(avisoPregunta = activo))
+            } catch (e: Exception) {
+                avisoPregunta = antes
                 error = mensajeDe(e)
             }
         }
@@ -601,6 +618,20 @@ private fun AjustesScreenContent(
                     }
 
                     Text("Notificaciones", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("⚡ Avísame cuando caiga la pregunta", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                "Sale a una hora sorpresa; tienes 2 minutos para contestar a tiempo.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        Switch(checked = avisoPregunta, onCheckedChange = { alternarAvisoPregunta(it) })
+                    }
                     preferencias.forEach { pref ->
                         val etiqueta = etiquetasPreferencia[pref.tipo] ?: pref.tipo
                         Column(modifier = Modifier.fillMaxWidth()) {
