@@ -23,6 +23,7 @@ import { LimitePorIp } from '../comun/limite.guard.js';
 import { ZodPipe } from '../comun/zod.pipe.js';
 import {
   COOKIE_SESION,
+  opcionesCookieSesion,
   SesionGuard,
   type RequestConSesion,
 } from '../comun/sesion.guard.js';
@@ -104,18 +105,7 @@ export class AuthController {
       return { tienePerfil, token, expiraEn };
     }
 
-    res.cookie(COOKIE_SESION, token, {
-      httpOnly: true, // fuera del alcance de cualquier script en la pagina
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      expires: expiraEn,
-      path: '/',
-      // Con COOKIE_DOMAIN=".agora.mx" la sesion vale igual en agora.mx y en
-      // admin.agora.mx, que es lo que hace posible el panel en un subdominio
-      // sin un segundo inicio de sesion. En desarrollo se omite: poner un
-      // dominio con "localhost" hace que el navegador descarte la cookie.
-      ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
-    });
+    res.cookie(COOKIE_SESION, token, opcionesCookieSesion(expiraEn));
 
     return { tienePerfil };
   }

@@ -4,8 +4,8 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { Request } from 'express';
-import { hashTokenSesion, sesionVigente } from '@agora/auth';
+import type { CookieOptions, Request, Response } from 'express';
+import { debeRenovarse, hashTokenSesion, sesionVigente, vencimientoSesion } from '@agora/auth';
 import { algunRolTienePermiso, esRolValido, type PermissionKey, type RoleKey } from '@agora/rbac';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -25,6 +25,19 @@ export interface RequestConSesion extends Request {
 }
 
 export const COOKIE_SESION = 'agora_sesion';
+
+export const opcionesCookieSesion = (expires: Date): CookieOptions => ({
+  httpOnly: true, // fuera del alcance de cualquier script en la pagina
+  sameSite: 'lax',
+  secure: process.env.NODE_ENV === 'production',
+  expires,
+  path: '/',
+  // Con COOKIE_DOMAIN=".agora.mx" la sesion vale igual en agora.mx y en
+  // admin.agora.mx, que es lo que hace posible el panel en un subdominio
+  // sin un segundo inicio de sesion. En desarrollo se omite: poner un
+  // dominio con "localhost" hace que el navegador descarte la cookie.
+  ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
+});
 
 @Injectable()
 export class SesionGuard implements CanActivate {
@@ -47,7 +60,8 @@ export class SesionGuard implements CanActivate {
       },
     });
 
-    if (!sesion || !sesionVigente(sesion, new Date())) {
+    const ahora = new Date();
+    if (!sesion || !sesionVigente(sesion, ahora)) {
       throw new UnauthorizedException('Tu sesion expiro.');
     }
     if (sesion.user.estado === 'BAJA') {
@@ -55,6 +69,16 @@ export class SesionGuard implements CanActivate {
     }
     if (sesion.user.estado === 'SUSPENDIDO' && !this.permiteSuspendido) {
       throw new UnauthorizedException('Tu cuenta esta suspendida.');
+    }
+
+    // Sesion que se renueva con el uso: mientras abras la app al menos una vez
+    // cada medio año, no vuelves a pedir el codigo.
+    if (debeRenovarse(sesion.expiresAt, ahora)) {
+      const expiraEn = vencimientoSesion(ahora);
+      await this.prisma.session.update({ where: { id: sesion.id }, data: { expiresAt: expiraEn } });
+      if (req.cookies?.[COOKIE_SESION] === token) {
+        contexto.switchToHttp().getResponse<Response>().cookie(COOKIE_SESION, token, opcionesCookieSesion(expiraEn));
+      }
     }
 
     req.usuario = {

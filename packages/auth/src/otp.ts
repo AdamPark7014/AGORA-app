@@ -135,8 +135,18 @@ export const vencimientoDesde = (ahora: Date): Date => new Date(ahora.getTime() 
 // Sesiones
 // ---------------------------------------------------------------------------
 
-/** 30 dias. Un campus entra y sale del sitio todo el semestre. */
-export const TTL_SESION_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * 180 dias, y se renueva sola con el uso (ver `debeRenovarse`): quien entra
+ * seguido no vuelve a pedir el codigo nunca. El correo es para registrarse, no
+ * para cada visita. Solo caduca tras medio año sin abrir la app.
+ */
+export const TTL_SESION_MS = 180 * 24 * 60 * 60 * 1000;
+
+/** Una renovacion por dia como maximo: no escribir en la base en cada peticion. */
+export const RENOVAR_SESION_CADA_MS = 24 * 60 * 60 * 1000;
+
+export const debeRenovarse = (expiresAt: Date, ahora: Date): boolean =>
+  expiresAt.getTime() - ahora.getTime() < TTL_SESION_MS - RENOVAR_SESION_CADA_MS;
 
 /**
  * Token de sesion de 256 bits. Se entrega al cliente en claro una sola vez y
