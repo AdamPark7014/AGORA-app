@@ -88,7 +88,7 @@ if ($salida -ne 0) { Falla "La construcción falló (log en el servidor: $log). 
 
 Paso '6/6 Ruta de Traefik y smoke'
 # Hasta 6 intentos: Traefik tarda en ver los contenedores nuevos y el primero daba 502 (19-10).
-ssh @ssh "cd $Remoto && bash deploy/install-traefik-route.sh && for i in 1 2 3 4 5 6; do sleep 15; RESOLVE=udlagora.com:443:127.0.0.1 bash scripts/smoke-udlagora.sh && exit 0; echo reintento \$i; done; exit 1"
+ssh @ssh "cd $Remoto && bash deploy/install-traefik-route.sh && for i in 1 2 3 4 5 6; do sleep 15; RESOLVE=udlagora.com:443:127.0.0.1 bash scripts/smoke-udlagora.sh && exit 0; echo reintento `$i; done; exit 1"
 if ($LASTEXITCODE -ne 0) { Falla "El smoke falló. Revisa: docker logs agora-api --tail 80. Rollback: imágenes prev-$fecha." }
 
 Write-Host "`nListo: $commit en udlagora.com. Rollback disponible: prev-$fecha" -ForegroundColor Green
