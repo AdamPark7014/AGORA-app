@@ -6,8 +6,9 @@
 
 ## Hecho en este turno (19-10)
 
-Adam pidió terminar la app con Claude, sin Cursor. Todo en `main`, **sin desplegar**: el filtro de
-permisos bloqueó `scripts\desplegar.ps1` dos veces. Ojo: en el servidor hay respaldo de las 13:31 MX y
+Adam pidió terminar la app con Claude, sin Cursor. **Desplegado `ec634e0` el 19-10 18:13 MX** (CSP sin
+unsafe-eval, smoke OK, rollback `prev-20261019-1813`). Los tres intentos previos murieron por cortes de
+SSH a media construcción; ahora el build corre con nohup en el servidor y el script solo sondea. Ojo: en el servidor hay respaldo de las 13:31 MX y
 etiquetas `prev-20261019-1331`, pero las imágenes `latest` son de hace 11 días y la CSP en vivo aún trae
 `'unsafe-eval'`: alguien corrió el script hoy y se cortó después del paso 3. Revisar el log al desplegar.
 - **Pregunta relámpago nativa** (punto 4 de `PARA-CURSOR.md`): Android (`7cab9cf`, assembleDebug y
