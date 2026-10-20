@@ -69,8 +69,22 @@ Remove-Item $tar
 
 Paso '5/6 Construyendo api y web (tarda varios minutos)'
 # --no-deps: sin él compose intenta recrear minio-init y su imagen minio/mc ya no se puede bajar (07-10).
-ssh @ssh "cd $Remoto && docker compose -f deploy/docker-compose.yml up -d --build --no-deps api web && docker compose -f deploy/docker-compose.yml ps api web"
-if ($LASTEXITCODE -ne 0) { Falla "La construcción falló. Rollback con las imágenes prev-$fecha (ver cabecera del script)." }
+# El build corre en el servidor con nohup y aquí solo se consulta: el 19-10 la conexión SSH se cortó tres
+# veces a media construcción (aun con keepalive) y el build moría con ella.
+$log = "/tmp/agora-build-$fecha.log"
+ssh @ssh "cd $Remoto && rm -f $log.exit && nohup sh -c 'docker compose -f deploy/docker-compose.yml up -d --build --no-deps api web > $log 2>&1; echo `$? > $log.exit' > /dev/null 2>&1 &"
+if ($LASTEXITCODE -ne 0) { Falla 'No se pudo arrancar la construcción en el servidor.' }
+$salida = $null
+for ($i = 0; $i -lt 120 -and $null -eq $salida; $i++) {
+  Start-Sleep -Seconds 15
+  $r = ssh @ssh "cat $log.exit 2>/dev/null; tail -1 $log 2>/dev/null"
+  if ($LASTEXITCODE -eq 0 -and $r) {
+    $lineas = @($r)
+    if ($lineas.Count -ge 2 -and $lineas[0] -match '^\d+$') { $salida = [int]$lineas[0] } else { Write-Host "  ... $($lineas[-1])" }
+  }
+}
+ssh @ssh "tail -15 $log; cd $Remoto && docker compose -f deploy/docker-compose.yml ps api web"
+if ($salida -ne 0) { Falla "La construcción falló (log en el servidor: $log). Rollback con las imágenes prev-$fecha (ver cabecera del script)." }
 
 Paso '6/6 Ruta de Traefik y smoke'
 ssh @ssh "cd $Remoto && bash deploy/install-traefik-route.sh && sleep 20 && RESOLVE=udlagora.com:443:127.0.0.1 bash scripts/smoke-udlagora.sh"
