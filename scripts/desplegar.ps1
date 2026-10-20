@@ -36,7 +36,8 @@ foreach ($p in 2222, 22) {
   if ($LASTEXITCODE -eq 0) { $Puerto = $p; break }
 }
 if (-not $Puerto) { Falla "No hay SSH a $Servidor ni por 2222 ni por 22." }
-$ssh = @('-i', $Llave, '-p', $Puerto, $Servidor)
+# Keepalive: el build tarda minutos y sin él la conexión se cortaba a la mitad (19-10).
+$ssh = @('-i', $Llave, '-p', $Puerto, '-o', 'ServerAliveInterval=20', '-o', 'ServerAliveCountMax=15', $Servidor)
 
 Paso '1/6 Revisando el código local'
 # Los tsbuildinfo cambian con cada typecheck local y no son código.
