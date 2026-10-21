@@ -15,7 +15,9 @@
         key.properties lleva la misma en storePassword y keyPassword (Gradle los pide por separado).
       - Las contraseñas pasan a keytool por variable de entorno (-storepass:env / -keypass:env), nunca por
         la línea de comandos ni por el historial.
-      - Se niega a sobrescribir. Imprime solo la ruta y la huella SHA-256; nunca contraseñas.
+      - Se niega a sobrescribir, y se niega si apps/mobile-native/android/local.properties ya trae
+        RELEASE_STORE_FILE (la llave agora-release.jks del 21-10-2026): Play registra la llave del PRIMER
+        .aab subido y una segunda no sirve. Imprime solo la ruta y la huella SHA-256; nunca contraseñas.
 
     Después: scripts/subir-secretos-android.ps1 carga los secretos del flujo «Android · Play». La primera
     subida a Play Console registra sola este certificado como llave de subida.
@@ -46,6 +48,12 @@ if (-not (Test-Path $keytool)) {
         if (-not $cmd) { Fallo "No encuentro keytool en $Jdk ni en JAVA_HOME ni en el PATH." }
         $keytool = $cmd.Source
     }
+}
+
+# --- Ya hay llave configurada para Gradle: no crear otra ---------------------
+$localProps = Join-Path $PSScriptRoot '..\apps\mobile-native\android\local.properties'
+if ((Test-Path $localProps) -and (Select-String -Path $localProps -Pattern '^RELEASE_STORE_FILE=\S' -Quiet)) {
+    Fallo "local.properties ya apunta a una llave de subida (RELEASE_STORE_FILE). Usa esa: pwsh -File scripts\subir-secretos-android.ps1"
 }
 
 # --- Rutas (nunca se sobrescribe una llave) ----------------------------------

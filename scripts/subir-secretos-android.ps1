@@ -3,18 +3,20 @@
     Carga en el repo AGORA-app los secretos que necesita «Android · Play».
 
 .DESCRIPCION
-    Toma la llave de subida que dejó scripts/crear-llave-android.ps1 en
-    %USERPROFILE%\Documents\LLAVES-ANDROID\AGORA (agora-upload.jks + key.properties) y la publica
-    como secretos de ESTE repo con `gh secret set` por stdin. Ningún valor se imprime ni queda en el
-    historial de PowerShell ni en la línea de comandos.
+    Toma la llave de SUBIDA de Ágora tal como la lee Gradle en esta PC
+    (apps/mobile-native/android/local.properties → RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD,
+    RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD; el .jks vive en apps/mobile-native/keystore/, fuera de
+    git) y la publica como secretos de ESTE repo con `gh secret set` por stdin. Ningún valor se
+    imprime ni queda en el historial de PowerShell ni en la línea de comandos.
 
     Secretos que carga (los nombres que lee .github/workflows/android-play.yml):
 
       ANDROID_UPLOAD_KEYSTORE_BASE64   el .jks en base64
-      ANDROID_KEYSTORE_PASSWORD        storePassword de key.properties
-      ANDROID_KEY_ALIAS                keyAlias de key.properties (agora-upload)
-      ANDROID_KEY_PASSWORD             keyPassword de key.properties
+      ANDROID_KEYSTORE_PASSWORD        RELEASE_STORE_PASSWORD
+      ANDROID_KEY_ALIAS                RELEASE_KEY_ALIAS
+      ANDROID_KEY_PASSWORD             RELEASE_KEY_PASSWORD
 
+    Play registra como llave de subida la del PRIMER .aab que se sube: no crear otra llave después.
     Lo corre Adam (custodia de llaves). Requiere GitHub CLI con sesión (gh auth login).
 
 .EJEMPLO
@@ -23,7 +25,7 @@
 [CmdletBinding()]
 param(
     [string]$Repo = 'AdamPark7014/AGORA-app',
-    [string]$Carpeta = (Join-Path $env:USERPROFILE 'Documents\LLAVES-ANDROID\AGORA')
+    [string]$LocalProperties = (Join-Path $PSScriptRoot '..\apps\mobile-native\android\local.properties')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -38,13 +40,12 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-$rutaJks = Join-Path $Carpeta 'agora-upload.jks'
-$rutaProps = Join-Path $Carpeta 'key.properties'
-if (-not (Test-Path $rutaJks)) { Fallo "No encuentro $rutaJks (lo genera scripts/crear-llave-android.ps1)." }
-if (-not (Test-Path $rutaProps)) { Fallo "No encuentro $rutaProps (lo genera scripts/crear-llave-android.ps1)." }
+if (-not (Test-Path $LocalProperties)) {
+    Fallo "No encuentro $LocalProperties (ahí están RELEASE_STORE_FILE y las contraseñas de la llave de subida)."
+}
 
-# key.properties: clave=valor por línea; los valores se usan tal cual (el generador escribe la ruta con /).
-function Read-KeyProperties([string]$ruta) {
+# clave=valor por línea; los valores se usan tal cual (Gradle los lee igual).
+function Read-Properties([string]$ruta) {
     $props = @{}
     foreach ($linea in [System.IO.File]::ReadAllLines($ruta)) {
         $l = $linea.Trim()
@@ -56,11 +57,19 @@ function Read-KeyProperties([string]$ruta) {
     return $props
 }
 
-$props = Read-KeyProperties $rutaProps
-foreach ($campo in 'storePassword', 'keyAlias', 'keyPassword') {
-    if (-not $props[$campo]) { Fallo "key.properties no trae $campo." }
+$props = Read-Properties $LocalProperties
+foreach ($campo in 'RELEASE_STORE_FILE', 'RELEASE_STORE_PASSWORD', 'RELEASE_KEY_ALIAS', 'RELEASE_KEY_PASSWORD') {
+    if (-not $props[$campo]) { Fallo "local.properties no trae $campo." }
 }
-Write-Host "Llave de subida: $rutaJks (alias $($props.keyAlias))" -ForegroundColor DarkGray
+
+# RELEASE_STORE_FILE es relativo a apps/mobile-native/android (rootProject.file en build.gradle.kts),
+# o absoluto.
+$androidDir = Split-Path -Parent $LocalProperties
+$rutaJks = $props.RELEASE_STORE_FILE
+if (-not [System.IO.Path]::IsPathRooted($rutaJks)) { $rutaJks = Join-Path $androidDir $rutaJks }
+$rutaJks = [System.IO.Path]::GetFullPath($rutaJks)
+if (-not (Test-Path $rutaJks)) { Fallo "No encuentro el keystore $rutaJks (RELEASE_STORE_FILE)." }
+Write-Host "Llave de subida: $rutaJks (alias $($props.RELEASE_KEY_ALIAS))" -ForegroundColor DarkGray
 
 function Poner([string]$nombre, [string]$valor) {
     # Por stdin: el valor no aparece en la línea de comandos ni en el historial.
@@ -73,9 +82,9 @@ $base64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($rutaJks))
 try {
     Write-Host "Cargando secretos en $Repo ..."
     Poner 'ANDROID_UPLOAD_KEYSTORE_BASE64' $base64
-    Poner 'ANDROID_KEYSTORE_PASSWORD' $props.storePassword
-    Poner 'ANDROID_KEY_ALIAS' $props.keyAlias
-    Poner 'ANDROID_KEY_PASSWORD' $props.keyPassword
+    Poner 'ANDROID_KEYSTORE_PASSWORD' $props.RELEASE_STORE_PASSWORD
+    Poner 'ANDROID_KEY_ALIAS' $props.RELEASE_KEY_ALIAS
+    Poner 'ANDROID_KEY_PASSWORD' $props.RELEASE_KEY_PASSWORD
 }
 finally {
     $base64 = $null
@@ -84,5 +93,5 @@ finally {
 
 Write-Host ''
 Write-Host 'Listo. Lanza «Android · Play» en GitHub (Actions > Android · Play > Run workflow) con la versión' -ForegroundColor Cyan
-Write-Host 'y el versionCode; el .aab queda en el artefacto agora-aab. En Play Console crea la app mx.agora.mobile.nativeapp'
-Write-Host 'con Play App Signing (por omisión): la primera subida registra este certificado como llave de subida.'
+Write-Host 'y el versionCode; el .aab queda en el artefacto agora-aab. La primera subida a Play Console es a mano'
+Write-Host '(docs/PLAY_STORE.md) y registra este certificado como llave de subida de la app.'

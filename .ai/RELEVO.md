@@ -81,10 +81,15 @@ proyectos (nunca `volume prune`).
   `ci.yml`: el sembrador importaba `@agora/shared/dist` antes del build → se siembra después del
   build. **Claude no tocó ninguna llave** (veto de credenciales): los secretos los carga Adam con
   `scripts/subir-secretos-ios.ps1` (reusa `C:\dev\secrets\arta-ios`, pide el Issuer ID),
-  `scripts/crear-llave-android.ps1` + `scripts/subir-secretos-android.ps1`, y crea las apps en App
-  Store Connect y Play Console a mano (la API no puede). Pasos exactos y ficha borrador en
-  `docs/store/README.md`. Después: lanzar «iOS · TestFlight» y «Android · Play» y subir el `.aab` a
-  prueba interna.
+  `scripts/subir-secretos-android.ps1` (toma la llave `apps/mobile-native/keystore/agora-release.jks`
+  + `local.properties` que dejó la otra sesión en `5a4c21a`; **no crear otra**: Play registra la del
+  primer `.aab`), y crea las apps en App Store Connect y Play Console a mano (la API no puede).
+  Pasos exactos en `docs/store/README.md`; Play Console y textos de ficha en `docs/PLAY_STORE.md`.
+  Después: lanzar «iOS · TestFlight» y «Android · Play» y subir el `.aab` a prueba interna.
+  CI tras el arreglo del sembrador (corrida 39667520389): lint, types, build y unit en verde; **e2e con
+  3 fallos ajenos a móvil** (`anonimo.spec` «la respuesta anonima nunca incluye al autor»,
+  `capturas-admin.spec`, `moderacion.spec` «resolver exige motivo escrito»): nadie los había corrido
+  desde el 27-09 (Actions sin cobro).
 - **Móvil:** Android compila en local (último `assembleDebug` 21-10, ya con contraseña), sin release a Play.
   iOS nunca se ha compilado: `ios.yml` y `ci.yml` mueren en 5 s por el cobro de GitHub
   Actions («recent account payments have failed»). `apps/mobile` (Expo) es un resto sin EAS.

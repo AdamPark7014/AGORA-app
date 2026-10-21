@@ -16,8 +16,10 @@ en repos públicos): **nunca** commitear llaves, contraseñas ni datos personale
 - `android-play.yml` («Android · Play»): `bundleRelease` firmado con la llave de subida, R8 con las
   reglas de Tink (si no, `EncryptedSharedPreferences` truena al arrancar), verifica la huella y deja el
   `.aab` como artefacto `agora-aab`.
-- Scripts para Adam (custodia de llaves; ninguno imprime valores): `scripts/subir-secretos-ios.ps1`,
-  `scripts/crear-llave-android.ps1`, `scripts/subir-secretos-android.ps1`.
+- Scripts para Adam (custodia de llaves; ninguno imprime valores): `scripts/subir-secretos-ios.ps1` y
+  `scripts/subir-secretos-android.ps1` (`crear-llave-android.ps1` solo si algún día no hubiera llave).
+- `google-services.json` real (Firebase `agora-udlap`) versionado desde `5a4c21a`; FCM y Web Push ya
+  configurados en el servidor.
 
 ## Lo que hace Adam, una sola vez
 
@@ -25,12 +27,12 @@ en repos públicos): **nunca** commitear llaves, contraseñas ni datos personale
 | --- | --- | --- |
 | 1 | **Secretos de iOS**: `pwsh -File scripts\subir-secretos-ios.ps1` (toma la llave de App Store Connect y el certificado de distribución de `C:\dev\secrets\arta-ios`; pide el Issuer ID: App Store Connect → Usuarios y acceso → Integraciones → API, el UUID encima de la tabla). | PC de Adam |
 | 2 | **App en App Store Connect**: Apps → «+» → Nueva app → iOS · Nombre **Ágora UDLAP** (si está tomado: «Ágora · Red del campus») · Idioma Español (México) · Bundle ID `mx.agora.mobile.AgoraApp` (si no aparece, corre una vez «iOS · TestFlight» con *upload* desmarcado: el flujo registra el App ID) · SKU `AGORA-IOS` · Acceso completo. | appstoreconnect.apple.com |
-| 3 | **Llave de subida de Android**: `pwsh -File scripts\crear-llave-android.ps1` y luego `pwsh -File scripts\subir-secretos-android.ps1`. La llave queda en `Documents\LLAVES-ANDROID\AGORA` (respáldala fuera de esta PC). | PC de Adam |
-| 4 | **App en Play Console**: Crear app → Nombre **Ágora UDLAP** · Idioma Español (Latinoamérica) · App · Gratis · aceptar declaraciones. Firma de apps de Google Play: la gestionada por Google (la llave de subida es `agora-upload.jks`). | play.google.com/console |
+| 3 | **Secretos de Android**: `pwsh -File scripts\subir-secretos-android.ps1`. Toma la llave de subida que ya existe (`apps/mobile-native/keystore/agora-release.jks`, contraseñas en `local.properties`, hecha el 21-10; **respáldala fuera de esta PC**). No crear otra: Play registra la del primer `.aab`. | PC de Adam |
+| 4 | **App en Play Console** y primera subida del `.aab` a prueba interna: pasos, declaraciones y textos de la ficha en [`../PLAY_STORE.md`](../PLAY_STORE.md). El `.aab` sale del flujo «Android · Play» (artefacto `agora-aab`) o del `bundleRelease` local. | play.google.com/console |
 
 Después de 1 y 2, Claude lanza **iOS · TestFlight** (versión `1.0.0`); la build aparece en TestFlight en
-~15 min. Después de 3 y 4, Claude lanza **Android · Play** y la primera subida del `.aab` a **Prueba
-interna** se hace a mano en Play Console (la API no admite la primera subida de una app nueva).
+~15 min. Después de 3, Claude lanza **Android · Play**; la primera subida del `.aab` a **Prueba interna**
+es a mano en Play Console (la API no admite la primera subida de una app nueva).
 
 ## Ficha (borrador, común a las dos tiendas)
 
