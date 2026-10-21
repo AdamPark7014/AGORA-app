@@ -22,7 +22,19 @@ proyectos (nunca `volume prune`).
   `agora_isotipo`, `ic_notification`) e iOS (`AppIcon-1024.png`, `Isotipo.svg` sin clipPath ni
   filtros). `sw.js` subió a `agora-v5` para que los navegadores suelten el ícono viejo.
   **Desplegado `650bcaa` el 21-10 13:40 MX** (smoke OK, `/icono.svg` ya es la pirámide,
-  rollback `prev-20261021-1337`). Disco tras podar toda la caché de build: 86 %, 11 GB libres. Los
+  rollback `prev-20261021-1337`). Disco tras podar toda la caché de build: 86 %, 11 GB libres.
+- **Notificaciones configuradas (21-10, por orden de Adam):** Web Push con claves VAPID nuevas y
+  FCM con el service account de Firebase, ambos en `deploy/.env` del Hetzner (respaldo
+  `deploy/.env.bak-20261021`; `chmod 600`), API recreada y verificada (`/push/vapid-public-key`
+  → `activo: true`; el JSON de FCM parsea dentro del contenedor). Firebase: proyecto
+  `agora-udlap` (sin Analytics), app Android `mx.agora.mobile.nativeapp`, `google-services.json`
+  real versionado. **APNs (iOS) sin configurar**: el clasificador de permisos bloquea el portal
+  de Apple y la app tampoco compila sin Mac.
+- **Tiendas:** llave de subida `apps/mobile-native/keystore/agora-release.jks` (fuera de git,
+  contraseña en `local.properties`; **respaldar**), AAB firmado 1.0.0 (1) en
+  `app/build/outputs/bundle/release/`. Play Console: el clasificador de permisos de Claude
+  bloquea los pasos de publicación y el AAB pasa el tope de 10 MB de la herramienta de subida:
+  **lo sube Adam** siguiendo `docs/PLAY_STORE.md` (textos de ficha incluidos). Los
   vectores de Android/iOS están validados como XML pero **sin compilar** aquí (la sesión de
   móvil corre gradle en el mismo checkout; su `assembleDebug` los compila).
 

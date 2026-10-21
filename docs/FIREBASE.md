@@ -8,9 +8,11 @@ El proyecto incluye `app/google-services.json` **placeholder** para que Gradle c
 
 ### Decisión A6-6 (custodia)
 
-- **Se versiona el placeholder** (`agora-placeholder`, 682 B). Sin él,
-  `assembleDebug` falla en CI/local de quien no tiene consola Firebase.
-- **No** se versionan service accounts ni el JSON real de producción.
+- Desde el 21-10-2026 **se versiona el `google-services.json` real** del proyecto
+  `agora-udlap` (no es un secreto: viaja dentro del APK; la clave de API que trae es de
+  cliente). Así cualquier build, local o en CI, registra tokens FCM reales.
+- **No** se versiona el service account (clave privada): vive solo en `deploy/.env` del
+  servidor como `FIREBASE_SERVICE_ACCOUNT_JSON`.
 - Antes de Play Store / push FCM real: reemplazar el archivo y **no** revertir
   al placeholder en la rama de release.
 

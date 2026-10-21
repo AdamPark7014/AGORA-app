@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "agora-placeholder",
-    "storage_bucket": "agora-placeholder.appspot.com"
+    "project_number": "955858470350",
+    "project_id": "agora-udlap",
+    "storage_bucket": "agora-udlap.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:955858470350:android:ec101e0f5d40c25487979f",
         "android_client_info": {
           "package_name": "mx.agora.mobile.nativeapp"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyPLACEHOLDER_REPLACE_WITH_REAL_KEY"
+          "current_key": "AIzaSyCwmUT9_g78q5DWVfHEeT_dcC1MSrb31Bo"
         }
       ],
       "services": {
