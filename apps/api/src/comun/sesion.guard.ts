@@ -16,21 +16,36 @@ export interface UsuarioSesion {
   readonly roles: RoleKey[];
   readonly perfilId: string | null;
   readonly handle: string | null;
+  /** false = cuenta de antes de las contraseñas: la pantalla le pide crearla. */
+  readonly tieneContrasena: boolean;
+}
+
+/** La fila de la sesion, para las decisiones que dependen de como se abrio. */
+export interface SesionActual {
+  readonly id: string;
+  readonly viaCodigo: boolean;
+  readonly persistente: boolean;
+  readonly createdAt: Date;
 }
 
 /** Request con el usuario ya resuelto. Evita castear a `any` en los controladores. */
 export interface RequestConSesion extends Request {
   usuario?: UsuarioSesion;
+  sesion?: SesionActual;
   tokenSesion?: string;
 }
 
 export const COOKIE_SESION = 'agora_sesion';
 
-export const opcionesCookieSesion = (expires: Date): CookieOptions => ({
+/**
+ * `expires` null = cookie de sesion: el navegador la tira al cerrarse. Es lo
+ * que pide quien entra sin "recordarme" en una computadora prestada.
+ */
+export const opcionesCookieSesion = (expires: Date | null): CookieOptions => ({
   httpOnly: true, // fuera del alcance de cualquier script en la pagina
   sameSite: 'lax',
   secure: process.env.NODE_ENV === 'production',
-  expires,
+  ...(expires ? { expires } : {}),
   path: '/',
   // Con COOKIE_DOMAIN=".agora.mx" la sesion vale igual en agora.mx y en
   // admin.agora.mx, que es lo que hace posible el panel en un subdominio
@@ -72,8 +87,9 @@ export class SesionGuard implements CanActivate {
     }
 
     // Sesion que se renueva con el uso: mientras abras la app al menos una vez
-    // cada medio año, no vuelves a pedir el codigo.
-    if (debeRenovarse(sesion.expiresAt, ahora)) {
+    // cada medio año, no vuelves a entrar. Las de "no recordarme" no se
+    // renuevan: duran un dia y punto.
+    if (sesion.persistente !== false && debeRenovarse(sesion.expiresAt, ahora)) {
       const expiraEn = vencimientoSesion(ahora);
       await this.prisma.session.update({ where: { id: sesion.id }, data: { expiresAt: expiraEn } });
       if (req.cookies?.[COOKIE_SESION] === token) {
@@ -87,6 +103,13 @@ export class SesionGuard implements CanActivate {
       roles: sesion.user.roles.filter(esRolValido),
       perfilId: sesion.user.profile?.id ?? null,
       handle: sesion.user.profile?.handle ?? null,
+      tieneContrasena: Boolean(sesion.user.passwordHash),
+    };
+    req.sesion = {
+      id: sesion.id,
+      viaCodigo: sesion.viaCodigo !== false,
+      persistente: sesion.persistente !== false,
+      createdAt: sesion.createdAt ?? ahora,
     };
     req.tokenSesion = token;
     return true;

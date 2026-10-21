@@ -1,31 +1,67 @@
 import {
   BadRequestException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
   MAX_INTENTOS,
+  MENSAJE_CONTRASENA,
+  RESULTADO_CONTRASENA,
   RESULTADO_ENVIO,
   RESULTADO_OTP,
+  bloqueoTrasFallo,
   generarCodigo,
   generarTokenSesion,
   hashCodigo,
   hashTokenSesion,
+  loginBloqueado,
+  minutosDeBloqueo,
   puedeEnviar,
+  puedeFijarSinActual,
   RESULTADO_MAESTRO,
+  validarContrasena,
   verificarMaestro,
   vencimientoDesde,
   vencimientoSesion,
   verificarCodigo,
+  type SesionParaContrasena,
 } from '@agora/auth';
 import type { EstadoUsuario } from '@agora/db';
 import { comunidadesDelPerfil, SLUG_COMUNIDAD_CAMPUS_UDLAP } from '@agora/shared';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CorreoService } from '../correo/correo.service.js';
+import { hashContrasena, hashSenuelo, verificarContrasena } from './contrasena.js';
+
+/**
+ * Un solo mensaje para correo desconocido, cuenta sin contraseña y contraseña
+ * mal: distinguirlos diria quien tiene cuenta en Agora, y en un campus
+ * pequeño eso es justo lo que no se puede filtrar. Quien aun no tiene
+ * contraseña sigue el camino del codigo, que la pantalla ofrece al lado.
+ */
+export const MENSAJE_ENTRADA_INVALIDA =
+  'Correo o contraseña incorrectos. Si es tu primera vez o aún no tienes contraseña, entra con un código a tu correo.';
+
+export interface SesionAbierta {
+  readonly token: string;
+  readonly expiraEn: Date;
+  readonly tienePerfil: boolean;
+  readonly tieneContrasena: boolean;
+}
+
+interface OpcionesSesion {
+  /** Se abrio canjeando un codigo (true) o con contraseña (false). */
+  readonly viaCodigo: boolean;
+  /** "Recordarme": medio año renovable. false = un dia, sin renovar. */
+  readonly persistente: boolean;
+}
+
+const SESION_POR_CODIGO: OpcionesSesion = { viaCodigo: true, persistente: true };
 
 @Injectable()
 export class AuthService {
@@ -129,7 +165,7 @@ export class AuthService {
     codigo: string,
     contexto: { userAgent?: string; ip?: string },
     ahora = new Date(),
-  ): Promise<{ token: string; expiraEn: Date; tienePerfil: boolean }> {
+  ): Promise<SesionAbierta> {
     // El codigo maestro se revisa antes que nada: en desarrollo permite entrar
     // sin haber pedido codigo, que es justo lo que lo hace util.
     const maestro = verificarMaestro(codigo, email, this.configMaestro);
@@ -208,13 +244,15 @@ export class AuthService {
       id: string;
       estado: EstadoUsuario;
       emailVerifiedAt: Date | null;
+      passwordHash?: string | null;
       profile: { id: string } | null;
     },
     contexto: { userAgent?: string; ip?: string },
     ahora: Date,
-  ): Promise<{ token: string; expiraEn: Date; tienePerfil: boolean }> {
+    opciones: OpcionesSesion = SESION_POR_CODIGO,
+  ): Promise<SesionAbierta> {
     const token = generarTokenSesion();
-    const expiraEn = vencimientoSesion(ahora);
+    const expiraEn = vencimientoSesion(ahora, opciones.persistente);
 
     // Una suspension la levanta la moderacion, no volver a pedir el codigo:
     // antes entrar de nuevo ponia la cuenta en ACTIVO. La sesion se crea igual
@@ -229,6 +267,11 @@ export class AuthService {
           emailVerifiedAt: usuario.emailVerifiedAt ?? ahora,
           estado,
           lastSeenAt: ahora,
+          // Entrar (por el camino que sea) limpia el bloqueo por intentos: si
+          // alguien lo provoco a proposito, el dueño recupera la cuenta con
+          // un codigo a su buzon.
+          loginFallidos: 0,
+          loginBloqueadoHasta: null,
         },
       }),
       this.prisma.session.create({
@@ -238,11 +281,178 @@ export class AuthService {
           expiresAt: expiraEn,
           userAgent: contexto.userAgent?.slice(0, 300),
           ip: contexto.ip,
+          viaCodigo: opciones.viaCodigo,
+          persistente: opciones.persistente,
         },
       }),
     ]);
 
-    return { token, expiraEn, tienePerfil: Boolean(usuario.profile) };
+    return {
+      token,
+      expiraEn,
+      tienePerfil: Boolean(usuario.profile),
+      tieneContrasena: Boolean(usuario.passwordHash),
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Contraseña: el correo verifica una vez; despues se entra con esto.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Entra con correo + contraseña.
+   *
+   * Cuesta lo mismo exista o no la cuenta (se verifica contra un hash señuelo)
+   * y responde con el mismo mensaje en los tres casos. Cinco fallos seguidos
+   * bloquean la contraseña quince minutos; el codigo al correo sigue abierto,
+   * asi que el dueño nunca se queda fuera.
+   */
+  async entrar(
+    email: string,
+    contrasena: string,
+    contexto: { userAgent?: string; ip?: string },
+    opciones: { recordarme: boolean } = { recordarme: true },
+    ahora = new Date(),
+  ): Promise<SesionAbierta> {
+    const usuario = await this.prisma.user.findUnique({
+      where: { email },
+      include: { profile: { select: { id: true } } },
+    });
+
+    if (!usuario?.passwordHash || usuario.estado === 'BAJA') {
+      await verificarContrasena(await hashSenuelo(), contrasena);
+      throw new UnauthorizedException(MENSAJE_ENTRADA_INVALIDA);
+    }
+
+    if (loginBloqueado(usuario, ahora)) throw this.bloqueado(usuario, ahora);
+
+    if (!(await verificarContrasena(usuario.passwordHash, contrasena))) {
+      await this.anotarFallo(usuario.id, ahora);
+      throw new UnauthorizedException(MENSAJE_ENTRADA_INVALIDA);
+    }
+
+    return this.abrirSesion(usuario, contexto, ahora, {
+      viaCodigo: false,
+      persistente: opciones.recordarme,
+    });
+  }
+
+  /**
+   * Fija una contraseña sin dar la actual: primera vez, migracion de una
+   * cuenta de antes, u "olvide mi contraseña" (sesion recien abierta por
+   * codigo). Reemplazar una existente cierra las demas sesiones: si la
+   * cambias porque alguien mas la tenia, ese alguien se queda fuera.
+   */
+  async fijarContrasena(
+    userId: string,
+    sesion: SesionParaContrasena & { id: string },
+    contrasena: string,
+    ahora = new Date(),
+  ): Promise<void> {
+    const usuario = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, passwordHash: true },
+    });
+    if (!usuario) throw new NotFoundException('Esa cuenta no existe.');
+
+    const tieneContrasena = usuario.passwordHash !== null;
+    if (!puedeFijarSinActual({ tieneContrasena }, sesion, ahora)) {
+      throw new ForbiddenException(
+        'Para cambiarla escribe tu contraseña actual en Ajustes, o entra con un código a tu correo y vuelve aquí.',
+      );
+    }
+
+    this.validar(contrasena, usuario.email);
+    await this.guardarContrasena(userId, sesion.id, contrasena, ahora, { cerrarOtras: tieneContrasena });
+  }
+
+  /** Cambiarla sabiendo la actual. Los fallos cuentan igual que al entrar. */
+  async cambiarContrasena(
+    userId: string,
+    sesionId: string,
+    actual: string,
+    nueva: string,
+    ahora = new Date(),
+  ): Promise<void> {
+    const usuario = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, passwordHash: true, loginFallidos: true, loginBloqueadoHasta: true },
+    });
+    if (!usuario) throw new NotFoundException('Esa cuenta no existe.');
+    if (!usuario.passwordHash) {
+      throw new BadRequestException('Tu cuenta aún no tiene contraseña: créala primero.');
+    }
+    if (loginBloqueado(usuario, ahora)) throw this.bloqueado(usuario, ahora);
+
+    if (!(await verificarContrasena(usuario.passwordHash, actual))) {
+      await this.anotarFallo(userId, ahora);
+      throw new UnauthorizedException('La contraseña actual no es correcta.');
+    }
+
+    this.validar(nueva, usuario.email);
+    await this.guardarContrasena(userId, sesionId, nueva, ahora, { cerrarOtras: true });
+  }
+
+  /** Con la misma forma que ZodPipe, para que la pantalla lo pinte junto al campo. */
+  private validar(contrasena: string, email: string): void {
+    const resultado = validarContrasena(contrasena, email);
+    if (resultado === RESULTADO_CONTRASENA.VALIDA) return;
+    const mensaje = MENSAJE_CONTRASENA[resultado];
+    throw new BadRequestException({ mensaje, errores: [{ campo: 'contrasena', mensaje }] });
+  }
+
+  private async guardarContrasena(
+    userId: string,
+    sesionId: string,
+    contrasena: string,
+    ahora: Date,
+    opciones: { cerrarOtras: boolean },
+  ): Promise<void> {
+    const passwordHash = await hashContrasena(contrasena);
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash, passwordSetAt: ahora, loginFallidos: 0, loginBloqueadoHasta: null },
+      }),
+      ...(opciones.cerrarOtras
+        ? [
+            this.prisma.session.updateMany({
+              where: { userId, id: { not: sesionId }, revokedAt: null },
+              data: { revokedAt: ahora },
+            }),
+          ]
+        : []),
+    ]);
+    // Nunca la contraseña ni el hash: solo que paso.
+    this.logger.log(`Contraseña ${opciones.cerrarOtras ? 'cambiada' : 'creada'} para ${userId}`);
+  }
+
+  /**
+   * Un fallo mas. El contador se incrementa en la base, no en memoria, para que
+   * cien intentos en paralelo cuenten cien y no uno.
+   */
+  private async anotarFallo(userId: string, ahora: Date): Promise<void> {
+    const { loginFallidos } = await this.prisma.user.update({
+      where: { id: userId },
+      data: { loginFallidos: { increment: 1 } },
+      select: { loginFallidos: true },
+    });
+    const hasta = bloqueoTrasFallo(loginFallidos, ahora);
+    if (hasta) {
+      await this.prisma.user.update({ where: { id: userId }, data: { loginBloqueadoHasta: hasta } });
+      this.logger.warn(`Contraseña bloqueada 15 min para ${userId} por intentos fallidos`);
+    }
+  }
+
+  private bloqueado(
+    usuario: { loginFallidos: number; loginBloqueadoHasta: Date | null },
+    ahora: Date,
+  ): HttpException {
+    const minutos = minutosDeBloqueo(usuario, ahora);
+    return new HttpException(
+      `Demasiados intentos. Espera ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'} o entra con un código a tu correo.`,
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 
   async cerrarSesion(token: string, ahora = new Date()): Promise<void> {

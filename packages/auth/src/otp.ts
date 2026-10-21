@@ -19,8 +19,12 @@ import { createHmac, randomInt, randomBytes, timingSafeEqual } from 'node:crypto
 /** 6 digitos: suficiente con TTL corto y limite de intentos. */
 export const LONGITUD_CODIGO = 6;
 
-/** Diez minutos. Lo bastante para cambiar de app y volver, no mas. */
-export const TTL_CODIGO_MS = 10 * 60 * 1000;
+/**
+ * Quince minutos. El buzon de UDLAP (Microsoft 365) a veces tarda varios
+ * minutos en entregar; con diez, el codigo llegaba ya vencido y habia que
+ * pedir otro. Sigue siendo corto: 5 intentos sobre 10^6 codigos.
+ */
+export const TTL_CODIGO_MS = 15 * 60 * 1000;
 
 /**
  * Cinco intentos por codigo. Con 10^6 combinaciones y este limite, adivinar
@@ -142,6 +146,12 @@ export const vencimientoDesde = (ahora: Date): Date => new Date(ahora.getTime() 
  */
 export const TTL_SESION_MS = 180 * 24 * 60 * 60 * 1000;
 
+/**
+ * Sesion sin "recordarme": dura lo que un dia de clases y no se renueva. En la
+ * web ademas va en una cookie de sesion, que el navegador tira al cerrarse.
+ */
+export const TTL_SESION_CORTA_MS = 12 * 60 * 60 * 1000;
+
 /** Una renovacion por dia como maximo: no escribir en la base en cada peticion. */
 export const RENOVAR_SESION_CADA_MS = 24 * 60 * 60 * 1000;
 
@@ -162,7 +172,8 @@ export const generarTokenSesion = (): string => randomBytes(32).toString('base64
 export const hashTokenSesion = (token: string): string =>
   createHmac('sha256', 'agora.session').update(token).digest('hex');
 
-export const vencimientoSesion = (ahora: Date): Date => new Date(ahora.getTime() + TTL_SESION_MS);
+export const vencimientoSesion = (ahora: Date, persistente = true): Date =>
+  new Date(ahora.getTime() + (persistente ? TTL_SESION_MS : TTL_SESION_CORTA_MS));
 
 export interface SesionGuardada {
   readonly expiresAt: Date;

@@ -3685,3 +3685,79 @@ button.perfil-cifra:hover strong {
   font-weight: 600;
 }
 
+/* --- Contraseña (entrada, ajustes) ------------------------------------- */
+
+.campo-contrasena {
+  position: relative;
+}
+
+.campo-contrasena input {
+  padding-right: 44px;
+}
+
+.campo-contrasena .ver-contrasena {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: var(--texto-medio);
+}
+
+.campo-contrasena .ver-contrasena:hover:not(:disabled) {
+  color: var(--texto);
+  background: transparent;
+}
+
+.casilla {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+  color: var(--texto-medio);
+  cursor: pointer;
+}
+
+.casilla input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--acento, #e35205);
+}
+
+.landing-enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 18px;
+  margin-top: 6px;
+}
+
+.landing-enlaces button {
+  min-height: var(--tactil-min);
+}
+
+.ayuda-campo {
+  margin: -8px 0 14px;
+  font-size: 0.82rem;
+  color: var(--texto-medio);
+}
+
+.aviso-contrasena {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: var(--radio-chico);
+  background: var(--aqua-suave);
+  font-size: 0.9rem;
+}
+
+.aviso-contrasena a {
+  font-weight: 600;
+}

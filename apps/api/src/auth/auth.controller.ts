@@ -12,10 +12,20 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
-import { solicitarOtpSchema, verificarOtpSchema } from '@agora/contracts';
+import {
+  cambiarContrasenaSchema,
+  crearContrasenaSchema,
+  entrarSchema,
+  solicitarOtpSchema,
+  verificarOtpSchema,
+  type CambiarContrasena,
+  type CrearContrasena,
+  type Entrar,
+} from '@agora/contracts';
 import { algunRolTienePermiso, esStaff, PERMISSIONS } from '@agora/rbac';
 
 import {
+  LIMITE_ENTRAR,
   LIMITE_OTP_SOLICITAR,
   LIMITE_OTP_VERIFICAR,
 } from '../comun/almacen-limite.js';
@@ -32,6 +42,14 @@ import { AuthService } from './auth.service.js';
 
 /** Los ids de seguimiento son UUID v4; cualquier otra cosa ni se busca. */
 const ID_ENVIO = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+/** Lo que devuelven las dos puertas (codigo y contraseña). `token` solo en modo token. */
+interface RespuestaSesion {
+  tienePerfil: boolean;
+  tieneContrasena: boolean;
+  token?: string;
+  expiraEn?: Date;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -83,7 +101,13 @@ export class AuthController {
     return estado;
   }
 
-  /** Mismo motivo: sin sesion; adivinar codigos se hace aqui (30/min, 300/h). */
+  /**
+   * Mismo motivo: sin sesion; adivinar codigos se hace aqui (30/min, 300/h).
+   *
+   * Desde las contraseñas, el codigo es para registrarse, para la primera vez
+   * de una cuenta de antes y para "olvide mi contraseña". `tieneContrasena`
+   * le dice a la pantalla si toca crearla; las apps nativas viejas lo ignoran.
+   */
   @Post('otp/verificar')
   @Throttle(LIMITE_OTP_VERIFICAR)
   @LimitePorIp()
@@ -92,8 +116,8 @@ export class AuthController {
     cuerpo: { email: string; codigo: string; modo: 'cookie' | 'token' },
     @Req() req: RequestConSesion,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ tienePerfil: boolean; token?: string; expiraEn?: Date }> {
-    const { token, expiraEn, tienePerfil } = await this.auth.verificarCodigo(
+  ): Promise<RespuestaSesion> {
+    const { token, expiraEn, tienePerfil, tieneContrasena } = await this.auth.verificarCodigo(
       cuerpo.email,
       cuerpo.codigo,
       { userAgent: req.headers['user-agent'], ip: req.ip },
@@ -102,12 +126,67 @@ export class AuthController {
     // La app nativa recibe el token y NO la cookie: guardarla no le serviria y
     // dejarla puesta seria una copia de la sesion viviendo de mas.
     if (cuerpo.modo === 'token') {
-      return { tienePerfil, token, expiraEn };
+      return { tienePerfil, tieneContrasena, token, expiraEn };
     }
 
     res.cookie(COOKIE_SESION, token, opcionesCookieSesion(expiraEn));
 
-    return { tienePerfil };
+    return { tienePerfil, tieneContrasena };
+  }
+
+  /**
+   * Entrar con correo + contraseña: lo de todos los dias. Sin sesion, asi que
+   * cuenta por IP; el bloqueo por cuenta vive en el servicio.
+   */
+  @Post('entrar')
+  @Throttle(LIMITE_ENTRAR)
+  @LimitePorIp()
+  async entrar(
+    @Body(new ZodPipe(entrarSchema)) cuerpo: Entrar,
+    @Req() req: RequestConSesion,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<RespuestaSesion> {
+    const { token, expiraEn, tienePerfil, tieneContrasena } = await this.auth.entrar(
+      cuerpo.email,
+      cuerpo.contrasena,
+      { userAgent: req.headers['user-agent'], ip: req.ip },
+      { recordarme: cuerpo.recordarme },
+    );
+
+    if (cuerpo.modo === 'token') {
+      return { tienePerfil, tieneContrasena, token, expiraEn };
+    }
+
+    // Sin "recordarme" la cookie no lleva fecha: muere al cerrar el navegador.
+    res.cookie(COOKIE_SESION, token, opcionesCookieSesion(cuerpo.recordarme ? expiraEn : null));
+
+    return { tienePerfil, tieneContrasena };
+  }
+
+  /**
+   * Crea la contraseña (o la reemplaza sin la actual si la sesion se abrio
+   * con un codigo hace poco: "olvide mi contraseña").
+   */
+  @Post('contrasena')
+  @HttpCode(204)
+  @UseGuards(SesionGuard)
+  async fijarContrasena(
+    @Req() req: RequestConSesion,
+    @Body(new ZodPipe(crearContrasenaSchema)) cuerpo: CrearContrasena,
+  ): Promise<void> {
+    await this.auth.fijarContrasena(req.usuario!.id, req.sesion!, cuerpo.contrasena);
+  }
+
+  /** Cambiarla sabiendo la actual. Con tope: aqui tambien se puede adivinar. */
+  @Post('contrasena/cambiar')
+  @HttpCode(204)
+  @Throttle(LIMITE_ENTRAR)
+  @UseGuards(SesionGuard)
+  async cambiarContrasena(
+    @Req() req: RequestConSesion,
+    @Body(new ZodPipe(cambiarContrasenaSchema)) cuerpo: CambiarContrasena,
+  ): Promise<void> {
+    await this.auth.cambiarContrasena(req.usuario!.id, req.sesion!.id, cuerpo.actual, cuerpo.nueva);
   }
 
   @Get('yo')
@@ -123,6 +202,9 @@ export class AuthController {
       roles: usuario.roles,
       handle: usuario.handle,
       tienePerfil: usuario.perfilId !== null,
+      tieneContrasena: usuario.tieneContrasena,
+      // Para que la pantalla sepa si esta sesion puede fijar contraseña sin la actual.
+      viaCodigo: req.sesion?.viaCodigo ?? true,
       nombre: perfil ? `${perfil.nombre} ${perfil.apellidos}` : null,
       fotoUrl: perfil?.fotoUrl ?? null,
       esStaff: esStaff(usuario.roles),

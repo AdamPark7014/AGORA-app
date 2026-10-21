@@ -129,6 +129,13 @@ model User {
   email        String        @unique
   emailVerifiedAt DateTime?
   estado       EstadoUsuario @default(PENDIENTE)
+  /// argon2id. Null = cuenta de antes de las contraseñas (entra con codigo y
+  /// la crea la primera vez). Nunca sale de la API.
+  passwordHash String?
+  passwordSetAt DateTime?
+  /// Fallos seguidos al entrar con contraseña; se bloquea al quinto.
+  loginFallidos Int          @default(0)
+  loginBloqueadoHasta DateTime?
   /// Roles de @agora/rbac. Array para permitir moderador + miembro.
   roles        String[]      @default(["miembro"])
   createdAt    DateTime      @default(now())
@@ -267,6 +274,11 @@ model Session {
   expiresAt   DateTime
   revokedAt   DateTime?
   createdAt   DateTime @default(now())
+  /// Abierta canjeando un codigo al correo (true) o con contraseña (false).
+  /// Las de antes de las contraseñas eran todas por codigo: de ahi el default.
+  viaCodigo   Boolean  @default(true)
+  /// "Recordarme": se renueva con el uso. false = dura un dia y no se renueva.
+  persistente Boolean  @default(true)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

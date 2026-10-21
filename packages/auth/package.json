@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc",
     "check-types": "tsc --noEmit",
-    "test": "pnpm build && node --test dist/otp.test.js dist/maestro.test.js"
+    "test": "pnpm build && node --test dist/otp.test.js dist/maestro.test.js dist/contrasena.test.js"
   },
   "dependencies": {
     "@agora/shared": "workspace:*"

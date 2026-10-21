@@ -1,8 +1,45 @@
 # RELEVO
 
-- **Último turno:** claude-code (hilo de proyecto, en la compu de Adam)
-- **Fecha:** 2026-10-19
+- **Último turno:** claude-code (sesión lateral de Ágora, en la compu de Adam)
+- **Fecha:** 2026-10-21
 - **Rama:** main
+
+## Hecho en este turno (21-10)
+
+Adam pidió tres cosas: estado de builds móviles, ícono nuevo y login sin fricción.
+**Nada desplegado todavía**: el cambio de autenticación afecta a todo el que entra y Adam
+debe aprobar el despliegue (`scripts\desplegar.ps1`). Antes de desplegar: el disco del
+Hetzner está al **95 %** (19-10 estaba en 88 %); liberar con
+`docker builder prune --filter until=168h` (nunca `volume prune`).
+
+- **Móvil:** Android compila en local (último `assembleDebug` 19-10), sin release a Play.
+  iOS nunca se ha compilado: `ios.yml` y `ci.yml` mueren en 5 s por el cobro de GitHub
+  Actions («recent account payments have failed»). `apps/mobile` (Expo) es un resto sin EAS.
+- **Ícono:** tres rondas de propuestas (letra Á/portal/voz → pirámide → pirámide limpia
+  estilo Apple). Adam eligió la dirección «pirámide de Cholula, limpio como Apple»; la hoja
+  de la ronda 3 (A Mono, B Cristal, C Noche, D Amanecer) está en el scratchpad de la
+  sesión; **nada sustituido** hasta que elija letra. Generador pendiente de escribir en
+  `scripts/generar-icono.mjs` (set: favicon, PWA 192/512 + maskable, Apple touch, Android
+  adaptable, iOS 1024).
+- **Login con contraseña** (`docs/autenticacion.md`): el código al correo solo al crear
+  la cuenta, la primera vez de una cuenta de antes, u «olvidé mi contraseña»; después
+  correo + contraseña con «Recordarme». argon2id (`@node-rs/argon2`, precompilado, también
+  musl para Docker), 5 fallos = 15 min de bloqueo, 401 uniforme (sin enumeración, hash
+  señuelo), cambiar/reemplazar revoca las otras sesiones, nada de contraseñas en logs.
+  Migración **aditiva** `20261021120000_contrasena` (users.passwordHash/passwordSetAt/
+  loginFallidos/loginBloqueadoHasta, sessions.viaCodigo/persistente). Rutas nuevas:
+  `POST /auth/entrar`, `POST /auth/contrasena`, `POST /auth/contrasena/cambiar`;
+  `otp/verificar` y `/auth/yo` traen `tieneContrasena`. **Las apps nativas siguen
+  entrando con código sin cambios** (ignoran los campos nuevos); pantalla de contraseña
+  en Android/iOS pendiente. OTP: vigencia 10 → 15 min, reenviar con cuenta regresiva.
+  Web: `/` con pasos entrar → pedir código → código → crear contraseña; Ajustes →
+  Contraseña; aviso arriba del feed para cuentas sin contraseña. e2e actualizadas
+  (registro-y-feed, humo, capturas, capturas-admin) + `contrasena.spec.ts` (API real).
+  auth 45/45, contracts 13/13, API 240/240, tsc y eslint en verde, build web en verde.
+  Las e2e no corrieron (Docker local caído, Actions sin cobro).
+- **Por qué tarda el código:** la API entrega a Brevo en < 1 s; lo lento es Microsoft 365
+  (`deferred`). El único envío desde el deploy del 19-10 llegó en 7 s. Remitente
+  `acceso@udlagora.com` (ya autenticado en Brevo) sigue pendiente de Adam.
 
 ## Hecho en este turno (19-10)
 
@@ -131,9 +168,12 @@ Retomado desde el turno de Cursor del 07-10 (Fase 0 de ÁGORA 2.0, plan en
 
 ## Siguiente paso
 
-1. Adam: arreglar el cobro de GitHub (Settings → Billing) → corre CI (e2e) + `ios.yml`.
-2. Con iOS compilando: TestFlight; Android: build de release a Play.
-3. Fase 1 de ÁGORA 2.0 (plan, §5).
+1. Adam elige el ícono (ronda 3) → `scripts/generar-icono.mjs` + sustituir en web, Android, iOS.
+2. Adam aprueba → liberar disco del Hetzner → `pwsh -File scripts\desplegar.ps1` (la
+   migración se aplica sola al arrancar la API) → probar: crear cuenta, entrar con
+   contraseña, olvidé, cambiar en Ajustes.
+3. Android/iOS: pantalla de contraseña (`/auth/entrar` modo token) y crear contraseña tras el código.
+4. Adam: cobro de GitHub (Settings → Billing) → corre CI (e2e) + `ios.yml`; luego TestFlight / Play.
 
 ## No tocar
 

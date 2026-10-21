@@ -33,6 +33,10 @@ export interface Sesion {
   esStaff: boolean;
   puedeModerar: boolean;
   puedeSuspender?: boolean;
+  /** false = cuenta de antes de las contraseñas: se le invita a crearla. */
+  tieneContrasena: boolean;
+  /** Esta sesión se abrió con un código al correo (no con contraseña). */
+  viaCodigo?: boolean;
 }
 
 const VIDA_MS = 30_000;

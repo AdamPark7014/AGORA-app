@@ -35,7 +35,7 @@ export const LANDING_FAQ = [
   {
     pregunta: '¿Quién puede entrar a Ágora?',
     respuesta:
-      'Solo personas con correo institucional @udlap.mx. Verificamos el acceso con un código de un solo uso; no hay registro abierto al público.',
+      'Solo personas con correo institucional @udlap.mx. Al crear la cuenta verificamos el buzón con un código de un solo uso; no hay registro abierto al público.',
   },
   {
     pregunta: '¿Ágora está afiliada a la UDLAP?',
@@ -45,7 +45,7 @@ export const LANDING_FAQ = [
   {
     pregunta: '¿Cómo funciona el acceso?',
     respuesta:
-      'Escribes tu correo @udlap.mx, recibes un código de 6 dígitos y entras. No usamos contraseñas permanentes.',
+      'La primera vez escribes tu correo @udlap.mx, recibes un código de 6 dígitos y eliges una contraseña. Después entras con correo y contraseña, como en cualquier red social.',
   },
   {
     pregunta: '¿Quién ve lo que publico?',

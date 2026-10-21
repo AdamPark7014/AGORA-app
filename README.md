@@ -139,7 +139,7 @@ packages/
   config/       tsconfig compartidos                  ✅
   shared/       catálogo UDLAP + identidad            ✅
   contracts/    validadores Zod compartidos           ✅
-  auth/         OTP, sesiones, límites de envío       ✅
+  auth/         OTP, contraseña (argon2id), sesiones  ✅
   rbac/         roles y permisos                      ✅
   db/           Prisma: esquema, migraciones, seed    ✅
   moderation/   política de contenido                 ✅

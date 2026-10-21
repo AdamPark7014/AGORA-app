@@ -22,14 +22,18 @@ test('capturas del panel de moderacion', async ({ page }) => {
 
   // Sesión del moderador con el código maestro de desarrollo.
   await page.goto('/');
+  await page.getByRole('button', { name: '¿Olvidaste tu contraseña?' }).click();
   await page.getByPlaceholder('nombre.apellido@udlap.mx').fill(MODERADOR);
-  await page.getByRole('button', { name: 'Entrar con @udlap.mx' }).click();
+  await page.getByRole('button', { name: 'Enviarme el código' }).click();
   await expect(page.getByPlaceholder('000000')).toBeVisible();
 
-
   await page.getByPlaceholder('000000').fill(CODIGO);
-  await page.getByRole('button', { name: 'Entrar' }).click();
-  await expect(page).toHaveURL(/\/(feed|registro)$/);
+  await page.getByRole('button', { name: 'Entrar al Ágora' }).click();
+  // Tras el código se elige contraseña (cuenta sin ella, o vino por "olvidé").
+  await page.getByLabel('Contraseña nueva').fill('cafe-de-cholula-2026');
+  await page.getByLabel('Repítela').fill('cafe-de-cholula-2026');
+  await page.getByRole('button', { name: 'Guardar contraseña' }).click();
+  await expect(page).toHaveURL(/\/(feed|registro|bienvenida)$/);
 
   // Se genera un reporte para que la cola no salga vacía en la captura.
   const postId = psql("select id from posts where estado = 'PUBLICADO' limit 1");

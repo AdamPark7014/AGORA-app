@@ -15,12 +15,37 @@ export const copy = {
     insignia: '● Solo para la UDLAP',
     titulo: 'Tu red en el campus',
     entradilla:
-      'Entra con tu correo @udlap.mx y te mandamos un código. Sin contraseñas que recordar.',
+      'Entra con tu correo @udlap.mx y tu contraseña. El código al correo solo se pide una vez, al crear tu cuenta.',
     correo: {
       etiqueta: 'Tu correo @udlap.mx',
       placeholder: 'nombre.apellido@udlap.mx',
-      boton: 'Entrar con @udlap.mx',
+    },
+    contrasena: {
+      etiqueta: 'Contraseña',
+      mostrar: 'Mostrar contraseña',
+      ocultar: 'Ocultar contraseña',
+    },
+    recordarme: 'Recordarme en este dispositivo',
+    boton: 'Entrar',
+    botonEntrando: 'Entrando…',
+    olvide: '¿Olvidaste tu contraseña?',
+    primeraVez: '¿Primera vez aquí?',
+    crearCuenta: 'Crea tu cuenta',
+    /** Pedir el código: registro, cuenta de antes sin contraseña, u "olvidé". */
+    pedir: {
+      titulo: {
+        registro: 'Verifica tu correo UDLAP',
+        olvide: 'Recupera tu acceso',
+      },
+      explicacion: {
+        registro:
+          'Te mandamos un código de 6 dígitos a tu buzón @udlap.mx para comprobar que eres de la UDLAP. Solo esta vez: después entras con tu contraseña.',
+        olvide:
+          'Te mandamos un código a tu buzón @udlap.mx. Con él entras y eliges una contraseña nueva. Si tu cuenta es de antes y nunca tuvo contraseña, este también es tu camino.',
+      },
+      boton: 'Enviarme el código',
       botonEnviando: 'Enviando…',
+      volver: 'Ya tengo contraseña',
     },
     codigo: {
       titulo: 'Revisa tu correo',
@@ -31,10 +56,13 @@ export const copy = {
       botonVerificando: 'Verificando…',
       cambiarCorreo: 'Cambiar correo',
       avisoOutlook:
-        'Si no lo ves en la bandeja principal, busca "Ágora" o "udlagora" y revisa Correo no deseado, la pestaña Otros y Cuarentena en Outlook.',
-      pie: 'Vence en 10 minutos y solo sirve una vez.',
+        'Si no lo ves en la bandeja principal, busca "Ágora" o "Zynora" y revisa Correo no deseado, la pestaña Otros y Cuarentena en Outlook.',
+      pie: 'Vence en 15 minutos y solo sirve una vez.',
       reenviar: 'Reenviar código',
+      reenviarEn: (segundos: number) => `Reenviar en ${segundos} s`,
       remitente: 'Llega de contacto@zynoratek.com («Ágora · Zynora Tek»).',
+      tarda:
+        'Outlook de la UDLAP a veces tarda unos minutos en entregarlo. Mientras, revisa Correo no deseado y la pestaña Otros.',
       entrega: {
         enviado: 'Enviando tu código…',
         demorado: 'Outlook está tardando en aceptarlo. Se reintenta solo; dale un minuto.',
@@ -47,6 +75,22 @@ export const copy = {
         error: 'No pudimos entregarlo. Intenta de nuevo en un minuto.',
         sinNoticias: 'Sigue en camino. Si en un par de minutos no aparece, reenvíalo.',
       },
+    },
+    nuevaContrasena: {
+      titulo: {
+        crear: 'Crea tu contraseña',
+        olvide: 'Elige una contraseña nueva',
+      },
+      entradilla: {
+        crear: 'Con ella entrarás de ahora en adelante. No volverás a necesitar un código.',
+        olvide: 'Tus otras sesiones se cerrarán por seguridad.',
+      },
+      etiqueta: 'Contraseña nueva',
+      confirmar: 'Repítela',
+      ayuda: 'Mínimo 8 caracteres. Que no sea tu correo ni una de las típicas.',
+      noCoincide: 'Las contraseñas no coinciden.',
+      boton: 'Guardar contraseña',
+      botonGuardando: 'Guardando…',
     },
     ventajas: [
       {
@@ -63,8 +107,10 @@ export const copy = {
       },
     ],
     errores: {
+      entrar: 'No se pudo entrar. Intenta de nuevo.',
       enviarCodigo: 'No se pudo enviar el código.',
       verificar: 'No se pudo verificar el código.',
+      contrasena: 'No se pudo guardar la contraseña.',
     },
   },
 

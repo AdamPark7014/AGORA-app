@@ -9,7 +9,7 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 const DIA = 24 * 60 * 60 * 1000;
 
 /** Guard con una sesion que vence en `vence` ms; registra renovaciones y cookies. */
-const probar = async (vence: number, porCookie: boolean) => {
+const probar = async (vence: number, porCookie: boolean, persistente = true) => {
   const renovaciones: Date[] = [];
   const cookies: { nombre: string; expires?: Date }[] = [];
   const prisma = {
@@ -17,8 +17,11 @@ const probar = async (vence: number, porCookie: boolean) => {
       findUnique: async () => ({
         id: 's1',
         revokedAt: null,
+        persistente,
+        viaCodigo: false,
+        createdAt: new Date(),
         expiresAt: new Date(Date.now() + vence),
-        user: { id: 'u1', email: 'a@udlap.mx', roles: [], estado: 'ACTIVO', profile: null },
+        user: { id: 'u1', email: 'a@udlap.mx', roles: [], estado: 'ACTIVO', profile: null, passwordHash: null },
       }),
       update: async ({ data }: { data: { expiresAt: Date } }) => {
         renovaciones.push(data.expiresAt);
@@ -55,5 +58,11 @@ test('una sesion de hace dias se renueva y la cookie se extiende', async () => {
 test('la app nativa (token) se renueva en la base sin cookie', async () => {
   const { renovaciones, cookies } = await probar(5 * DIA, false);
   assert.equal(renovaciones.length, 1);
+  assert.equal(cookies.length, 0);
+});
+
+test('una sesion sin "recordarme" no se renueva aunque le quede poco', async () => {
+  const { renovaciones, cookies } = await probar(5 * DIA, true, false);
+  assert.equal(renovaciones.length, 0);
   assert.equal(cookies.length, 0);
 });

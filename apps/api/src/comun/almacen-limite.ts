@@ -28,6 +28,13 @@ export const LIMITE_OTP_VERIFICAR = {
   largo: { ttl: 3_600_000, limit: 300 },
 } as const;
 
+/**
+ * Entrar con contraseña: mismos techos por IP que verificar un codigo. La
+ * defensa real contra adivinar es el bloqueo por cuenta (5 fallos, 15 min);
+ * esto corta a quien reparte intentos entre muchas cuentas desde una IP.
+ */
+export const LIMITE_ENTRAR = LIMITE_OTP_VERIFICAR;
+
 /** Forma objeto de ThrottlerModuleOptions (con storage opcional). */
 export type OpcionesLimite = {
   throttlers: Array<{ name: string; ttl: number; limit: number }>;

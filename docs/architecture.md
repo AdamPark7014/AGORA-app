@@ -108,20 +108,29 @@ Cada módulo expone controladores REST bajo `/api/`:
 
 ## Flujo de autenticación
 
+Desde el 21-10-2026: el código al correo verifica la cuenta **una vez** (al
+crearla, o la primera vez de una cuenta de antes); después se entra con
+**correo + contraseña**. Detalle completo en `docs/autenticacion.md`.
+
 ```
-Usuario ingresa @udlap.mx
-        │
+Todos los días
+POST /api/auth/entrar  { email, contrasena, modo, recordarme }
+        │   401 uniforme (correo desconocido = sin contraseña = contraseña mal)
+        │   5 fallos seguidos → 15 min de bloqueo (el código sigue abierto)
         ▼
+Primera vez / olvidé mi contraseña
 POST /api/auth/otp/solicitar  →  204 (siempre, sin revelar si existe cuenta)
         │                          Código OTP por correo (o log en dev)
         ▼
 POST /api/auth/otp/verificar  { email, codigo, modo }
+        │   Respuesta trae tieneContrasena; si es false (o venía por "olvidé"):
+        │   POST /api/auth/contrasena { contrasena }  (con la sesión recién abierta)
         │
         ├─ modo: "cookie"  →  Set-Cookie httpOnly (web, admin)
-        │                    Respuesta: { tienePerfil }
+        │                    Respuesta: { tienePerfil, tieneContrasena }
         │
         └─ modo: "token"   →  Sin cookie
-                              Respuesta: { tienePerfil, token, expiraEn }
+                              Respuesta: { tienePerfil, tieneContrasena, token, expiraEn }
                               Cliente guarda token:
                                 · Web/Admin: no aplica
                                 · mobile-native: Keystore (Android) / Keychain (iOS)
@@ -141,7 +150,9 @@ App principal (feed, etc.)
 
 **Contrato fijado en pruebas:** `e2e/sesion-nativa.spec.ts` — `modo: 'token'` devuelve token en cuerpo y **no** pone cookie; `modo: 'cookie'` pone cookie y **no** devuelve token.
 
-**Límites OTP:** por IP en solicitar/verificar (60/min) + por buzón en `@agora/auth` (1/min, 10/día). El límite general de la API es por usuario autenticado (240/min), no por IP — crítico en campus con NAT compartido.
+**Límites OTP:** por IP en solicitar (20/min, 200/h) y verificar/entrar (30/min, 300/h) + por buzón en `@agora/auth` (1/min, 10/día). El límite general de la API es por usuario autenticado (240/min), no por IP — crítico en campus con NAT compartido.
+
+**Contraseña:** argon2id en `apps/api/src/auth/contrasena.ts`; política y bloqueo en `packages/auth/src/contrasena.ts`; `POST /auth/contrasena` (sin la actual: cuenta sin contraseña o sesión por código ≤ 30 min) y `POST /auth/contrasena/cambiar` (con la actual). Cambiarla revoca las demás sesiones.
 
 ---
 

@@ -10,6 +10,9 @@ import {
   pushSubscriptionSchema,
   solicitarOtpSchema,
   verificarOtpSchema,
+  entrarSchema,
+  crearContrasenaSchema,
+  cambiarContrasenaSchema,
 } from './index.js';
 
 test('solicitar OTP normaliza el correo y solo acepta @udlap.mx', () => {
@@ -160,4 +163,21 @@ test('push: solo servicios de push reales, nunca hosts internos', () => {
   assert.ok(!ok('https://fcm.googleapis.com:8443/x'));
   assert.ok(!ok('https://fcm.googleapis.com.evil.com/x'));
   assert.ok(!ok('https://evilnotify.windows.com.attacker.io/x'));
+});
+
+test('entrar normaliza el correo y recuerda por omision', () => {
+  const ok = entrarSchema.parse({ email: ' Ana.R@UDLAP.MX ', contrasena: 'lo-que-sea' });
+  assert.equal(ok.email, 'ana.r@udlap.mx');
+  assert.equal(ok.modo, 'cookie');
+  assert.equal(ok.recordarme, true);
+  assert.equal(entrarSchema.safeParse({ email: 'a@udlap.mx', contrasena: '' }).success, false);
+  assert.equal(entrarSchema.safeParse({ email: 'a@gmail.com', contrasena: 'x' }).success, false);
+});
+
+test('la contraseña nueva mide entre 8 y 128', () => {
+  assert.equal(crearContrasenaSchema.safeParse({ contrasena: 'siete77' }).success, false);
+  assert.equal(crearContrasenaSchema.safeParse({ contrasena: 'ocho-888' }).success, true);
+  assert.equal(crearContrasenaSchema.safeParse({ contrasena: 'x'.repeat(129) }).success, false);
+  assert.equal(cambiarContrasenaSchema.safeParse({ actual: '', nueva: 'ocho-888' }).success, false);
+  assert.equal(cambiarContrasenaSchema.safeParse({ actual: 'vieja', nueva: 'ocho-888' }).success, true);
 });

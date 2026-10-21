@@ -6,6 +6,8 @@ import {
   LONGITUD_CODIGO,
   MAX_ENVIOS_DIA,
   MAX_INTENTOS,
+  TTL_CODIGO_MS,
+  TTL_SESION_CORTA_MS,
   RESULTADO_ENVIO,
   RESULTADO_OTP,
   compararHash,
@@ -16,6 +18,7 @@ import {
   puedeEnviar,
   sesionVigente,
   vencimientoDesde,
+  vencimientoSesion,
   verificarCodigo,
 } from './otp.js';
 
@@ -88,9 +91,10 @@ test('un codigo de otra cuenta no sirve aunque los digitos coincidan', () => {
   assert.equal(r, RESULTADO_OTP.INCORRECTO);
 });
 
-test('el codigo vence a los 10 minutos', () => {
-  const justoAntes = new Date(AHORA.getTime() + 10 * 60 * 1000 - 1);
-  const justoDespues = new Date(AHORA.getTime() + 10 * 60 * 1000);
+test('el codigo vence a los 15 minutos', () => {
+  assert.equal(TTL_CODIGO_MS, 15 * 60 * 1000);
+  const justoAntes = new Date(AHORA.getTime() + TTL_CODIGO_MS - 1);
+  const justoDespues = new Date(AHORA.getTime() + TTL_CODIGO_MS);
   assert.equal(
     verificarCodigo('123456', 'ana@udlap.mx', guardado('123456'), SECRETO, justoAntes),
     RESULTADO_OTP.VALIDO,
@@ -194,4 +198,9 @@ test('una sesion revocada o vencida deja de valer', () => {
   assert.equal(sesionVigente({ expiresAt: futuro, revokedAt: null }, AHORA), true);
   assert.equal(sesionVigente({ expiresAt: pasado, revokedAt: null }, AHORA), false);
   assert.equal(sesionVigente({ expiresAt: futuro, revokedAt: AHORA }, AHORA), false);
+});
+
+test('sin "recordarme" la sesion dura un dia de clases, no medio año', () => {
+  assert.equal(vencimientoSesion(AHORA, false).getTime(), AHORA.getTime() + TTL_SESION_CORTA_MS);
+  assert.ok(vencimientoSesion(AHORA).getTime() > AHORA.getTime() + 100 * 24 * 3600_000);
 });

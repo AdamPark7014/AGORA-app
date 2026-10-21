@@ -28,8 +28,9 @@ test('capturas de las pantallas principales', async ({ page }) => {
   await page.goto('/');
   await page.screenshot({ path: 'capturas/1-entrar.png', fullPage: true });
 
+  await page.getByRole('button', { name: 'Crea tu cuenta' }).click();
   await page.getByPlaceholder('nombre.apellido@udlap.mx').fill(email);
-  await page.getByRole('button', { name: 'Entrar con @udlap.mx' }).click();
+  await page.getByRole('button', { name: 'Enviarme el código' }).click();
   await expect(page.getByPlaceholder('000000')).toBeVisible();
   await page.screenshot({ path: 'capturas/2-codigo.png', fullPage: true });
 
@@ -41,7 +42,12 @@ test('capturas de las pantallas principales', async ({ page }) => {
   );
 
   await page.getByPlaceholder('000000').fill(CODIGO);
-  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('button', { name: 'Entrar al Ágora' }).click();
+  await expect(page.getByRole('heading', { name: 'Crea tu contraseña' })).toBeVisible();
+  await page.screenshot({ path: 'capturas/2b-contrasena.png', fullPage: true });
+  await page.getByLabel('Contraseña nueva').fill('cafe-de-cholula-2026');
+  await page.getByLabel('Repítela').fill('cafe-de-cholula-2026');
+  await page.getByRole('button', { name: 'Guardar contraseña' }).click();
   await expect(page).toHaveURL(/\/registro$/);
   await page.screenshot({ path: 'capturas/3-registro.png', fullPage: true });
 

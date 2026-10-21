@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react';
 
+import { AvisoContrasena } from './aviso-contrasena';
 import { CarrilDerecho, CarrilIzquierdo } from './carriles';
 import { useSinNavegacion } from '@/lib/navegacion';
 import { useConsultaMedia } from '@/lib/pantalla';
@@ -39,6 +40,7 @@ export function Marco({ children }: { children: React.ReactNode }) {
         <aside className="carril carril-izquierdo" aria-hidden="true" />
       )}
       <div style={{ minWidth: 0 }}>
+        <AvisoContrasena />
         <TransicionPagina>{children}</TransicionPagina>
       </div>
       {conDerecho ? (

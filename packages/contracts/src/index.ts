@@ -56,6 +56,42 @@ export const verificarOtpSchema = z.object({
 });
 export type VerificarOtp = z.infer<typeof verificarOtpSchema>;
 
+/**
+ * Contraseña personal. El largo se valida aquí; las reglas de fondo (muy
+ * común, contiene el correo) viven en @agora/auth y las aplica la API, que es
+ * la que conoce el correo de la cuenta.
+ */
+export const contrasenaSchema = z
+  .string()
+  .min(8, { message: 'Tu contraseña necesita al menos 8 caracteres.' })
+  .max(128, { message: 'Tu contraseña no puede pasar de 128 caracteres.' });
+
+/** Entrar con correo + contraseña (lo de todos los días). */
+export const entrarSchema = z.object({
+  email: correoUdlapSchema,
+  contrasena: z.string().min(1, { message: 'Escribe tu contraseña.' }).max(128),
+  modo: z.enum(['cookie', 'token']).default('cookie'),
+  /**
+   * `true`: la sesión dura medio año y se renueva con el uso. `false`: dura
+   * un día y en la web muere al cerrar el navegador (computadora prestada).
+   */
+  recordarme: z.boolean().default(true),
+});
+export type Entrar = z.infer<typeof entrarSchema>;
+
+/** Fijar contraseña sin dar la actual: primera vez, migración u "olvidé". */
+export const crearContrasenaSchema = z.object({
+  contrasena: contrasenaSchema,
+});
+export type CrearContrasena = z.infer<typeof crearContrasenaSchema>;
+
+/** Cambiarla sabiendo la actual (desde Ajustes). */
+export const cambiarContrasenaSchema = z.object({
+  actual: z.string().min(1, { message: 'Escribe tu contraseña actual.' }).max(128),
+  nueva: contrasenaSchema,
+});
+export type CambiarContrasena = z.infer<typeof cambiarContrasenaSchema>;
+
 // ---------------------------------------------------------------------------
 // Perfil
 // ---------------------------------------------------------------------------

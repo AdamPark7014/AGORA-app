@@ -8,6 +8,7 @@ import { ToggleTema } from '@/componentes/proveedor-tema';
 import { SuscribirPush } from '@/componentes/suscribir-push';
 import { PreferenciasNotificaciones } from '@/componentes/preferencias-notificaciones';
 import { EliminarCuenta } from '@/componentes/eliminar-cuenta';
+import { SeccionContrasena } from '@/componentes/seccion-contrasena';
 import { EsqueletoPerfil } from '@/componentes/esqueleto';
 import { EstadoError } from '@/componentes/estado-error';
 
@@ -506,6 +507,8 @@ export default function Ajustes() {
         {aviso && <p className="nota" style={{ marginTop: 14, marginBottom: 0 }}>{aviso}</p>}
         {error && <p className="error">{error}</p>}
       </form>
+
+      <SeccionContrasena />
 
       <EliminarCuenta handle={perfil.handle} />
     </main>

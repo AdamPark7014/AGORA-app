@@ -87,8 +87,9 @@ test('cada ruta de la web carga sin error de compilacion', async ({ page }) => {
 
   rutaActual = '/';
   await page.goto('/');
+  await page.getByRole('button', { name: 'Crea tu cuenta' }).click();
   await page.getByPlaceholder('nombre.apellido@udlap.mx').fill(email);
-  await page.getByRole('button', { name: 'Entrar con @udlap.mx' }).click();
+  await page.getByRole('button', { name: 'Enviarme el código' }).click();
   await expect(page.getByPlaceholder('000000')).toBeVisible();
 
   const secreto = process.env.SESSION_SECRET;
@@ -100,7 +101,10 @@ test('cada ruta de la web carga sin error de compilacion', async ({ page }) => {
   );
 
   await page.getByPlaceholder('000000').fill(CODIGO);
-  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('button', { name: 'Entrar al Ágora' }).click();
+  await page.getByLabel('Contraseña nueva').fill('cafe-de-cholula-2026');
+  await page.getByLabel('Repítela').fill('cafe-de-cholula-2026');
+  await page.getByRole('button', { name: 'Guardar contraseña' }).click();
   await expect(page).toHaveURL(/\/registro$/);
 
   await page.getByPlaceholder('adampozo').fill(handle);

@@ -177,7 +177,8 @@ Ver `docs/FIREBASE.md`. No commitear service accounts.
 
 | Síntoma | Qué mirar |
 |---|---|
-| OTP no llega | Brevo/Resend, DKIM, spam Outlook; logs API con `MAIL_PROVIDER=console` solo en dev |
+| OTP no llega | Solo afecta a cuentas nuevas y a "olvidé mi contraseña" (desde 21-10 se entra con contraseña). Brevo/Resend, DKIM, spam Outlook; logs `agora-api` («Codigo enviado» → «Entregado a…»); `MAIL_PROVIDER=console` solo en dev |
+| «Correo o contraseña incorrectos» con la buena | 5 fallos seguidos bloquean 15 min (`users.loginBloqueadoHasta`); entrar con código lo limpia. Ver `docs/autenticacion.md` |
 | 404 en fotos | MinIO sano + `S3_PUBLIC_URL`; Traefik PathPrefix `/media` |
 | `404 page not found` texto plano en `udlagora.com` | Falta `udlagora.yml` en `/opt/traefik/config/` → `bash deploy/install-traefik-route.sh`; contenedores `agora-*` en red `proxy` |
 | API no arranca en prod | `revisarEntorno`: SESSION_SECRET ≥ 32, MAIL no console, OPENAI o bypass, sin DEV_OTP |

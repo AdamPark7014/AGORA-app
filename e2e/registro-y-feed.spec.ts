@@ -21,6 +21,7 @@ import { psql } from './helpers/db';
  * incluido el HMAC, en vez de saltarselo.
  */
 const CODIGO_FIJO = '424242';
+const CONTRASENA_E2E = 'cafe-de-cholula-2026';
 
 function hashDe(codigo: string, email: string): string {
   const secreto = process.env.SESSION_SECRET;
@@ -30,10 +31,15 @@ function hashDe(codigo: string, email: string): string {
   return createHmac('sha256', secreto).update(`${email.toLowerCase()}:${codigo}`).digest('hex');
 }
 
+/**
+ * Primera vez: el código al buzón verifica la cuenta y después se elige una
+ * contraseña. Desde ahí se entra con correo + contraseña (ver contrasena.spec).
+ */
 async function entrar(page: Page, email: string): Promise<void> {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Crea tu cuenta' }).click();
   await page.getByPlaceholder('nombre.apellido@udlap.mx').fill(email);
-  await page.getByRole('button', { name: 'Entrar con @udlap.mx' }).click();
+  await page.getByRole('button', { name: 'Enviarme el código' }).click();
 
   await expect(page.getByPlaceholder('000000')).toBeVisible();
 
@@ -45,16 +51,41 @@ async function entrar(page: Page, email: string): Promise<void> {
   );
 
   await page.getByPlaceholder('000000').fill(CODIGO_FIJO);
-  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('button', { name: 'Entrar al Ágora' }).click();
+
+  // Cuenta nueva: elige contraseña antes de pasar.
+  await expect(page.getByRole('heading', { name: 'Crea tu contraseña' })).toBeVisible();
+  await page.getByLabel('Contraseña nueva').fill(CONTRASENA_E2E);
+  await page.getByLabel('Repítela').fill(CONTRASENA_E2E);
+  await page.getByRole('button', { name: 'Guardar contraseña' }).click();
 }
 
 test('un correo que no es @udlap.mx no entra', async ({ page }) => {
   await page.goto('/');
   await page.getByPlaceholder('nombre.apellido@udlap.mx').fill('alguien@gmail.com');
-  await page.getByRole('button', { name: 'Entrar con @udlap.mx' }).click();
+  await page.getByLabel('Contraseña', { exact: true }).fill('cualquier-cosa');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
 
   await expect(page.getByText('Necesitas un correo @udlap.mx para entrar.')).toBeVisible();
   await expect(page.getByPlaceholder('000000')).toHaveCount(0);
+});
+
+test('con contraseña se entra directo, sin código', async ({ page }) => {
+  const sufijo = Date.now().toString(36);
+  const email = `e2e.directo.${sufijo}@udlap.mx`;
+  await entrar(page, email);
+  await expect(page).toHaveURL(/\/registro$/);
+
+  // Cierra sesión borrando la cookie y vuelve a entrar con la contraseña.
+  await page.context().clearCookies();
+  await page.goto('/');
+  await page.getByPlaceholder('nombre.apellido@udlap.mx').fill(email);
+  await page.getByLabel('Contraseña', { exact: true }).fill(CONTRASENA_E2E);
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page).toHaveURL(/\/registro$/);
+  await expect(page.getByPlaceholder('000000')).toHaveCount(0);
+
+  psql(`delete from users where email = '${email}'`);
 });
 
 test('registro completo deja al usuario en sus comunidades y pudiendo publicar', async ({
