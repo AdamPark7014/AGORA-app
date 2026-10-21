@@ -402,8 +402,11 @@ const escribir = (ruta, contenido) => {
   writeFileSync(ruta, contenido);
   console.log(`✓ ${ruta.replace(salida, '').replace(/^[\\/]/, '')}`);
 };
-const png = async (svgTexto, tam, ruta) => {
-  await sharp(Buffer.from(svgTexto), { density: 300 }).resize(tam, tam).png({ compressionLevel: 9 }).toFile(ruta);
+const png = async (svgTexto, tam, ruta, { sinAlfa = false } = {}) => {
+  let img = sharp(Buffer.from(svgTexto), { density: 300 }).resize(tam, tam);
+  // App Store rechaza el icono de 1024 con canal alfa (ITMS-90717): RGB plano.
+  if (sinAlfa) img = img.removeAlpha();
+  await img.png({ compressionLevel: 9 }).toFile(ruta);
   console.log(`✓ ${ruta.replace(salida, '').replace(/^[\\/]/, '')}`);
 };
 
@@ -432,7 +435,7 @@ escribir(join(RES, 'drawable/agora_isotipo.xml'), isotipoAndroid());
 escribir(join(RES, 'drawable/ic_notification.xml'), notificacionAndroid());
 
 // iOS
-await png(maskable, 1024, join(IOS, 'AppIcon.appiconset/AppIcon-1024.png'));
+await png(maskable, 1024, join(IOS, 'AppIcon.appiconset/AppIcon-1024.png'), { sinAlfa: true });
 escribir(join(IOS, 'Isotipo.imageset/Isotipo.svg'), svg({ plano: true }));
 
 console.log(`Set "${C.nombre}" generado en ${salida}`);

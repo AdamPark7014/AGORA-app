@@ -52,6 +52,27 @@ proyectos (nunca `volume prune`).
     prueba `AgoraAppTests/AuthModelsTests.swift`.
   - Sin probar con cuenta real contra producción (el deploy `40e5bfc` ya responde en
     `/auth/entrar`); nada subido a tiendas.
+- **Tiendas (21-10, sesión lateral, pedido de Adam «compila en GitHub, repo público, sube a Apple y
+  Android»).** `AdamPark7014/AGORA-app` es **PÚBLICO** desde el 21-10 13:49 MX (gitleaks: 104 commits,
+  0 fugas; lo único «sensible» versionado es `google-services.json`, público por diseño, y la IP del
+  Hetzner en `scripts/desplegar.ps1`, que ya es pública por DNS). Con eso Actions volvió a correr:
+  `ios.yml` **en verde** (corrida 39665033178: el Swift del login compiló a la primera; captura del
+  simulador con la pantalla nueva). Hallazgo: XcodeGen regeneraba `Info.plist` en el Mac (bloque
+  `info:` de `project.yml`) y la app salía sin `UILaunchScreen` (franjas negras) ni los permisos de
+  fotos/cámara; ahora `INFOPLIST_FILE` + `GENERATE_INFOPLIST_FILE=false`. Preparado para publicar,
+  copiando ARTA/FINANVOZ: `ios-testflight.yml` (archiva, firma con el certificado del equipo
+  AHNW9K8745, `scripts/asc_signing.py` crea App ID + perfil con Push y Associated Domains, sube a
+  ASC), `android-play.yml` (`bundleRelease` firmado con llave de subida por secretos, huella
+  verificada, artefacto `agora-aab`), `PrivacyInfo.xcprivacy`, `AgoraApp.Release.entitlements`
+  (aps production), `Config/AgoraApp.xcconfig`, solo iPhone, esquema compartido, icono 1024 en RGB
+  (el generador ya escribe `removeAlpha`), reglas R8 de Tink, versión por `-PVERSION_CODE/NAME`.
+  `ci.yml`: el sembrador importaba `@agora/shared/dist` antes del build → se siembra después del
+  build. **Claude no tocó ninguna llave** (veto de credenciales): los secretos los carga Adam con
+  `scripts/subir-secretos-ios.ps1` (reusa `C:\dev\secrets\arta-ios`, pide el Issuer ID),
+  `scripts/crear-llave-android.ps1` + `scripts/subir-secretos-android.ps1`, y crea las apps en App
+  Store Connect y Play Console a mano (la API no puede). Pasos exactos y ficha borrador en
+  `docs/store/README.md`. Después: lanzar «iOS · TestFlight» y «Android · Play» y subir el `.aab` a
+  prueba interna.
 - **Móvil:** Android compila en local (último `assembleDebug` 21-10, ya con contraseña), sin release a Play.
   iOS nunca se ha compilado: `ios.yml` y `ci.yml` mueren en 5 s por el cobro de GitHub
   Actions («recent account payments have failed»). `apps/mobile` (Expo) es un resto sin EAS.
@@ -214,9 +235,12 @@ Retomado desde el turno de Cursor del 07-10 (Fase 0 de ÁGORA 2.0, plan en
 1. Probar en producción con una cuenta real: crear cuenta, entrar con contraseña, olvidé,
    cambiar en Ajustes (la sesión lateral de móvil está en marcha: no hacer `cerrar` con
    `add -A` mientras trabaje; commits con rutas explícitas).
-3. Android/iOS: probar el login con contraseña en el AVD (`nexara_phone`) contra producción: entrar,
-   olvidé → crear, Ajustes → cambiar. Código hecho el 21-10; iOS sin compilar.
-4. Adam: cobro de GitHub (Settings → Billing) → corre CI (e2e) + `ios.yml`; luego TestFlight / Play.
+3. Tiendas: Adam corre los 4 pasos de `docs/store/README.md` (secretos iOS, app en ASC, llave Android,
+   app en Play) → Claude lanza «iOS · TestFlight» y «Android · Play» → prueba interna / TestFlight →
+   ficha, capturas y cuenta de revisión → enviar a revisión.
+4. Android/iOS: probar el login con contraseña en el AVD (`nexara_phone`) contra producción: entrar,
+   olvidé → crear, Ajustes → cambiar.
+5. Adam: cobro de GitHub ya no bloquea (repo público); queda arreglar el banco para los repos privados.
 
 ## No tocar
 

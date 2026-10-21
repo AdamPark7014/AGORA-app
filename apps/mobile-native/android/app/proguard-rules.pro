@@ -48,3 +48,11 @@
 -dontwarn androidx.room.paging.**
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
+
+# security-crypto empaqueta Tink, que resuelve sus primitivas por reflexión
+# sobre protobuf. Si R8 recorta ahí, EncryptedSharedPreferences revienta al
+# abrir la sesión: crash al arranque, solo en release (lección de NEXARA).
+-keep class androidx.security.crypto.** { *; }
+-keep class com.google.crypto.tink.** { *; }
+-dontwarn com.google.crypto.tink.**
+-dontwarn com.google.protobuf.**

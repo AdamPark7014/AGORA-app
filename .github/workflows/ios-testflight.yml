@@ -1,0 +1,347 @@
+name: iOS · TestFlight
+
+# Archiva, firma y sube Ágora a TestFlight desde la cuenta de NEXARA (equipo
+# AHNW9K8745), sin Mac. Copiado de ARTA-app/.github/workflows/ios-testflight.yml
+# sin la extensión de notificaciones: un solo target, un solo perfil, que crea
+# scripts/asc_signing.py con la llave de App Store Connect.
+#
+# Secretos del repo (los carga scripts/subir-secretos-ios.ps1):
+#   APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_PRIVATE_KEY
+#     (llave de API con rol Admin o App Manager; la misma de NEXARA/ARTA sirve)
+#   Certificado de distribución del equipo, una de dos formas:
+#     CERTIFICATE_PRIVATE_KEY (PEM) + DISTRIBUTION_CERT_CER_BASE64 (.cer en base64)
+#     o BUILD_CERTIFICATE_BASE64 (.p12 en base64) + P12_PASSWORD
+# Antes de la primera subida, la app con bundle mx.agora.mobile.AgoraApp tiene
+# que existir en App Store Connect (se crea a mano; la API no puede).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión de App Store (CFBundleShortVersionString)"
+        required: true
+        default: "1.0.0"
+      build:
+        description: "Número de build (CFBundleVersion). Vacío = número de ejecución del flujo"
+        required: false
+        default: ""
+      upload:
+        description: "Subir a TestFlight (desmarca para solo compilar y firmar)"
+        type: boolean
+        required: true
+        default: true
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    name: Archivar, firmar y subir
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      IOS_DIR: ${{ github.workspace }}/apps/mobile-native/ios
+      PROJECT: ${{ github.workspace }}/apps/mobile-native/ios/AgoraApp.xcodeproj
+      SCHEME: AgoraApp
+      ARCHIVE_PATH: ${{ github.workspace }}/build/AgoraApp.xcarchive
+      EXPORT_DIR: ${{ github.workspace }}/build/export
+      TEAM_ID: AHNW9K8745
+      APP_BUNDLE_ID: mx.agora.mobile.AgoraApp
+      MARKETING_VERSION: ${{ inputs.version }}
+      BUILD_NUMBER: ${{ inputs.build || github.run_number }}
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      CERTIFICATE_PRIVATE_KEY: ${{ secrets.CERTIFICATE_PRIVATE_KEY }}
+      DISTRIBUTION_CERT_CER_BASE64: ${{ secrets.DISTRIBUTION_CERT_CER_BASE64 }}
+      BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode más reciente (App Store exige el SDK de iOS 26)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # App Store Connect rechaza binarios compilados con un SDK anterior a
+      # iOS 26. Se corta aquí, en el primer minuto, y no tras archivar y subir.
+      # Si la Xcode elegida trae un SDK menor se busca otra instalada en el
+      # runner, nunca una beta: Apple tampoco acepta lo compilado con betas.
+      - name: Exigir SDK de iOS 26 o mayor
+        run: |
+          set -euo pipefail
+          sdk_ok() {
+            case "${1:-}" in ''|*[!0-9.]*) return 1 ;; esac
+            [ "${1%%.*}" -ge 26 ]
+          }
+          SDK="$(xcrun --sdk iphoneos --show-sdk-version 2>/dev/null || true)"
+          echo "Xcode elegida: $(xcode-select -p) · SDK iPhoneOS ${SDK:-<ninguno>}"
+          if ! sdk_ok "$SDK"; then
+            for X in /Applications/Xcode*.app; do
+              case "$X" in *[Bb]eta*) continue ;; esac
+              [ -d "$X/Contents/Developer" ] || continue
+              V="$(DEVELOPER_DIR="$X/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version 2>/dev/null || true)"
+              echo "  $X: SDK ${V:-<ninguno>}"
+              if sdk_ok "$V"; then
+                sudo xcode-select -s "$X/Contents/Developer"
+                SDK="$V"
+                break
+              fi
+            done
+          fi
+          if ! sdk_ok "$SDK"; then
+            echo "::error::No hay Xcode estable con SDK de iOS 26 o mayor en el runner (hay ${SDK:-ninguno}). App Store Connect rechazaría la subida."
+            exit 1
+          fi
+          echo "OK: SDK iPhoneOS $SDK con $(xcode-select -p)"
+
+      # Apple rechaza el icono de 1024 con canal alfa (ITMS-90717, «Invalid App
+      # Store Icon»). scripts/generar-icono.mjs ya lo escribe en RGB; aquí se
+      # comprueba antes de firmar ni archivar nada.
+      - name: Icono de App Store sin transparencia
+        run: |
+          set -euo pipefail
+          ICONSET="$IOS_DIR/Resources/Assets.xcassets/AppIcon.appiconset"
+          ICON="$ICONSET/AppIcon-1024.png"
+          test -f "$ICON" || { echo "::error::Falta $ICON"; exit 1; }
+          W="$(sips -g pixelWidth "$ICON" | awk -F': ' '/pixelWidth/ {print $2}')"
+          H="$(sips -g pixelHeight "$ICON" | awk -F': ' '/pixelHeight/ {print $2}')"
+          echo "AppIcon-1024.png: ${W}x${H}"
+          if [ "$W" != "1024" ] || [ "$H" != "1024" ]; then
+            echo "::error::AppIcon-1024.png debe medir 1024x1024 (mide ${W}x${H})."; exit 1
+          fi
+          fail=0
+          for f in "$ICONSET"/*.png; do
+            a="$(sips -g hasAlpha "$f" | awk -F': ' '/hasAlpha/ {print $2}')"
+            echo "$(basename "$f") hasAlpha: ${a:-desconocido}"
+            if [ "$a" != "no" ]; then fail=1; fi
+          done
+          if [ $fail -ne 0 ]; then
+            echo "::error::El icono tiene canal alfa: App Store lo rechaza (ITMS-90717). Regenera con node scripts/generar-icono.mjs (escribe RGB)."
+            exit 1
+          fi
+
+      # El manifiesto de privacidad lo exige Apple desde mayo de 2024. Un plist
+      # mal formado o con rastreo activado se descubre aquí y no en el correo de
+      # rechazo.
+      - name: Plists y manifiesto de privacidad válidos
+        working-directory: apps/mobile-native/ios
+        run: |
+          set -euo pipefail
+          MANIFEST=Resources/PrivacyInfo.xcprivacy
+          /usr/bin/plutil -lint Resources/Info.plist Resources/AgoraApp.Release.entitlements "$MANIFEST"
+          /usr/libexec/PlistBuddy -c 'Print :NSPrivacyAccessedAPITypes' "$MANIFEST" >/dev/null || { echo "::error::Falta NSPrivacyAccessedAPITypes en $MANIFEST"; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print :NSPrivacyCollectedDataTypes:0' "$MANIFEST" >/dev/null || { echo "::error::NSPrivacyCollectedDataTypes vacío en $MANIFEST"; exit 1; }
+          TRACKING="$(/usr/libexec/PlistBuddy -c 'Print :NSPrivacyTracking' "$MANIFEST")"
+          if [ "$TRACKING" != "false" ]; then
+            echo "::error::NSPrivacyTracking debe ser false (Ágora no rastrea): vale «$TRACKING»."; exit 1
+          fi
+          if /usr/libexec/PlistBuddy -c 'Print :NSPrivacyTrackingDomains:0' "$MANIFEST" >/dev/null 2>&1; then
+            echo "::error::NSPrivacyTrackingDomains debe ir vacío si NSPrivacyTracking es false."; exit 1
+          fi
+          echo "Datos declarados:"
+          /usr/bin/plutil -p "$MANIFEST" | grep '"NSPrivacyCollectedDataType" =>' || true
+
+      - name: Versiones
+        run: |
+          xcodebuild -version
+          echo "SDK iPhoneOS: $(xcrun --sdk iphoneos --show-sdk-version)"
+          echo "Versión ${MARKETING_VERSION} · build ${BUILD_NUMBER}"
+
+      - name: Comprobar secretos
+        run: |
+          set -euo pipefail
+          miss=()
+          [ -n "$ASC_KEY_ID" ] || miss+=(APP_STORE_CONNECT_KEY_ID)
+          [ -n "$ASC_ISSUER_ID" ] || miss+=(APP_STORE_CONNECT_ISSUER_ID)
+          [ -n "$ASC_PRIVATE_KEY" ] || miss+=(APP_STORE_CONNECT_PRIVATE_KEY)
+          if [ -z "$CERTIFICATE_PRIVATE_KEY$DISTRIBUTION_CERT_CER_BASE64" ] && [ -z "$BUILD_CERTIFICATE_BASE64" ]; then
+            miss+=("CERTIFICATE_PRIVATE_KEY+DISTRIBUTION_CERT_CER_BASE64 o BUILD_CERTIFICATE_BASE64+P12_PASSWORD")
+          fi
+          if [ ${#miss[@]} -gt 0 ]; then
+            printf 'Faltan secretos del repo: %s\n' "${miss[@]}"
+            echo "::error::Cárgalos con scripts/subir-secretos-ios.ps1 (ver docs/store/README.md)."
+            exit 1
+          fi
+
+      - name: Llave de App Store Connect
+        run: |
+          set -euo pipefail
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          umask 177
+          printf '%s' "$ASC_PRIVATE_KEY" > "$KEY_PATH"
+          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          echo "API_PRIVATE_KEYS_DIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
+
+      - name: Certificado de distribución al llavero
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/codesign.keychain-db"
+          KC_PASS="$(openssl rand -hex 12)"
+          security create-keychain -p "$KC_PASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PASS" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          security default-keychain -s "$KEYCHAIN"
+          CERT_DER="$RUNNER_TEMP/dist.cer"
+          if [ -n "${CERTIFICATE_PRIVATE_KEY:-}" ] && [ -n "${DISTRIBUTION_CERT_CER_BASE64:-}" ]; then
+            printf '%s' "$CERTIFICATE_PRIVATE_KEY" > "$RUNNER_TEMP/dist.key.pem"
+            echo "$DISTRIBUTION_CERT_CER_BASE64" | base64 --decode > "$CERT_DER"
+            openssl x509 -inform DER -in "$CERT_DER" -out "$RUNNER_TEMP/dist.pem"
+            P12="$RUNNER_TEMP/dist.p12"
+            P12_PASS="$(openssl rand -hex 16)"
+            (openssl pkcs12 -export -inkey "$RUNNER_TEMP/dist.key.pem" -in "$RUNNER_TEMP/dist.pem" \
+              -out "$P12" -passout pass:"$P12_PASS" \
+              -macalg sha1 -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES) || \
+            (openssl pkcs12 -export -legacy -inkey "$RUNNER_TEMP/dist.key.pem" -in "$RUNNER_TEMP/dist.pem" \
+              -out "$P12" -passout pass:"$P12_PASS")
+          else
+            P12="$RUNNER_TEMP/dist.p12"
+            P12_PASS="$P12_PASSWORD"
+            echo "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$P12"
+            (openssl pkcs12 -in "$P12" -clcerts -nokeys -passin pass:"$P12_PASS" 2>/dev/null || \
+             openssl pkcs12 -legacy -in "$P12" -clcerts -nokeys -passin pass:"$P12_PASS") \
+              | openssl x509 -outform DER -out "$CERT_DER"
+          fi
+          security import "$P12" -k "$KEYCHAIN" -P "$P12_PASS" -A -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -k "$KC_PASS" "$KEYCHAIN" >/dev/null
+          security find-identity -v -p codesigning
+          echo "CERT_DER_BASE64=$(base64 < "$CERT_DER" | tr -d '\n')" >> "$GITHUB_ENV"
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Bundle id, capacidades y perfil (App Store Connect)
+        run: python3 "$GITHUB_WORKSPACE/scripts/asc_signing.py"
+
+      # Los enlaces universales (udlagora.com → la app) necesitan la capacidad
+      # Associated Domains en el App ID. Si el perfil no la trae, se quita el
+      # permiso para esta build en vez de fallar la firma; push sí es obligatorio.
+      - name: Permisos que el perfil de la app no cubre
+        run: |
+          set -euo pipefail
+          PROFILE="$HOME/Library/MobileDevice/Provisioning Profiles/${APP_PROFILE_UUID}.mobileprovision"
+          security cms -D -i "$PROFILE" > "$RUNNER_TEMP/app-profile.plist"
+          APS="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:aps-environment' "$RUNNER_TEMP/app-profile.plist" || echo '<no>')"
+          echo "aps-environment del perfil: $APS"
+          if [ "$APS" != "production" ]; then
+            echo "::error::El perfil no trae aps-environment=production: activa Push Notifications en el App ID ${APP_BUNDLE_ID}."
+            exit 1
+          fi
+          ENT="$IOS_DIR/Resources/AgoraApp.Release.entitlements"
+          KEY="com.apple.developer.associated-domains"
+          if ! /usr/libexec/PlistBuddy -c "Print :Entitlements:$KEY" "$RUNNER_TEMP/app-profile.plist" >/dev/null 2>&1; then
+            echo "::warning::El perfil no trae $KEY; esta build sale sin enlaces universales. Activa Associated Domains en el App ID (Certificates, Identifiers & Profiles → ${APP_BUNDLE_ID})."
+            /usr/libexec/PlistBuddy -c "Delete :$KEY" "$ENT" || true
+          fi
+          cat "$ENT"
+
+      - name: Generar AgoraApp.xcodeproj
+        working-directory: apps/mobile-native/ios
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          cat Config/*.signing.xcconfig
+
+      - name: Archivar (Release, dispositivo)
+        working-directory: apps/mobile-native/ios
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$ARCHIVE_PATH" \
+            MARKETING_VERSION="$MARKETING_VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" \
+            2>&1 | tee "$RUNNER_TEMP/archive.log" | grep -E "error:|warning: .*[Ss]ign|ARCHIVE (SUCCEEDED|FAILED)"
+
+      - name: Comprobar el archivo
+        run: |
+          set -euo pipefail
+          APP="$ARCHIVE_PATH/Products/Applications/AgoraApp.app"
+          test -f "$APP/PrivacyInfo.xcprivacy" || { echo "::error::Falta PrivacyInfo.xcprivacy en la app (project.yml → sources)."; exit 1; }
+          /usr/bin/plutil -lint "$APP/PrivacyInfo.xcprivacy"
+          echo "Versión: $(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Info.plist") ($(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$APP/Info.plist"))"
+          # Los permisos de fotos y cámara viajan en Info.plist: sin ellos la
+          # app se cierra al abrir el selector y Apple la rechaza.
+          /usr/libexec/PlistBuddy -c 'Print :NSPhotoLibraryUsageDescription' "$APP/Info.plist" >/dev/null || { echo "::error::Info.plist del archivo sin NSPhotoLibraryUsageDescription."; exit 1; }
+          # Solo iPhone (TARGETED_DEVICE_FAMILY "1" en project.yml): si el
+          # binario vuelve a declarar iPad (2), Apple lo revisa en iPad.
+          FAMILY="$(/usr/libexec/PlistBuddy -c 'Print :UIDeviceFamily' "$APP/Info.plist" || true)"
+          echo "UIDeviceFamily: $(echo "$FAMILY" | tr -s ' \n' ' ')"
+          if grep -qw 2 <<<"$FAMILY"; then
+            echo "::error::El binario declara iPad (UIDeviceFamily 2). Ágora es solo iPhone: revisa TARGETED_DEVICE_FAMILY en project.yml."
+            exit 1
+          fi
+          codesign -d --entitlements :- "$APP" 2>/dev/null | head -n 40
+
+      - name: Opciones de exportación
+        run: |
+          set -euo pipefail
+          DEST=export
+          if [ "${{ inputs.upload }}" = "true" ]; then DEST=upload; fi
+          mkdir -p "$(dirname "$ARCHIVE_PATH")"
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>${DEST}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${APP_BUNDLE_ID}</key><string>${APP_PROFILE_NAME}</string>
+            </dict>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          cat "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Exportar y subir a TestFlight
+        run: |
+          set -o pipefail
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$EXPORT_DIR" \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee "$RUNNER_TEMP/export.log"
+          status=${PIPESTATUS[0]}
+          ls -lah "$EXPORT_DIR" 2>/dev/null || true
+          if [ $status -ne 0 ]; then
+            grep -E "error|Error" "$RUNNER_TEMP/export.log" | tail -n 40
+            exit $status
+          fi
+          if [ "${{ inputs.upload }}" = "true" ]; then
+            echo "Subida entregada a App Store Connect: versión ${MARKETING_VERSION} (${BUILD_NUMBER}). Aparece en TestFlight tras el procesado de Apple."
+          fi
+
+      - name: Guardar logs si falló
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-testflight-logs
+          path: |
+            ${{ runner.temp }}/archive.log
+            ${{ runner.temp }}/export.log
+          retention-days: 7
+
+      - name: Guardar el IPA (solo compilar)
+        if: success() && inputs.upload == false
+        uses: actions/upload-artifact@v4
+        with:
+          name: AgoraApp-ipa
+          path: ${{ github.workspace }}/build/export/*.ipa
+          retention-days: 14

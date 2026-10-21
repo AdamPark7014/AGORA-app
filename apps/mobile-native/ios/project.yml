@@ -9,7 +9,10 @@ settings:
   base:
     # Xcode solo acepta 4.0 / 4.2 / 5.0 / 6.0 aquí; "5.0" = modo de lenguaje Swift 5.
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.1.0"
+    # La versión real la inyecta «iOS · TestFlight» por línea de órdenes
+    # (MARKETING_VERSION de la entrada, CURRENT_PROJECT_VERSION del número de
+    # corrida). Estos valores solo sirven para compilar en local y en simulador.
+    MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
     IPHONEOS_DEPLOYMENT_TARGET: "16.0"
 
@@ -20,26 +23,39 @@ targets:
     sources:
       - path: AgoraApp
       - path: Resources/Assets.xcassets
+      # Manifiesto de privacidad: va a la raíz del .app (Apple lo exige desde 2024).
+      - path: Resources/PrivacyInfo.xcprivacy
     entitlements:
       path: Resources/AgoraApp.entitlements
-    info:
-      path: Resources/Info.plist
-      properties:
-        UIBackgroundModes:
-          - remote-notification
-        UIApplicationSceneManifest:
-          UIApplicationSupportsMultipleScenes: false
-        ITSAppUsesNonExemptEncryption: false
-        CFBundleURLTypes:
-          - CFBundleURLName: mx.agora.mobile
-            CFBundleURLSchemes:
-              - agora
+    # Firma (estilo, equipo, perfil) en el xcconfig: el flujo de TestFlight la
+    # sobreescribe (Config/AgoraApp.signing.xcconfig) sin tocar este archivo.
+    configFiles:
+      Debug: Config/AgoraApp.xcconfig
+      Release: Config/AgoraApp.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: mx.agora.mobile.AgoraApp
-        TARGETED_DEVICE_FAMILY: "1,2"
+        # Solo iPhone. Declarar iPad obliga a subir capturas de 13" y a hacer QA en
+        # iPad, y Apple revisa ahí (NEXARA y ARTA se rechazaron por eso). Se vuelve
+        # a "1,2" cuando exista una versión pensada para iPad.
+        TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # Info.plist se mantiene a mano (permisos de fotos y cámara, esquema
+        # agora://, modos de fondo, nombre «Ágora»): XcodeGen no lo regenera.
+        INFOPLIST_FILE: Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        # XcodeGen deja «iPhone Developer» a nivel de target y eso le gana al
+        # xcconfig: la identidad sale de una variable de Config/AgoraApp.xcconfig
+        # (o del *.signing.xcconfig que escribe el flujo de TestFlight).
+        CODE_SIGN_IDENTITY: $(AGORA_CODE_SIGN_IDENTITY)
+        "CODE_SIGN_IDENTITY[sdk=iphoneos*]": $(AGORA_CODE_SIGN_IDENTITY)
+      configs:
+        # APNs distingue entornos: TestFlight y App Store usan SIEMPRE production.
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: Resources/AgoraApp.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS: Resources/AgoraApp.Release.entitlements
 
   AgoraAppTests:
     type: bundle.unit-test
@@ -52,3 +68,23 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: AgoraApp
+
+# XcodeGen no crea esquemas compartidos por su cuenta, y `xcodebuild -scheme`
+# (el archivado de TestFlight) solo ve los compartidos.
+schemes:
+  AgoraApp:
+    build:
+      targets:
+        AgoraApp: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - AgoraAppTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

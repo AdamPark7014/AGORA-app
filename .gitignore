@@ -57,3 +57,6 @@ test-results/
 
 # Almacen local de la API en dev (AlmacenLocal). Prod usa S3/volumen.
 apps/api/subidas/
+
+# Firma manual que escribe «iOS · TestFlight» en el runner (scripts/asc_signing.py)
+apps/mobile-native/ios/Config/*.signing.xcconfig

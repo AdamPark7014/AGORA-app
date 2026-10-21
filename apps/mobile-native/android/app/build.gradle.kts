@@ -22,6 +22,25 @@ val releaseApiBaseUrl: String =
     (project.findProperty("API_BASE_URL") as String?)?.trim()
         ?: "https://udlagora.com/api"
 
+/**
+ * Versión de la app: `-PVERSION_CODE=N -PVERSION_NAME=X.Y.Z` (flujo «Android · Play»).
+ * En local queda 1 / 1.0.0. Cada subida a Play necesita un versionCode mayor.
+ */
+val declaredVersionCode: Int =
+    (project.findProperty("VERSION_CODE") as String?)?.trim()?.toIntOrNull() ?: 1
+val declaredVersionName: String =
+    (project.findProperty("VERSION_NAME") as String?)?.trim()?.takeIf { it.isNotEmpty() } ?: "1.0.0"
+
+/**
+ * Llave de subida de Play: por variables de entorno (el flujo «Android · Play» las
+ * toma de los secretos del repo) o por local.properties (RELEASE_STORE_FILE…).
+ * Sin llave, el release sale sin firmar (sirve para probar R8).
+ */
+fun firmaProp(env: String, local: String): String? =
+    System.getenv(env)?.trim()?.takeIf { it.isNotEmpty() } ?: localProp(local)
+
+val releaseStorePath: String? = firmaProp("AGORA_KEYSTORE_PATH", "RELEASE_STORE_FILE")
+
 android {
     namespace = "mx.agora.mobile.nativeapp"
     compileSdk = 36
@@ -30,19 +49,18 @@ android {
         applicationId = "mx.agora.mobile.nativeapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = declaredVersionCode
+        versionName = declaredVersionName
         manifestPlaceholders["usesCleartextTraffic"] = "false"
     }
 
     signingConfigs {
         create("release") {
-            val storePath = localProp("RELEASE_STORE_FILE")
-            if (storePath != null) {
-                storeFile = rootProject.file(storePath)
-                storePassword = localProp("RELEASE_STORE_PASSWORD")
-                keyAlias = localProp("RELEASE_KEY_ALIAS")
-                keyPassword = localProp("RELEASE_KEY_PASSWORD")
+            if (releaseStorePath != null) {
+                storeFile = rootProject.file(releaseStorePath)
+                storePassword = firmaProp("AGORA_KEYSTORE_PASSWORD", "RELEASE_STORE_PASSWORD")
+                keyAlias = firmaProp("AGORA_KEY_ALIAS", "RELEASE_KEY_ALIAS")
+                keyPassword = firmaProp("AGORA_KEY_PASSWORD", "RELEASE_KEY_PASSWORD")
             }
         }
     }
@@ -64,7 +82,7 @@ android {
                 "proguard-rules.pro",
             )
             buildConfigField("String", "API_BASE_URL", "\"$releaseApiBaseUrl\"")
-            if (localProp("RELEASE_STORE_FILE") != null) {
+            if (releaseStorePath != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }

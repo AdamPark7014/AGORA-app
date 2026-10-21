@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- TestFlight y App Store usan SIEMPRE el APNs de producción; el token de
+         development no vale ahí. `AgoraApp.entitlements` (Debug) lleva development. -->
+    <key>aps-environment</key>
+    <string>production</string>
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+        <string>applinks:udlagora.com</string>
+        <string>applinks:www.udlagora.com</string>
+    </array>
+</dict>
+</plist>

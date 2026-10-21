@@ -97,9 +97,6 @@ jobs:
           pnpm db:generate
           pnpm db:migrate:deploy
 
-      - name: Sembrar catálogo UDLAP
-        run: pnpm db:seed
-
       - name: Lint
         run: pnpm lint
 
@@ -113,6 +110,10 @@ jobs:
         env:
           NODE_ENV: production
         run: pnpm build
+
+      # Después del build: prisma/seed.ts importa @agora/shared desde dist/.
+      - name: Sembrar catálogo UDLAP
+        run: pnpm db:seed
 
       - name: Unit tests
         run: pnpm test

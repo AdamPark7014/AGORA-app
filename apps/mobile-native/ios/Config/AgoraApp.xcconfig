@@ -1,0 +1,10 @@
+// Firma del target AgoraApp. Por defecto, automática y sin equipo (sirve para
+// compilar en simulador, como hace ios.yml). El flujo «iOS · TestFlight»
+// escribe AgoraApp.signing.xcconfig (ignorado por git) con firma manual, el
+// equipo y el perfil que crea scripts/asc_signing.py.
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM =
+// Identidad de firma (project.yml la usa en el target). TestFlight la cambia a Apple Distribution.
+AGORA_CODE_SIGN_IDENTITY = Apple Development
+
+#include? "AgoraApp.signing.xcconfig"
