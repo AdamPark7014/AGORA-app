@@ -5,17 +5,39 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import mx.agora.mobile.nativeapp.data.api.ApiClient
-import mx.agora.mobile.nativeapp.data.realtime.RealtimeBus
 import mx.agora.mobile.nativeapp.data.api.AuthApi
+import mx.agora.mobile.nativeapp.data.api.CambiarContrasenaRequest
+import mx.agora.mobile.nativeapp.data.api.CrearContrasenaRequest
 import mx.agora.mobile.nativeapp.data.api.CrearPerfilRequest
+import mx.agora.mobile.nativeapp.data.api.EntrarRequest
 import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.SolicitarOtpRequest
 import mx.agora.mobile.nativeapp.data.api.VerificarOtpRequest
+import mx.agora.mobile.nativeapp.data.api.YoResponse
+import mx.agora.mobile.nativeapp.data.realtime.RealtimeBus
 import mx.agora.mobile.nativeapp.push.PushRegistration
 import retrofit2.HttpException
 
-class AuthRepository(private val context: Context) {
-    private val store = SessionStore(context)
+/**
+ * Resultado de entrar por código. `tieneContrasena` decide si la pantalla pide
+ * crear una antes de pasar (null: la API aún no lo manda, se sigue como antes).
+ */
+data class EntradaPorCodigo(
+    val user: SessionUser,
+    val tieneContrasena: Boolean?,
+)
+
+class AuthRepository internal constructor(
+    private val store: AlmacenSesion,
+    private val authApi: AuthApi,
+    /** `AuthApi` con el Bearer de la sesión indicada (para `auth/yo` y contraseñas). */
+    private val authApiConToken: (token: String) -> AuthApi,
+) {
+    constructor(context: Context) : this(
+        store = SessionStore(context),
+        authApi = ApiClient.auth,
+        authApiConToken = { token -> ApiClient.api<AuthApi> { token } },
+    )
 
     fun loadSession(): SessionUser? = store.load()
 
@@ -30,7 +52,7 @@ class AuthRepository(private val context: Context) {
      * `X-Envio-Id`) o null si la API no lo manda (API vieja o modo consola).
      */
     suspend fun solicitarOtp(email: String): String? {
-        val resp = ApiClient.auth.solicitarOtp(SolicitarOtpRequest(email.trim().lowercase()))
+        val resp = authApi.solicitarOtp(SolicitarOtpRequest(normalizar(email)))
         if (!resp.isSuccessful) throw HttpException(resp)
         return resp.headers()["X-Envio-Id"]?.trim()?.takeIf { it.isNotEmpty() }
     }
@@ -41,28 +63,78 @@ class AuthRepository(private val context: Context) {
      * nada que seguir. Cualquier otro fallo lanza y el que pregunta reintenta.
      */
     suspend fun estadoEntrega(envioId: String): String? {
-        val resp = ApiClient.auth.entregaOtp(envioId)
+        val resp = authApi.entregaOtp(envioId)
         if (resp.code() == 404) return null
         if (!resp.isSuccessful) throw HttpException(resp)
         return resp.body()?.estado
     }
 
-    suspend fun verificarOtp(email: String, codigo: String): SessionUser {
-        val resp = ApiClient.auth.verificarOtp(
-            VerificarOtpRequest(email.trim().lowercase(), codigo.trim(), "token"),
+    /** Entra con el código del correo y guarda la sesión. */
+    suspend fun verificarOtp(email: String, codigo: String): EntradaPorCodigo {
+        val resp = authApi.verificarOtp(
+            VerificarOtpRequest(normalizar(email), codigo.trim(), "token"),
         )
         val token = resp.token ?: throw IllegalStateException("La API no devolvió token.")
-        val yo = runCatching {
-            val authed = ApiClient.authed { token }
-            authed.create(mx.agora.mobile.nativeapp.data.api.AuthApi::class.java).yo()
-        }.getOrNull()
+        val user = abrirSesion(token, normalizar(email), resp.tienePerfil)
+        return EntradaPorCodigo(user, resp.tieneContrasena)
+    }
 
+    /**
+     * Entra con correo + contraseña (`POST auth/entrar`) y guarda la sesión igual
+     * que [verificarOtp]. Sin «recordarme» la API da una sesión de 12 h que no se
+     * renueva. Los 401 (correo, contraseña o cuenta sin contraseña) y los 429
+     * (cinco fallos) llegan como [HttpException] con el `mensaje` de la API.
+     */
+    suspend fun entrar(email: String, contrasena: String, recordarme: Boolean): SessionUser {
+        val resp = authApi.entrar(
+            EntrarRequest(
+                email = normalizar(email),
+                contrasena = contrasena,
+                modo = "token",
+                recordarme = recordarme,
+            ),
+        )
+        val token = resp.token ?: throw IllegalStateException("La API no devolvió token.")
+        return abrirSesion(token, normalizar(email), resp.tienePerfil)
+    }
+
+    /**
+     * Fija la contraseña sin pedir la actual. La API lo permite si la cuenta no
+     * tiene, o si la sesión se abrió por código hace menos de 30 min («olvidé»).
+     */
+    suspend fun crearContrasena(contrasena: String) {
+        val token = store.token() ?: throw IllegalStateException("Sin sesión.")
+        val resp = authApiConToken(token).crearContrasena(CrearContrasenaRequest(contrasena))
+        if (!resp.isSuccessful) throw HttpException(resp)
+        YoCache.limpiar()
+    }
+
+    /** Cambia la contraseña dando la actual. Las otras sesiones se cierran. */
+    suspend fun cambiarContrasena(actual: String, nueva: String) {
+        val token = store.token() ?: throw IllegalStateException("Sin sesión.")
+        val resp = authApiConToken(token).cambiarContrasena(CambiarContrasenaRequest(actual, nueva))
+        if (!resp.isSuccessful) throw HttpException(resp)
+        YoCache.limpiar()
+    }
+
+    /** `GET auth/yo` con la sesión actual, sin caché (p. ej. para saber si ya hay contraseña). */
+    suspend fun yo(): YoResponse? {
+        val token = store.token() ?: return null
+        return authApiConToken(token).yo()
+    }
+
+    /**
+     * Completa la sesión con `auth/yo` (handle y nombre; si falla se guarda sin
+     * ellos, como siempre) y la deja en el almacén.
+     */
+    private suspend fun abrirSesion(token: String, email: String, tienePerfil: Boolean): SessionUser {
+        val yo = runCatching { authApiConToken(token).yo() }.getOrNull()
         val user = SessionUser(
             token = token,
-            email = email.trim().lowercase(),
+            email = email,
             handle = yo?.handle,
             nombre = yo?.nombre,
-            tienePerfil = resp.tienePerfil,
+            tienePerfil = tienePerfil,
         )
         store.save(user)
         return user
@@ -86,7 +158,7 @@ class AuthRepository(private val context: Context) {
             withContext(Dispatchers.IO) {
                 withTimeoutOrNull(8_000) {
                     PushRegistration.desregistrarDispositivo(token)
-                    runCatching { ApiClient.api<AuthApi> { token }.salir() }
+                    runCatching { authApiConToken(token).salir() }
                 }
             }
         }
@@ -96,7 +168,7 @@ class AuthRepository(private val context: Context) {
     suspend fun refreshSession(): SessionUser? {
         val current = store.load() ?: return null
         val yo = runCatching {
-            ApiClient.api<AuthApi> { current.token }.yo()
+            authApiConToken(current.token).yo()
         }.getOrNull() ?: return current
 
         val updated = current.copy(
@@ -120,4 +192,6 @@ class AuthRepository(private val context: Context) {
         store.save(updated)
         return updated
     }
+
+    private fun normalizar(email: String) = email.trim().lowercase()
 }

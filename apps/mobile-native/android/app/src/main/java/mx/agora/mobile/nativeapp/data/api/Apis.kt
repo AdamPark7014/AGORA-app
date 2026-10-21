@@ -21,8 +21,20 @@ interface AuthApi {
     @POST("auth/otp/verificar")
     suspend fun verificarOtp(@Body body: VerificarOtpRequest): VerificarOtpResponse
 
+    /** Correo + contraseña. 401 uniforme si algo no cuadra; 429 tras cinco fallos. */
+    @POST("auth/entrar")
+    suspend fun entrar(@Body body: EntrarRequest): EntrarResponse
+
     @GET("auth/yo")
     suspend fun yo(): YoResponse
+
+    /** Fija la contraseña sin la actual (204). Requiere el token. */
+    @POST("auth/contrasena")
+    suspend fun crearContrasena(@Body body: CrearContrasenaRequest): Response<Unit>
+
+    /** Cambia la contraseña dando la actual (204). Requiere el token. */
+    @POST("auth/contrasena/cambiar")
+    suspend fun cambiarContrasena(@Body body: CambiarContrasenaRequest): Response<Unit>
 
     /** Público: si el código llegó al buzón. 404 si la API ya no conoce el envío. */
     @GET("auth/otp/entrega/{envioId}")

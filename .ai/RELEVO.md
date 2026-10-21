@@ -26,7 +26,33 @@ proyectos (nunca `volume prune`).
   vectores de Android/iOS están validados como XML pero **sin compilar** aquí (la sesión de
   móvil corre gradle en el mismo checkout; su `assembleDebug` los compila).
 
-- **Móvil:** Android compila en local (último `assembleDebug` 19-10), sin release a Play.
+- **Apps nativas: entrar con contraseña** (sesión lateral de móvil, 21-10, commit en `main`).
+  Android y iOS arrancan en correo + contraseña + «Recordarme» → `POST /auth/entrar` (modo
+  `token`; sin recordarme la API da 12 h no renovables). «¿Olvidaste tu contraseña?» y
+  «¿Primera vez aquí? Crea tu cuenta» llevan al flujo de código de siempre (pedir →
+  seguimiento de entrega → verificar). Tras verificar, si `tieneContrasena == false` o se vino
+  por «olvidé», pantalla «Crea tu contraseña» (nueva + repetir, mín. 8, ver/ocultar) antes del
+  perfil o el feed; con `tieneContrasena` null (API vieja) pasa directo como antes. Ajustes →
+  tarjeta «Contraseña»: crear si no tiene, cambiar con la actual si tiene; oculta si `auth/yo`
+  no trae el campo. Errores: el `mensaje` de la API tal cual (401 uniforme, 429 por intentos).
+  Textos = `copy.login` de la web; «Vence en 15 minutos».
+  - Android: `EntrarRequest/Response`, `CrearContrasenaRequest`, `CambiarContrasenaRequest` y
+    `tieneContrasena` en `VerificarOtpResponse`/`YoResponse` (`Dtos.kt`, `Apis.kt`);
+    `AuthRepository.entrar/crearContrasena/cambiarContrasena/yo`, `verificarOtp` devuelve
+    `EntradaPorCodigo(user, tieneContrasena)`; constructor interno inyectable (`AlmacenSesion`,
+    que `SessionStore` implementa, + `AuthApi`) para probarlo sin red ni Android.
+    `ui/components/FormularioContrasena.kt` (`CampoContrasena`, `FormularioContrasena`) lo
+    comparten `LoginScreen` y `AjustesScreen`. **`assembleDebug` contra udlagora.com en verde el
+    21-10 13:40**, unitarias **32/32** (nuevas `AuthRepositoryTest` 5 y `DtosContrasenaTest` 5);
+    los vectores del ícono Mono compilaron con él.
+  - iOS (**SIN COMPILAR**, no hay Mac): `AuthModels.swift`, `AuthRepository.swift` (`entrar`,
+    `crearContrasena`, `cambiarContrasena`, `yo`, `EntradaPorCodigo`),
+    `UI/Components/CampoContrasena.swift` nuevo, `LoginView.swift` reescrita (pasos
+    entrar/pedir/codigo/contrasena), `AjustesView.seccionContrasena`, copy en `AgoraDesign.swift`,
+    prueba `AgoraAppTests/AuthModelsTests.swift`.
+  - Sin probar con cuenta real contra producción (el deploy `40e5bfc` ya responde en
+    `/auth/entrar`); nada subido a tiendas.
+- **Móvil:** Android compila en local (último `assembleDebug` 21-10, ya con contraseña), sin release a Play.
   iOS nunca se ha compilado: `ios.yml` y `ci.yml` mueren en 5 s por el cobro de GitHub
   Actions («recent account payments have failed»). `apps/mobile` (Expo) es un resto sin EAS.
 - **Ícono:** tres rondas de propuestas (letra Á/portal/voz → pirámide → pirámide limpia
@@ -43,9 +69,9 @@ proyectos (nunca `volume prune`).
   Migración **aditiva** `20261021120000_contrasena` (users.passwordHash/passwordSetAt/
   loginFallidos/loginBloqueadoHasta, sessions.viaCodigo/persistente). Rutas nuevas:
   `POST /auth/entrar`, `POST /auth/contrasena`, `POST /auth/contrasena/cambiar`;
-  `otp/verificar` y `/auth/yo` traen `tieneContrasena`. **Las apps nativas siguen
-  entrando con código sin cambios** (ignoran los campos nuevos); pantalla de contraseña
-  en Android/iOS pendiente. OTP: vigencia 10 → 15 min, reenviar con cuenta regresiva.
+  `otp/verificar` y `/auth/yo` traen `tieneContrasena`. Las apps nativas ya entran con
+  contraseña (ver «Apps nativas» arriba; iOS sin compilar). OTP: vigencia 10 → 15 min,
+  reenviar con cuenta regresiva.
   Web: `/` con pasos entrar → pedir código → código → crear contraseña; Ajustes →
   Contraseña; aviso arriba del feed para cuentas sin contraseña. e2e actualizadas
   (registro-y-feed, humo, capturas, capturas-admin) + `contrasena.spec.ts` (API real).
@@ -175,6 +201,9 @@ Retomado desde el turno de Cursor del 07-10 (Fase 0 de ÁGORA 2.0, plan en
   correr con `NODE_ENV=production` (arreglado el 12-10 en `ci.yml`).
 - iOS sin compilar: el workflow `.github/workflows/ios.yml` (macos-15, XcodeGen, simulador + capturas)
   es la primera compilación real en cuanto Actions vuelva. Pendiente en iOS: visor con zoom desde el feed.
+  Lo del 21-10 (`LoginView`, `CampoContrasena`, `AuthRepository`, `AjustesView.seccionContrasena`,
+  `AuthModelsTests`) también va **SIN COMPILAR**: revisar errores de Swift al primer build.
+- Android con contraseña compilado y con unitarias, pero sin probar en el AVD contra producción.
 - Admin (`apps/admin`) sigue con el ícono viejo (no está desplegado).
 - `udlagora.com` sin MX (Email Routing de Cloudflare sin configurar).
 - `apps/web/tsconfig.tsbuildinfo` y `apps/admin/tsconfig.tsbuildinfo` están versionados y cambian con
@@ -185,7 +214,8 @@ Retomado desde el turno de Cursor del 07-10 (Fase 0 de ÁGORA 2.0, plan en
 1. Probar en producción con una cuenta real: crear cuenta, entrar con contraseña, olvidé,
    cambiar en Ajustes (la sesión lateral de móvil está en marcha: no hacer `cerrar` con
    `add -A` mientras trabaje; commits con rutas explícitas).
-3. Android/iOS: pantalla de contraseña (`/auth/entrar` modo token) y crear contraseña tras el código.
+3. Android/iOS: probar el login con contraseña en el AVD (`nexara_phone`) contra producción: entrar,
+   olvidé → crear, Ajustes → cambiar. Código hecho el 21-10; iOS sin compilar.
 4. Adam: cobro de GitHub (Settings → Billing) → corre CI (e2e) + `ios.yml`; luego TestFlight / Play.
 
 ## No tocar

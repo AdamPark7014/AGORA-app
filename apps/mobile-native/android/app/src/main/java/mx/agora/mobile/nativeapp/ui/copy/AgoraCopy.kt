@@ -128,11 +128,64 @@ object AgoraCopy {
     /** Mismo copy que la web (`apps/web/lib/copy.ts` → `login`). */
     object login {
         const val lema = "Red social verificada de la UDLAP"
+        const val entradilla =
+            "Entra con tu correo @udlap.mx y tu contraseña. El código al correo solo se pide una vez, al crear tu cuenta."
         const val etiquetaCorreo = "Correo @udlap.mx"
-        const val botonCorreo = "Enviar código"
-        const val botonCorreoEnviando = "Enviando…"
+        const val etiquetaContrasena = "Contraseña"
+        const val mostrarContrasena = "Mostrar contraseña"
+        const val ocultarContrasena = "Ocultar contraseña"
+        const val recordarme = "Recordarme en este dispositivo"
+        const val botonEntrar = "Entrar"
+        const val botonEntrando = "Entrando…"
+        const val olvide = "¿Olvidaste tu contraseña?"
+        const val primeraVez = "¿Primera vez aquí?"
+        const val crearCuenta = "Crea tu cuenta"
+        const val errorEntrar = "No se pudo entrar. Intenta de nuevo."
         const val errorEnviar = "No se pudo enviar el código."
         const val errorVerificar = "Código incorrecto."
+        const val errorContrasena = "No se pudo guardar la contraseña."
+
+        /** Pedir el código: registro, cuenta de antes sin contraseña, u «olvidé». */
+        object pedir {
+            const val tituloRegistro = "Verifica tu correo UDLAP"
+            const val tituloOlvide = "Recupera tu acceso"
+            const val explicacionRegistro =
+                "Te mandamos un código de 6 dígitos a tu buzón @udlap.mx para comprobar que eres de la UDLAP. Solo esta vez: después entras con tu contraseña."
+            const val explicacionOlvide =
+                "Te mandamos un código a tu buzón @udlap.mx. Con él entras y eliges una contraseña nueva. Si tu cuenta es de antes y nunca tuvo contraseña, este también es tu camino."
+            const val boton = "Enviarme el código"
+            const val botonEnviando = "Enviando…"
+            const val volver = "Ya tengo contraseña"
+        }
+
+        /** Crear la contraseña después del código, o cambiarla desde Ajustes. */
+        object nuevaContrasena {
+            const val tituloCrear = "Crea tu contraseña"
+            const val tituloOlvide = "Elige una contraseña nueva"
+            const val entradillaCrear = "Con ella entrarás de ahora en adelante. No volverás a necesitar un código."
+            const val entradillaOlvide = "Tus otras sesiones se cerrarán por seguridad."
+            const val etiquetaActual = "Contraseña actual"
+            const val etiqueta = "Contraseña nueva"
+            const val confirmar = "Repítela"
+            const val ayuda = "Mínimo 8 caracteres. Que no sea tu correo ni una de las típicas."
+            const val noCoincide = "Las contraseñas no coinciden."
+            const val boton = "Guardar contraseña"
+            const val botonGuardando = "Guardando…"
+        }
+
+        /** Tarjeta «Contraseña» de Ajustes (`componentes/seccion-contrasena.tsx` en la web). */
+        object ajustes {
+            const val titulo = "Contraseña"
+            const val tiene =
+                "Entras con tu correo @udlap.mx y esta contraseña. Si la cambias, tus otras sesiones se cierran."
+            const val noTiene =
+                "Tu cuenta es de antes de las contraseñas. Crea una y entrarás sin esperar el código del correo."
+            const val botonCrear = "Crear mi contraseña"
+            const val botonCambiar = "Cambiar contraseña…"
+            const val cancelar = "Cancelar"
+            const val creada = "Listo: ya entras con tu contraseña."
+            const val cambiada = "Contraseña cambiada."
+        }
 
         const val tituloCodigo = "Revisa tu correo"
         fun entradillaCodigo(email: String) = "Te mandamos 6 dígitos a $email."
@@ -143,7 +196,7 @@ object AgoraCopy {
         const val reenviar = "Reenviar código"
         const val avisoOutlook =
             "Si no lo ves en la bandeja principal, busca \"Ágora\" o \"udlagora\" y revisa Correo no deseado, la pestaña Otros y Cuarentena en Outlook."
-        const val pie = "Vence en 10 minutos y solo sirve una vez."
+        const val pie = "Vence en 15 minutos y solo sirve una vez."
         const val remitente = "Llega de contacto@zynoratek.com («Ágora · Zynora Tek»)."
 
         object entrega {

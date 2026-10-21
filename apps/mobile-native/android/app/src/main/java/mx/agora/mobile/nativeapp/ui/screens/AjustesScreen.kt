@@ -57,15 +57,22 @@ import mx.agora.mobile.nativeapp.data.ModoTema
 import mx.agora.mobile.nativeapp.data.PreferenciasTema
 import mx.agora.mobile.nativeapp.data.api.ActualizarPerfilRequest
 import mx.agora.mobile.nativeapp.data.api.ActualizarPreferenciasRequest
+import mx.agora.mobile.nativeapp.data.YoCache
 import mx.agora.mobile.nativeapp.data.api.ApiClient
+import mx.agora.mobile.nativeapp.data.api.AuthApi
+import mx.agora.mobile.nativeapp.data.api.CambiarContrasenaRequest
 import mx.agora.mobile.nativeapp.data.api.ComunidadDto
+import mx.agora.mobile.nativeapp.data.api.CrearContrasenaRequest
 import mx.agora.mobile.nativeapp.data.api.CuentaApi
 import mx.agora.mobile.nativeapp.data.api.EliminarCuentaRequest
 import mx.agora.mobile.nativeapp.data.api.NotificacionesApi
 import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PreferenciaNotificacionDto
 import mx.agora.mobile.nativeapp.data.api.SilenciarComunidadRequest
+import mx.agora.mobile.nativeapp.ui.components.FormularioContrasena
+import mx.agora.mobile.nativeapp.ui.components.ModoContrasena
 import mx.agora.mobile.nativeapp.ui.components.SubScreenScaffold
+import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 import okhttp3.MediaType.Companion.toMediaType
@@ -165,6 +172,8 @@ private fun AjustesScreenContent(
     /** Si el perfil ya tenía cumpleaños al cargar: quitarlo exige mandar null explícito. */
     var teniaCumple by remember { mutableStateOf(false) }
     var avisoPregunta by remember { mutableStateOf(true) }
+    /** Si la cuenta ya tiene contraseña (`auth/yo`). Null: API anterior o sin respuesta; no se muestra la tarjeta. */
+    var tieneContrasena by remember { mutableStateOf<Boolean?>(null) }
     var modoTema by remember { mutableStateOf(PreferenciasTema.leer(context)) }
     var preferencias by remember { mutableStateOf<List<PreferenciaNotificacionDto>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
@@ -263,6 +272,8 @@ private fun AjustesScreenContent(
             comunidades = api.misComunidades()
             preferencias = ApiClient.api<NotificacionesApi>(tokenProvider).preferencias().preferencias
             generacion = api.porHandle(perfil.handle).generacion
+            // Aparte: si falla, el resto de Ajustes sigue sirviendo.
+            tieneContrasena = runCatching { ApiClient.api<AuthApi>(tokenProvider).yo().tieneContrasena }.getOrNull()
         } catch (e: Exception) {
             error = mensajeDe(e)
         } finally {
@@ -617,6 +628,18 @@ private fun AjustesScreenContent(
                         }
                     }
 
+                    tieneContrasena?.let { tiene ->
+                        ContrasenaSeccion(
+                            tiene = tiene,
+                            tokenProvider = tokenProvider,
+                            onGuardada = {
+                                tieneContrasena = true
+                                error = null
+                                aviso = if (tiene) AgoraCopy.login.ajustes.cambiada else AgoraCopy.login.ajustes.creada
+                            },
+                        )
+                    }
+
                     Text("Notificaciones", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -720,6 +743,62 @@ private fun SelectorSimple(
                         onElegir(valor)
                     },
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Tarjeta «Contraseña» (paridad con `componentes/seccion-contrasena.tsx`).
+ * Quien aún no tiene (cuenta de antes de las contraseñas) la crea aquí sin más
+ * trámite: su sesión ya prueba que el buzón es suyo. Quien tiene, la cambia
+ * dando la actual; la API cierra las otras sesiones.
+ */
+@Composable
+private fun ContrasenaSeccion(
+    tiene: Boolean,
+    tokenProvider: () -> String?,
+    onGuardada: () -> Unit,
+) {
+    val copy = AgoraCopy.login.ajustes
+    var abierto by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(copy.titulo, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+        Text(
+            if (tiene) copy.tiene else copy.noTiene,
+            style = MaterialTheme.typography.bodySmall,
+            color = AgoraColors.TextoMedio,
+        )
+        if (!abierto) {
+            OutlinedButton(
+                onClick = { abierto = true },
+                modifier = Modifier.padding(top = 4.dp),
+            ) {
+                Text(if (tiene) copy.botonCambiar else copy.botonCrear)
+            }
+        } else {
+            FormularioContrasena(
+                modo = if (tiene) ModoContrasena.CAMBIAR else ModoContrasena.CREAR,
+                enviar = { actual, nueva ->
+                    val api = ApiClient.api<AuthApi>(tokenProvider)
+                    val resp = if (tiene) {
+                        api.cambiarContrasena(CambiarContrasenaRequest(actual, nueva))
+                    } else {
+                        api.crearContrasena(CrearContrasenaRequest(nueva))
+                    }
+                    if (!resp.isSuccessful) throw HttpException(resp)
+                    YoCache.limpiar()
+                },
+                onListo = {
+                    abierto = false
+                    onGuardada()
+                },
+                modifier = Modifier.padding(top = 4.dp),
+                textoBoton = if (tiene) copy.botonCambiar.trimEnd('…') else null,
+            )
+            TextButton(onClick = { abierto = false }) {
+                Text(copy.cancelar)
             }
         }
     }

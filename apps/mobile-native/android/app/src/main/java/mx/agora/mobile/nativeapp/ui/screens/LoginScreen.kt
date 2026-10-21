@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -15,9 +16,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -44,20 +47,47 @@ import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
 import mx.agora.mobile.nativeapp.ui.components.AgoraIsotipo
 import mx.agora.mobile.nativeapp.ui.components.AgoraPieLegal
 import mx.agora.mobile.nativeapp.ui.components.AgoraPrimaryButton
+import mx.agora.mobile.nativeapp.ui.components.CampoContrasena
 import mx.agora.mobile.nativeapp.ui.components.EstadoEntregaCodigo
+import mx.agora.mobile.nativeapp.ui.components.FormularioContrasena
+import mx.agora.mobile.nativeapp.ui.components.ModoContrasena
+import mx.agora.mobile.nativeapp.ui.components.agoraFieldColors
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 import retrofit2.HttpException
 
+/**
+ * La puerta de Ágora (misma secuencia que `apps/web/app/page.tsx`):
+ *
+ *  - `entrar`: correo + contraseña, lo de todos los días.
+ *  - `pedir` → `codigo`: el código al buzón @udlap.mx. Solo para crear la
+ *    cuenta, para una cuenta de antes que aún no tiene contraseña y para
+ *    «olvidé mi contraseña». Es la única verificación institucional, por eso
+ *    no se quita: solo se pide una vez.
+ *  - `contrasena`: después del código, cuando la cuenta no tiene contraseña o
+ *    se vino por «olvidé», se elige una antes de pasar al perfil o al feed.
+ */
+private const val PASO_ENTRAR = "entrar"
+private const val PASO_PEDIR = "pedir"
+private const val PASO_CODIGO = "codigo"
+private const val PASO_CONTRASENA = "contrasena"
+
+private const val MOTIVO_REGISTRO = "registro"
+private const val MOTIVO_OLVIDE = "olvide"
+
 @Composable
 fun LoginScreen(
     auth: AuthRepository,
     onLoggedIn: (SessionUser) -> Unit,
 ) {
-    var paso by remember { mutableStateOf("correo") }
+    var paso by remember { mutableStateOf(PASO_ENTRAR) }
+    var motivo by remember { mutableStateOf(MOTIVO_REGISTRO) }
     var email by remember { mutableStateOf("") }
+    var contrasena by remember { mutableStateOf("") }
+    var verContrasena by remember { mutableStateOf(false) }
+    var recordarme by remember { mutableStateOf(true) }
     var codigo by remember { mutableStateOf("") }
     var cargando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -65,14 +95,41 @@ fun LoginScreen(
     var aviso by remember { mutableStateOf<String?>(null) }
     /** Id de seguimiento del último código enviado (cabecera X-Envio-Id). */
     var envioId by remember { mutableStateOf<String?>(null) }
+    /** Sesión abierta por código que espera a que se elija la contraseña. */
+    var verificado by remember { mutableStateOf<SessionUser?>(null) }
     val scope = rememberCoroutineScope()
     val copy = AgoraCopy.login
+    val fieldColors = agoraFieldColors()
 
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = AgoraColors.Naranja,
-        focusedLabelColor = AgoraColors.Naranja,
-        cursorColor = AgoraColors.Naranja,
-    )
+    fun terminar(user: SessionUser) {
+        AgoraAnalytics.login { user.token }
+        onLoggedIn(user)
+    }
+
+    fun irA(destino: String, nuevoMotivo: String? = null) {
+        if (nuevoMotivo != null) motivo = nuevoMotivo
+        paso = destino
+        error = null
+        aviso = null
+    }
+
+    fun entrar() {
+        if (cargando || !email.contains("@") || contrasena.isEmpty()) return
+        scope.launch {
+            cargando = true
+            error = null
+            try {
+                terminar(auth.entrar(email, contrasena, recordarme))
+            } catch (e: HttpException) {
+                // 401 uniforme y 429 por intentos: el mensaje de la API ya lo explica.
+                error = ApiClient.mensajeDelServidor(e) ?: copy.errorEntrar
+            } catch (e: Exception) {
+                error = mensajeDe(e).ifBlank { copy.errorEntrar }
+            } finally {
+                cargando = false
+            }
+        }
+    }
 
     fun pedirCodigo() {
         if (cargando) return
@@ -84,13 +141,13 @@ fun LoginScreen(
                 envioId = id
                 // Sin seguimiento (API vieja o modo consola) queda el aviso de siempre.
                 aviso = if (id == null) copy.avisoOutlook else null
-                paso = "codigo"
+                paso = PASO_CODIGO
             } catch (e: HttpException) {
                 val delServidor = ApiClient.mensajeDelServidor(e)
                 if (e.code() == 429) {
                     // Como la web: el código anterior sigue sirviendo; se pasa a
                     // escribirlo y se explica por qué no salió otro.
-                    paso = "codigo"
+                    paso = PASO_CODIGO
                     aviso = delServidor ?: mensajeDe(e)
                 } else {
                     error = delServidor ?: mensajeDe(e)
@@ -104,7 +161,7 @@ fun LoginScreen(
     }
 
     fun volverAlCorreo() {
-        paso = "correo"
+        paso = PASO_PEDIR
         codigo = ""
         error = null
         aviso = null
@@ -117,9 +174,16 @@ fun LoginScreen(
             cargando = true
             error = null
             try {
-                val user = auth.verificarOtp(email, codigo)
-                AgoraAnalytics.login { user.token }
-                onLoggedIn(user)
+                val entrada = auth.verificarOtp(email, codigo)
+                // Sin contraseña todavía (cuenta nueva o de antes), o vino a
+                // cambiarla: se elige antes de entrar. Si ya tiene y solo
+                // prefirió el código, pasa. Con una API anterior (null) pasa.
+                if (entrada.tieneContrasena == false || motivo == MOTIVO_OLVIDE) {
+                    verificado = entrada.user
+                    irA(PASO_CONTRASENA)
+                } else {
+                    terminar(entrada.user)
+                }
             } catch (e: HttpException) {
                 error = ApiClient.mensajeDelServidor(e) ?: copy.errorVerificar
             } catch (e: Exception) {
@@ -160,94 +224,193 @@ fun LoginScreen(
                         color = AgoraColors.Texto,
                     )
                     Spacer(Modifier.height(AgoraSpacing.Xxs))
+                    val titulo = when (paso) {
+                        PASO_PEDIR -> if (motivo == MOTIVO_OLVIDE) AgoraCopy.login.pedir.tituloOlvide else AgoraCopy.login.pedir.tituloRegistro
+                        PASO_CODIGO -> copy.tituloCodigo
+                        PASO_CONTRASENA ->
+                            if (motivo == MOTIVO_OLVIDE) AgoraCopy.login.nuevaContrasena.tituloOlvide else AgoraCopy.login.nuevaContrasena.tituloCrear
+                        else -> copy.lema
+                    }
                     Text(
-                        if (paso == "correo") copy.lema else copy.tituloCodigo,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = AgoraColors.TextMuted,
+                        titulo,
+                        style = if (paso == PASO_ENTRAR) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleMedium,
+                        color = if (paso == PASO_ENTRAR) AgoraColors.TextMuted else AgoraColors.Texto,
                         textAlign = TextAlign.Center,
                     )
                 }
                 Spacer(Modifier.height(AgoraSpacing.Lg))
 
-                if (paso == "correo") {
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it.trim() },
-                        label = { Text(copy.etiquetaCorreo) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Send,
-                        ),
-                        keyboardActions = KeyboardActions(onSend = { if (email.contains("@")) pedirCodigo() }),
-                        colors = fieldColors,
-                        shape = MaterialTheme.shapes.medium,
-                    )
-                    Spacer(Modifier.height(AgoraSpacing.Sm))
-                    AgoraPrimaryButton(
-                        text = if (cargando) copy.botonCorreoEnviando else copy.botonCorreo,
-                        onClick = { pedirCodigo() },
-                        enabled = email.contains("@"),
-                        loading = cargando,
-                    )
-                } else {
-                    Text(
-                        copy.entradillaCodigo(email),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = AgoraColors.TextoMedio,
-                    )
-                    Spacer(Modifier.height(AgoraSpacing.Sm))
-                    envioId?.let { id ->
-                        EstadoEntregaCodigo(
-                            envioId = id,
-                            email = email,
-                            consultar = { auth.estadoEntrega(it) },
-                            onCorregir = { volverAlCorreo() },
-                            onReenviar = { pedirCodigo() },
-                        )
-                        Spacer(Modifier.height(AgoraSpacing.Sm))
-                    }
-                    aviso?.let {
+                when (paso) {
+                    PASO_ENTRAR -> {
                         Text(
-                            it,
+                            copy.entradilla,
                             style = MaterialTheme.typography.bodySmall,
                             color = AgoraColors.TextoMedio,
                         )
                         Spacer(Modifier.height(AgoraSpacing.Sm))
-                    }
-                    OutlinedTextField(
-                        value = codigo,
-                        onValueChange = { nuevo -> codigo = nuevo.filter(Char::isDigit).take(6) },
-                        label = { Text(copy.etiquetaCodigo) },
-                        placeholder = { Text("000000") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.NumberPassword,
+                        CampoCorreo(
+                            email = email,
+                            onCambio = { email = it },
+                            imeAction = ImeAction.Next,
+                            enabled = !cargando,
+                        )
+                        Spacer(Modifier.height(AgoraSpacing.Sm))
+                        CampoContrasena(
+                            valor = contrasena,
+                            onCambio = { contrasena = it },
+                            etiqueta = copy.etiquetaContrasena,
+                            visible = verContrasena,
+                            onAlternar = { verContrasena = !verContrasena },
+                            enabled = !cargando,
                             imeAction = ImeAction.Done,
-                        ),
-                        keyboardActions = KeyboardActions(onDone = { verificar() }),
-                        colors = fieldColors,
-                        shape = MaterialTheme.shapes.medium,
-                    )
-                    Spacer(Modifier.height(AgoraSpacing.Sm))
-                    AgoraPrimaryButton(
-                        text = if (cargando) copy.botonVerificando else copy.botonCodigo,
-                        onClick = { verificar() },
-                        enabled = codigo.length == 6,
-                        loading = cargando,
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                    ) {
-                        TextButton(onClick = { volverAlCorreo() }) {
-                            Text(copy.cambiarCorreo, color = AgoraColors.Naranja)
+                            onDone = { entrar() },
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(role = Role.Checkbox) { recordarme = !recordarme },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = recordarme,
+                                onCheckedChange = { recordarme = it },
+                                colors = CheckboxDefaults.colors(checkedColor = AgoraColors.Naranja),
+                            )
+                            Text(
+                                copy.recordarme,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = AgoraColors.Texto,
+                            )
                         }
-                        TextButton(onClick = { pedirCodigo() }, enabled = !cargando) {
-                            Text(copy.reenviar, color = AgoraColors.Naranja)
+                        AgoraPrimaryButton(
+                            text = if (cargando) copy.botonEntrando else copy.botonEntrar,
+                            onClick = { entrar() },
+                            enabled = email.contains("@") && contrasena.isNotEmpty(),
+                            loading = cargando,
+                        )
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            TextButton(onClick = { irA(PASO_PEDIR, MOTIVO_OLVIDE) }, enabled = !cargando) {
+                                Text(copy.olvide, color = AgoraColors.Naranja)
+                            }
+                            TextButton(onClick = { irA(PASO_PEDIR, MOTIVO_REGISTRO) }, enabled = !cargando) {
+                                Text(
+                                    buildAnnotatedString {
+                                        withStyle(SpanStyle(color = AgoraColors.TextoMedio)) { append("${copy.primeraVez} ") }
+                                        withStyle(SpanStyle(color = AgoraColors.Naranja, fontWeight = FontWeight.SemiBold)) {
+                                            append(copy.crearCuenta)
+                                        }
+                                    },
+                                )
+                            }
                         }
+                    }
+
+                    PASO_PEDIR -> {
+                        Text(
+                            if (motivo == MOTIVO_OLVIDE) AgoraCopy.login.pedir.explicacionOlvide else AgoraCopy.login.pedir.explicacionRegistro,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AgoraColors.TextoMedio,
+                        )
+                        Spacer(Modifier.height(AgoraSpacing.Sm))
+                        CampoCorreo(
+                            email = email,
+                            onCambio = { email = it },
+                            imeAction = ImeAction.Send,
+                            enabled = !cargando,
+                            onEnviar = { if (email.contains("@")) pedirCodigo() },
+                        )
+                        Spacer(Modifier.height(AgoraSpacing.Sm))
+                        AgoraPrimaryButton(
+                            text = if (cargando) AgoraCopy.login.pedir.botonEnviando else AgoraCopy.login.pedir.boton,
+                            onClick = { pedirCodigo() },
+                            enabled = email.contains("@"),
+                            loading = cargando,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            TextButton(onClick = { irA(PASO_ENTRAR) }, enabled = !cargando) {
+                                Text(AgoraCopy.login.pedir.volver, color = AgoraColors.Naranja)
+                            }
+                        }
+                    }
+
+                    PASO_CODIGO -> {
+                        Text(
+                            copy.entradillaCodigo(email),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AgoraColors.TextoMedio,
+                        )
+                        Spacer(Modifier.height(AgoraSpacing.Sm))
+                        envioId?.let { id ->
+                            EstadoEntregaCodigo(
+                                envioId = id,
+                                email = email,
+                                consultar = { auth.estadoEntrega(it) },
+                                onCorregir = { volverAlCorreo() },
+                                onReenviar = { pedirCodigo() },
+                            )
+                            Spacer(Modifier.height(AgoraSpacing.Sm))
+                        }
+                        aviso?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AgoraColors.TextoMedio,
+                            )
+                            Spacer(Modifier.height(AgoraSpacing.Sm))
+                        }
+                        OutlinedTextField(
+                            value = codigo,
+                            onValueChange = { nuevo -> codigo = nuevo.filter(Char::isDigit).take(6) },
+                            label = { Text(copy.etiquetaCodigo) },
+                            placeholder = { Text("000000") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.NumberPassword,
+                                imeAction = ImeAction.Done,
+                            ),
+                            keyboardActions = KeyboardActions(onDone = { verificar() }),
+                            colors = fieldColors,
+                            shape = MaterialTheme.shapes.medium,
+                        )
+                        Spacer(Modifier.height(AgoraSpacing.Sm))
+                        AgoraPrimaryButton(
+                            text = if (cargando) copy.botonVerificando else copy.botonCodigo,
+                            onClick = { verificar() },
+                            enabled = codigo.length == 6,
+                            loading = cargando,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            TextButton(onClick = { volverAlCorreo() }) {
+                                Text(copy.cambiarCorreo, color = AgoraColors.Naranja)
+                            }
+                            TextButton(onClick = { pedirCodigo() }, enabled = !cargando) {
+                                Text(copy.reenviar, color = AgoraColors.Naranja)
+                            }
+                        }
+                    }
+
+                    PASO_CONTRASENA -> {
+                        Text(
+                            if (motivo == MOTIVO_OLVIDE) AgoraCopy.login.nuevaContrasena.entradillaOlvide else AgoraCopy.login.nuevaContrasena.entradillaCrear,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AgoraColors.TextoMedio,
+                        )
+                        Spacer(Modifier.height(AgoraSpacing.Sm))
+                        FormularioContrasena(
+                            modo = ModoContrasena.CREAR,
+                            enviar = { _, nueva -> auth.crearContrasena(nueva) },
+                            onListo = { verificado?.let { terminar(it) } },
+                        )
                     }
                 }
 
@@ -260,7 +423,7 @@ fun LoginScreen(
                     )
                 }
 
-                if (paso == "codigo") {
+                if (paso == PASO_CODIGO) {
                     Spacer(Modifier.height(AgoraSpacing.Md))
                     PistaCorreo()
                 }
@@ -271,7 +434,33 @@ fun LoginScreen(
     }
 }
 
-/** "Vence en 10 minutos…" + dónde buscarlo en Outlook, con las palabras clave en negrita. */
+@Composable
+private fun CampoCorreo(
+    email: String,
+    onCambio: (String) -> Unit,
+    imeAction: ImeAction,
+    enabled: Boolean,
+    onEnviar: () -> Unit = {},
+) {
+    OutlinedTextField(
+        value = email,
+        onValueChange = { onCambio(it.trim()) },
+        label = { Text(AgoraCopy.login.etiquetaCorreo) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        enabled = enabled,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Email,
+            imeAction = imeAction,
+            autoCorrectEnabled = false,
+        ),
+        keyboardActions = KeyboardActions(onSend = { onEnviar() }),
+        colors = agoraFieldColors(),
+        shape = MaterialTheme.shapes.medium,
+    )
+}
+
+/** "Vence en 15 minutos…" + dónde buscarlo en Outlook, con las palabras clave en negrita. */
 @Composable
 private fun PistaCorreo() {
     val copy = AgoraCopy.login

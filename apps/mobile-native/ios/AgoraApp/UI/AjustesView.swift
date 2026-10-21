@@ -42,6 +42,9 @@ struct AjustesView: View {
     @State private var fotoUrl: String?
     @State private var preferencias: [PreferenciaNotificacionDto] = []
     @State private var avisoPregunta = true
+    /// Si la cuenta ya tiene contraseña (`auth/yo`). `nil`: API anterior o sin respuesta; no se muestra la tarjeta.
+    @State private var tieneContrasena: Bool?
+    @State private var contrasenaAbierta = false
     @State private var cargando = true
     @State private var guardando = false
     @State private var subiendoFoto = false
@@ -114,6 +117,7 @@ struct AjustesView: View {
                             seccionComunidades
                             seccionNotificaciones
                             seccionApariencia
+                            seccionContrasena
                         }
 
                         Group {
@@ -336,6 +340,54 @@ struct AjustesView: View {
         }
     }
 
+    /// Tarjeta «Contraseña» (paridad con `componentes/seccion-contrasena.tsx`).
+    /// Quien aún no tiene (cuenta de antes de las contraseñas) la crea aquí sin
+    /// más trámite: su sesión ya prueba que el buzón es suyo. Quien tiene, la
+    /// cambia dando la actual; la API cierra las otras sesiones.
+    @ViewBuilder
+    private var seccionContrasena: some View {
+        if let tiene = tieneContrasena {
+            VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
+                Text(AgoraCopy.ajustesContrasenaTitulo)
+                    .font(.headline)
+                    .padding(.top, AgoraDesign.Spacing.xs)
+                Text(tiene ? AgoraCopy.ajustesContrasenaTiene : AgoraCopy.ajustesContrasenaNoTiene)
+                    .font(.caption)
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    .fixedSize(horizontal: false, vertical: true)
+                if contrasenaAbierta {
+                    FormularioContrasena(
+                        modo: tiene ? .cambiar : .crear,
+                        enviar: { actual, nueva in
+                            if tiene {
+                                try await AuthRepository.shared.cambiarContrasena(actual: actual, nueva: nueva)
+                            } else {
+                                try await AuthRepository.shared.crearContrasena(nueva)
+                            }
+                        },
+                        onListo: {
+                            contrasenaAbierta = false
+                            tieneContrasena = true
+                            error = nil
+                            aviso = tiene ? AgoraCopy.ajustesContrasenaCambiada : AgoraCopy.ajustesContrasenaCreada
+                        },
+                        textoBoton: tiene ? AgoraCopy.ajustesContrasenaCambiarBoton : nil
+                    )
+                    Button(AgoraCopy.ajustesContrasenaCancelar) {
+                        contrasenaAbierta = false
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                } else {
+                    AgoraOutlinedButton(
+                        title: tiene ? AgoraCopy.ajustesContrasenaCambiar : AgoraCopy.ajustesContrasenaCrear,
+                        action: { contrasenaAbierta = true }
+                    )
+                }
+            }
+        }
+    }
+
     private var fotoPlaceholder: some View {
         Circle()
             .fill(AgoraDesign.Colors.naranjaSuave)
@@ -510,6 +562,8 @@ struct AjustesView: View {
             comunidades = try await AgoraApi.misComunidades()
             preferencias = try await AgoraApi.preferenciasNotificacion().preferencias ?? []
             generacion = try await AgoraApi.perfilPorHandle(perfil.handle).generacion
+            // Aparte: si falla, el resto de Ajustes sigue sirviendo.
+            tieneContrasena = (try? await AuthRepository.shared.yo())?.tieneContrasena
         } catch {
             self.error = FormatUtils.mensajeDe(error)
         }

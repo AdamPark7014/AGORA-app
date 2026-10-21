@@ -12,7 +12,20 @@ data class SessionUser(
     val tienePerfil: Boolean,
 )
 
-class SessionStore(context: Context) {
+/**
+ * Lo que [AuthRepository] necesita de la sesión guardada. [SessionStore] es la
+ * implementación real (cifrada); las pruebas unitarias usan una en memoria.
+ */
+interface AlmacenSesion {
+    fun load(): SessionUser?
+    fun save(user: SessionUser)
+    fun clear()
+    fun token(): String?
+    fun hasSeenWelcome(): Boolean
+    fun markWelcomeSeen()
+}
+
+class SessionStore(context: Context) : AlmacenSesion {
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
@@ -25,7 +38,7 @@ class SessionStore(context: Context) {
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
 
-    fun load(): SessionUser? {
+    override fun load(): SessionUser? {
         val token = prefs.getString("token", null) ?: return null
         val email = prefs.getString("email", null) ?: return null
         return SessionUser(
@@ -37,7 +50,7 @@ class SessionStore(context: Context) {
         )
     }
 
-    fun save(user: SessionUser) {
+    override fun save(user: SessionUser) {
         prefs.edit()
             .putString("token", user.token)
             .putString("email", user.email)
@@ -47,15 +60,15 @@ class SessionStore(context: Context) {
             .apply()
     }
 
-    fun clear() {
+    override fun clear() {
         prefs.edit().clear().apply()
     }
 
-    fun token(): String? = prefs.getString("token", null)
+    override fun token(): String? = prefs.getString("token", null)
 
-    fun hasSeenWelcome(): Boolean = prefs.getBoolean("seen_welcome", false)
+    override fun hasSeenWelcome(): Boolean = prefs.getBoolean("seen_welcome", false)
 
-    fun markWelcomeSeen() {
+    override fun markWelcomeSeen() {
         prefs.edit().putBoolean("seen_welcome", true).apply()
     }
 }

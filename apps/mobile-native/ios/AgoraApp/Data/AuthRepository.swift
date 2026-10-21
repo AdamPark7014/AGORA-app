@@ -1,6 +1,14 @@
 import Foundation
 
-/// Repositorio de autenticación OTP. Paridad con `AuthRepository` de Android.
+/// Resultado de entrar por código. `tieneContrasena` decide si la pantalla pide
+/// crear una antes de pasar (`nil`: la API aún no lo manda, se sigue como antes).
+struct EntradaPorCodigo {
+    let user: SessionUser
+    let tieneContrasena: Bool?
+}
+
+/// Repositorio de autenticación (código al correo y contraseña). Paridad con
+/// `AuthRepository` de Android.
 final class AuthRepository {
     static let shared = AuthRepository()
     private init() {}
@@ -9,10 +17,9 @@ final class AuthRepository {
     /// `X-Envio-Id` del 204) o `nil` si la API no lo manda (API vieja / modo consola).
     @discardableResult
     func solicitarOtp(email: String) async throws -> String? {
-        let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let (_, http) = try await ApiClient.shared.postJSONConRespuesta(
             "auth/otp/solicitar",
-            body: SolicitarOtpRequest(email: normalized)
+            body: SolicitarOtpRequest(email: normalizar(email))
         )
         let cabecera = http.value(forHTTPHeaderField: "X-Envio-Id")?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -32,8 +39,9 @@ final class AuthRepository {
         }
     }
 
-    func verificarOtp(email: String, codigo: String) async throws -> SessionUser {
-        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    /// Entra con el código del correo y guarda la sesión.
+    func verificarOtp(email: String, codigo: String) async throws -> EntradaPorCodigo {
+        let normalizedEmail = normalizar(email)
         let normalizedCodigo = codigo.trimmingCharacters(in: .whitespacesAndNewlines)
         let data = try await ApiClient.shared.postJSON(
             "auth/otp/verificar",
@@ -41,9 +49,60 @@ final class AuthRepository {
         )
         let resp: VerificarOtpResponse = try ApiClient.decodeOne(data)
         guard let token = resp.token, !token.isEmpty else {
-            throw ApiError.http(401, "La API no devolvió token.")
+            throw ApiError.http(-1, "La API no devolvió token.")
         }
+        let user = await abrirSesion(token: token, email: normalizedEmail, tienePerfil: resp.tienePerfil)
+        return EntradaPorCodigo(user: user, tieneContrasena: resp.tieneContrasena)
+    }
 
+    /// Entra con correo + contraseña (`POST auth/entrar`) y guarda la sesión igual
+    /// que `verificarOtp`. Sin «recordarme» la API da una sesión de 12 h que no se
+    /// renueva. Los 401 (correo, contraseña o cuenta sin contraseña) y los 429
+    /// (cinco fallos) llegan como `ApiError.http` con el `mensaje` de la API.
+    func entrar(email: String, contrasena: String, recordarme: Bool) async throws -> SessionUser {
+        let normalizedEmail = normalizar(email)
+        let data = try await ApiClient.shared.postJSON(
+            "auth/entrar",
+            body: EntrarRequest(
+                email: normalizedEmail,
+                contrasena: contrasena,
+                modo: "token",
+                recordarme: recordarme
+            )
+        )
+        let resp: EntrarResponse = try ApiClient.decodeOne(data)
+        guard let token = resp.token, !token.isEmpty else {
+            throw ApiError.http(-1, "La API no devolvió token.")
+        }
+        return await abrirSesion(token: token, email: normalizedEmail, tienePerfil: resp.tienePerfil)
+    }
+
+    /// Fija la contraseña sin pedir la actual. La API lo permite si la cuenta no
+    /// tiene, o si la sesión se abrió por código hace menos de 30 min («olvidé»).
+    func crearContrasena(_ contrasena: String) async throws {
+        _ = try await ApiClient.shared.postJSON(
+            "auth/contrasena",
+            body: CrearContrasenaRequest(contrasena: contrasena)
+        )
+    }
+
+    /// Cambia la contraseña dando la actual. Las otras sesiones se cierran.
+    func cambiarContrasena(actual: String, nueva: String) async throws {
+        _ = try await ApiClient.shared.postJSON(
+            "auth/contrasena/cambiar",
+            body: CambiarContrasenaRequest(actual: actual, nueva: nueva)
+        )
+    }
+
+    /// `GET auth/yo` con la sesión actual (p. ej. para saber si ya hay contraseña).
+    func yo() async throws -> YoResponse {
+        let data = try await ApiClient.shared.get("auth/yo")
+        return try ApiClient.decodeOne(data)
+    }
+
+    /// Completa la sesión con `auth/yo` (handle, nombre y permisos; si falla se
+    /// guarda sin ellos, como siempre) y la deja en el Keychain.
+    private func abrirSesion(token: String, email: String, tienePerfil: Bool) async -> SessionUser {
         var yo: YoResponse?
         do {
             let yoData = try await ApiClient.shared.get("auth/yo", token: token)
@@ -54,10 +113,10 @@ final class AuthRepository {
 
         let user = SessionUser(
             token: token,
-            email: normalizedEmail,
+            email: email,
             handle: yo?.handle,
             nombre: yo?.nombre,
-            tienePerfil: resp.tienePerfil,
+            tienePerfil: tienePerfil,
             puedeModerar: yo?.puedeModerar ?? false,
             puedeSuspender: yo?.puedeSuspender ?? false
         )
@@ -138,5 +197,9 @@ final class AuthRepository {
             SessionStore.shared.save(guardado)
         }
         return guardado
+    }
+
+    private func normalizar(_ email: String) -> String {
+        email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 }

@@ -13,10 +13,43 @@ data class VerificarOtpRequest(
     val modo: String = "token",
 )
 
+/**
+ * Respuesta de `auth/otp/verificar`. `tieneContrasena` llegó con el login por
+ * contraseña (21-10-2026): null si la API es anterior.
+ */
 @JsonClass(generateAdapter = true)
 data class VerificarOtpResponse(
     val tienePerfil: Boolean,
     val token: String? = null,
+    val tieneContrasena: Boolean? = null,
+)
+
+/** `POST auth/entrar`: correo + contraseña. `modo = token` para recibir el Bearer. */
+@JsonClass(generateAdapter = true)
+data class EntrarRequest(
+    val email: String,
+    val contrasena: String,
+    val modo: String = "token",
+    val recordarme: Boolean = true,
+)
+
+@JsonClass(generateAdapter = true)
+data class EntrarResponse(
+    val tienePerfil: Boolean,
+    val tieneContrasena: Boolean? = null,
+    val token: String? = null,
+    val expiraEn: String? = null,
+)
+
+/** `POST auth/contrasena`: fija la contraseña sin pedir la actual (cuenta sin contraseña o sesión recién abierta por código). */
+@JsonClass(generateAdapter = true)
+data class CrearContrasenaRequest(val contrasena: String)
+
+/** `POST auth/contrasena/cambiar`: cambia dando la actual. */
+@JsonClass(generateAdapter = true)
+data class CambiarContrasenaRequest(
+    val actual: String,
+    val nueva: String,
 )
 
 @JsonClass(generateAdapter = true)
@@ -25,6 +58,8 @@ data class YoResponse(
     val nombre: String? = null,
     val email: String? = null,
     val tienePerfil: Boolean? = null,
+    /** Si la cuenta ya tiene contraseña. Null con una API anterior al 21-10-2026. */
+    val tieneContrasena: Boolean? = null,
     val esStaff: Boolean = false,
     val puedeModerar: Boolean = false,
     val puedeSuspender: Boolean = false,
