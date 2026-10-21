@@ -20,7 +20,9 @@ proyectos (nunca `volume prune`).
   (`CONCEPTO_ACTUAL = 'mono'`; los otros tres conceptos siguen ahí): regenera web/PWA
   (`icono*.svg/png`, `apple-touch-icon`, `favicon.ico`, `og.svg/png`), Android (`ic_launcher_*`,
   `agora_isotipo`, `ic_notification`) e iOS (`AppIcon-1024.png`, `Isotipo.svg` sin clipPath ni
-  filtros). `sw.js` subió a `agora-v5` para que los navegadores suelten el ícono viejo. Los
+  filtros). `sw.js` subió a `agora-v5` para que los navegadores suelten el ícono viejo.
+  **Desplegado `650bcaa` el 21-10 13:40 MX** (smoke OK, `/icono.svg` ya es la pirámide,
+  rollback `prev-20261021-1337`). Disco tras podar toda la caché de build: 86 %, 11 GB libres. Los
   vectores de Android/iOS están validados como XML pero **sin compilar** aquí (la sesión de
   móvil corre gradle en el mismo checkout; su `assembleDebug` los compila).
 
