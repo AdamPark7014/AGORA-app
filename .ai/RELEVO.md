@@ -7,10 +7,18 @@
 ## Hecho en este turno (21-10)
 
 Adam pidió tres cosas: estado de builds móviles, ícono nuevo y login sin fricción.
-**Nada desplegado todavía**: el cambio de autenticación afecta a todo el que entra y Adam
-debe aprobar el despliegue (`scripts\desplegar.ps1`). Antes de desplegar: el disco del
-Hetzner está al **95 %** (19-10 estaba en 88 %); liberar con
-`docker builder prune --filter until=168h` (nunca `volume prune`).
+**Desplegado `40e5bfc` el 21-10 13:22 MX** con `scripts\desplegar.ps1` tras el OK de Adam:
+migración `20261021120000_contrasena` aplicada sola al arrancar, rutas `/auth/entrar`,
+`/auth/contrasena`, `/auth/contrasena/cambiar` mapeadas, api y web healthy, smoke OK.
+Rollback: imágenes `prev-20261021-1320` (= las del 19-10). Antes del deploy el disco estaba al
+**95 %**: se liberó caché de build, imágenes de rollback anteriores al 19-10 y journal
+(→ 88 %); tras el build volvió a 93 % y se podó toda la caché de build. El disco sigue
+crónico: el aviso de ntfy (>80 %) va a seguir sonando hasta que se libere algo de otros
+proyectos (nunca `volume prune`).
+- **`scripts/generar-icono.mjs`**: fuente única del set de íconos (web/PWA, og, Android
+  adaptativo + monocromo + notificación + isotipo, iOS AppIcon + Isotipo.svg), parametrizado
+  por concepto (`mono|cristal|noche|amanecer`). `CONCEPTO_ACTUAL` queda en `mono` como marcador;
+  **no se ha corrido sobre el repo** hasta que Adam elija letra (`--salida` previsualiza fuera).
 
 - **Móvil:** Android compila en local (último `assembleDebug` 19-10), sin release a Play.
   iOS nunca se ha compilado: `ios.yml` y `ci.yml` mueren en 5 s por el cobro de GitHub
@@ -168,10 +176,11 @@ Retomado desde el turno de Cursor del 07-10 (Fase 0 de ÁGORA 2.0, plan en
 
 ## Siguiente paso
 
-1. Adam elige el ícono (ronda 3) → `scripts/generar-icono.mjs` + sustituir en web, Android, iOS.
-2. Adam aprueba → liberar disco del Hetzner → `pwsh -File scripts\desplegar.ps1` (la
-   migración se aplica sola al arrancar la API) → probar: crear cuenta, entrar con
-   contraseña, olvidé, cambiar en Ajustes.
+1. Adam elige el ícono (ronda 3) → poner `CONCEPTO_ACTUAL`, `node scripts/generar-icono.mjs`,
+   subir `CACHE` en `apps/web/public/sw.js` (agora-v4 → v5), commit y deploy.
+2. Probar en producción con una cuenta real: crear cuenta, entrar con contraseña, olvidé,
+   cambiar en Ajustes (la sesión lateral de móvil está en marcha: no hacer `cerrar` con
+   `add -A` mientras trabaje; commits con rutas explícitas).
 3. Android/iOS: pantalla de contraseña (`/auth/entrar` modo token) y crear contraseña tras el código.
 4. Adam: cobro de GitHub (Settings → Billing) → corre CI (e2e) + `ios.yml`; luego TestFlight / Play.
 
