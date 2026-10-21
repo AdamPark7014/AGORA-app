@@ -1,24 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Ícono de Ágora: la pirámide de Cholula (Mono). Generado por scripts/generar-icono.mjs; no editar a mano. -->
   <title>Ágora</title>
   <defs>
-    <linearGradient id="fondo" x1="0.15" y1="0" x2="0.85" y2="1">
-      <stop offset="0" stop-color="#FF7A2F"/>
-      <stop offset="0.55" stop-color="#E85A0C"/>
-      <stop offset="1" stop-color="#C94104"/>
-    </linearGradient>
-    <radialGradient id="brillo" cx="0.3" cy="0.04" r="0.8">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.24"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="sombra" x="-20%" y="-20%" width="140%" height="150%">
-      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#7A2300" flood-opacity="0.3"/>
-    </filter>
+    <clipPath id="forma"><rect width="1024" height="1024"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8F4C"/><stop offset="1" stop-color="#E64A0A"/></linearGradient>
+      <linearGradient id="sym" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFE3CB"/></linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="22" stdDeviation="26" flood-color="#6E1C00" flood-opacity="0.38"/></filter>
   </defs>
-  <rect width="512" height="512" fill="url(#fondo)"/>
-  <rect width="512" height="512" fill="url(#brillo)"/>
-  <g fill="#FFFFFF" filter="url(#sombra)" transform="translate(256 262) scale(0.74) translate(-256 -235)">
-    <path fill-rule="evenodd" d="M138 426 V268 A118 118 0 0 1 374 268 V426 H314 V262 A58 58 0 0 0 198 262 V426 Z"/>
-    <path d="M197 282 H315 V326 H197 Z"/>
-    <path d="M254.7 105.2 L296.1 43.9 L329.3 66.2 L287.9 127.6 Z"/>
+  <g clip-path="url(#forma)">
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <g transform="translate(512 512) scale(0.8) translate(-512 -512)"><path d="M192 792 V684 H248 V576 H304 V468 H360 V360 H416 V252 H608 V360 H664 V468 H720 V576 H776 V684 H832 V792 Z" fill="url(#sym)" stroke="url(#sym)" stroke-width="22" stroke-linejoin="round" filter="url(#sh)"/></g>
   </g>
 </svg>

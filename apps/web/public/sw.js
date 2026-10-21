@@ -8,7 +8,8 @@
  * Solo se cachean assets estáticos inmutables (icono, manifest, offline).
  */
 
-const CACHE = 'agora-v4';
+// v5: ícono nuevo (pirámide), 21-10-2026. Subir la versión invalida los íconos cacheados.
+const CACHE = 'agora-v5';
 const ESTATICOS = [
   '/manifest.webmanifest',
   '/icono.svg',

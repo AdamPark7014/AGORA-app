@@ -193,16 +193,20 @@ if (!C) {
 function svg({ variante = 'squircle', plano = false } = {}) {
   const forma = variante === 'maskable' ? '' : ` rx="${RX}"`;
   const escala = variante === 'maskable' ? ' transform="translate(512 512) scale(0.8) translate(-512 -512)"' : '';
+  // El vector de iOS (plano) evita clipPath: el importador de Xcode admite un
+  // subconjunto de SVG; las esquinas van en los propios rectángulos del fondo.
+  const fondo = plano ? C.fondo().replaceAll('<rect width="1024" height="1024"', `<rect width="1024" height="1024"${forma}`) : C.fondo();
+  const abre = plano ? '<g>' : '<g clip-path="url(#forma)">';
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!-- Ícono de Ágora: la pirámide de Cholula (${C.nombre}). Generado por scripts/generar-icono.mjs; no editar a mano. -->
   <title>Ágora</title>
   <defs>
-    <clipPath id="forma"><rect width="1024" height="1024"${forma}/></clipPath>
+    ${plano ? '' : `<clipPath id="forma"><rect width="1024" height="1024"${forma}/></clipPath>`}
     ${C.defs}
     ${plano ? '' : SOMBRA}
   </defs>
-  <g clip-path="url(#forma)">
-    ${C.fondo()}
+  ${abre}
+    ${fondo}
     <g${escala}>${C.glifo(plano)}</g>
   </g>
 </svg>

@@ -1,37 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Ágora - la red de la UDLAP">
+  <!-- Generado por scripts/generar-icono.mjs; no editar a mano. -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="ogbg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0d1210"/>
       <stop offset="0.55" stop-color="#16191d"/>
       <stop offset="1" stop-color="#1e2227"/>
     </linearGradient>
-    <radialGradient id="glow" cx="50%" cy="0%" r="70%">
+    <radialGradient id="ogglow" cx="50%" cy="0%" r="70%">
       <stop offset="0" stop-color="#e35205" stop-opacity="0.28"/>
       <stop offset="1" stop-color="#e35205" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="mfondo" x1="0.15" y1="0" x2="0.85" y2="1">
-      <stop offset="0" stop-color="#FF7A2F"/>
-      <stop offset="0.55" stop-color="#E85A0C"/>
-      <stop offset="1" stop-color="#C94104"/>
-    </linearGradient>
-    <radialGradient id="mbrillo" cx="0.3" cy="0.04" r="0.8">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.24"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="msombra" x="-20%" y="-20%" width="140%" height="150%">
-      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#7A2300" flood-opacity="0.3"/>
-    </filter>
+    <clipPath id="forma"><rect width="1024" height="1024" rx="230"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8F4C"/><stop offset="1" stop-color="#E64A0A"/></linearGradient>
+      <linearGradient id="sym" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFE3CB"/></linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="22" stdDeviation="26" flood-color="#6E1C00" flood-opacity="0.38"/></filter>
   </defs>
-  <rect width="1200" height="630" fill="url(#bg)"/>
-  <rect width="1200" height="630" fill="url(#glow)"/>
-  <g transform="translate(96 170) scale(0.27344)">
-    <path d="M512.0 256.0L511.9 334.7L511.4 359.7L510.7 377.9L509.7 392.6L508.5 405.1L506.9 416.0L505.1 425.8L502.9 434.6L500.5 442.7L497.7 450.0L494.6 456.8L491.2 463.0L487.4 468.7L483.3 474.0L478.9 478.9L474.0 483.3L468.7 487.4L463.0 491.2L456.8 494.6L450.0 497.7L442.7 500.5L434.6 502.9L425.8 505.1L416.0 506.9L405.1 508.5L392.6 509.7L377.9 510.7L359.7 511.4L334.7 511.9L256.0 512.0L177.3 511.9L152.3 511.4L134.1 510.7L119.4 509.7L106.9 508.5L96.0 506.9L86.2 505.1L77.4 502.9L69.3 500.5L62.0 497.7L55.2 494.6L49.0 491.2L43.3 487.4L38.0 483.3L33.1 478.9L28.7 474.0L24.6 468.7L20.8 463.0L17.4 456.8L14.3 450.0L11.5 442.7L9.1 434.6L6.9 425.8L5.1 416.0L3.5 405.1L2.3 392.6L1.3 377.9L0.6 359.7L0.1 334.7L0.0 256.0L0.1 177.3L0.6 152.3L1.3 134.1L2.3 119.4L3.5 106.9L5.1 96.0L6.9 86.2L9.1 77.4L11.5 69.3L14.3 62.0L17.4 55.2L20.8 49.0L24.6 43.3L28.7 38.0L33.1 33.1L38.0 28.7L43.3 24.6L49.0 20.8L55.2 17.4L62.0 14.3L69.3 11.5L77.4 9.1L86.2 6.9L96.0 5.1L106.9 3.5L119.4 2.3L134.1 1.3L152.3 0.6L177.3 0.1L256.0 0.0L334.7 0.1L359.7 0.6L377.9 1.3L392.6 2.3L405.1 3.5L416.0 5.1L425.8 6.9L434.6 9.1L442.7 11.5L450.0 14.3L456.8 17.4L463.0 20.8L468.7 24.6L474.0 28.7L478.9 33.1L483.3 38.0L487.4 43.3L491.2 49.0L494.6 55.2L497.7 62.0L500.5 69.3L502.9 77.4L505.1 86.2L506.9 96.0L508.5 106.9L509.7 119.4L510.7 134.1L511.4 152.3L511.9 177.3Z" fill="url(#mfondo)"/>
-    <path d="M512.0 256.0L511.9 334.7L511.4 359.7L510.7 377.9L509.7 392.6L508.5 405.1L506.9 416.0L505.1 425.8L502.9 434.6L500.5 442.7L497.7 450.0L494.6 456.8L491.2 463.0L487.4 468.7L483.3 474.0L478.9 478.9L474.0 483.3L468.7 487.4L463.0 491.2L456.8 494.6L450.0 497.7L442.7 500.5L434.6 502.9L425.8 505.1L416.0 506.9L405.1 508.5L392.6 509.7L377.9 510.7L359.7 511.4L334.7 511.9L256.0 512.0L177.3 511.9L152.3 511.4L134.1 510.7L119.4 509.7L106.9 508.5L96.0 506.9L86.2 505.1L77.4 502.9L69.3 500.5L62.0 497.7L55.2 494.6L49.0 491.2L43.3 487.4L38.0 483.3L33.1 478.9L28.7 474.0L24.6 468.7L20.8 463.0L17.4 456.8L14.3 450.0L11.5 442.7L9.1 434.6L6.9 425.8L5.1 416.0L3.5 405.1L2.3 392.6L1.3 377.9L0.6 359.7L0.1 334.7L0.0 256.0L0.1 177.3L0.6 152.3L1.3 134.1L2.3 119.4L3.5 106.9L5.1 96.0L6.9 86.2L9.1 77.4L11.5 69.3L14.3 62.0L17.4 55.2L20.8 49.0L24.6 43.3L28.7 38.0L33.1 33.1L38.0 28.7L43.3 24.6L49.0 20.8L55.2 17.4L62.0 14.3L69.3 11.5L77.4 9.1L86.2 6.9L96.0 5.1L106.9 3.5L119.4 2.3L134.1 1.3L152.3 0.6L177.3 0.1L256.0 0.0L334.7 0.1L359.7 0.6L377.9 1.3L392.6 2.3L405.1 3.5L416.0 5.1L425.8 6.9L434.6 9.1L442.7 11.5L450.0 14.3L456.8 17.4L463.0 20.8L468.7 24.6L474.0 28.7L478.9 33.1L483.3 38.0L487.4 43.3L491.2 49.0L494.6 55.2L497.7 62.0L500.5 69.3L502.9 77.4L505.1 86.2L506.9 96.0L508.5 106.9L509.7 119.4L510.7 134.1L511.4 152.3L511.9 177.3Z" fill="url(#mbrillo)"/>
-    <g fill="#FFFFFF" filter="url(#msombra)">
-    <path fill-rule="evenodd" d="M138 426 V268 A118 118 0 0 1 374 268 V426 H314 V262 A58 58 0 0 0 198 262 V426 Z"/>
-    <path d="M197 282 H315 V326 H197 Z"/>
-    <path d="M254.7 105.2 L296.1 43.9 L329.3 66.2 L287.9 127.6 Z"/>
-  </g>
+  <rect width="1200" height="630" fill="url(#ogbg)"/>
+  <rect width="1200" height="630" fill="url(#ogglow)"/>
+  <g transform="translate(96 170) scale(0.13672)">
+    <g clip-path="url(#forma)"><rect width="1024" height="1024" fill="url(#bg)"/><g><path d="M192 792 V684 H248 V576 H304 V468 H360 V360 H416 V252 H608 V360 H664 V468 H720 V576 H776 V684 H832 V792 Z" fill="url(#sym)" stroke="url(#sym)" stroke-width="22" stroke-linejoin="round" filter="url(#sh)"/></g></g>
   </g>
   <text x="264" y="248" fill="#f7f8f9" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="92" font-weight="800" letter-spacing="-3">&#193;gora</text>
   <text x="268" y="308" fill="#9aa4af" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="36" font-weight="500">La red de la UDLAP</text>

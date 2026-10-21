@@ -1,24 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Isotipo de Ágora (la Á como arco de portal). Misma geometría que apps/web/public/icono.svg. -->
+<!-- Glifo del ícono adaptativo y monocromo (Mono). Generado por scripts/generar-icono.mjs; no editar a mano. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:scaleX="0.13613"
-        android:scaleY="0.13613"
-        android:translateX="19.152"
-        android:translateY="23.010">
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:fillType="evenOdd"
-            android:pathData="M138 426 V268 A118 118 0 0 1 374 268 V426 H314 V262 A58 58 0 0 0 198 262 V426 Z" />
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M197 282 H315 V326 H197 Z" />
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M254.7 105.2 L296.1 43.9 L329.3 66.2 L287.9 127.6 Z" />
+    <group android:scaleX="0.084375" android:scaleY="0.084375" android:translateX="10.8000" android:translateY="10.8000">
+        <path android:pathData="M192 792 V684 H248 V576 H304 V468 H360 V360 H416 V252 H608 V360 H664 V468 H720 V576 H776 V684 H832 V792 Z" android:strokeWidth="22" android:strokeLineJoin="round"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="512" android:startY="252" android:endX="512" android:endY="792"><item android:offset="0" android:color="#FFFFFFFF"/><item android:offset="1" android:color="#FFFFE3CB"/></gradient></aapt:attr><aapt:attr name="android:strokeColor"><gradient android:type="linear" android:startX="512" android:startY="252" android:endX="512" android:endY="792"><item android:offset="0" android:color="#FFFFFFFF"/><item android:offset="1" android:color="#FFFFE3CB"/></gradient></aapt:attr></path>
     </group>
 </vector>

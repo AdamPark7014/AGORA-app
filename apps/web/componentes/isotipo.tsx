@@ -1,6 +1,7 @@
 /**
- * Isotipo de Ágora: la Á como arco de portal (los portales del zócalo de
- * Cholula, la plaza junto al campus).
+ * Isotipo de Ágora: la pirámide de Cholula, de cinco gradas, sobre naranja
+ * (concepto «Mono», elegido el 21-10-2026). Fuente única:
+ * scripts/generar-icono.mjs, que también produce los íconos de Android e iOS.
  *
  * Es una <img> del mismo /icono.svg que usan la PWA y el favicon, no un SVG en
  * linea: el icono trae degradados y una sombra con ids propios, y varias copias

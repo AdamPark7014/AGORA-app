@@ -20,7 +20,11 @@
 param(
   [string]$Servidor = 'root@5.78.215.109',
   [string]$Llave = "$env:USERPROFILE\.ssh\id_ed25519_nexara_hetzner",
-  [string]$Remoto = '/var/www/udlagora-app'
+  [string]$Remoto = '/var/www/udlagora-app',
+  # Salta la exigencia de árbol limpio. Solo cuando otra sesión tiene trabajo a medias en
+  # archivos que no entran en las imágenes (p. ej. las apps nativas): lo que se sube sigue
+  # siendo `git archive HEAD`, y HEAD tiene que seguir siendo igual a origin/main.
+  [switch]$PermitirSinCommitear
 )
 
 $ErrorActionPreference = 'Stop'
@@ -42,7 +46,8 @@ $ssh = @('-i', $Llave, '-p', $Puerto, '-o', 'ServerAliveInterval=20', '-o', 'Ser
 Paso '1/6 Revisando el código local'
 # Los tsbuildinfo cambian con cada typecheck local y no son código.
 git checkout -- '*.tsbuildinfo' 2>$null
-if (git status --porcelain --untracked-files=no) { Falla 'Hay cambios sin commitear. Commitea o descártalos antes de desplegar.' }
+if (-not $PermitirSinCommitear -and (git status --porcelain --untracked-files=no)) { Falla 'Hay cambios sin commitear. Commitea o descártalos antes de desplegar (o -PermitirSinCommitear si son de otra sesión y no entran en las imágenes).' }
+if ($PermitirSinCommitear -and (git status --porcelain --untracked-files=no)) { Write-Host 'Aviso: hay cambios sin commitear que NO se despliegan (se sube git archive HEAD).' -ForegroundColor Yellow }
 git fetch -q origin main
 if ((git rev-parse HEAD) -ne (git rev-parse origin/main)) { Falla 'main local no es igual a origin/main. Corre: git pull --rebase origin main' }
 $commit = git rev-parse --short HEAD

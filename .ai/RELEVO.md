@@ -15,10 +15,14 @@ Rollback: imágenes `prev-20261021-1320` (= las del 19-10). Antes del deploy el 
 (→ 88 %); tras el build volvió a 93 % y se podó toda la caché de build. El disco sigue
 crónico: el aviso de ntfy (>80 %) va a seguir sonando hasta que se libere algo de otros
 proyectos (nunca `volume prune`).
-- **`scripts/generar-icono.mjs`**: fuente única del set de íconos (web/PWA, og, Android
-  adaptativo + monocromo + notificación + isotipo, iOS AppIcon + Isotipo.svg), parametrizado
-  por concepto (`mono|cristal|noche|amanecer`). `CONCEPTO_ACTUAL` queda en `mono` como marcador;
-  **no se ha corrido sobre el repo** hasta que Adam elija letra (`--salida` previsualiza fuera).
+- **Ícono nuevo aplicado: «Mono»** (pirámide de Cholula de cinco gradas, blanco→crema sobre
+  naranja; Adam dejó la elección a Claude el 21-10). Fuente única `scripts/generar-icono.mjs`
+  (`CONCEPTO_ACTUAL = 'mono'`; los otros tres conceptos siguen ahí): regenera web/PWA
+  (`icono*.svg/png`, `apple-touch-icon`, `favicon.ico`, `og.svg/png`), Android (`ic_launcher_*`,
+  `agora_isotipo`, `ic_notification`) e iOS (`AppIcon-1024.png`, `Isotipo.svg` sin clipPath ni
+  filtros). `sw.js` subió a `agora-v5` para que los navegadores suelten el ícono viejo. Los
+  vectores de Android/iOS están validados como XML pero **sin compilar** aquí (la sesión de
+  móvil corre gradle en el mismo checkout; su `assembleDebug` los compila).
 
 - **Móvil:** Android compila en local (último `assembleDebug` 19-10), sin release a Play.
   iOS nunca se ha compilado: `ios.yml` y `ci.yml` mueren en 5 s por el cobro de GitHub
@@ -176,9 +180,7 @@ Retomado desde el turno de Cursor del 07-10 (Fase 0 de ÁGORA 2.0, plan en
 
 ## Siguiente paso
 
-1. Adam elige el ícono (ronda 3) → poner `CONCEPTO_ACTUAL`, `node scripts/generar-icono.mjs`,
-   subir `CACHE` en `apps/web/public/sw.js` (agora-v4 → v5), commit y deploy.
-2. Probar en producción con una cuenta real: crear cuenta, entrar con contraseña, olvidé,
+1. Probar en producción con una cuenta real: crear cuenta, entrar con contraseña, olvidé,
    cambiar en Ajustes (la sesión lateral de móvil está en marcha: no hacer `cerrar` con
    `add -A` mientras trabaje; commits con rutas explícitas).
 3. Android/iOS: pantalla de contraseña (`/auth/entrar` modo token) y crear contraseña tras el código.
