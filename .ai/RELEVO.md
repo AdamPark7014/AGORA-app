@@ -34,7 +34,13 @@ proyectos (nunca `volume prune`).
   contraseña en `local.properties`; **respaldar**), AAB firmado 1.0.0 (1) en
   `app/build/outputs/bundle/release/`. Play Console: el clasificador de permisos de Claude
   bloquea los pasos de publicación y el AAB pasa el tope de 10 MB de la herramienta de subida:
-  **lo sube Adam** siguiendo `docs/PLAY_STORE.md` (textos de ficha incluidos). Los
+  **lo sube Adam** siguiendo `docs/PLAY_STORE.md` (textos de ficha incluidos).
+  **AAB recompilado a las 17:56 MX con el `google-services.json` real** (verificado: `resources.pb`
+  trae `agora-udlap`, firmado con `AGORA.RSA`); el `classes.dex` bloqueado era el demonio de Gradle de
+  la sesión de móvil (`gradlew --stop`). En Chrome quedó Play Console en «Crear aplicación» con nombre
+  «Ágora UDLAP», paquete e idioma es-419 ya puestos (faltan Aplicación/Gratis, las dos declaraciones y
+  Crear → Pruebas internas → Crear versión → arrastrar el AAB) y Apple en su inicio de sesión; la
+  extensión se desconectó antes de terminar. Los
   vectores de Android/iOS están validados como XML pero **sin compilar** aquí (la sesión de
   móvil corre gradle en el mismo checkout; su `assembleDebug` los compila).
 
