@@ -1,13 +1,15 @@
 import Link from 'next/link';
 
+import { CORREO_CONTACTO } from '@/lib/contacto';
+
 export default function Terminos() {
   return (
     <main className="tarjeta" style={{ maxWidth: 720 }}>
       <p style={{ marginTop: 0 }}>
-        <Link href="/feed">← Volver</Link>
+        <Link href="/">← Volver</Link>
       </p>
       <h1>Términos de uso</h1>
-      <p className="tenue">Última actualización: agosto 2026</p>
+      <p className="tenue">Última actualización: 22 de octubre de 2026</p>
 
       <h2>Qué es Ágora</h2>
       <p>
@@ -29,6 +31,14 @@ export default function Terminos() {
         está en las <Link href="/reglas">Reglas de la comunidad</Link>.
       </p>
 
+      <h2>Cero tolerancia</h2>
+      <p>
+        No hay tolerancia para el contenido ofensivo ni para quien abusa de otros. Cualquiera
+        puede reportar una publicación, un comentario, un mensaje o un perfil, y bloquear a quien
+        quiera. El equipo revisa cada reporte en menos de 24 horas: retira lo que cruza las
+        reglas y suspende la cuenta de quien lo publicó cuando es grave o se repite.
+      </p>
+
       <h2>Tu responsabilidad</h2>
       <p>
         Eres responsable de lo que publicas. Ágora puede suspender cuentas que abusen de la
@@ -43,8 +53,8 @@ export default function Terminos() {
 
       <h2>Contacto</h2>
       <p>
-        Dudas sobre estos términos: escríbenos desde tu cuenta a moderación o al equipo en
-        el campus.
+        Dudas sobre estos términos: <a href={`mailto:${CORREO_CONTACTO}`}>{CORREO_CONTACTO}</a>.
+        Ágora la desarrolla Zynora Tek.
       </p>
     </main>
   );

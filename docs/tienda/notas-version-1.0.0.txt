@@ -1,0 +1,5 @@
+Primera versión de Ágora:
+• Entra con tu correo @udlap.mx y tu contraseña; el código al correo solo se pide al crear tu cuenta.
+• Feed del campus y de tus comunidades, eventos, aventones, mercado y mensajes.
+• Pregunta relámpago, rachas e insignias.
+• Avisos al instante cuando te comentan, te escriben o empieza un evento al que vas.

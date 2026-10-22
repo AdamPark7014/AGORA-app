@@ -26,6 +26,19 @@ completas las fichas de App Store y Play. Hecho hasta ahora:
 - **Producción está vacía: 4 usuarios, 2 perfiles, 0 publicaciones, 0 eventos.** El revisor de Apple
   vería un feed vacío (riesgo de rechazo 2.1/4.2). Antes de mandar a revisión hace falta contenido real
   publicado por el equipo (bienvenida, eventos reales del campus); no se inventó nada.
+- **Fichas de tienda en `docs/tienda/`** (README con campos y límites, `IOS-APP-STORE.md` con la etiqueta de
+  privacidad de Apple respuesta por respuesta, `PLAY-STORE.md` con ficha, Seguridad de los datos, IARC,
+  público 18+ y acceso), gráficos en `docs/tienda/graficos/` y scripts en `scripts/tienda/` (portados de
+  FinanVoz: `marca.py`, `iconos-tienda.py`, `grafico-funciones.py`, `enmarcar.py` + `capturas-plan.json`,
+  `asc-ficha.py`). **App Store Connect ya cargado por API** (22-10): versión 1.0.0, textos, categorías Redes
+  sociales/Estilo de vida, URLs, edad 17+ (18+ en el sistema nuevo) y revisión con la cuenta demo. Faltan
+  capturas, etiqueta de privacidad (solo consola) y la ficha de Play (navegador).
+- **Web:** aviso de privacidad reescrito con lo que de verdad se recoge (correo personal, token de push,
+  proveedores Hetzner/Cloudflare/Brevo/FCM/APNs, ARCO); términos con «Cero tolerancia» y reportes revisados
+  en < 24 h; `/reglas` ya no promete un filtro automático (**producción no tiene `OPENAI_API_KEY`**: el
+  filtro previo del código está apagado); casilla obligatoria de Términos y Reglas al crear el perfil (Apple
+  1.2). Correo público `contacto@zynoratek.com` (contacto@udlagora.com rebotaba: el dominio no tiene MX).
+  Android (agente) e iOS (sesión de móvil, por mensaje) van por la misma casilla y una pantalla de Reglas.
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: correo personal y fallos de iOS)
 

@@ -56,8 +56,9 @@ export default function Reglas() {
       <h2>Cómo se modera</h2>
       <ul>
         <li>
-          Un filtro automático revisa cada publicación. Si cruza una línea roja clara, no se
-          publica y te decimos por qué. Si tiene dudas, se publica y una persona la revisa.
+          Cualquiera puede reportar una publicación, un comentario, un mensaje o un perfil desde
+          «…». Una persona del equipo revisa cada reporte en menos de 24 horas, y si cruza una
+          línea roja lo retira.
         </li>
         <li>
           Si una publicación tuya se retira, ves el motivo. Puede ser un error: escríbenos y la

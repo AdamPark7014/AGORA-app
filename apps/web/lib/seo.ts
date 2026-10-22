@@ -55,7 +55,7 @@ export const LANDING_FAQ = [
   {
     pregunta: '¿Cómo contacto al equipo?',
     respuesta:
-      'Escríbenos a contacto@udlagora.com. También están los Términos y la Política de privacidad.',
+      'Escríbenos a contacto@zynoratek.com. También están los Términos y la Política de privacidad.',
   },
 ] as const;
 
@@ -153,7 +153,7 @@ export function jsonLdScripts(): Record<string, unknown>[] {
           url: SITE_URL,
           logo: `${SITE_URL}/icono-512.png`,
           description: DEFAULT_DESCRIPTION,
-          email: 'contacto@udlagora.com',
+          email: 'contacto@zynoratek.com',
           sameAs: [],
         },
         {

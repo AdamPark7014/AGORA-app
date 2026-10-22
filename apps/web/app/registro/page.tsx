@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -28,6 +29,7 @@ export default function Registro() {
   const [escuelaSlug, setEscuelaSlug] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [aceptaReglas, setAceptaReglas] = useState(false);
   const [datos, setDatos] = useState({
     handle: '',
     nombre: '',
@@ -242,7 +244,30 @@ export default function Registro() {
           </div>
         )}
 
-        <button type="submit" className="grande" disabled={cargando}>
+        {/* App Store (1.2) y Google Play piden que quien entra a una red con
+            contenido de usuarios acepte reglas con cero tolerancia al abuso
+            antes de publicar nada. Es solo una compuerta: no va al API. */}
+        <label className="casilla">
+          <input
+            type="checkbox"
+            required
+            checked={aceptaReglas}
+            onChange={(e) => setAceptaReglas(e.target.checked)}
+          />
+          <span>
+            Acepto los{' '}
+            <Link href="/terminos" target="_blank">
+              Términos
+            </Link>{' '}
+            y las{' '}
+            <Link href="/reglas" target="_blank">
+              Reglas de la comunidad
+            </Link>
+            . Cero tolerancia al acoso, las amenazas y el contenido ofensivo.
+          </span>
+        </label>
+
+        <button type="submit" className="grande" disabled={cargando || !aceptaReglas}>
           {cargando ? copy.registro.botonCreando : copy.registro.boton}
         </button>
 

@@ -44,7 +44,7 @@ Play App Signing custodia la llave de firma; la de subida se puede restablecer d
    - Apps de noticias: no. COVID: no. Seguridad de los datos: recopila correo, nombre y foto de
      perfil, contenido generado, identificadores de dispositivo (token push); cifrado en tránsito;
      el usuario puede pedir la eliminación desde Ajustes → Eliminar mi cuenta.
-   - Categoría: Social. Correo de contacto: `contacto@udlagora.com`.
+   - Categoría: Social. Correo de contacto: `contacto@zynoratek.com`.
 4. **Ficha de la tienda** (textos abajo; gráficos: ícono 512×512 = `apps/web/public/icono-512.png`,
    gráfico de función 1024×500 por hacer a partir de `og.png`, capturas de teléfono por tomar
    del emulador `nexara_phone`).
@@ -52,21 +52,6 @@ Play App Signing custodia la llave de firma; la de subida se puede restablecer d
 
 ## Textos de la ficha
 
-**Nombre:** Ágora UDLAP
-
-**Descripción breve (80):** La red social de la comunidad UDLAP. Solo con correo @udlap.mx.
-
-**Descripción completa:**
-
-Ágora es la red de la comunidad UDLAP: entras con tu correo @udlap.mx y caes directo en las
-comunidades de tu escuela, tu carrera, tu generación y tu colegio.
-
-• Feed del campus y de tus comunidades, con publicaciones, encuestas, fotos y video.
-• Pregunta del día a hora sorpresa, rachas e insignias.
-• Mensajes directos, eventos, aventones y marketplace entre estudiantes.
-• Zona anónima con reglas claras y moderación.
-• Perfil con la visibilidad que tú decides.
-
-Verificamos el correo institucional una sola vez al crear la cuenta; después entras con tu
-contraseña. Ágora es un proyecto independiente hecho por estudiantes y no está afiliada a la
-Universidad de las Américas Puebla.
+Viven en [`tienda/`](tienda/README.md): `titulo.txt`, `descripcion-corta.txt`, `descripcion-completa.txt` y
+`notas-version-1.0.0.txt`, con los gráficos en `tienda/graficos/` y las respuestas de «Contenido de la app»
+(Seguridad de los datos, IARC, acceso, público) en [`tienda/PLAY-STORE.md`](tienda/PLAY-STORE.md).

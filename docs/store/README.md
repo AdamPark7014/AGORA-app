@@ -38,26 +38,11 @@ Después de 1 y 2, Claude lanza **iOS · TestFlight** (versión `1.0.0`); la bui
 ~15 min. Después de 3, Claude lanza **Android · Play**; la primera subida del `.aab` a **Prueba interna**
 es a mano en Play Console (la API no admite la primera subida de una app nueva).
 
-## Ficha (borrador, común a las dos tiendas)
+## Ficha
 
-| Campo | Valor |
-| --- | --- |
-| Nombre | Ágora UDLAP |
-| Subtítulo / descripción breve (≤80) | `La red social verificada de la UDLAP: feed, eventos, aventones y mercado.` |
-| Categoría | Redes sociales |
-| Clasificación | 17+ (contenido generado por usuarios, chat, anónimo con moderación) |
-| Correo de contacto | gerencia@nexara.com.mx |
-| Sitio web | https://udlagora.com |
-| Política de privacidad | https://udlagora.com/privacidad |
-| Términos | https://udlagora.com/terminos |
-| Eliminar cuenta | Ajustes → Eliminar mi cuenta (dentro de la app) y https://udlagora.com/ajustes |
-| Cuenta de revisión | Apple y Google entran con correo + contraseña (sin código): crear una cuenta `@udlap.mx` de prueba con contraseña y ponerla en «Información de la revisión». Pendiente de Adam. |
-
-**Descripción completa (borrador):** Ágora es la red social verificada de la comunidad UDLAP. Entras con
-tu correo @udlap.mx y caes en las comunidades de tu carrera y tu generación. Feed con fotos y encuestas,
-pregunta del día, eventos del campus, aventones, marketplace, directorio, mensajes, insignias y rachas, y
-un foro anónimo con reglas claras y moderación. Nadie de fuera lee lo que pasa aquí. Ágora no está
-afiliada a la Universidad de las Américas Puebla.
+La ficha completa de las dos tiendas (textos, gráficos, capturas, clasificación, etiqueta de privacidad de
+Apple, Seguridad de los datos de Play y cuenta de revisión) vive en [`../tienda/`](../tienda/README.md). App
+Store Connect ya la tiene cargada por API (`scripts/tienda/asc-ficha.py`, 22-10-2026).
 
 ## Lecciones de NEXARA y ARTA que ya están aplicadas aquí
 

@@ -1,0 +1,22 @@
+Ágora is a social network for the student community of Universidad de las Américas Puebla (UDLAP), in Mexico. It is an independent project developed by Zynora Tek and is not affiliated with the university.
+
+SIGN IN
+Only people with a university e-mail (@udlap.mx) can create an account: the first time, a one-time code is sent to that mailbox to verify it. After that, users sign in with e-mail and password. Please use the demo account entered in the Sign-In Information fields of this submission: it already has a profile and a password, so no code is needed.
+
+WHAT TO TRY
+Feed (campus and communities), Events (tap "Voy"), Rides ("Aventones"), Marketplace, Messages, Directory, the daily "Pregunta relámpago" and Settings. You can publish, comment and react with the demo account.
+
+USER-GENERATED CONTENT (Guideline 1.2)
+- Terms: before creating a profile, users must accept the Terms and Community Rules, which state zero tolerance for objectionable content and abusive users.
+- Report: every post, comment, message and profile can be reported (menu "…" > Reportar). Reports go to a moderation queue; our team reviews every report within 24 hours, removes content that breaks the rules and suspends the offending account.
+- Block: users can block other users (their content disappears immediately) and mute users and communities.
+- The Community Rules are linked from Settings and from the sign-up screen.
+- The anonymous area ("Zona sin nombre") uses pseudonyms, but moderators can link posts to the account to enforce the rules.
+
+ACCOUNT DELETION (Guideline 5.1.1(v))
+Settings > Eliminar mi cuenta deletes the account inside the app. Public instructions: https://udlagora.com/eliminar-cuenta
+
+PUSH NOTIFICATIONS
+Used for replies, messages, event reminders and the daily question. Each type can be turned off in Settings.
+
+Support: contacto@zynoratek.com · https://udlagora.com/soporte

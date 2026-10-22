@@ -3721,6 +3721,7 @@ button.perfil-cifra:hover strong {
 }
 
 .casilla input {
+  flex-shrink: 0;
   width: 18px;
   height: 18px;
   margin: 0;

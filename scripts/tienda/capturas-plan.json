@@ -1,0 +1,29 @@
+{
+  "_": "Orden y titulares de las capturas de tienda (es-MX, tuteo, sin exclamaciones ni promesas). `archivos`: nombres de las capturas crudas sin .png, por prioridad (gana el primero que exista). `tema`: subcarpeta claro/oscuro. Lo lee scripts/tienda/enmarcar.py. Siempre con datos de demo locales, nunca de producción.",
+  "ios-6.9": {
+    "ancho": 1320,
+    "alto": 2868,
+    "capturas": [
+      { "nombre": "01-feed", "archivos": ["feed"], "titulo": "Lo que pasa en tu campus, hoy" },
+      { "nombre": "02-evento", "archivos": ["evento", "eventos"], "titulo": "Di «Voy» y te avisamos antes" },
+      { "nombre": "03-aventones", "archivos": ["aventones"], "titulo": "Aventones a campus a tu hora" },
+      { "nombre": "04-mercado", "archivos": ["mercado", "marketplace"], "titulo": "Compra y vende entre estudiantes" },
+      { "nombre": "05-mensajes", "archivos": ["mensajes", "chat"], "titulo": "Escríbele a quien quieras de tu comunidad" },
+      { "nombre": "06-perfil", "archivos": ["perfil"], "titulo": "Tu carrera y tu generación, en tu perfil" },
+      { "nombre": "07-feed-oscuro", "archivos": ["feed"], "titulo": "También en modo oscuro", "tema": "oscuro" }
+    ]
+  },
+  "android-telefono": {
+    "ancho": 1080,
+    "alto": 1920,
+    "capturas": [
+      { "nombre": "01-feed", "archivos": ["feed"], "titulo": "Lo que pasa en tu campus, hoy" },
+      { "nombre": "02-evento", "archivos": ["evento", "eventos"], "titulo": "Di «Voy» y te avisamos antes" },
+      { "nombre": "03-aventones", "archivos": ["aventones"], "titulo": "Aventones a campus a tu hora" },
+      { "nombre": "04-mercado", "archivos": ["mercado", "marketplace"], "titulo": "Compra y vende entre estudiantes" },
+      { "nombre": "05-mensajes", "archivos": ["mensajes", "chat"], "titulo": "Escríbele a quien quieras de tu comunidad" },
+      { "nombre": "06-perfil", "archivos": ["perfil"], "titulo": "Tu carrera y tu generación, en tu perfil" },
+      { "nombre": "07-feed-oscuro", "archivos": ["feed"], "titulo": "También en modo oscuro", "tema": "oscuro" }
+    ]
+  }
+}
