@@ -109,6 +109,9 @@ jobs:
           TEST_RUNNER_AGORA_API_URL: http://127.0.0.1:4200/api
           TEST_RUNNER_AGORA_DEMO_MAESTRO: '123456'
           TEST_RUNNER_AGORA_REGISTRO_CORREO: prueba.registro@udlap.mx
+        # Firma local («-», sin equipo ni certificado): sin firma, el simulador no
+        # deja escribir en el Keychain y la sesión no se guarda (la app vuelve a
+        # la puerta después de entrar). pruebas-ui no lo nota porque nunca entra.
         run: |
           set -o pipefail
           xcodebuild test \
@@ -117,7 +120,8 @@ jobs:
             -destination "id=$DEV" \
             -only-testing:AgoraAppUITests/CapturasTiendaUITests \
             -resultBundlePath "$RUNNER_TEMP/capturas.xcresult" \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- AGORA_CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
             2>&1 | tee xcodebuild-capturas.log | grep -E "Test Case .*(passed|failed|skipped)|error:|\*\* TEST (SUCCEEDED|FAILED)"
 
       - name: Doce capturas de 1320x2868

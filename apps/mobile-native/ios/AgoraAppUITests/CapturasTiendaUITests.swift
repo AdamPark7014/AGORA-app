@@ -47,13 +47,13 @@ final class CapturasTiendaUITests: XCTestCase {
     /// cada pestaña, así que la segunda vuelta no arrastra la primera.
     private func recorrido(tema: String) {
         abrir("agora://feed")
-        capturar("feed", tema: tema, esperando: ["renata", "diego", "Renata", "Diego", "@"])
+        capturar("feed", tema: tema, esperando: ["Renata", "Diego", "Sofía", "Ximena", "Paula"])
 
         abrir("agora://evento/\(entorno["AGORA_DEMO_EVENTO"] ?? "")")
         capturar("evento", tema: tema, esperando: ["Fiesta de fin de parciales", "Voy", "Me interesa"])
 
         abrir("agora://aventones")
-        capturar("aventones", tema: tema, esperando: ["Aventones", "Cholula", "Puebla"])
+        capturar("aventones", tema: tema, esperando: ["Angelópolis", "Cholula centro", "Plaza Crystal"])
 
         abrir("agora://marketplace")
         capturar("mercado", tema: tema, esperando: ["Laptop", "Stewart", "Escritorio"])
@@ -62,7 +62,7 @@ final class CapturasTiendaUITests: XCTestCase {
         capturar("mensajes", tema: tema, esperando: ["biblio", "Arquitecturas"])
 
         abrir("agora://perfil/\(entorno["AGORA_DEMO_PERFIL"] ?? "diego.tr")")
-        capturar("perfil", tema: tema, esperando: ["Conmuto", "diego"])
+        capturar("perfil", tema: tema, esperando: ["Conmuto", "Diego"])
     }
 
     private func abrir(_ enlace: String) {
@@ -78,7 +78,10 @@ final class CapturasTiendaUITests: XCTestCase {
     /// Espera a que aparezca algo del seed, deja asentar las animaciones y
     /// guarda la pantalla completa en `$AGORA_CAPTURAS/<tema>/<nombre>.png`.
     private func capturar(_ nombre: String, tema: String, esperando textos: [String]) {
-        if !esperarAlguno(textos, timeout: 25) { faltantes.append("\(nombre)-\(tema)") }
+        // La puerta también dice «Puebla» y «@udlap.mx»: si se ve, no cuenta.
+        if !esperarAlguno(textos, timeout: 25) || app.textFields["login.correo"].exists {
+            faltantes.append("\(nombre)-\(tema)")
+        }
         sleep(2)
         let captura = XCUIScreen.main.screenshot()
         let adjunto = XCTAttachment(screenshot: captura)
