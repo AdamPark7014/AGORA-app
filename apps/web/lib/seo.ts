@@ -209,4 +209,6 @@ export const SITEMAP_ROUTES: Array<{
   { path: '/terminos', changeFrequency: 'monthly', priority: 0.4 },
   { path: '/privacidad', changeFrequency: 'monthly', priority: 0.4 },
   { path: '/reglas', changeFrequency: 'monthly', priority: 0.4 },
+  { path: '/soporte', changeFrequency: 'monthly', priority: 0.4 },
+  { path: '/eliminar-cuenta', changeFrequency: 'monthly', priority: 0.3 },
 ];

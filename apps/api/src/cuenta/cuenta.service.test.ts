@@ -116,10 +116,12 @@ test('eliminar anonimiza: borra perfil y sesiones, oculta contenido y libera el 
   assert.deepEqual(raw.valores, ['u1']);
 
   const update = llamadas.find(([op]) => op === 'user.update')?.[1] as {
-    data: { estado: string; email: string };
+    data: { estado: string; email: string; passwordHash: null; correoPersonal: null };
   };
   assert.equal(update.data.estado, 'BAJA');
   assert.ok(!update.data.email.includes('ana.lopez'), 'el correo real no se conserva');
+  assert.equal(update.data.passwordHash, null, 'el hash de la contraseña no se conserva');
+  assert.equal(update.data.correoPersonal, null, 'el correo personal no se conserva');
 
   const audit = JSON.stringify(llamadas.find(([op]) => op === 'auditLog.create')?.[1]);
   assert.ok(!audit.includes('ana.lopez'), 'el audit log solo guarda el hash del correo');

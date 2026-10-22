@@ -21,6 +21,8 @@ export const RUTAS_PUBLICAS = [
   '/terminos',
   '/privacidad',
   '/reglas',
+  '/soporte',
+  '/eliminar-cuenta',
 ] as const;
 
 /** Pantallas que nunca llevan la navegacion de la app (entrada, legales). */

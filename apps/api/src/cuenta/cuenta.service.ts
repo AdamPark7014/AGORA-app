@@ -116,7 +116,19 @@ export class CuentaService {
 
       this.prisma.user.update({
         where: { id: userId },
-        data: { estado: 'BAJA', email: `baja-${userId}@baja.invalid`, lastSeenAt: null },
+        data: {
+          estado: 'BAJA',
+          email: `baja-${userId}@baja.invalid`,
+          lastSeenAt: null,
+          // La contraseña y el correo personal (registro cuando el código UDLAP
+          // no llegaba) también identifican a la persona: se van con la cuenta.
+          passwordHash: null,
+          passwordSetAt: null,
+          loginFallidos: 0,
+          loginBloqueadoHasta: null,
+          correoPersonal: null,
+          udlapPendienteDesde: null,
+        },
       }),
       this.prisma.auditLog.create({
         data: {
