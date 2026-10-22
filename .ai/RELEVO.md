@@ -260,7 +260,10 @@ Retomado desde el turno de Cursor del 07-10 (Fase 0 de ÁGORA 2.0, plan en
    `add -A` mientras trabaje; commits con rutas explícitas).
 3. Tiendas: Adam corre los 4 pasos de `docs/store/README.md` (secretos iOS, app en ASC, llave Android,
    app en Play) → Claude lanza «iOS · TestFlight» y «Android · Play» → prueba interna / TestFlight →
-   ficha, capturas y cuenta de revisión → enviar a revisión.
+   ficha, capturas y cuenta de revisión → enviar a revisión. **22-10: el repo sigue con 0 secretos**:
+   los dos scripts se lanzaron desde `C:\dev` con ruta relativa y PowerShell no los encontró (la guía
+   ya trae rutas completas). Adam dice que la app de App Store Connect ya está creada. Antes de lanzar
+   los flujos: `gh secret list --repo AdamPark7014/AGORA-app` debe mostrar los 5 de iOS y los 4 de Android.
 4. Android/iOS: probar el login con contraseña en el AVD (`nexara_phone`) contra producción: entrar,
    olvidé → crear, Ajustes → cambiar.
 5. Adam: cobro de GitHub ya no bloquea (repo público); queda arreglar el banco para los repos privados.

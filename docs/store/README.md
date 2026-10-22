@@ -23,11 +23,15 @@ en repos públicos): **nunca** commitear llaves, contraseñas ni datos personale
 
 ## Lo que hace Adam, una sola vez
 
+Los comandos van con **ruta completa**: el 22-10 se lanzaron desde `C:\dev` con ruta relativa,
+PowerShell no encontró los archivos y no se cargó ningún secreto. Para comprobar que quedaron:
+`gh secret list --repo AdamPark7014/AGORA-app` (solo nombres).
+
 | # | Paso | Dónde |
 | --- | --- | --- |
-| 1 | **Secretos de iOS**: `pwsh -File scripts\subir-secretos-ios.ps1` (toma la llave de App Store Connect y el certificado de distribución de `C:\dev\secrets\arta-ios`; pide el Issuer ID: App Store Connect → Usuarios y acceso → Integraciones → API, el UUID encima de la tabla). | PC de Adam |
+| 1 | **Secretos de iOS**: `pwsh -File C:\dev\apps\AGORA-app\scripts\subir-secretos-ios.ps1` (toma la llave de App Store Connect y el certificado de distribución de `C:\dev\secrets\arta-ios`; pide el Issuer ID: App Store Connect → Usuarios y acceso → Integraciones → API, el UUID encima de la tabla). | PC de Adam |
 | 2 | **App en App Store Connect**: Apps → «+» → Nueva app → iOS · Nombre **Ágora UDLAP** (si está tomado: «Ágora · Red del campus») · Idioma Español (México) · Bundle ID `mx.agora.mobile.AgoraApp` (si no aparece, corre una vez «iOS · TestFlight» con *upload* desmarcado: el flujo registra el App ID) · SKU `AGORA-IOS` · Acceso completo. | appstoreconnect.apple.com |
-| 3 | **Secretos de Android**: `pwsh -File scripts\subir-secretos-android.ps1`. Toma la llave de subida que ya existe (`apps/mobile-native/keystore/agora-release.jks`, contraseñas en `local.properties`, hecha el 21-10; **respáldala fuera de esta PC**). No crear otra: Play registra la del primer `.aab`. | PC de Adam |
+| 3 | **Secretos de Android**: `pwsh -File C:\dev\apps\AGORA-app\scripts\subir-secretos-android.ps1`. Toma la llave de subida que ya existe (`apps/mobile-native/keystore/agora-release.jks`, contraseñas en `local.properties`, hecha el 21-10; **respáldala fuera de esta PC**). No crear otra: Play registra la del primer `.aab`. | PC de Adam |
 | 4 | **App en Play Console** y primera subida del `.aab` a prueba interna: pasos, declaraciones y textos de la ficha en [`../PLAY_STORE.md`](../PLAY_STORE.md). El `.aab` sale del flujo «Android · Play» (artefacto `agora-aab`) o del `bundleRelease` local. | play.google.com/console |
 
 Después de 1 y 2, Claude lanza **iOS · TestFlight** (versión `1.0.0`); la build aparece en TestFlight en
