@@ -20,6 +20,7 @@ import { PostsController } from './posts/posts.controller.js';
 import { SaludController } from './salud/salud.controller.js';
 import { EventosService } from './eventos/eventos.service.js';
 import { EventosController } from './eventos/eventos.controller.js';
+import { RecordatoriosEventoService } from './eventos/recordatorios.service.js';
 import { MediaController } from './media/media.controller.js';
 import { MensajesService } from './mensajes/mensajes.service.js';
 import { MensajesController } from './mensajes/mensajes.controller.js';
@@ -128,6 +129,7 @@ import { CuentaService } from './cuenta/cuenta.service.js';
     DirectorioService,
     PostsService,
     EventosService,
+    RecordatoriosEventoService,
     MensajesService,
     MensajesStreamService,
     AventonesService,

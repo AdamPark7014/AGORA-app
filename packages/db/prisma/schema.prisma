@@ -602,6 +602,8 @@ enum TipoNotificacion {
   REACCION
   MENSAJE
   EVENTO_NUEVO
+  /// Aviso de que un evento al que dijiste Voy o Me interesa empieza pronto.
+  EVENTO_RECORDATORIO
   AVENTON_APARTADO
   AVENTON_CANCELADO
   MODERACION
@@ -917,6 +919,8 @@ model AsistenciaEvento {
   userId    String
   respuesta RespuestaAsistencia
   createdAt DateTime            @default(now())
+  /// Cuándo se mandó el recordatorio de que el evento empieza (uno por persona y evento).
+  recordatorioAt DateTime?
 
   evento Evento @relation(fields: [eventoId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)

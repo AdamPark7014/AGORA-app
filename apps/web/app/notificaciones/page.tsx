@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { Award, Bell, Car, MessageCircle, Scale, Sparkles, AtSign, UserPlus, Swords } from 'lucide-react';
+import { Award, Bell, CalendarDays, Car, MessageCircle, Scale, Sparkles, AtSign, UserPlus, Swords } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 import { api, ErrorApi } from '@/lib/api';
@@ -29,6 +29,7 @@ const ICONO: Record<string, LucideIcon> = {
   REACCION: Sparkles,
   MENSAJE: MessageCircle,
   EVENTO_NUEVO: Sparkles,
+  EVENTO_RECORDATORIO: CalendarDays,
   AVENTON_APARTADO: Car,
   AVENTON_CANCELADO: Car,
   MODERACION: Scale,
