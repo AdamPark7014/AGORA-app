@@ -1,11 +1,18 @@
 import {
   type CanActivate,
   type ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { CookieOptions, Request, Response } from 'express';
-import { debeRenovarse, hashTokenSesion, sesionVigente, vencimientoSesion } from '@agora/auth';
+import {
+  debeRenovarse,
+  hashTokenSesion,
+  sesionVigente,
+  udlapVencida,
+  vencimientoSesion,
+} from '@agora/auth';
 import { algunRolTienePermiso, esRolValido, type PermissionKey, type RoleKey } from '@agora/rbac';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -18,7 +25,18 @@ export interface UsuarioSesion {
   readonly handle: string | null;
   /** false = cuenta de antes de las contraseñas: la pantalla le pide crearla. */
   readonly tieneContrasena: boolean;
+  /** Registrada con correo personal y sin confirmar su buzón UDLAP. Null = confirmado. */
+  readonly udlapPendienteDesde: Date | null;
 }
+
+/**
+ * Pasado el plazo para confirmar el correo UDLAP, la cuenta solo puede usar lo
+ * de la cuenta misma: ver su estado, pedir y canjear el código, la contraseña,
+ * salir y darse de baja.
+ */
+const RUTA_DE_CUENTA = /\/(auth|cuenta)\//;
+export const MENSAJE_UDLAP_VENCIDA =
+  'Confirma tu correo UDLAP para seguir usando Ágora: pide el código a tu correo @udlap.mx.';
 
 /** La fila de la sesion, para las decisiones que dependen de como se abrio. */
 export interface SesionActual {
@@ -85,6 +103,15 @@ export class SesionGuard implements CanActivate {
     if (sesion.user.estado === 'SUSPENDIDO' && !this.permiteSuspendido) {
       throw new UnauthorizedException('Tu cuenta esta suspendida.');
     }
+    const udlapPendienteDesde = sesion.user.udlapPendienteDesde ?? null;
+    if (
+      udlapVencida(udlapPendienteDesde, ahora) &&
+      !RUTA_DE_CUENTA.test(req.originalUrl ?? req.url ?? '')
+    ) {
+      // 403 y no 401: la sesión es buena (las apps no deben borrarla), solo
+      // falta confirmar el buzón. La pantalla lo sabe por /auth/yo.
+      throw new ForbiddenException(MENSAJE_UDLAP_VENCIDA);
+    }
 
     // Sesion que se renueva con el uso: mientras abras la app al menos una vez
     // cada medio año, no vuelves a entrar. Las de "no recordarme" no se
@@ -104,6 +131,7 @@ export class SesionGuard implements CanActivate {
       perfilId: sesion.user.profile?.id ?? null,
       handle: sesion.user.profile?.handle ?? null,
       tieneContrasena: Boolean(sesion.user.passwordHash),
+      udlapPendienteDesde,
     };
     req.sesion = {
       id: sesion.id,

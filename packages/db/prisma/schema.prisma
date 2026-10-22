@@ -136,6 +136,14 @@ model User {
   /// Fallos seguidos al entrar con contraseña; se bloquea al quinto.
   loginFallidos Int          @default(0)
   loginBloqueadoHasta DateTime?
+  /// Correo personal con el que se registró porque el código a la UDLAP no le
+  /// llegó. Solo vive mientras `udlapPendienteDesde` no sea null: al confirmar
+  /// el buzón UDLAP se borra. Único: un correo personal, una cuenta.
+  correoPersonal String? @unique
+  /// Registrada con correo personal: falta confirmar el buzón UDLAP (plazo en
+  /// @agora/auth, PLAZO_UDLAP_DIAS). Null = buzón UDLAP confirmado o cuenta de
+  /// antes, que siempre entró con el código institucional.
+  udlapPendienteDesde DateTime?
   /// Roles de @agora/rbac. Array para permitir moderador + miembro.
   roles        String[]      @default(["miembro"])
   createdAt    DateTime      @default(now())
@@ -257,6 +265,9 @@ model OtpCode {
   consumedAt  DateTime?
   /// Contador de intentos fallidos: frena la fuerza bruta sobre 6 digitos.
   intentos    Int       @default(0)
+  /// A dónde se mandó: "udlap" (el buzón institucional) o "personal" (registro
+  /// cuando el de la UDLAP no llega). Un código personal no sirve como UDLAP.
+  destino     String    @default("udlap")
   createdAt   DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

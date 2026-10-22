@@ -16,12 +16,17 @@ import {
   cambiarContrasenaSchema,
   crearContrasenaSchema,
   entrarSchema,
+  solicitarOtpPersonalSchema,
   solicitarOtpSchema,
+  verificarOtpPersonalSchema,
   verificarOtpSchema,
   type CambiarContrasena,
   type CrearContrasena,
   type Entrar,
+  type SolicitarOtpPersonal,
+  type VerificarOtpPersonal,
 } from '@agora/contracts';
+import { diasParaConfirmarUdlap, udlapVencida, vencimientoUdlap } from '@agora/auth';
 import { algunRolTienePermiso, esStaff, PERMISSIONS } from '@agora/rbac';
 
 import {
@@ -38,7 +43,7 @@ import {
   type RequestConSesion,
 } from '../comun/sesion.guard.js';
 import { EntregaService, type EstadoEnvio } from '../correo/entrega.service.js';
-import { AuthService } from './auth.service.js';
+import { AuthService, type SesionAbierta } from './auth.service.js';
 
 /** Los ids de seguimiento son UUID v4; cualquier otra cosa ni se busca. */
 const ID_ENVIO = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -47,6 +52,8 @@ const ID_ENVIO = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 interface RespuestaSesion {
   tienePerfil: boolean;
   tieneContrasena: boolean;
+  /** Registrada con correo personal: le falta confirmar su buzón UDLAP. */
+  udlapPendiente: boolean;
   token?: string;
   expiraEn?: Date;
 }
@@ -117,21 +124,46 @@ export class AuthController {
     @Req() req: RequestConSesion,
     @Res({ passthrough: true }) res: Response,
   ): Promise<RespuestaSesion> {
-    const { token, expiraEn, tienePerfil, tieneContrasena } = await this.auth.verificarCodigo(
+    const sesion = await this.auth.verificarCodigo(cuerpo.email, cuerpo.codigo, {
+      userAgent: req.headers['user-agent'],
+      ip: req.ip,
+    });
+    return responderSesion(sesion, cuerpo.modo, res);
+  }
+
+  /**
+   * Cuando el código al buzón UDLAP no llega: manda uno al correo personal,
+   * siempre que Microsoft confirme que el buzón UDLAP existe. Mismos topes que
+   * pedir el código normal (comparten cupo por cuenta).
+   */
+  @Post('otp/personal/solicitar')
+  @Throttle(LIMITE_OTP_SOLICITAR)
+  @LimitePorIp()
+  @HttpCode(204)
+  async solicitarPersonal(
+    @Body(new ZodPipe(solicitarOtpPersonalSchema)) cuerpo: SolicitarOtpPersonal,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const envioId = await this.auth.solicitarCodigoPersonal(cuerpo.email, cuerpo.correoPersonal);
+    if (envioId) res.setHeader('X-Envio-Id', envioId);
+  }
+
+  /** Canjea el código del correo personal. La cuenta queda pendiente de confirmar su UDLAP. */
+  @Post('otp/personal/verificar')
+  @Throttle(LIMITE_OTP_VERIFICAR)
+  @LimitePorIp()
+  async verificarPersonal(
+    @Body(new ZodPipe(verificarOtpPersonalSchema)) cuerpo: VerificarOtpPersonal,
+    @Req() req: RequestConSesion,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<RespuestaSesion> {
+    const sesion = await this.auth.verificarCodigoPersonal(
       cuerpo.email,
+      cuerpo.correoPersonal,
       cuerpo.codigo,
       { userAgent: req.headers['user-agent'], ip: req.ip },
     );
-
-    // La app nativa recibe el token y NO la cookie: guardarla no le serviria y
-    // dejarla puesta seria una copia de la sesion viviendo de mas.
-    if (cuerpo.modo === 'token') {
-      return { tienePerfil, tieneContrasena, token, expiraEn };
-    }
-
-    res.cookie(COOKIE_SESION, token, opcionesCookieSesion(expiraEn));
-
-    return { tienePerfil, tieneContrasena };
+    return responderSesion(sesion, cuerpo.modo, res);
   }
 
   /**
@@ -146,21 +178,14 @@ export class AuthController {
     @Req() req: RequestConSesion,
     @Res({ passthrough: true }) res: Response,
   ): Promise<RespuestaSesion> {
-    const { token, expiraEn, tienePerfil, tieneContrasena } = await this.auth.entrar(
+    const sesion = await this.auth.entrar(
       cuerpo.email,
       cuerpo.contrasena,
       { userAgent: req.headers['user-agent'], ip: req.ip },
       { recordarme: cuerpo.recordarme },
     );
-
-    if (cuerpo.modo === 'token') {
-      return { tienePerfil, tieneContrasena, token, expiraEn };
-    }
-
     // Sin "recordarme" la cookie no lleva fecha: muere al cerrar el navegador.
-    res.cookie(COOKIE_SESION, token, opcionesCookieSesion(cuerpo.recordarme ? expiraEn : null));
-
-    return { tienePerfil, tieneContrasena };
+    return responderSesion(sesion, cuerpo.modo, res, cuerpo.recordarme);
   }
 
   /**
@@ -196,6 +221,7 @@ export class AuthController {
     const perfil = usuario.perfilId
       ? await this.auth.resumenPerfil(usuario.perfilId)
       : null;
+    const ahora = new Date();
     return {
       id: usuario.id,
       email: usuario.email,
@@ -203,6 +229,11 @@ export class AuthController {
       handle: usuario.handle,
       tienePerfil: usuario.perfilId !== null,
       tieneContrasena: usuario.tieneContrasena,
+      // Registro con correo personal: falta confirmar el buzón UDLAP antes del plazo.
+      udlapPendiente: usuario.udlapPendienteDesde !== null,
+      udlapVenceEn: vencimientoUdlap(usuario.udlapPendienteDesde),
+      udlapVencida: udlapVencida(usuario.udlapPendienteDesde, ahora),
+      udlapDiasRestantes: diasParaConfirmarUdlap(usuario.udlapPendienteDesde, ahora),
       // Para que la pantalla sepa si esta sesion puede fijar contraseña sin la actual.
       viaCodigo: req.sesion?.viaCodigo ?? true,
       nombre: perfil ? `${perfil.nombre} ${perfil.apellidos}` : null,
@@ -226,4 +257,21 @@ export class AuthController {
       ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
     });
   }
+}
+
+/**
+ * Lo que devuelven las tres puertas (código UDLAP, código personal y
+ * contraseña). La app nativa recibe el token y NO la cookie: guardarla no le
+ * serviría y dejarla puesta sería una copia de la sesión viviendo de más.
+ */
+function responderSesion(
+  sesion: SesionAbierta,
+  modo: 'cookie' | 'token',
+  res: Response,
+  recordarme = true,
+): RespuestaSesion {
+  const { token, expiraEn, tienePerfil, tieneContrasena, udlapPendiente } = sesion;
+  if (modo === 'token') return { tienePerfil, tieneContrasena, udlapPendiente, token, expiraEn };
+  res.cookie(COOKIE_SESION, token, opcionesCookieSesion(recordarme ? expiraEn : null));
+  return { tienePerfil, tieneContrasena, udlapPendiente };
 }

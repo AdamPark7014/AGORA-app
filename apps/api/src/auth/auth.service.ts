@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -23,12 +25,14 @@ import {
   minutosDeBloqueo,
   puedeEnviar,
   puedeFijarSinActual,
+  RESULTADO_BUZON,
   RESULTADO_MAESTRO,
   validarContrasena,
   verificarMaestro,
   vencimientoDesde,
   vencimientoSesion,
   verificarCodigo,
+  type CodigoGuardado,
   type SesionParaContrasena,
 } from '@agora/auth';
 import type { EstadoUsuario } from '@agora/db';
@@ -37,6 +41,7 @@ import { comunidadesDelPerfil, SLUG_COMUNIDAD_CAMPUS_UDLAP } from '@agora/shared
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CorreoService } from '../correo/correo.service.js';
 import { hashContrasena, hashSenuelo, verificarContrasena } from './contrasena.js';
+import { existeBuzonUdlap, type VerificadorBuzon } from './buzon-udlap.js';
 
 /**
  * Un solo mensaje para correo desconocido, cuenta sin contraseña y contraseña
@@ -47,11 +52,15 @@ import { hashContrasena, hashSenuelo, verificarContrasena } from './contrasena.j
 export const MENSAJE_ENTRADA_INVALIDA =
   'Correo o contraseña incorrectos. Si es tu primera vez o aún no tienes contraseña, entra con un código a tu correo.';
 
+export const MENSAJE_CODIGO_INVALIDO = 'Codigo invalido o vencido.';
+
 export interface SesionAbierta {
   readonly token: string;
   readonly expiraEn: Date;
   readonly tienePerfil: boolean;
   readonly tieneContrasena: boolean;
+  /** Registrada con correo personal: le falta confirmar su buzón UDLAP. */
+  readonly udlapPendiente: boolean;
 }
 
 interface OpcionesSesion {
@@ -59,13 +68,27 @@ interface OpcionesSesion {
   readonly viaCodigo: boolean;
   /** "Recordarme": medio año renovable. false = un dia, sin renovar. */
   readonly persistente: boolean;
+  /**
+   * El código llegó al buzón UDLAP: eso, y solo eso, confirma el correo
+   * institucional (`emailVerifiedAt`). Ni la contraseña ni el código al
+   * correo personal lo hacen.
+   */
+  readonly confirmaUdlap: boolean;
 }
 
-const SESION_POR_CODIGO: OpcionesSesion = { viaCodigo: true, persistente: true };
+const SESION_POR_CODIGO: OpcionesSesion = { viaCodigo: true, persistente: true, confirmaUdlap: true };
+const SESION_POR_CODIGO_PERSONAL: OpcionesSesion = {
+  viaCodigo: true,
+  persistente: true,
+  confirmaUdlap: false,
+};
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+
+  /** Pregunta a Microsoft si el buzón UDLAP existe. Se reemplaza en las pruebas. */
+  verificarBuzon: VerificadorBuzon = existeBuzonUdlap;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -117,14 +140,33 @@ export class AuthService {
       create: { email, universityId: universidad.id },
     });
 
+    await this.revisarCupo(usuario.id, ahora);
+
+    const codigo = generarCodigo();
+    await this.prisma.otpCode.create({
+      data: {
+        userId: usuario.id,
+        codeHash: hashCodigo(codigo, email, this.secreto),
+        expiresAt: vencimientoDesde(ahora),
+      },
+    });
+
+    return (await this.correo.enviarCodigo(email, codigo)) ?? null;
+  }
+
+  /**
+   * Uno por minuto y diez al día por cuenta, cuente el buzón al que se mande:
+   * pedir al correo personal no abre un segundo cupo.
+   */
+  private async revisarCupo(userId: string, ahora: Date): Promise<void> {
     const hace24h = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
     const [ultimo, enviosUltimas24h] = await Promise.all([
       this.prisma.otpCode.findFirst({
-        where: { userId: usuario.id },
+        where: { userId },
         orderBy: { createdAt: 'desc' },
         select: { createdAt: true },
       }),
-      this.prisma.otpCode.count({ where: { userId: usuario.id, createdAt: { gte: hace24h } } }),
+      this.prisma.otpCode.count({ where: { userId, createdAt: { gte: hace24h } } }),
     ]);
 
     const permiso = puedeEnviar(
@@ -143,17 +185,6 @@ export class AuthService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-
-    const codigo = generarCodigo();
-    await this.prisma.otpCode.create({
-      data: {
-        userId: usuario.id,
-        codeHash: hashCodigo(codigo, email, this.secreto),
-        expiresAt: vencimientoDesde(ahora),
-      },
-    });
-
-    return (await this.correo.enviarCodigo(email, codigo)) ?? null;
   }
 
   /**
@@ -180,18 +211,38 @@ export class AuthService {
       where: { email },
       include: { profile: { select: { id: true } } },
     });
-    if (!usuario) throw new UnauthorizedException('Codigo invalido o vencido.');
+    if (!usuario) throw new UnauthorizedException(MENSAJE_CODIGO_INVALIDO);
 
+    // Solo un código mandado al buzón UDLAP prueba el buzón UDLAP: el del
+    // correo personal tiene su propio canje.
     const guardado = await this.prisma.otpCode.findFirst({
-      where: { userId: usuario.id },
+      where: { userId: usuario.id, destino: 'udlap' },
       orderBy: { createdAt: 'desc' },
     });
-    if (!guardado) throw new UnauthorizedException('Codigo invalido o vencido.');
+    if (!guardado) throw new UnauthorizedException(MENSAJE_CODIGO_INVALIDO);
 
-    const resultado = verificarCodigo(codigo, email, guardado, this.secreto, ahora);
+    await this.canjear(guardado, codigo, email, ahora);
+
+    if (usuario.udlapPendienteDesde) {
+      return this.abrirSesion(await this.concluirUdlap(usuario, ahora), contexto, ahora);
+    }
+    return this.abrirSesion(usuario, contexto, ahora);
+  }
+
+  /**
+   * Da por bueno un código o lanza el 401 de siempre. Compartido por el código
+   * UDLAP y el personal: la defensa contra la fuerza bruta es la misma.
+   */
+  private async canjear(
+    guardado: CodigoGuardado & { id: string },
+    codigo: string,
+    correoDelCodigo: string,
+    ahora: Date,
+  ): Promise<void> {
+    const resultado = verificarCodigo(codigo, correoDelCodigo, guardado, this.secreto, ahora);
     // Mensaje unico: distinguir "vencido" de "incorrecto" le dice a un
     // atacante si acerto el codigo pero llego tarde.
-    const invalido = new UnauthorizedException('Codigo invalido o vencido.');
+    const invalido = new UnauthorizedException(MENSAJE_CODIGO_INVALIDO);
 
     // Expirado, usado o sin intentos ya no sirven de nada: no se descuenta
     // nada, que solo castigaria al usuario legitimo.
@@ -215,8 +266,146 @@ export class AuthService {
       data: { consumedAt: ahora },
     });
     if (consumido.count !== 1) throw invalido;
+  }
 
-    return this.abrirSesion(usuario, contexto, ahora);
+  /**
+   * Quien recibe el código en el buzón UDLAP es el dueño de la cuenta, punto.
+   * Si la cuenta se abrió con un correo personal, al confirmar se borran ese
+   * correo y la contraseña y se cierran todas las sesiones: si fue otra persona
+   * la que se registró con este correo, se queda fuera. El dueño elige su
+   * contraseña de nuevo (la pantalla lo pide porque `tieneContrasena` sale false).
+   */
+  private async concluirUdlap<T extends { id: string }>(usuario: T, ahora: Date) {
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: usuario.id },
+        data: {
+          udlapPendienteDesde: null,
+          correoPersonal: null,
+          passwordHash: null,
+          passwordSetAt: null,
+        },
+      }),
+      this.prisma.session.updateMany({
+        where: { userId: usuario.id, revokedAt: null },
+        data: { revokedAt: ahora },
+      }),
+    ]);
+    this.logger.log(`Correo UDLAP confirmado para ${usuario.id}; se borró el registro con correo personal`);
+    return { ...usuario, udlapPendienteDesde: null, correoPersonal: null, passwordHash: null };
+  }
+
+  // -------------------------------------------------------------------------
+  // Correo personal: cuando el código a la UDLAP no llega.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Manda un código al correo personal para registrarse con un correo UDLAP
+   * cuyo código no llegó. Antes, Microsoft tiene que confirmar que el buzón
+   * UDLAP existe: así nadie se inventa una cuenta, y la UDLAP queda pendiente
+   * de confirmar (plazo en @agora/auth).
+   *
+   * Solo para cuentas que nunca confirmaron su UDLAP: una cuenta confirmada
+   * entra con contraseña o con el código institucional, no con un correo
+   * cualquiera.
+   */
+  async solicitarCodigoPersonal(
+    email: string,
+    correoPersonal: string,
+    ahora = new Date(),
+  ): Promise<string | null> {
+    const universidad = await this.prisma.university.findFirst({
+      where: { emailDomain: email.split('@')[1], activa: true },
+    });
+    if (!universidad) throw new BadRequestException('Ese dominio no esta habilitado.');
+
+    const existente = await this.prisma.user.findUnique({ where: { email } });
+    if (existente?.emailVerifiedAt) {
+      throw new ConflictException(
+        'Esa cuenta ya confirmó su correo UDLAP: entra con tu contraseña o pide el código a tu correo UDLAP.',
+      );
+    }
+    if (existente?.correoPersonal && existente.correoPersonal !== correoPersonal) {
+      throw new ConflictException(
+        'Esta cuenta se registró con otro correo personal. Usa ese, o el código a tu correo UDLAP.',
+      );
+    }
+    const ligado = await this.prisma.user.findUnique({ where: { correoPersonal } });
+    if (ligado && ligado.id !== existente?.id) {
+      throw new ConflictException('Ese correo personal ya está ligado a otra cuenta de Ágora.');
+    }
+
+    const buzon = await this.verificarBuzon(email);
+    if (buzon === RESULTADO_BUZON.NO_EXISTE) {
+      throw new BadRequestException('Ese correo no existe en la UDLAP. Revisa que esté bien escrito.');
+    }
+    if (buzon !== RESULTADO_BUZON.EXISTE) {
+      throw new ServiceUnavailableException(
+        'No pudimos confirmar tu correo UDLAP en este momento. Intenta en unos minutos o pide el código a tu correo UDLAP.',
+      );
+    }
+
+    const usuario =
+      existente ??
+      (await this.prisma.user.upsert({
+        where: { email },
+        update: {},
+        create: { email, universityId: universidad.id },
+      }));
+
+    await this.revisarCupo(usuario.id, ahora);
+
+    const codigo = generarCodigo();
+    await this.prisma.otpCode.create({
+      data: {
+        userId: usuario.id,
+        destino: 'personal',
+        // Atado al correo personal: un código mandado a otro correo no sirve aquí.
+        codeHash: hashCodigo(codigo, correoPersonal, this.secreto),
+        expiresAt: vencimientoDesde(ahora),
+      },
+    });
+    this.logger.log(`Código al correo personal para ${usuario.id} (buzón UDLAP confirmado por Microsoft)`);
+
+    return (await this.correo.enviarCodigo(correoPersonal, codigo)) ?? null;
+  }
+
+  /** Canjea el código del correo personal. La cuenta queda pendiente de UDLAP. */
+  async verificarCodigoPersonal(
+    email: string,
+    correoPersonal: string,
+    codigo: string,
+    contexto: { userAgent?: string; ip?: string },
+    ahora = new Date(),
+  ): Promise<SesionAbierta> {
+    const invalido = new UnauthorizedException(MENSAJE_CODIGO_INVALIDO);
+    const usuario = await this.prisma.user.findUnique({
+      where: { email },
+      include: { profile: { select: { id: true } } },
+    });
+    if (!usuario || usuario.emailVerifiedAt) throw invalido;
+    if (usuario.correoPersonal && usuario.correoPersonal !== correoPersonal) throw invalido;
+
+    const guardado = await this.prisma.otpCode.findFirst({
+      where: { userId: usuario.id, destino: 'personal' },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!guardado) throw invalido;
+
+    await this.canjear(guardado, codigo, correoPersonal, ahora);
+
+    const udlapPendienteDesde = usuario.udlapPendienteDesde ?? ahora;
+    await this.prisma.user.update({
+      where: { id: usuario.id },
+      data: { correoPersonal, udlapPendienteDesde },
+    });
+
+    return this.abrirSesion(
+      { ...usuario, udlapPendienteDesde },
+      contexto,
+      ahora,
+      SESION_POR_CODIGO_PERSONAL,
+    );
   }
 
   /** Busca o crea el usuario del codigo maestro. Solo se llama en desarrollo. */
@@ -245,6 +434,7 @@ export class AuthService {
       estado: EstadoUsuario;
       emailVerifiedAt: Date | null;
       passwordHash?: string | null;
+      udlapPendienteDesde?: Date | null;
       profile: { id: string } | null;
     },
     contexto: { userAgent?: string; ip?: string },
@@ -264,7 +454,9 @@ export class AuthService {
       this.prisma.user.update({
         where: { id: usuario.id },
         data: {
-          emailVerifiedAt: usuario.emailVerifiedAt ?? ahora,
+          emailVerifiedAt: opciones.confirmaUdlap
+            ? (usuario.emailVerifiedAt ?? ahora)
+            : usuario.emailVerifiedAt,
           estado,
           lastSeenAt: ahora,
           // Entrar (por el camino que sea) limpia el bloqueo por intentos: si
@@ -292,6 +484,7 @@ export class AuthService {
       expiraEn,
       tienePerfil: Boolean(usuario.profile),
       tieneContrasena: Boolean(usuario.passwordHash),
+      udlapPendiente: Boolean(usuario.udlapPendienteDesde),
     };
   }
 
@@ -334,6 +527,7 @@ export class AuthService {
     return this.abrirSesion(usuario, contexto, ahora, {
       viaCodigo: false,
       persistente: opciones.recordarme,
+      confirmaUdlap: false,
     });
   }
 

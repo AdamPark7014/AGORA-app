@@ -181,3 +181,34 @@ test('la contraseña nueva mide entre 8 y 128', () => {
   assert.equal(cambiarContrasenaSchema.safeParse({ actual: '', nueva: 'ocho-888' }).success, false);
   assert.equal(cambiarContrasenaSchema.safeParse({ actual: 'vieja', nueva: 'ocho-888' }).success, true);
 });
+
+test('registro con correo personal: otro dominio, nunca la UDLAP', async () => {
+  const { solicitarOtpPersonalSchema, verificarOtpPersonalSchema } = await import('./index.js');
+  const ok = solicitarOtpPersonalSchema.parse({
+    email: ' Ana.R@UDLAP.MX ',
+    correoPersonal: ' Ana.Ramirez@Gmail.com ',
+  });
+  assert.equal(ok.email, 'ana.r@udlap.mx');
+  assert.equal(ok.correoPersonal, 'ana.ramirez@gmail.com');
+  assert.equal(
+    solicitarOtpPersonalSchema.safeParse({ email: 'a@udlap.mx', correoPersonal: 'otra@udlap.mx' }).success,
+    false,
+    'el personal no puede ser de la UDLAP',
+  );
+  assert.equal(
+    solicitarOtpPersonalSchema.safeParse({ email: 'a@udlap.mx', correoPersonal: 'sin-arroba' }).success,
+    false,
+  );
+  assert.equal(
+    solicitarOtpPersonalSchema.safeParse({ email: 'a@gmail.com', correoPersonal: 'b@gmail.com' }).success,
+    false,
+    'la cuenta sigue siendo un correo UDLAP',
+  );
+  const v = verificarOtpPersonalSchema.parse({
+    email: 'a@udlap.mx',
+    correoPersonal: 'b@gmail.com',
+    codigo: '123456',
+    modo: 'token',
+  });
+  assert.equal(v.modo, 'token');
+});

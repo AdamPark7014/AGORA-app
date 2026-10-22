@@ -57,6 +57,36 @@ export const verificarOtpSchema = z.object({
 export type VerificarOtp = z.infer<typeof verificarOtpSchema>;
 
 /**
+ * Correo personal para registrarse cuando el código a la UDLAP no llega. Tiene
+ * que ser de otro dominio: con uno @udlap.mx el camino normal ya sirve.
+ */
+export const correoPersonalSchema = z
+  .string()
+  .trim()
+  .min(5)
+  .max(254)
+  .transform(normalizarCorreo)
+  .refine((c) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(c), {
+    message: 'Escribe un correo válido.',
+  })
+  .refine((c) => !esCorreoUdlap(c) && !c.endsWith('@udlap.mx'), {
+    message: 'Usa un correo personal (Gmail, Outlook, iCloud…), no el de la UDLAP.',
+  });
+
+/** Pedir el código al correo personal: el UDLAP de la cuenta + el personal. */
+export const solicitarOtpPersonalSchema = z.object({
+  email: correoUdlapSchema,
+  correoPersonal: correoPersonalSchema,
+});
+export type SolicitarOtpPersonal = z.infer<typeof solicitarOtpPersonalSchema>;
+
+/** Canjear el código que llegó al correo personal. */
+export const verificarOtpPersonalSchema = verificarOtpSchema.extend({
+  correoPersonal: correoPersonalSchema,
+});
+export type VerificarOtpPersonal = z.infer<typeof verificarOtpPersonalSchema>;
+
+/**
  * Contraseña personal. El largo se valida aquí; las reglas de fondo (muy
  * común, contiene el correo) viven en @agora/auth y las aplica la API, que es
  * la que conoce el correo de la cuenta.
