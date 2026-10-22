@@ -156,6 +156,9 @@ services:
       APNS_TEAM_ID: ${APNS_TEAM_ID:-}
       APNS_SIGNING_KEY: ${APNS_SIGNING_KEY:-}
       APNS_BUNDLE_ID: ${APNS_BUNDLE_ID:-}
+      # true = api.push.apple.com (TestFlight y App Store). Sin esto el API usa el sandbox y los
+      # tokens de las builds firmadas para distribución dan BadDeviceToken.
+      APNS_PRODUCTION: ${APNS_PRODUCTION:-false}
     healthcheck:
       test:
         [
