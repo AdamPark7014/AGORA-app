@@ -40,7 +40,16 @@ proyectos (nunca `volume prune`).
   la sesión de móvil (`gradlew --stop`). En Chrome quedó Play Console en «Crear aplicación» con nombre
   «Ágora UDLAP», paquete e idioma es-419 ya puestos (faltan Aplicación/Gratis, las dos declaraciones y
   Crear → Pruebas internas → Crear versión → arrastrar el AAB) y Apple en su inicio de sesión; la
-  extensión se desconectó antes de terminar. Los
+  extensión se desconectó antes de terminar.
+- **22-10, con Chrome de vuelta:** app «Ágora UDLAP» **creada** en Play Console (id
+  `4973131523055175748`, es-419, gratis) y versión 1 (1.0.0) de Prueba interna con el bundle subido y
+  notas, detenida en «Revisar y confirmar» → **falta el clic de Adam en «Guardar y publicar»** (el
+  clasificador de permisos de Claude lo bloquea como transacción real). Se subió
+  `bundle/release/agora-1.0.0-play.aab` (4.8 MB): copia sin el mapa de R8 vuelta a firmar con la
+  llave de subida, porque el original (11 MB) pasaba el tope de 10 MB de la subida por navegador;
+  el `mapping.txt` se puede subir aparte (`docs/PLAY_STORE.md`). Apple: «Register a New Key» con
+  nombre «Agora UDLAP APNs» y APNs marcado, en «Configure Key»; Adam elige *Sandbox & Production*,
+  Save, Continue, Register y descarga el `.p8` (también bloqueado para Claude). Los
   vectores de Android/iOS están validados como XML pero **sin compilar** aquí (la sesión de
   móvil corre gradle en el mismo checkout; su `assembleDebug` los compila).
 

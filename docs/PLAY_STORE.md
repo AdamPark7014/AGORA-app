@@ -1,9 +1,19 @@
 # Google Play: subir Ágora para Android
 
-Estado al 21-10-2026: hay AAB de release firmado y Firebase/FCM real; falta crear la app en
-Play Console y subir el AAB (lo hace Adam a mano: la cuenta de desarrollador es la de NEXARA,
-«New Engineering Expertise And Resource Advancement», y el archivo pesa más de lo que la
-herramienta de subida de Claude admite).
+Estado al 22-10-2026: la app **«Ágora UDLAP» ya existe** en Play Console (cuenta de NEXARA,
+«New Engineering Expertise And Resource Advancement»; id de app `4973131523055175748`) y la
+versión **1 (1.0.0)** de **Prueba interna** está creada con el bundle subido y notas en es-419,
+detenida en «Revisar y confirmar»: falta el clic de Adam en **Guardar y publicar** (a Claude se lo
+bloquea su clasificador de permisos). Advertencias aceptables: sin testers todavía, sin archivo de
+desofuscación y sin símbolos nativos.
+
+**Por qué se subió `agora-1.0.0-play.aab` y no `app-release.aab`:** el bundle de Gradle lleva dentro el
+mapa de R8 (80 MB sin comprimir, ~6 MB comprimido) y pasaba el tope de 10 MB de la herramienta de
+subida del navegador. Se hizo una copia sin
+`BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map`, vuelta a firmar con `jarsigner`
+y la llave de subida (4.8 MB, `jar verified`). Para ver trazas legibles en Android vitals, subir
+`app/build/outputs/mapping/release/mapping.txt` en App bundle explorer → versión 1 → Archivos de
+desofuscación. Las siguientes subidas van por `android-play.yml` (API, sin tope) y llevan el mapa.
 
 ## Archivos
 
