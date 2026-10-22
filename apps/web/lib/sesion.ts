@@ -37,6 +37,14 @@ export interface Sesion {
   tieneContrasena: boolean;
   /** Esta sesión se abrió con un código al correo (no con contraseña). */
   viaCodigo?: boolean;
+  /** Se registró con correo personal y aún no confirma su buzón @udlap.mx. */
+  udlapPendiente?: boolean;
+  /** Fin del plazo para confirmar la UDLAP (ISO), o null si no hay pendiente. */
+  udlapVenceEn?: string | null;
+  /** Pasó el plazo: la API responde 403 fuera de /auth y /cuenta hasta confirmar. */
+  udlapVencida?: boolean;
+  /** Días que quedan, redondeados hacia arriba; null si no hay pendiente. */
+  udlapDiasRestantes?: number | null;
 }
 
 const VIDA_MS = 30_000;

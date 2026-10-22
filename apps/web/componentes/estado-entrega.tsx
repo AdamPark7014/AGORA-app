@@ -27,11 +27,15 @@ export function EstadoEntrega({
   email,
   onCorregir,
   onReenviar,
+  buzon = 'udlap',
 }: {
   envioId: string;
   email: string;
-  onCorregir: () => void;
+  /** Sin él no se ofrece "Cambiar correo" (p. ej. el correo UDLAP de la cuenta). */
+  onCorregir?: () => void;
   onReenviar: () => void;
+  /** A qué buzón va el código: cambia los textos que hablan de Outlook/UDLAP. */
+  buzon?: 'udlap' | 'personal';
 }) {
   const [estado, setEstado] = useState<Estado>('enviado');
   const [agotado, setAgotado] = useState(false);
@@ -76,7 +80,7 @@ export function EstadoEntrega({
 
   if (perdido) return null;
 
-  const textos = copy.login.codigo.entrega;
+  const textos = buzon === 'personal' ? copy.login.personal.entrega : copy.login.codigo.entrega;
   const reenviar = (
     <button type="button" className="entrega-accion" onClick={onReenviar}>
       {copy.login.codigo.reenviar}
@@ -97,10 +101,15 @@ export function EstadoEntrega({
       <p className="entrega entrega-mal" role="alert">
         <CircleAlert size={18} aria-hidden />
         <span>
-          {textos.rebotado(email)}{' '}
-          <button type="button" className="entrega-accion" onClick={onCorregir}>
-            {copy.login.codigo.cambiarCorreo}
-          </button>
+          {textos.rebotado(email)}
+          {onCorregir && (
+            <>
+              {' '}
+              <button type="button" className="entrega-accion" onClick={onCorregir}>
+                {copy.login.codigo.cambiarCorreo}
+              </button>
+            </>
+          )}
         </span>
       </p>
     );

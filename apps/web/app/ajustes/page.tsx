@@ -9,6 +9,7 @@ import { SuscribirPush } from '@/componentes/suscribir-push';
 import { PreferenciasNotificaciones } from '@/componentes/preferencias-notificaciones';
 import { EliminarCuenta } from '@/componentes/eliminar-cuenta';
 import { SeccionContrasena } from '@/componentes/seccion-contrasena';
+import { SeccionUdlap } from '@/componentes/seccion-udlap';
 import { EsqueletoPerfil } from '@/componentes/esqueleto';
 import { EstadoError } from '@/componentes/estado-error';
 
@@ -209,6 +210,9 @@ export default function Ajustes() {
       <p className="entradilla">
         Entre más cuentes, más fácil que alguien encuentre de qué hablarte.
       </p>
+
+      {/* Arriba de todo: si la cuenta espera confirmar su UDLAP, el plazo corre. */}
+      <SeccionUdlap />
 
       <form className="tarjeta" onSubmit={guardar}>
         <label className="campo">

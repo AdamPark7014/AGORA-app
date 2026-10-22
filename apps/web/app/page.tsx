@@ -22,11 +22,22 @@ import { Isotipo } from '@/componentes/isotipo';
  *    cuenta, para una cuenta de antes que aún no tiene contraseña y para
  *    "olvidé mi contraseña". Es la única verificación institucional, y por
  *    eso no se quita: solo se pide una vez.
+ *  - `personal` → `codigoPersonal`: si el código al buzón UDLAP no llega, la
+ *    API le pregunta a Microsoft si ese buzón existe y manda el código al
+ *    correo personal. La cuenta queda pendiente: 30 días para confirmar la
+ *    UDLAP desde Ajustes.
  *  - `contrasena`: después del código, cuando la cuenta no tiene contraseña o
  *    se vino por "olvidé", se elige una antes de pasar.
  */
-type Paso = 'entrar' | 'pedir' | 'codigo' | 'contrasena';
+type Paso = 'entrar' | 'pedir' | 'codigo' | 'personal' | 'codigoPersonal' | 'contrasena';
 type Motivo = 'registro' | 'olvide';
+
+/** Lo que contestan las puertas de código (UDLAP y correo personal). */
+interface RespuestaVerificar {
+  tienePerfil: boolean;
+  tieneContrasena?: boolean;
+  udlapPendiente?: boolean;
+}
 
 /** La API no deja pedir otro código antes de un minuto; la pantalla lo cuenta. */
 const ESPERA_REENVIO_S = 60;
@@ -49,6 +60,10 @@ export default function Entrar() {
   const [aviso, setAviso] = useState<string | null>(null);
   /** Id de seguimiento del ultimo codigo enviado (cabecera X-Envio-Id). */
   const [envioId, setEnvioId] = useState<string | null>(null);
+  /** Correo personal para cuando el código al buzón UDLAP no llega. */
+  const [correoPersonal, setCorreoPersonal] = useState('');
+  /** Seguimiento del código mandado al correo personal (aparte del UDLAP). */
+  const [envioPersonalId, setEnvioPersonalId] = useState<string | null>(null);
   const [segundos, setSegundos] = useState(0);
   const [tienePerfil, setTienePerfil] = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -147,24 +162,91 @@ export default function Entrar() {
     setError(null);
     setCargando(true);
     try {
-      const r = await api<{ tienePerfil: boolean; tieneContrasena?: boolean }>('/auth/otp/verificar', {
+      const r = await api<RespuestaVerificar>('/auth/otp/verificar', {
         method: 'POST',
         body: JSON.stringify({ email, codigo }),
       });
-      setTienePerfil(r.tienePerfil);
-      // Sin contraseña todavía (cuenta nueva o de antes), o vino a cambiarla:
-      // se elige antes de entrar. Si ya tiene y solo prefirió el código, pasa.
-      if (!r.tieneContrasena || motivo === 'olvide') {
-        olvidarSesion();
-        setPaso('contrasena');
-      } else {
-        terminar(r.tienePerfil);
-      }
+      trasVerificar(r);
     } catch (e) {
       setError(e instanceof ErrorApi ? e.message : copy.login.errores.verificar);
     } finally {
       setCargando(false);
     }
+  }
+
+  /** Lo mismo tras el código UDLAP que tras el del correo personal. */
+  function trasVerificar(r: RespuestaVerificar) {
+    setTienePerfil(r.tienePerfil);
+    // Sin contraseña todavía (cuenta nueva o de antes), o vino a cambiarla:
+    // se elige antes de entrar. Si ya tiene y solo prefirió el código, pasa.
+    if (!r.tieneContrasena || motivo === 'olvide') {
+      olvidarSesion();
+      setPaso('contrasena');
+    } else {
+      terminar(r.tienePerfil);
+    }
+  }
+
+  /** El código UDLAP no llegó: se manda al correo personal (Microsoft confirma el buzón). */
+  async function pedirCodigoPersonal(evento?: React.FormEvent) {
+    evento?.preventDefault();
+    setError(null);
+    setCargando(true);
+    try {
+      const { cabeceras } = await apiConCabeceras('/auth/otp/personal/solicitar', {
+        method: 'POST',
+        body: JSON.stringify({ email, correoPersonal }),
+      });
+      setEnvioPersonalId(cabeceras.get('x-envio-id'));
+      setAviso(null);
+      setCodigo('');
+      setSegundos(ESPERA_REENVIO_S);
+      setPaso('codigoPersonal');
+    } catch (e) {
+      // Reenviar antes del minuto desde el paso del código: el anterior sigue
+      // valiendo, así que se queda ahí con la cuenta regresiva. Desde el
+      // formulario no hay código personal todavía: solo el mensaje.
+      if (e instanceof ErrorApi && e.estado === 429 && paso === 'codigoPersonal') {
+        setAviso(e.message);
+        setSegundos(ESPERA_REENVIO_S);
+      } else {
+        setError(e instanceof ErrorApi ? e.message : copy.login.errores.enviarCodigo);
+      }
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  async function verificarPersonal(evento: React.FormEvent) {
+    evento.preventDefault();
+    setError(null);
+    setCargando(true);
+    try {
+      const r = await api<RespuestaVerificar>('/auth/otp/personal/verificar', {
+        method: 'POST',
+        body: JSON.stringify({ email, correoPersonal, codigo, modo: 'cookie' }),
+      });
+      trasVerificar(r);
+    } catch (e) {
+      setError(e instanceof ErrorApi ? e.message : copy.login.errores.verificar);
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  function volverAlCodigoUdlap() {
+    setPaso('codigo');
+    setCodigo('');
+    setError(null);
+    setAviso(envioId ? null : copy.login.codigo.avisoOutlook);
+  }
+
+  function volverAlCorreoPersonal() {
+    setPaso('personal');
+    setCodigo('');
+    setError(null);
+    setAviso(null);
+    setEnvioPersonalId(null);
   }
 
   if (reconociendo) {
@@ -308,6 +390,109 @@ export default function Entrar() {
     );
   }
 
+  if (paso === 'personal') {
+    const textos = copy.login.personal;
+    return (
+      <main className="landing">
+        <div className="landing-hero">
+          <Isotipo className="marca-punto landing-marca" />
+          <h1>{textos.titulo}</h1>
+          <p className="entradilla">{textos.explicacion}</p>
+        </div>
+
+        <form className="landing-form" onSubmit={pedirCodigoPersonal}>
+          <label className="campo">
+            <span>{textos.etiqueta}</span>
+            <input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoFocus
+              required
+              placeholder={textos.placeholder}
+              value={correoPersonal}
+              onChange={(e) => setCorreoPersonal(e.target.value)}
+            />
+          </label>
+          <button type="submit" className="grande" disabled={cargando}>
+            {cargando ? textos.botonEnviando : textos.boton}
+          </button>
+          <div aria-live="polite">{error && <p className="error">{error}</p>}</div>
+          <div className="landing-enlaces">
+            <button type="button" className="fantasma" onClick={volverAlCodigoUdlap}>
+              {textos.volver}
+            </button>
+          </div>
+        </form>
+      </main>
+    );
+  }
+
+  if (paso === 'codigoPersonal') {
+    return (
+      <main className="landing">
+        <div className="landing-hero">
+          <Isotipo className="marca-punto landing-marca" />
+          <h1>{copy.login.codigo.titulo}</h1>
+          <p className="entradilla">{copy.login.personal.entradilla(correoPersonal)}</p>
+        </div>
+
+        <form className="landing-form" onSubmit={verificarPersonal}>
+          {envioPersonalId && (
+            <EstadoEntrega
+              envioId={envioPersonalId}
+              email={correoPersonal}
+              buzon="personal"
+              onCorregir={volverAlCorreoPersonal}
+              onReenviar={() => void pedirCodigoPersonal()}
+            />
+          )}
+          {aviso && <p className="nota">{aviso}</p>}
+          <label className="campo campo-codigo">
+            <span>{copy.login.codigo.etiqueta}</span>
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="\d{6}"
+              maxLength={6}
+              autoFocus
+              required
+              placeholder={copy.login.codigo.placeholder}
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
+            />
+          </label>
+
+          <button type="submit" className="grande" disabled={cargando || codigo.length !== 6}>
+            {cargando ? copy.login.codigo.botonVerificando : copy.login.codigo.boton}
+          </button>
+
+          <div className="acciones" style={{ marginTop: 12, justifyContent: 'center' }}>
+            <button type="button" className="fantasma" onClick={volverAlCorreoPersonal}>
+              {copy.login.codigo.cambiarCorreo}
+            </button>
+            <button
+              type="button"
+              className="fantasma"
+              disabled={cargando || segundos > 0}
+              onClick={() => void pedirCodigoPersonal()}
+            >
+              {segundos > 0 ? copy.login.codigo.reenviarEn(segundos) : copy.login.codigo.reenviar}
+            </button>
+          </div>
+
+          <div aria-live="polite">{error && <p className="error">{error}</p>}</div>
+        </form>
+
+        <p className="tenue" style={{ textAlign: 'center', marginTop: 18 }}>
+          {copy.login.codigo.pie} {copy.login.personal.tarda}
+          <br />
+          {copy.login.codigo.remitente}
+        </p>
+      </main>
+    );
+  }
+
   if (paso === 'contrasena') {
     const clave = motivo === 'olvide' ? 'olvide' : 'crear';
     return (
@@ -376,6 +561,12 @@ export default function Entrar() {
         </div>
 
         <div aria-live="polite">{error && <p className="error">{error}</p>}</div>
+
+        <div className="landing-enlaces">
+          <button type="button" className="fantasma" onClick={() => irA('personal')}>
+            {copy.login.personal.enlace}
+          </button>
+        </div>
       </form>
 
       <p className="tenue" style={{ textAlign: 'center', marginTop: 18 }}>

@@ -3761,3 +3761,40 @@ button.perfil-cifra:hover strong {
 .aviso-contrasena a {
   font-weight: 600;
 }
+
+/* Cuenta registrada con correo personal: confirmar la UDLAP (componentes/aviso-udlap.tsx). */
+.aviso-udlap {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border-radius: var(--radio-chico);
+  background: var(--naranja-suave);
+  font-size: 0.9rem;
+}
+
+.aviso-udlap > p {
+  margin: 4px 0 12px;
+  color: var(--texto-medio);
+}
+
+.aviso-udlap .landing-form,
+.tarjeta .confirmar-udlap .landing-form {
+  margin-bottom: 0;
+}
+
+.confirmar-udlap-titulo {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.confirmar-udlap-texto {
+  margin: 0 0 12px;
+  font-size: 0.88rem;
+  color: var(--texto-medio);
+}
+
+.confirmar-udlap-pie {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  text-align: center;
+}

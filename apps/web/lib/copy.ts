@@ -76,6 +76,70 @@ export const copy = {
         sinNoticias: 'Sigue en camino. Si en un par de minutos no aparece, reenvíalo.',
       },
     },
+    /**
+     * Registro con correo personal, para cuando el código al buzón @udlap.mx no
+     * llega. La cuenta queda pendiente 30 días hasta confirmar la UDLAP.
+     */
+    personal: {
+      enlace: '¿No te llegó? Regístrate con tu correo personal',
+      titulo: 'Regístrate con tu correo personal',
+      explicacion:
+        'Le preguntamos a Microsoft si tu correo UDLAP existe y te mandamos el código a tu correo personal. Después tendrás 30 días para confirmar tu correo UDLAP desde Ajustes.',
+      etiqueta: 'Tu correo personal',
+      placeholder: 'nombre@gmail.com',
+      boton: 'Mandar el código a mi correo personal',
+      botonEnviando: 'Enviando…',
+      volver: 'Volver al código UDLAP',
+      entradilla: (correo: string) => `Te mandamos 6 dígitos a ${correo}.`,
+      tarda: 'Si no lo ves en la bandeja principal, revisa Spam o Promociones.',
+      /** Seguimiento de entrega al correo personal (ahí no hay Outlook de la UDLAP). */
+      entrega: {
+        enviado: 'Enviando tu código…',
+        demorado: 'Tu correo está tardando en aceptarlo. Se reintenta solo; dale un minuto.',
+        entregado:
+          'Entregado en tu correo personal. Si no está en la bandeja principal, revisa Spam o Promociones.',
+        rebotado: (email: string) =>
+          `Rechazaron ${email}: esa dirección no existe. Revisa que esté bien escrita.`,
+        bloqueado:
+          'Esa dirección había rebotado antes y estaba en pausa. Ya la liberamos: pide el código otra vez.',
+        error: 'No pudimos entregarlo. Intenta de nuevo en un minuto.',
+        sinNoticias: 'Sigue en camino. Si en un par de minutos no aparece, reenvíalo.',
+      },
+    },
+    /** Cuenta registrada con correo personal: confirmar el buzón UDLAP antes del plazo. */
+    udlap: {
+      aviso: {
+        titulo: 'Confirma tu correo UDLAP',
+        texto: (dias: number) =>
+          `Te registraste con tu correo personal. Te quedan ${dias} ${dias === 1 ? 'día' : 'días'} para confirmar tu correo @udlap.mx.`,
+        boton: 'Confirmar ahora',
+      },
+      ajustes: {
+        titulo: 'Correo UDLAP',
+        boton: 'Confirmar mi correo UDLAP',
+      },
+      confirmar: {
+        titulo: 'Confirma tu correo UDLAP',
+        texto: (email: string) =>
+          `Te mandamos un código a ${email}. Al confirmarlo, tu cuenta queda verificada y elegirás tu contraseña de nuevo por seguridad.`,
+        boton: 'Mandarme el código',
+        botonEnviando: 'Enviando…',
+        confirmar: 'Confirmar',
+        confirmando: 'Verificando…',
+      },
+      nuevaContrasena: {
+        titulo: 'Elige tu contraseña de nuevo',
+        texto: 'Confirmaste tu correo UDLAP. Por seguridad, vuelve a elegir tu contraseña.',
+      },
+      listo: 'Listo: confirmaste tu correo UDLAP.',
+      cancelar: 'Cancelar',
+      bloqueo: {
+        titulo: 'Confirma tu correo UDLAP para seguir',
+        texto:
+          'Pasaron los 30 días para confirmar tu correo @udlap.mx. Pide el código a tu correo UDLAP para seguir usando Ágora.',
+        salir: 'Cerrar sesión',
+      },
+    },
     nuevaContrasena: {
       titulo: {
         crear: 'Crea tu contraseña',
