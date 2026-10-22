@@ -95,9 +95,8 @@ fun PerfilAjenoScreen(
     /** Abre la lista de seguidores o seguidos ([TipoConexion]). */
     onConexiones: (tipo: String) -> Unit = {},
     /**
-     * Abre el detalle de una publicación. Pendiente en AgoraNavHost (ruta
-     * PERFIL): `onPublicacion = { id -> navController.navigate(AgoraRoutes.post(id)) }`.
-     * Mientras llegue null se abre por [DeepLinkBus], que regresa al inicio al volver.
+     * Abre el detalle de una publicación (AgoraNavHost lo pasa en la ruta
+     * PERFIL). Si llega null se abre por [DeepLinkBus], que regresa al inicio al volver.
      */
     onPublicacion: ((String) -> Unit)? = null,
 ) {
@@ -639,7 +638,7 @@ fun PerfilAjenoScreen(
                         }
 
                         items(publicaciones, key = { it.id }) { pub ->
-                            PublicacionPerfilCard(pub, onClick = { abrirPublicacion(pub.id) })
+                            PublicacionPerfilCard(pub, onClick = { abrirPublicacion(pub.id) }, media = pub.media)
                         }
 
                         if (cursor != null) {
@@ -682,12 +681,8 @@ internal fun ContadorConexion(
 
 /**
  * Publicación en la lista de un perfil (también la usa «Yo»). Tocarla abre el
- * detalle.
- *
- * [media]: la API ya manda `media` en `perfil/{handle}/publicaciones`, pero
- * `PerfilPublicacionDto` no la declara. Pendiente en Dtos.kt:
- * `val media: List<MediaDto> = emptyList()`; luego, en las llamadas, pasar
- * `media = pub.media` y las fotos salen con [PostMediaGrid].
+ * detalle. [media] son las fotos y videos de `perfil/{handle}/publicaciones`
+ * (`pub.media`), pintados con [PostMediaGrid].
  */
 @Composable
 internal fun PublicacionPerfilCard(

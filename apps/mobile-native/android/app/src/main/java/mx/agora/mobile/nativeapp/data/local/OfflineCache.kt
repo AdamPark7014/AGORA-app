@@ -28,8 +28,8 @@ data class PostRechazado(
 
 class OfflineCache private constructor(context: Context) {
     /**
-     * Serializa los envíos de la cola: `PendingPostSync.start` puede quedar
-     * registrado más de una vez (la Activity se recrea), y dos vaciados a la vez
+     * Serializa los envíos de la cola: `PendingPostSync` vacía al reconectar y
+     * también al volver a iniciar sesión; si coinciden, dos vaciados a la vez
      * publicarían el mismo post dos veces.
      */
     private val flushMutex = Mutex()

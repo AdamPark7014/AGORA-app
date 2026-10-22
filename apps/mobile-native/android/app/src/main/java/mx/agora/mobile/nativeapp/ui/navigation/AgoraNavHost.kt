@@ -54,6 +54,7 @@ import mx.agora.mobile.nativeapp.ui.screens.PerfilAjenoScreen
 import mx.agora.mobile.nativeapp.ui.screens.PostDetailScreen
 import mx.agora.mobile.nativeapp.ui.screens.ProfileScreen
 import mx.agora.mobile.nativeapp.ui.screens.PrivacidadScreen
+import mx.agora.mobile.nativeapp.ui.screens.ReglasScreen
 import mx.agora.mobile.nativeapp.ui.screens.TerminosScreen
 import mx.agora.mobile.nativeapp.ui.screens.TipoConexion
 
@@ -68,6 +69,7 @@ object AgoraRoutes {
     const val AJUSTES = "ajustes"
     const val TERMINOS = "terminos"
     const val PRIVACIDAD = "privacidad"
+    const val REGLAS = "reglas"
     const val MODERACION = "moderacion"
     const val MAS = "mas"
     const val DIRECTORIO = "directorio"
@@ -83,6 +85,13 @@ object AgoraRoutes {
     const val EVENTOS_CREAR = "eventos/crear"
     const val CONEXIONES = "conexiones/{handle}/{tipo}"
     const val CONFIRMAR_UDLAP = "confirmar-udlap"
+
+    /**
+     * La pestaña Eventos de MainShell (deep link `/eventos`). No es destino del
+     * NavHost: [navigateToDeepLinkRoute] vuelve a MAIN y pide la pestaña por
+     * [PestanaBus]. No usar con `navController.navigate` directo.
+     */
+    const val EVENTOS = "eventos"
 
     fun post(id: String) = "post/$id"
     fun mensaje(id: String) = "mensaje/$id"
@@ -116,6 +125,7 @@ fun AgoraNavHost(
         }
     }
 
+    val pestanaSolicitada by PestanaBus.solicitada.collectAsState()
     val pendingDeepLink by DeepLinkBus.pendingRoute.collectAsState()
     LaunchedEffect(pendingDeepLink) {
         val route = pendingDeepLink
@@ -135,6 +145,8 @@ fun AgoraNavHost(
                 onLogout = ::cerrarSesion,
                 avisoUdlap = yo?.takeIf { it.udlapPorConfirmar() },
                 onConfirmarUdlap = { navController.navigate(AgoraRoutes.CONFIRMAR_UDLAP) },
+                pestanaSolicitada = pestanaSolicitada,
+                onPestanaAtendida = { PestanaBus.consumir() },
                 onNavigateToPost = { id -> navController.navigate(AgoraRoutes.post(id)) },
                 onNavigateToMensajes = { navController.navigate(AgoraRoutes.MENSAJES) },
                 onNavigateToPerfil = { handle -> navController.navigate(AgoraRoutes.perfil(handle)) },
@@ -201,6 +213,7 @@ fun AgoraNavHost(
                 onMensaje = { conversacionId -> navController.navigate(AgoraRoutes.mensaje(conversacionId)) },
                 onAjustes = { navController.navigate(AgoraRoutes.AJUSTES) },
                 onConexiones = { tipo -> navController.navigate(AgoraRoutes.conexiones(handle, tipo)) },
+                onPublicacion = { id -> navController.navigate(AgoraRoutes.post(id)) },
             )
         }
 
@@ -237,6 +250,9 @@ fun AgoraNavHost(
                     onMarketplace = { navController.navigate(AgoraRoutes.MARKETPLACE) },
                     onAventones = { navController.navigate(AgoraRoutes.AVENTONES) },
                     onAnonimo = { navController.navigate(AgoraRoutes.ANONIMO) },
+                    onMas = { navController.navigate(AgoraRoutes.MAS) },
+                    onPublicacion = { id -> navController.navigate(AgoraRoutes.post(id)) },
+                    onPerfilPublico = { h -> navController.navigate(AgoraRoutes.perfil(h)) },
                 )
             }
         }
@@ -277,6 +293,7 @@ fun AgoraNavHost(
                     },
                     onTerminos = { navController.navigate(AgoraRoutes.TERMINOS) },
                     onPrivacidad = { navController.navigate(AgoraRoutes.PRIVACIDAD) },
+                    onReglas = { navController.navigate(AgoraRoutes.REGLAS) },
                     onLogout = ::cerrarSesion,
                 )
             }
@@ -431,6 +448,10 @@ fun AgoraNavHost(
 
         composable(AgoraRoutes.PRIVACIDAD) {
             PrivacidadScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(AgoraRoutes.REGLAS) {
+            ReglasScreen(onBack = { navController.popBackStack() })
         }
 
         composable(AgoraRoutes.MODERACION) {

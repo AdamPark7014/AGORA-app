@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -19,10 +20,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -39,12 +43,20 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -58,6 +70,9 @@ import mx.agora.mobile.nativeapp.ui.components.ZonaCampus
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 import java.util.Calendar
+
+/** Texto legal abierto encima del registro (aún no hay NavHost: la sesión no tiene perfil). */
+private enum class LegalRegistro { TERMINOS, REGLAS }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +97,13 @@ fun RegistroScreen(
     /** Mismo rango y default que la web (`apps/web/app/registro`): 10 años, del que entra hacia atrás. */
     val generaciones = remember(anioActual) { List(10) { anioActual + 1 - it } }
     var generacion by remember { mutableIntStateOf(anioActual) }
+    /**
+     * Apple (1.2) y Google Play (contenido de usuarios) piden aceptar términos
+     * con cero tolerancia antes de usar la app. La API no tiene campo: es un
+     * candado de la interfaz sobre «Crear perfil».
+     */
+    var aceptaReglas by remember { mutableStateOf(false) }
+    var legalAbierto by remember { mutableStateOf<LegalRegistro?>(null) }
 
     LaunchedEffect(Unit) {
         cargandoCatalogo = true
@@ -96,6 +118,20 @@ fun RegistroScreen(
     }
 
     val carreras: List<CarreraDto> = catalogo?.escuelas?.flatMap { it.carreras } ?: emptyList()
+
+    // Encima del formulario y no en otra ruta: así no se pierde lo ya capturado.
+    BackHandler(enabled = legalAbierto != null) { legalAbierto = null }
+    when (legalAbierto) {
+        LegalRegistro.TERMINOS -> {
+            TerminosScreen(onBack = { legalAbierto = null })
+            return
+        }
+        LegalRegistro.REGLAS -> {
+            ReglasScreen(onBack = { legalAbierto = null })
+            return
+        }
+        null -> Unit
+    }
 
     if (exito && usuarioCreado != null) {
         RegistroExitoView(
@@ -252,6 +288,18 @@ fun RegistroScreen(
                     }
                 }
 
+                // Fuera de la lista para que se vea junto al botón sin tener
+                // que bajar hasta el final de las carreras y colegios.
+                if (paso == 2) {
+                    AceptarReglas(
+                        aceptado = aceptaReglas,
+                        onCambio = { aceptaReglas = it },
+                        onTerminos = { legalAbierto = LegalRegistro.TERMINOS },
+                        onReglas = { legalAbierto = LegalRegistro.REGLAS },
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
+                    )
+                }
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -298,7 +346,7 @@ fun RegistroScreen(
                         },
                         enabled = when (paso) {
                             1 -> handle.length >= 3 && nombre.length >= 2 && apellidos.length >= 2
-                            else -> !enviando && carreraSlug != null
+                            else -> !enviando && carreraSlug != null && aceptaReglas
                         },
                         modifier = Modifier.weight(if (paso == 2) 2f else 1f),
                     ) {
@@ -313,6 +361,57 @@ fun RegistroScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * Casilla obligatoria del registro. «Términos» y «Reglas de la comunidad» son
+ * enlaces (LinkAnnotation); un toque en el resto del renglón marca la casilla.
+ */
+@Composable
+private fun AceptarReglas(
+    aceptado: Boolean,
+    onCambio: (Boolean) -> Unit,
+    onTerminos: () -> Unit,
+    onReglas: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val alTerminos by rememberUpdatedState(onTerminos)
+    val alReglas by rememberUpdatedState(onReglas)
+    val estiloEnlace = TextLinkStyles(
+        style = SpanStyle(
+            color = AgoraColors.Naranja,
+            fontWeight = FontWeight.SemiBold,
+            textDecoration = TextDecoration.Underline,
+        ),
+    )
+    val texto = remember(AgoraColors.oscuro) {
+        buildAnnotatedString {
+            append("Acepto los ")
+            withLink(LinkAnnotation.Clickable("terminos", estiloEnlace) { alTerminos() }) {
+                append("Términos")
+            }
+            append(" y las ")
+            withLink(LinkAnnotation.Clickable("reglas", estiloEnlace) { alReglas() }) {
+                append("Reglas de la comunidad")
+            }
+            append(". Cero tolerancia al acoso, las amenazas y el contenido ofensivo.")
+        }
+    }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .toggleable(value = aceptado, role = Role.Checkbox, onValueChange = onCambio)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = aceptado, onCheckedChange = null)
+        Text(
+            texto,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(start = 12.dp),
+        )
     }
 }
 

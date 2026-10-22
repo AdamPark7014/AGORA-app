@@ -124,9 +124,14 @@ fun PostDetailScreen(
     var totalReacciones by remember(postId) { mutableIntStateOf(0) }
     var encuesta by remember(postId) { mutableStateOf<EncuestaDto?>(null) }
     var votando by remember(postId) { mutableStateOf(false) }
-    // El detalle no trae el voto propio; solo la respuesta de votar (miVoto).
+    // El detalle trae el voto propio (`encuesta.miVoto`); votar lo actualiza.
     var miVoto by remember(postId) { mutableStateOf<String?>(null) }
     var enviandoComentario by remember(postId) { mutableStateOf(false) }
+    /** Comentarios más viejos que la página del detalle, ya pedidos con «Ver comentarios anteriores». */
+    var anteriores by remember(postId) { mutableStateOf<List<ComentarioDto>>(emptyList()) }
+    /** Cursor `antesDe` de la siguiente página vieja; null = ya no hay. */
+    var cursorAnteriores by remember(postId) { mutableStateOf<String?>(null) }
+    var cargandoAnteriores by remember(postId) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptics = rememberHaptics()
@@ -140,10 +145,27 @@ fun PostDetailScreen(
     }
 
     fun aplicarDetalle(detalle: PostDetalleDto) {
+        val previo = post
+        if (anteriores.isEmpty() || previo == null) {
+            cursorAnteriores = detalle.comentariosAnteriores
+        } else {
+            // Ya se habían abierto comentarios viejos: al recargar (p. ej. tras
+            // comentar) la página reciente se recorre y el más viejo de la
+            // anterior sale de ella. Se conserva todo lo que quede antes de la
+            // página nueva para no dejar huecos; el cursor sigue donde iba.
+            val nuevos = detalle.comentarios.map { it.id }.toSet()
+            val desde = detalle.comentarios.firstOrNull()?.createdAt
+            anteriores = (anteriores + previo.comentarios)
+                .distinctBy { it.id }
+                .filter { it.id !in nuevos && (desde == null || it.createdAt < desde) }
+        }
         post = detalle
         miReaccion = detalle.miReaccion
         totalReacciones = detalle.numReactions
         encuesta = detalle.encuesta
+        // Un voto no se quita (solo se cambia): con una API sin `miVoto` se
+        // conserva el que ya se marcó aquí.
+        miVoto = detalle.encuesta?.miVoto ?: miVoto
     }
 
     fun cargar(refresh: Boolean = false) {
@@ -165,6 +187,25 @@ fun PostDetailScreen(
     }
 
     LaunchedEffect(postId) { cargar() }
+
+    fun cargarAnteriores() {
+        val cursor = cursorAnteriores ?: return
+        if (cargandoAnteriores) return
+        cargandoAnteriores = true
+        scope.launch {
+            try {
+                val pagina = ApiClient.api<PostsApi>(tokenProvider).comentariosAnteriores(postId, cursor)
+                anteriores = (pagina.comentarios + anteriores).distinctBy { it.id }
+                cursorAnteriores = pagina.comentariosAnteriores
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar(ApiClient.mensajeDelServidor(e) ?: mensajeDe(e))
+            } finally {
+                cargandoAnteriores = false
+            }
+        }
+    }
 
     fun reaccionar(tipo: String) {
         val activa = miReaccion == tipo
@@ -480,7 +521,20 @@ fun PostDetailScreen(
 
                         Text("Comentarios", style = MaterialTheme.typography.titleSmall)
 
-                        if (actual.comentarios.isEmpty()) {
+                        // La API manda los 50 más recientes; los demás, de 50 en 50 hacia atrás.
+                        if (cursorAnteriores != null) {
+                            TextButton(
+                                onClick = ::cargarAnteriores,
+                                enabled = !cargandoAnteriores,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp),
+                            ) {
+                                Text(if (cargandoAnteriores) "Cargando…" else "Ver comentarios anteriores")
+                            }
+                        }
+
+                        if (actual.comentarios.isEmpty() && anteriores.isEmpty()) {
                             Text(
                                 "Nadie ha comentado todavía. ¡Rompe el hielo!",
                                 style = MaterialTheme.typography.bodySmall,
@@ -488,7 +542,7 @@ fun PostDetailScreen(
                             )
                         }
 
-                        actual.comentarios.forEach { comentario ->
+                        (anteriores + actual.comentarios).forEach { comentario ->
                             ComentarioFila(
                                 comentario = comentario,
                                 onAutorClick = onAuthorClick,

@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -10,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -38,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -56,6 +59,7 @@ import mx.agora.mobile.nativeapp.data.api.YoResponse
 import mx.agora.mobile.nativeapp.ui.components.AgoraMarcaHorizontal
 import mx.agora.mobile.nativeapp.ui.components.AvisoUdlap
 import mx.agora.mobile.nativeapp.ui.components.diasParaConfirmarUdlap
+import mx.agora.mobile.nativeapp.ui.navigation.PestanaBus
 import mx.agora.mobile.nativeapp.ui.screens.EventosScreen
 import mx.agora.mobile.nativeapp.ui.screens.FeedScreen
 import mx.agora.mobile.nativeapp.ui.screens.NotificacionesScreen
@@ -86,8 +90,14 @@ fun MainShell(
     /** `auth/yo` cuando la cuenta aún debe confirmar la UDLAP (dentro del plazo); null si no. */
     avisoUdlap: YoResponse? = null,
     onConfirmarUdlap: () -> Unit = {},
+    /** Pestaña pedida desde fuera ([PestanaBus], p. ej. el deep link `/eventos`); null si ninguna. */
+    pestanaSolicitada: Int? = null,
+    /** Se aplicó [pestanaSolicitada]: hay que limpiarla para no repetirla. */
+    onPestanaAtendida: () -> Unit = {},
 ) {
-    var tab by remember { mutableIntStateOf(0) }
+    // Saveable: al volver de otra ruta o tras recrear la Activity (cambio de
+    // tema, rotación) se sigue en la misma pestaña en vez de saltar al feed.
+    var tab by rememberSaveable { mutableIntStateOf(PestanaBus.FEED) }
     var feedKey by remember { mutableIntStateOf(0) }
     var avisosSinLeer by remember { mutableIntStateOf(0) }
     var prevAvisosSinLeer by remember { mutableIntStateOf(0) }
@@ -97,6 +107,18 @@ fun MainShell(
     var reanudaciones by remember { mutableIntStateOf(0) }
     val haptics = rememberHaptics()
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(pestanaSolicitada) {
+        val pedida = pestanaSolicitada ?: return@LaunchedEffect
+        // Solo pestañas de contenido; «Más» (4) es otra ruta, no una pestaña.
+        if (pedida in 0..3) tab = pedida
+        onPestanaAtendida()
+    }
+
+    // Atrás en Eventos, Publicar o Avisos vuelve al feed; en el feed sale de la app.
+    BackHandler(enabled = tab != PestanaBus.FEED) {
+        tab = PestanaBus.FEED
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observador = LifecycleEventObserver { _, evento ->
@@ -265,7 +287,14 @@ fun MainShell(
             }
         },
     ) { padding ->
-        Column(Modifier.padding(padding)) {
+        // consumeWindowInsets: las pantallas con imePadding (Publicar) ya no
+        // vuelven a sumar la barra de navegación que este Scaffold descontó, y
+        // el campo queda pegado al teclado sin un hueco doble encima.
+        Column(
+            Modifier
+                .padding(padding)
+                .consumeWindowInsets(padding),
+        ) {
             // Arriba del feed y fuera de su lista: el feed calcula el video activo
             // por la posición de sus filas.
             if (avisoUdlap != null && tab == 0) {

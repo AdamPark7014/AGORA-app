@@ -17,3 +17,24 @@ object DeepLinkBus {
         _pendingRoute.value = null
     }
 }
+
+/**
+ * Pestaña de MainShell pedida desde fuera (deep link `/eventos`). MainShell la
+ * aplica y llama a [consumir]; si MainShell aún no existe, la toma al aparecer.
+ */
+object PestanaBus {
+    /** Índices de las pestañas de MainShell. */
+    const val FEED = 0
+    const val EVENTOS = 1
+
+    private val _solicitada = MutableStateFlow<Int?>(null)
+    val solicitada: StateFlow<Int?> = _solicitada.asStateFlow()
+
+    fun solicitar(pestana: Int) {
+        _solicitada.value = pestana
+    }
+
+    fun consumir() {
+        _solicitada.value = null
+    }
+}

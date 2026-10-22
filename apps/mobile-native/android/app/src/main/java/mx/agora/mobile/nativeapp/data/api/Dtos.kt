@@ -129,6 +129,8 @@ data class OpcionEncuestaDto(
 data class EncuestaDto(
     val pregunta: String,
     val opciones: List<OpcionEncuestaDto> = emptyList(),
+    /** Id de la opción que voté. Null si no he votado o con una API anterior al 22-10-2026. */
+    val miVoto: String? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -177,6 +179,15 @@ data class PostDetalleDto(
     val miReaccion: String? = null,
     val miGuardado: Boolean = false,
     val comentarios: List<ComentarioDto> = emptyList(),
+    /** Cursor para `GET posts/{id}/comentarios?antesDe=`; null = no hay más viejos. */
+    val comentariosAnteriores: String? = null,
+)
+
+/** `GET posts/{id}/comentarios?antesDe=`: la página previa, en orden cronológico. */
+@JsonClass(generateAdapter = true)
+data class ComentariosPaginaResponse(
+    val comentarios: List<ComentarioDto> = emptyList(),
+    val comentariosAnteriores: String? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -186,7 +197,7 @@ data class CrearComentarioRequest(val texto: String)
 data class CrearComentarioResponse(val id: String, val aviso: String? = null)
 
 @JsonClass(generateAdapter = true)
-data class ReaccionarRequest(val tipo: String? = null)
+data class ReaccionarRequest(val tipo: String)
 
 @JsonClass(generateAdapter = true)
 data class ReaccionarResponse(val miReaccion: String? = null)
@@ -282,6 +293,10 @@ data class CrearPostRequest(
 @JsonClass(generateAdapter = true)
 data class CrearPostResponse(
     val id: String,
+    /** PUBLICADO, EN_REVISION o RETIRADO según la moderación. */
+    val estado: String? = null,
+    /** Por qué la moderación la dejó en revisión o la retiró; null si salió limpia. */
+    val aviso: String? = null,
     val nuevasInsignias: List<String>? = null,
 )
 
@@ -450,6 +465,13 @@ data class ConversacionDetalleResponse(
 @JsonClass(generateAdapter = true)
 data class EnviarMensajeRequest(val texto: String)
 
+/** `POST mensajes/{id}`: el id real del mensaje recién guardado. */
+@JsonClass(generateAdapter = true)
+data class EnviarMensajeResponse(
+    val id: String,
+    val createdAt: String,
+)
+
 @JsonClass(generateAdapter = true)
 data class AbrirConversacionRequest(val handle: String)
 
@@ -503,6 +525,7 @@ data class PerfilPublicacionDto(
     val comunidad: String,
     val numComments: Int = 0,
     val numReactions: Int = 0,
+    val media: List<MediaDto> = emptyList(),
 )
 
 @JsonClass(generateAdapter = true)
@@ -773,6 +796,10 @@ data class ActualizarPerfilRequest(
     /** Push cuando cae la pregunta relámpago. */
     val avisoPregunta: Boolean? = null,
 )
+
+/** `PATCH perfil` solo confirma; el perfil se vuelve a leer con `perfil/mio`. */
+@JsonClass(generateAdapter = true)
+data class ActualizarPerfilResponse(val ok: Boolean = false)
 
 @JsonClass(generateAdapter = true)
 data class SilenciarComunidadRequest(val silenciada: Boolean)

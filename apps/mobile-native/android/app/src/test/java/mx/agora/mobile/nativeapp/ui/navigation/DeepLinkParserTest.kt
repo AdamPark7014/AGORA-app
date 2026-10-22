@@ -125,6 +125,22 @@ class DeepLinkParserTest {
     }
 
     @Test
+    fun `eventos list opens the eventos tab not the feed`() {
+        assertEquals(AgoraRoutes.EVENTOS, DeepLinkParser.parse("/eventos"))
+        assertEquals(AgoraRoutes.EVENTOS, DeepLinkParser.parse("agora://eventos"))
+        assertEquals(AgoraRoutes.EVENTOS, DeepLinkParser.parse("https://udlagora.com/eventos"))
+        // Con id sigue siendo el detalle.
+        assertEquals(AgoraRoutes.evento("evt-7"), DeepLinkParser.parse("/eventos/evt-7"))
+    }
+
+    @Test
+    fun `reglas maps to reglas route`() {
+        assertEquals(AgoraRoutes.REGLAS, DeepLinkParser.parse("/reglas"))
+        assertEquals(AgoraRoutes.REGLAS, DeepLinkParser.parse("agora://reglas"))
+        assertEquals(AgoraRoutes.REGLAS, DeepLinkParser.parse("https://www.udlagora.com/reglas"))
+    }
+
+    @Test
     fun `marketplace list and detalle`() {
         assertEquals(AgoraRoutes.MARKETPLACE, DeepLinkParser.parse("/marketplace"))
         assertEquals(

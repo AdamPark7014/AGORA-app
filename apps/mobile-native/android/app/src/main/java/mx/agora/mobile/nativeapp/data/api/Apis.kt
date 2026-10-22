@@ -72,6 +72,13 @@ interface PostsApi {
     @GET("posts/{id}")
     suspend fun detalle(@Path("id") id: String): PostDetalleDto
 
+    /** Los 50 comentarios anteriores a `antesDe` (el cursor `comentariosAnteriores` del detalle). */
+    @GET("posts/{id}/comentarios")
+    suspend fun comentariosAnteriores(
+        @Path("id") id: String,
+        @Query("antesDe") antesDe: String,
+    ): ComentariosPaginaResponse
+
     @POST("posts/{id}/comentarios")
     suspend fun comentar(
         @Path("id") id: String,
@@ -123,8 +130,9 @@ interface PerfilApi {
     @GET("perfil/mio")
     suspend fun mio(): PerfilMioDto
 
+    /** La API responde `{ ok: true }`, no el perfil: con `PerfilMioDto` Moshi tronaba al guardar. */
     @PATCH("perfil")
-    suspend fun actualizar(@Body body: ActualizarPerfilRequest): PerfilMioDto
+    suspend fun actualizar(@Body body: ActualizarPerfilRequest): ActualizarPerfilResponse
 
     @POST("perfil")
     suspend fun crear(@Body body: CrearPerfilRequest): CrearPerfilResponse
@@ -162,7 +170,7 @@ interface PerfilApi {
      * cumpleaños exige mandar `cumpleMes: null` y `cumpleDia: null` explícitos.
      */
     @PATCH("perfil")
-    suspend fun actualizarJson(@Body body: RequestBody): PerfilMioDto
+    suspend fun actualizarJson(@Body body: RequestBody): ActualizarPerfilResponse
 }
 
 interface MensajesApi {
@@ -180,7 +188,7 @@ interface MensajesApi {
     suspend fun enviar(
         @Path("id") id: String,
         @Body body: EnviarMensajeRequest,
-    ): Response<Unit>
+    ): EnviarMensajeResponse
 
     @POST("mensajes/abrir")
     suspend fun abrir(@Body body: AbrirConversacionRequest): AbrirConversacionResponse

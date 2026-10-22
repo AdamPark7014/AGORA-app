@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -45,6 +46,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -133,6 +135,13 @@ fun PublicarScreen(
     val adjuntos = remember { mutableStateListOf<AdjuntoPendiente>() }
     var cargandoComunidades by remember { mutableStateOf(true) }
     var enviando by remember { mutableStateOf(false) }
+
+    /**
+     * Lo que dijo la moderación al publicar (`aviso`): en revisión o retirada.
+     * Va en diálogo y no en snackbar: al volver al feed el snackbar se perdía.
+     */
+    var avisoModeracion by remember { mutableStateOf<String?>(null) }
+    var publicacionRetirada by remember { mutableStateOf(false) }
 
     var encuestaActiva by remember { mutableStateOf(false) }
     var preguntaEncuesta by remember { mutableStateOf("") }
@@ -422,6 +431,13 @@ fun PublicarScreen(
                             val resp = ApiClient.api<PostsApi>(tokenProvider).crear(request)
                             GamificacionEvents.notifyPingResult(resp.nuevasInsignias ?: emptyList())
                             AgoraAnalytics.publicar(tokenProvider, mapOf("comunidadSlug" to slug!!))
+                            val aviso = resp.aviso?.takeIf { it.isNotBlank() }
+                            if (aviso != null || resp.estado == "RETIRADO") {
+                                publicacionRetirada = resp.estado == "RETIRADO"
+                                avisoModeracion = aviso
+                                    ?: "La moderación retiró tu publicación por las reglas de la comunidad."
+                                return@launch
+                            }
                             haptics.perform(HapticType.Success)
                             mostrandoExito = true
                             delay(650)
@@ -445,6 +461,29 @@ fun PublicarScreen(
                 Text(if (enviando) "Publicando…" else "Publicar")
             }
         }
+    }
+
+    avisoModeracion?.let { aviso ->
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(if (publicacionRetirada) "No se publicó" else "Publicada, en revisión") },
+            text = { Text(aviso) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        avisoModeracion = null
+                        if (publicacionRetirada) {
+                            // Se queda el texto para corregirlo. Los adjuntos ya
+                            // quedaron ligados a la publicación retirada: habría
+                            // que volver a subirlos.
+                            adjuntos.clear()
+                        } else {
+                            onPublicado()
+                        }
+                    },
+                ) { Text("Entendido") }
+            },
+        )
     }
 
     if (overlayAlpha > 0.01f) {

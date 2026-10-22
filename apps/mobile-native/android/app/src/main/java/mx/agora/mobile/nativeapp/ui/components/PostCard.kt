@@ -118,8 +118,8 @@ fun PostCard(
     var totalReacciones by remember(post.id) { mutableIntStateOf(post.numReactions) }
     var encuesta by remember(post.id) { mutableStateOf(post.encuesta) }
     var votando by remember(post.id) { mutableStateOf(false) }
-    // El feed no trae el voto propio; solo la respuesta de votar (miVoto).
-    var miVoto by remember(post.id) { mutableStateOf<String?>(null) }
+    // El feed trae el voto propio (`encuesta.miVoto`, 22-10-2026); null con una API anterior.
+    var miVoto by remember(post.id) { mutableStateOf(post.encuesta?.miVoto) }
     var errorVoto by remember(post.id) { mutableStateOf<String?>(null) }
     var suppressCardClick by remember(post.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -487,7 +487,8 @@ fun TextoConHashtags(
 
 /**
  * Encuesta de un post. [miVoto] resalta la opción elegida (viene en la
- * respuesta de votar) y [error] se muestra debajo si el voto falló.
+ * encuesta del feed/detalle y en la respuesta de votar) y [error] se muestra
+ * debajo si el voto falló.
  */
 @Composable
 fun EncuestaBloque(

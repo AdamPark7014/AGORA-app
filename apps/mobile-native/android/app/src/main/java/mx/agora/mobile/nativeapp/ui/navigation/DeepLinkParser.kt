@@ -87,12 +87,9 @@ object DeepLinkParser {
             "mensajes" -> segments.getOrNull(1)?.let { AgoraRoutes.mensaje(it) } ?: AgoraRoutes.MENSAJES
             "evento", "eventos" -> when (segments.getOrNull(1)?.lowercase()) {
                 "crear" -> AgoraRoutes.EVENTOS_CREAR
-                // `/eventos` (la lista). En nativo la lista es la pestaña Eventos de
-                // MainShell y no hay ruta de NavHost que la abra, así que se lleva
-                // al inicio (antes devolvía null y el enlace no hacía nada).
-                // Pendiente: ruta `eventos` en AgoraNavHost (o un argumento de
-                // pestaña para MainShell) y devolverla aquí.
-                null -> AgoraRoutes.MAIN
+                // `/eventos` (la lista): en nativo es la pestaña Eventos de
+                // MainShell; navigateToDeepLinkRoute la abre por PestanaBus.
+                null -> AgoraRoutes.EVENTOS
                 else -> AgoraRoutes.evento(segments[1])
             }
             "hashtag" -> segments.getOrNull(1)?.let { AgoraRoutes.hashtag(it) }
@@ -101,6 +98,7 @@ object DeepLinkParser {
             "ajustes" -> AgoraRoutes.AJUSTES
             "terminos" -> AgoraRoutes.TERMINOS
             "privacidad" -> AgoraRoutes.PRIVACIDAD
+            "reglas" -> AgoraRoutes.REGLAS
             "moderacion" -> AgoraRoutes.MODERACION
             "notificaciones" -> AgoraRoutes.NOTIFICACIONES
             "aventones" -> AgoraRoutes.AVENTONES

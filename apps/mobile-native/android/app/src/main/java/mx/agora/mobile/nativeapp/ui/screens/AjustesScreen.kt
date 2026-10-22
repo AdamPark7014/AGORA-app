@@ -41,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,6 +53,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.MediaRepository
@@ -73,6 +75,7 @@ import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PreferenciaNotificacionDto
 import mx.agora.mobile.nativeapp.data.api.SilenciarComunidadRequest
 import mx.agora.mobile.nativeapp.data.api.YoResponse
+import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.FormularioContrasena
 import mx.agora.mobile.nativeapp.ui.components.diasParaConfirmarUdlap
 import mx.agora.mobile.nativeapp.ui.components.ModoContrasena
@@ -116,6 +119,7 @@ private val etiquetasPreferencia = mapOf(
     "EVENTO_RECORDATORIO" to "Recordatorio de eventos a los que vas",
     "AVENTON_APARTADO" to "Aventones",
     "AVENTON_CANCELADO" to "Aventones cancelados",
+    "AVENTON_RECORDATORIO" to "Tu aventón está por salir",
     "MODERACION" to "Moderación",
     "MENCION" to "Menciones",
     "SEGUIDOR" to "Nuevos seguidores",
@@ -192,6 +196,13 @@ private fun AjustesScreenContent(
     var modoTema by remember { mutableStateOf(PreferenciasTema.leer(context)) }
     var preferencias by remember { mutableStateOf<List<PreferenciaNotificacionDto>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
+    /**
+     * No se pudo leer `perfil/mio`. Se muestra el error con «Reintentar» en vez
+     * del formulario: vacío, «Guardar cambios» habría borrado bio, ciudad, etc.
+     */
+    var errorCarga by remember { mutableStateOf<String?>(null) }
+    /** Sube con «Reintentar» y vuelve a lanzar la carga. */
+    var intentoCarga by remember { mutableIntStateOf(0) }
     var guardando by remember { mutableStateOf(false) }
     var subiendoFoto by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -263,12 +274,20 @@ private fun AjustesScreenContent(
         context.buscarActivity()?.recreate()
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(intentoCarga) {
         cargando = true
         error = null
+        errorCarga = null
         try {
             val api = ApiClient.api<PerfilApi>(tokenProvider)
-            val perfil = api.mio()
+            val perfil = try {
+                api.mio()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorCarga = mensajeDe(e)
+                return@LaunchedEffect
+            }
             handle = perfil.handle
             nombre = perfil.nombre
             apellidos = perfil.apellidos
@@ -284,15 +303,21 @@ private fun AjustesScreenContent(
             cumpleDia = perfil.cumpleDia
             teniaCumple = perfil.cumpleMes != null && perfil.cumpleDia != null
             avisoPregunta = perfil.avisoPregunta ?: true
-            comunidades = api.misComunidades()
-            preferencias = ApiClient.api<NotificacionesApi>(tokenProvider).preferencias().preferencias
-            generacion = api.porHandle(perfil.handle).generacion
+            // Con el perfil ya en pantalla, lo demás puede fallar sin riesgo de
+            // pisar datos: se avisa y el formulario sigue.
+            try {
+                comunidades = api.misComunidades()
+                preferencias = ApiClient.api<NotificacionesApi>(tokenProvider).preferencias().preferencias
+                generacion = api.porHandle(perfil.handle).generacion
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                error = mensajeDe(e)
+            }
             // Aparte: si falla, el resto de Ajustes sigue sirviendo.
             val yo = runCatching { ApiClient.api<AuthApi>(tokenProvider).yo() }.getOrNull()
             tieneContrasena = yo?.tieneContrasena
             yoUdlap = yo?.takeIf { it.udlapPendiente == true }
-        } catch (e: Exception) {
-            error = mensajeDe(e)
         } finally {
             cargando = false
         }
@@ -312,12 +337,15 @@ private fun AjustesScreenContent(
             aviso = null
             try {
                 val api = ApiClient.api<PerfilApi>(tokenProvider)
+                // Los textos opcionales van siempre, vacíos si se borraron: la API
+                // trata la ausencia (Moshi omite los null) como «no cambiar» y
+                // solo `""` los limpia (instagram vacío queda en null allá).
                 api.actualizar(
                     ActualizarPerfilRequest(
                         bio = bio.trim(),
-                        ciudadOrigen = ciudad.trim().ifBlank { null },
-                        instagram = instagram.trim().removePrefix("@").ifBlank { null },
-                        busco = busco.trim().ifBlank { null },
+                        ciudadOrigen = ciudad.trim(),
+                        instagram = instagram.trim().removePrefix("@"),
+                        busco = busco.trim(),
                         intereses = intereses,
                         visibilidad = visibilidad,
                         cumpleMes = mes,
@@ -394,6 +422,15 @@ private fun AjustesScreenContent(
             cargando -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
+                }
+            }
+            errorCarga != null -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    AgoraErrorState(
+                        title = "No pudimos cargar tus ajustes",
+                        message = errorCarga.orEmpty(),
+                        onRetry = { intentoCarga++ },
+                    )
                 }
             }
             else -> {

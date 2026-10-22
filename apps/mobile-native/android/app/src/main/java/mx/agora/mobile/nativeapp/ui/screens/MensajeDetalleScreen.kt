@@ -51,7 +51,6 @@ import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.util.formatearHora
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
-import retrofit2.HttpException
 import java.time.Instant
 import java.util.UUID
 
@@ -163,7 +162,7 @@ fun MensajeDetalleScreen(
     fun enviar() {
         val limpio = texto.trim()
         if (limpio.isBlank() || enviando) return
-        // Se pinta de inmediato; el id real llega al recargar o por el SSE.
+        // Se pinta de inmediato; el id real llega en la respuesta o por el SSE.
         val local = MensajeDto(
             id = PREFIJO_LOCAL + UUID.randomUUID(),
             texto = limpio,
@@ -177,19 +176,21 @@ fun MensajeDetalleScreen(
             mensajes = mensajes + local
             listState.animateScrollToItem(indiceUltimo())
             try {
-                // `enviar` regresa Response<Unit>: un 4xx/5xx no lanza solo.
-                val resp = ApiClient.api<MensajesApi>(tokenProvider).enviar(
+                // Un 4xx/5xx lanza HttpException y cae en el catch de abajo.
+                val real = ApiClient.api<MensajesApi>(tokenProvider).enviar(
                     conversacionId,
                     EnviarMensajeRequest(limpio),
                 )
-                if (!resp.isSuccessful) throw HttpException(resp)
                 AgoraAnalytics.dmEnviado(tokenProvider, mapOf("conversacionId" to conversacionId))
-                // Trae el mensaje con su id real (dedupe por id con el SSE) y
-                // quita la burbuja local. Si la recarga falla, la local se queda:
-                // el mensaje sí se mandó.
-                if (traerRecientes()) {
-                    val yaLlego = mensajes.any { !it.esLocal() && it.mio && it.texto == limpio }
-                    if (yaLlego) mensajes = mensajes.filter { it.id != local.id }
+                // La burbuja local toma el id y la hora del servidor; así el eco
+                // del SSE se descarta por id. Si el SSE ganó la carrera, ya la
+                // cambió por el mensaje real y solo queda quitar la local.
+                mensajes = if (mensajes.any { it.id == real.id }) {
+                    mensajes.filter { it.id != local.id }
+                } else {
+                    mensajes.map {
+                        if (it.id == local.id) it.copy(id = real.id, createdAt = real.createdAt) else it
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e

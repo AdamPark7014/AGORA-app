@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -81,6 +83,7 @@ private val secciones = listOf(
     ),
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MasScreen(
     auth: AuthRepository,
@@ -89,6 +92,7 @@ fun MasScreen(
     onTerminos: () -> Unit = {},
     onPrivacidad: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onReglas: () -> Unit = {},
 ) {
     var yo by remember { mutableStateOf<YoResponse?>(null) }
     var mensajesSinLeer by remember { mutableIntStateOf(0) }
@@ -214,11 +218,11 @@ fun MasScreen(
         }
 
         // TextButton trae el área táctil mínima de 48 dp; el texto suelto con
-        // clickable medía lo que la letra (~20 dp) y costaba atinarle.
-        Row(
+        // clickable medía lo que la letra (~20 dp) y costaba atinarle. FlowRow:
+        // con las reglas, los tres enlaces no caben en una línea de 360 dp.
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(
                 onClick = onTerminos,
@@ -226,12 +230,19 @@ fun MasScreen(
             ) {
                 Text("Términos", color = AgoraColors.Naranja)
             }
-            Text("·", color = AgoraColors.TextMuted)
+            Text("·", color = AgoraColors.TextMuted, modifier = Modifier.align(Alignment.CenterVertically))
             TextButton(
                 onClick = onPrivacidad,
                 modifier = Modifier.heightIn(min = 48.dp),
             ) {
                 Text("Privacidad", color = AgoraColors.Naranja)
+            }
+            Text("·", color = AgoraColors.TextMuted, modifier = Modifier.align(Alignment.CenterVertically))
+            TextButton(
+                onClick = onReglas,
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) {
+                Text("Reglas de la comunidad", color = AgoraColors.Naranja)
             }
         }
 

@@ -57,6 +57,7 @@ private sealed class ProfileRoute {
     data object Moderacion : ProfileRoute()
     data object Terminos : ProfileRoute()
     data object Privacidad : ProfileRoute()
+    data object Reglas : ProfileRoute()
 }
 
 @Composable
@@ -65,11 +66,7 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onMensajes: () -> Unit = {},
     onAjustes: () -> Unit = {},
-    /**
-     * «Más opciones». AgoraNavHost no lo pasa todavía (ruta PERFIL_YO); mientras
-     * sea null el botón no se enseña. Pendiente:
-     * `onMas = { navController.navigate(AgoraRoutes.MAS) }`.
-     */
+    /** «Más opciones» (AgoraNavHost lo pasa en PERFIL_YO). Si es null el botón no se enseña. */
     onMas: (() -> Unit)? = null,
     onMarketplace: () -> Unit = {},
     onAventones: () -> Unit = {},
@@ -78,15 +75,13 @@ fun ProfileScreen(
     onConexiones: (handle: String, tipo: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
     /**
-     * Abre una de mis publicaciones. Pendiente en AgoraNavHost (PERFIL_YO):
-     * `onPublicacion = { id -> navController.navigate(AgoraRoutes.post(id)) }`.
-     * Mientras sea null se abre por [DeepLinkBus] (al volver regresa al inicio).
+     * Abre una de mis publicaciones (AgoraNavHost lo pasa en PERFIL_YO). Si es
+     * null se abre por [DeepLinkBus] (al volver regresa al inicio).
      */
     onPublicacion: ((String) -> Unit)? = null,
     /**
-     * «Ver todas»: mi perfil público con la lista completa. Pendiente en
-     * AgoraNavHost: `onPerfilPublico = { h -> navController.navigate(AgoraRoutes.perfil(h)) }`.
-     * Mientras sea null se abre por [DeepLinkBus].
+     * «Ver todas»: mi perfil público con la lista completa (AgoraNavHost lo pasa
+     * en PERFIL_YO). Si es null se abre por [DeepLinkBus].
      */
     onPerfilPublico: ((String) -> Unit)? = null,
 ) {
@@ -97,6 +92,7 @@ fun ProfileScreen(
         ProfileRoute.Moderacion -> ModeracionScreen(tokenProvider = tokenProvider, onBack = { ruta = ProfileRoute.Home })
         ProfileRoute.Terminos -> TerminosScreen(onBack = { ruta = ProfileRoute.Home })
         ProfileRoute.Privacidad -> PrivacidadScreen(onBack = { ruta = ProfileRoute.Home })
+        ProfileRoute.Reglas -> ReglasScreen(onBack = { ruta = ProfileRoute.Home })
         ProfileRoute.Home -> ProfileHome(
             auth = auth,
             onLogout = onLogout,
@@ -113,6 +109,7 @@ fun ProfileScreen(
             onModeracion = { ruta = ProfileRoute.Moderacion },
             onTerminos = { ruta = ProfileRoute.Terminos },
             onPrivacidad = { ruta = ProfileRoute.Privacidad },
+            onReglas = { ruta = ProfileRoute.Reglas },
         )
     }
 }
@@ -134,6 +131,7 @@ private fun ProfileHome(
     onModeracion: () -> Unit,
     onTerminos: () -> Unit,
     onPrivacidad: () -> Unit,
+    onReglas: () -> Unit,
 ) {
     var perfil by remember { mutableStateOf<PerfilMioDto?>(null) }
     /** El perfil público propio: trae los contadores de seguidores y siguiendo. */
@@ -347,6 +345,9 @@ private fun ProfileHome(
                 OutlinedButton(onClick = onPrivacidad, modifier = Modifier.fillMaxWidth()) {
                     Text("Política de privacidad")
                 }
+                OutlinedButton(onClick = onReglas, modifier = Modifier.fillMaxWidth()) {
+                    Text("Reglas de la comunidad")
+                }
                 OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
                     Text("Cerrar sesión")
                 }
@@ -404,7 +405,7 @@ private fun MisPublicaciones(
             }
             else -> {
                 publicaciones.forEach { pub ->
-                    PublicacionPerfilCard(pub, onClick = { onPublicacion(pub.id) })
+                    PublicacionPerfilCard(pub, onClick = { onPublicacion(pub.id) }, media = pub.media)
                 }
                 if (hayMas) {
                     TextButton(onClick = onVerTodas, modifier = Modifier.fillMaxWidth()) {
