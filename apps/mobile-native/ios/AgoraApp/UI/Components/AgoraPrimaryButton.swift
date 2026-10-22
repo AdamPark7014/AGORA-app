@@ -59,6 +59,11 @@ struct AgoraOutlinedButton: View {
 struct AgoraScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
+            // Con un ButtonStyle propio, SwiftUI solo recibe toques donde hay algo
+            // dibujado: los Spacer y el relleno alrededor del texto son
+            // transparentes. Sin esto, tocar el botón fuera de las letras no hacía
+            // nada (TestFlight 1.0.0 (2): «Enviarme el código» no respondía).
+            .contentShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.button))
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(AgoraDesign.Animation.press, value: configuration.isPressed)
     }

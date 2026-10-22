@@ -294,6 +294,11 @@ Retomado desde el turno de Cursor del 07-10 (Fase 0 de ÁGORA 2.0, plan en
    Program aceptado.** TestFlight: build 2 procesada (VALID, «Lista para enviar»), grupo interno
    «Equipo Ágora» con distribución automática y Adam (ad.pozo.ont@icloud.com) invitado.
    Falta para tienda pública: ficha, capturas, cuenta de revisión, cuestionarios de Play y enviar a revisión.
+   **Bug visto en TestFlight 1.0.0 (2):** en iOS «Enviarme el código» no respondía: con un ButtonStyle
+   propio SwiftUI solo recibe toques donde hay algo dibujado y los Spacer alrededor del texto son
+   transparentes (el servidor no recibió ninguna petición `otp/solicitar`; solo el 401 de `entrar`).
+   Arreglado con `.contentShape` en `AgoraScaleButtonStyle` (todos los botones naranja y de contorno);
+   va en la build 3 de TestFlight.
 4. Android/iOS: probar el login con contraseña en el AVD (`nexara_phone`) contra producción: entrar,
    olvidé → crear, Ajustes → cambiar.
 5. Adam: cobro de GitHub ya no bloquea (repo público); queda arreglar el banco para los repos privados.
