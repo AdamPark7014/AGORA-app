@@ -297,10 +297,8 @@ function fondoAndroid() {
 }
 
 /**
- * Glifo en un grupo escalado: el lienzo de 1024 cabe en la zona segura de
- * 66dp del adaptativo (centro 54dp, escala 0.8 como el maskable). Los
- * degradados se expresan en coordenadas del lienzo de 1024 porque van
- * dentro del grupo.
+ * Glifo en un grupo escalado. Los degradados se expresan en coordenadas del
+ * lienzo de 1024 porque van dentro del grupo.
  */
 function capaGlifo(ancho, escala, tx, ty) {
   const v = {
@@ -312,9 +310,21 @@ function capaGlifo(ancho, escala, tx, ty) {
     </group>`;
 }
 
+/**
+ * El adaptativo solo garantiza un círculo de 66dp (radio 33dp) de los 108dp:
+ * fuera de él los lanzadores redondos y la pantalla de arranque de Android 12+
+ * recortan. Con la escala 0.8 del maskable, las esquinas de la base de la
+ * pirámide (434 unidades del centro, contando el trazo) quedaban a 36.6dp y se
+ * cortaban. A 0.70 quedan a 32dp. El centro vertical es el de la pirámide
+ * (y = 522), no el del lienzo, para que no se vea caída.
+ */
+const ESCALA_ADAPTATIVO = 0.7;
+const CENTRO_Y_GLIFO = 522;
+
 function foregroundAndroid() {
-  const escala = (108 / 1024) * 0.8;
-  const t = 54 - 512 * escala;
+  const escala = (108 / 1024) * ESCALA_ADAPTATIVO;
+  const tx = 54 - 512 * escala;
+  const ty = 54 - CENTRO_Y_GLIFO * escala;
   return `<?xml version="1.0" encoding="utf-8"?>
 <!-- Glifo del ícono adaptativo y monocromo (${C.nombre}). Generado por scripts/generar-icono.mjs; no editar a mano. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -323,7 +333,7 @@ function foregroundAndroid() {
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    ${capaGlifo(108, escala.toFixed(6), t.toFixed(4), t.toFixed(4))}
+    ${capaGlifo(108, escala.toFixed(6), tx.toFixed(4), ty.toFixed(4))}
 </vector>
 `;
 }
