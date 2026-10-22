@@ -11,8 +11,12 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -23,20 +27,23 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.MediaRepository
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.CrearAnuncioRequest
 import mx.agora.mobile.nativeapp.data.api.MarketplaceApi
+import mx.agora.mobile.nativeapp.ui.components.MiniaturaAdjunto
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
 private val categorias = listOf(
@@ -47,6 +54,17 @@ private val categorias = listOf(
     "CUARTO" to "Cuarto",
     "SERVICIOS" to "Servicios",
     "OTRO" to "Otro",
+)
+
+/** Igual que `crearAnuncioSchema` en packages/contracts: `imagenIds.max(6)` y `precioMxn` 0–1,000,000. */
+private const val MAX_FOTOS_ANUNCIO = 6
+private const val PRECIO_MAXIMO = 1_000_000
+
+private data class FotoAnuncio(
+    val uri: Uri,
+    val mediaId: String? = null,
+    val previewUrl: String? = null,
+    val subiendo: Boolean = true,
 )
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -65,45 +83,70 @@ fun CreateAnuncioScreen(
     var descripcion by remember { mutableStateOf("") }
     var categoria by remember { mutableStateOf("LIBROS") }
     var precio by remember { mutableStateOf("") }
-    var imagenId by remember { mutableStateOf<String?>(null) }
-    var previewUri by remember { mutableStateOf<Uri?>(null) }
-    var previewUrl by remember { mutableStateOf<String?>(null) }
-    var subiendo by remember { mutableStateOf(false) }
+    val fotos = remember { mutableStateListOf<FotoAnuncio>() }
     var enviando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    val picker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        previewUri = uri
-        previewUrl = null
-        imagenId = null
-        scope.launch {
-            subiendo = true
-            error = null
-            try {
-                val subida = mediaRepo.subir(uri, tokenProvider)
-                imagenId = subida.id
-                previewUrl = ApiClient.resolveUrl(subida.url)
-            } catch (e: Exception) {
-                error = mensajeDe(e)
-                previewUri = null
-            } finally {
-                subiendo = false
+    // Cada foto se ubica por su uri al terminar de subir: quitar otra mientras
+    // tanto no desfasa nada.
+    fun agregarFotos(uris: List<Uri>) {
+        val nuevas = uris.distinct().filter { uri -> fotos.none { it.uri == uri } }
+        if (nuevas.isEmpty()) return
+        val aceptadas = nuevas.take((MAX_FOTOS_ANUNCIO - fotos.size).coerceAtLeast(0))
+        error = if (aceptadas.size < nuevas.size) {
+            "Solo caben $MAX_FOTOS_ANUNCIO fotos por anuncio."
+        } else {
+            null
+        }
+        aceptadas.forEach { uri ->
+            fotos.add(FotoAnuncio(uri = uri))
+            scope.launch {
+                try {
+                    val subida = mediaRepo.subir(uri, tokenProvider)
+                    val i = fotos.indexOfFirst { it.uri == uri }
+                    if (i >= 0) {
+                        fotos[i] = fotos[i].copy(
+                            mediaId = subida.id,
+                            previewUrl = ApiClient.resolveUrl(subida.url),
+                            subiendo = false,
+                        )
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    fotos.removeAll { it.uri == uri }
+                    error = mensajeDe(e)
+                }
             }
         }
     }
 
+    val cupoFotos = (MAX_FOTOS_ANUNCIO - fotos.size).coerceAtLeast(0)
+    // PickMultipleVisualMedia exige maxItems > 1; con un solo lugar libre se usa el selector simple.
+    val pickerVarias = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = cupoFotos.coerceAtLeast(2)),
+    ) { uris -> agregarFotos(uris) }
+    val pickerUna = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> if (uri != null) agregarFotos(listOf(uri)) }
+
+    val subiendo = fotos.any { it.subiendo }
+    // toIntOrNull: un campo vacío o un número enorme no truena, solo deshabilita Publicar.
+    val precioMxn = precio.toIntOrNull()?.takeIf { it in 0..PRECIO_MAXIMO }
+    val precioFueraDeRango = precio.isNotEmpty() && precioMxn == null
+
     val puedePublicar = titulo.trim().length >= 3 &&
         descripcion.isNotBlank() &&
-        precio.toIntOrNull() != null &&
+        precioMxn != null &&
         !enviando &&
         !subiendo
 
     Column(
+        // Con edge-to-edge (targetSdk 36) adjustResize ya no encoge la ventana:
+        // imePadding va antes del scroll para que el teclado no tape los campos.
         modifier = modifier
             .fillMaxSize()
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -127,10 +170,20 @@ fun CreateAnuncioScreen(
         )
         OutlinedTextField(
             value = precio,
-            onValueChange = { if (it.all { c -> c.isDigit() }) precio = it },
+            onValueChange = { nuevo -> if (nuevo.length <= 7 && nuevo.all { it.isDigit() }) precio = nuevo },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Precio MXN") },
             singleLine = true,
+            isError = precioFueraDeRango,
+            supportingText = if (precioFueraDeRango) {
+                { Text("El precio máximo es de \$1,000,000.") }
+            } else {
+                null
+            },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done,
+            ),
         )
 
         Text("Categoría", style = MaterialTheme.typography.labelLarge)
@@ -144,29 +197,42 @@ fun CreateAnuncioScreen(
             }
         }
 
-        val imagen = previewUrl ?: previewUri?.toString()
-        if (imagen != null) {
-            AsyncImage(
-                model = imagen,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp),
-                contentScale = ContentScale.Crop,
-            )
+        if (fotos.isNotEmpty()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                items(fotos, key = { it.uri.toString() }) { foto ->
+                    MiniaturaAdjunto(
+                        model = foto.previewUrl ?: foto.uri,
+                        esVideo = false,
+                        subiendo = foto.subiendo,
+                        onQuitar = { fotos.removeAll { it.uri == foto.uri } },
+                    )
+                }
+            }
         }
 
         OutlinedButton(
             onClick = {
-                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                if (cupoFotos >= 2) pickerVarias.launch(request) else pickerUna.launch(request)
             },
-            enabled = !subiendo,
+            enabled = !subiendo && cupoFotos > 0,
         ) {
-            Text(if (subiendo) "Subiendo foto…" else "📷 Agregar foto")
+            Text(
+                when {
+                    subiendo -> "Subiendo fotos…"
+                    cupoFotos == 0 -> "Máx. $MAX_FOTOS_ANUNCIO fotos"
+                    fotos.isEmpty() -> "📷 Agregar fotos"
+                    else -> "📷 Agregar más (${fotos.size}/$MAX_FOTOS_ANUNCIO)"
+                },
+            )
         }
 
         Button(
             onClick = {
+                val precioFinal = precioMxn ?: return@Button
                 scope.launch {
                     enviando = true
                     error = null
@@ -176,13 +242,15 @@ fun CreateAnuncioScreen(
                                 titulo = titulo.trim(),
                                 descripcion = descripcion.trim(),
                                 categoria = categoria,
-                                precioMxn = precio.toInt(),
-                                imagenIds = imagenId?.let { listOf(it) } ?: emptyList(),
+                                precioMxn = precioFinal,
+                                imagenIds = fotos.mapNotNull { it.mediaId },
                             ),
                         )
                         onCreado(resp.id)
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
-                        error = mensajeDe(e)
+                        error = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
                     } finally {
                         enviando = false
                     }

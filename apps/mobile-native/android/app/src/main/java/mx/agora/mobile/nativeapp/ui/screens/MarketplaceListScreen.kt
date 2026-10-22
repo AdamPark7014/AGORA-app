@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -33,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
@@ -41,6 +44,7 @@ import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.MarketplaceApi
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.formatearPrecio
@@ -142,19 +146,21 @@ fun MarketplaceListScreen(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 error != null && anuncios.isEmpty() -> {
-                    AgoraErrorState(
-                        message = error!!,
-                        modifier = Modifier.align(Alignment.Center),
-                        onRetry = { cargar() },
-                    )
+                    AgoraEstadoDesplazable {
+                        AgoraErrorState(
+                            message = error!!,
+                            onRetry = { cargar() },
+                        )
+                    }
                 }
                 anuncios.isEmpty() -> {
-                    AgoraEmptyState(
-                        state = AgoraCopy.emptyMarketplace,
-                        modifier = Modifier.align(Alignment.Center),
-                        ctaLabel = AgoraCopy.cta.publicarAlgo,
-                        onCta = onCrearClick,
-                    )
+                    AgoraEstadoDesplazable {
+                        AgoraEmptyState(
+                            state = AgoraCopy.emptyMarketplace,
+                            ctaLabel = AgoraCopy.cta.publicarAlgo,
+                            onCta = onCrearClick,
+                        )
+                    }
                 }
                 else -> {
                     LazyColumn(
@@ -214,10 +220,34 @@ private fun AnuncioCard(anuncio: AnuncioDto, onClick: () -> Unit) {
                     style = MaterialTheme.typography.labelSmall,
                     color = AgoraColors.TextoMedio,
                 )
-                if (anuncio.estadoVenta != "DISPONIBLE") {
-                    Text("Vendido", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                }
+                // Antes todo lo que no era DISPONIBLE decía «Vendido», también lo apartado.
+                EtiquetaEstadoAnuncio(anuncio.estadoVenta)
             }
         }
     }
+}
+
+/** Estados de venta de un anuncio (`ESTADOS_ANUNCIO` en packages/contracts). */
+internal const val ESTADO_DISPONIBLE = "DISPONIBLE"
+internal const val ESTADO_APARTADO = "APARTADO"
+internal const val ESTADO_VENDIDO = "VENDIDO"
+
+/** Etiqueta de color según el estado: Disponible, Apartado o Vendido. */
+@Composable
+internal fun EtiquetaEstadoAnuncio(estadoVenta: String, modifier: Modifier = Modifier) {
+    val (texto, color, fondo) = when (estadoVenta) {
+        ESTADO_DISPONIBLE -> Triple("Disponible", AgoraColors.Success, AgoraColors.SuccessSuave)
+        ESTADO_APARTADO -> Triple("Apartado", AgoraColors.Warning, AgoraColors.WarningSuave)
+        ESTADO_VENDIDO -> Triple("Vendido", AgoraColors.Danger, AgoraColors.DangerSuave)
+        else -> return
+    }
+    Text(
+        texto,
+        color = color,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        modifier = modifier
+            .background(fondo, RoundedCornerShape(50))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    )
 }

@@ -16,9 +16,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -27,8 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.CancellationException
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.AuthApi
@@ -37,10 +41,13 @@ import mx.agora.mobile.nativeapp.data.api.GamificacionDto
 import mx.agora.mobile.nativeapp.data.api.PerfilAjenoDto
 import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PerfilMioDto
+import mx.agora.mobile.nativeapp.data.api.PerfilPublicacionDto
 import mx.agora.mobile.nativeapp.data.local.OfflineCache
-import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.GamificacionProfileSection
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.navigation.AgoraRoutes
+import mx.agora.mobile.nativeapp.ui.navigation.DeepLinkBus
 import mx.agora.mobile.nativeapp.ui.util.EnlacesWeb
 import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
@@ -58,13 +65,30 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onMensajes: () -> Unit = {},
     onAjustes: () -> Unit = {},
-    onMas: () -> Unit = {},
+    /**
+     * «Más opciones». AgoraNavHost no lo pasa todavía (ruta PERFIL_YO); mientras
+     * sea null el botón no se enseña. Pendiente:
+     * `onMas = { navController.navigate(AgoraRoutes.MAS) }`.
+     */
+    onMas: (() -> Unit)? = null,
     onMarketplace: () -> Unit = {},
     onAventones: () -> Unit = {},
     onAnonimo: () -> Unit = {},
     /** Lista de seguidores/seguidos del handle ([TipoConexion]). */
     onConexiones: (handle: String, tipo: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
+    /**
+     * Abre una de mis publicaciones. Pendiente en AgoraNavHost (PERFIL_YO):
+     * `onPublicacion = { id -> navController.navigate(AgoraRoutes.post(id)) }`.
+     * Mientras sea null se abre por [DeepLinkBus] (al volver regresa al inicio).
+     */
+    onPublicacion: ((String) -> Unit)? = null,
+    /**
+     * «Ver todas»: mi perfil público con la lista completa. Pendiente en
+     * AgoraNavHost: `onPerfilPublico = { h -> navController.navigate(AgoraRoutes.perfil(h)) }`.
+     * Mientras sea null se abre por [DeepLinkBus].
+     */
+    onPerfilPublico: ((String) -> Unit)? = null,
 ) {
     var ruta by remember { mutableStateOf<ProfileRoute>(ProfileRoute.Home) }
     val tokenProvider = { auth.token() }
@@ -84,6 +108,8 @@ fun ProfileScreen(
             onAnonimo = onAnonimo,
             onConexiones = onConexiones,
             modifier = modifier,
+            onPublicacion = onPublicacion ?: { id -> DeepLinkBus.emit(AgoraRoutes.post(id)) },
+            onPerfilPublico = onPerfilPublico ?: { h -> DeepLinkBus.emit(AgoraRoutes.perfil(h)) },
             onModeracion = { ruta = ProfileRoute.Moderacion },
             onTerminos = { ruta = ProfileRoute.Terminos },
             onPrivacidad = { ruta = ProfileRoute.Privacidad },
@@ -97,12 +123,14 @@ private fun ProfileHome(
     onLogout: () -> Unit,
     onMensajes: () -> Unit,
     onAjustes: () -> Unit,
-    onMas: () -> Unit,
+    onMas: (() -> Unit)?,
     onMarketplace: () -> Unit,
     onAventones: () -> Unit,
     onAnonimo: () -> Unit,
     onConexiones: (handle: String, tipo: String) -> Unit,
     modifier: Modifier,
+    onPublicacion: (String) -> Unit,
+    onPerfilPublico: (String) -> Unit,
     onModeracion: () -> Unit,
     onTerminos: () -> Unit,
     onPrivacidad: () -> Unit,
@@ -114,12 +142,20 @@ private fun ProfileHome(
     var puedeModerar by remember { mutableStateOf(false) }
     var cargando by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    /** Sube con «Reintentar» para volver a correr la carga. */
+    var intento by remember { mutableIntStateOf(0) }
+    var misPublicaciones by remember { mutableStateOf<List<PerfilPublicacionDto>>(emptyList()) }
+    var hayMasPublicaciones by remember { mutableStateOf(false) }
+    var cargandoPublicaciones by remember { mutableStateOf(false) }
+    var errorPublicaciones by remember { mutableStateOf<String?>(null) }
+    var intentoPublicaciones by remember { mutableIntStateOf(0) }
     val session = auth.loadSession()
     val context = LocalContext.current
     val offlineCache = remember { OfflineCache.get(context) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(intento) {
         cargando = true
+        error = null
         try {
             val api = ApiClient.api<PerfilApi> { auth.token() }
             perfil = api.mio().also { offlineCache.savePerfil(it) }
@@ -129,6 +165,8 @@ private fun ProfileHome(
             }
             val yo = ApiClient.api<AuthApi> { auth.token() }.yo()
             puedeModerar = yo.puedeModerar
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             val cached = offlineCache.loadPerfil()
             if (cached != null) {
@@ -141,6 +179,26 @@ private fun ProfileHome(
         }
     }
 
+    val handlePublicaciones = perfil?.handle ?: session?.handle
+    /** Vista previa de mis publicaciones; la lista completa está en mi perfil público. */
+    LaunchedEffect(handlePublicaciones, intentoPublicaciones) {
+        val h = handlePublicaciones ?: return@LaunchedEffect
+        cargandoPublicaciones = true
+        errorPublicaciones = null
+        try {
+            val resp = ApiClient.api<PerfilApi> { auth.token() }
+                .publicaciones(h, limite = VISTA_PREVIA_PUBLICACIONES)
+            misPublicaciones = resp.publicaciones
+            hayMasPublicaciones = resp.siguienteCursor != null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            errorPublicaciones = mensajeDe(e)
+        } finally {
+            cargandoPublicaciones = false
+        }
+    }
+
     when {
         cargando -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -148,12 +206,19 @@ private fun ProfileHome(
             }
         }
         error != null -> {
-            AgoraErrorState(
-                message = error!!,
-                modifier = Modifier.fillMaxSize(),
-                onRetry = onLogout,
-                retryLabel = "Cerrar sesión",
-            )
+            // Sin red ni caché: lo primero es reintentar, no cerrar sesión.
+            Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                AgoraEmptyState(
+                    emoji = "😕",
+                    title = "No pudimos cargar tu perfil",
+                    subtitle = error!!,
+                    isError = true,
+                    ctaLabel = AgoraCopy.cta.reintentar,
+                    onCta = { intento++ },
+                    secondaryCtaLabel = "Cerrar sesión",
+                    onSecondaryCta = onLogout,
+                )
+            }
         }
         else -> {
             Column(
@@ -232,6 +297,19 @@ private fun ProfileHome(
                     modifier = Modifier.padding(vertical = 4.dp),
                 )
 
+                if (miHandle != null) {
+                    MisPublicaciones(
+                        publicaciones = misPublicaciones,
+                        total = publico?.publicaciones,
+                        hayMas = hayMasPublicaciones,
+                        cargando = cargandoPublicaciones,
+                        error = errorPublicaciones,
+                        onReintentar = { intentoPublicaciones++ },
+                        onPublicacion = onPublicacion,
+                        onVerTodas = { onPerfilPublico(miHandle) },
+                    )
+                }
+
                 Text(
                     session?.email ?: "",
                     style = MaterialTheme.typography.bodySmall,
@@ -244,8 +322,10 @@ private fun ProfileHome(
                 Button(onClick = onAjustes, modifier = Modifier.fillMaxWidth()) {
                     Text("Ajustes")
                 }
-                OutlinedButton(onClick = onMas, modifier = Modifier.fillMaxWidth()) {
-                    Text("Más opciones")
+                if (onMas != null) {
+                    OutlinedButton(onClick = onMas, modifier = Modifier.fillMaxWidth()) {
+                        Text("Más opciones")
+                    }
                 }
                 OutlinedButton(onClick = onMarketplace, modifier = Modifier.fillMaxWidth()) {
                     Text("Marketplace")
@@ -269,6 +349,67 @@ private fun ProfileHome(
                 }
                 OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
                     Text("Cerrar sesión")
+                }
+            }
+        }
+    }
+}
+
+/** Cuántas publicaciones propias se ven en «Yo» antes de «Ver todas». */
+private const val VISTA_PREVIA_PUBLICACIONES = 3
+
+@Composable
+private fun MisPublicaciones(
+    publicaciones: List<PerfilPublicacionDto>,
+    total: Int?,
+    hayMas: Boolean,
+    cargando: Boolean,
+    error: String?,
+    onReintentar: () -> Unit,
+    onPublicacion: (String) -> Unit,
+    onVerTodas: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "Mis publicaciones",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        when {
+            cargando && publicaciones.isEmpty() -> {
+                Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                }
+            }
+            error != null && publicaciones.isEmpty() -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        error,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onReintentar) { Text(AgoraCopy.cta.reintentar) }
+                }
+            }
+            publicaciones.isEmpty() -> {
+                Text(
+                    "Todavía no publicas nada. Lo que compartas aparecerá aquí.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                )
+            }
+            else -> {
+                publicaciones.forEach { pub ->
+                    PublicacionPerfilCard(pub, onClick = { onPublicacion(pub.id) })
+                }
+                if (hayMas) {
+                    TextButton(onClick = onVerTodas, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (total != null && total > 0) "Ver todas ($total)" else "Ver todas")
+                    }
                 }
             }
         }

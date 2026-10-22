@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,6 +31,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -36,9 +40,10 @@ import mx.agora.mobile.nativeapp.data.api.ComunidadDto
 import mx.agora.mobile.nativeapp.data.api.CrearEventoRequest
 import mx.agora.mobile.nativeapp.data.api.EventosApi
 import mx.agora.mobile.nativeapp.data.api.PerfilApi
+import mx.agora.mobile.nativeapp.ui.components.SelectorFechaHora
+import mx.agora.mobile.nativeapp.ui.components.fechaHoraCampus
+import mx.agora.mobile.nativeapp.ui.components.isoUtc
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
-import java.time.LocalDateTime
-import java.time.ZoneId
 
 private val tiposEvento = listOf(
     "FIESTA" to "Fiesta",
@@ -49,15 +54,9 @@ private val tiposEvento = listOf(
     "OTRO" to "Otro",
 )
 
-private fun mananaNocheIso(): String {
-    val manana = LocalDateTime.now(ZoneId.of("America/Mexico_City"))
-        .plusDays(1)
-        .withHour(19)
-        .withMinute(0)
-        .withSecond(0)
-        .withNano(0)
-    return manana.atZone(ZoneId.of("America/Mexico_City")).toInstant().toString()
-}
+/** Tope de costo y cupo en `crearEventoSchema` (packages/contracts). */
+private const val MAXIMO_COSTO_CUPO = 100_000
+private const val DOS_HORAS_MS = 2 * 60 * 60 * 1000L
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -73,7 +72,9 @@ fun CreateEventoScreen(
     var descripcion by remember { mutableStateOf("") }
     var tipo by remember { mutableStateOf("FIESTA") }
     var lugar by remember { mutableStateOf("") }
-    var inicioAt by remember { mutableStateOf(mananaNocheIso()) }
+    /** Inicio y fin como instantes (epoch ms) elegidos en hora del campus; al API van en ISO UTC. */
+    var inicioAt by remember { mutableStateOf(fechaHoraCampus(dias = 1, hora = 19)) }
+    var finAt by remember { mutableStateOf<Long?>(null) }
     var costo by remember { mutableStateOf("") }
     var cupo by remember { mutableStateOf("") }
     var comunidadSlug by remember { mutableStateOf<String?>(null) }
@@ -90,15 +91,33 @@ fun CreateEventoScreen(
         }
     }
 
+    val errorInicio = if (inicioAt < System.currentTimeMillis()) "Esa hora ya pasó. Elige otra." else null
+    val errorFin = finAt?.let { fin ->
+        if (fin <= inicioAt) "El evento no puede terminar antes de empezar." else null
+    }
+    val costoNumero = costo.toIntOrNull()
+    val cupoNumero = cupo.toIntOrNull()
+    val errorCosto = if (costoNumero != null && costoNumero > MAXIMO_COSTO_CUPO) "El costo máximo es de $100,000." else null
+    val errorCupo = when {
+        cupoNumero == null -> null
+        cupoNumero < 1 -> "El cupo mínimo es 1 (déjalo vacío si no hay límite)."
+        cupoNumero > MAXIMO_COSTO_CUPO -> "El cupo máximo es de 100,000."
+        else -> null
+    }
+
     val puedePublicar = titulo.trim().length >= 3 &&
         descripcion.trim().isNotBlank() &&
         lugar.trim().length >= 2 &&
-        inicioAt.isNotBlank() &&
+        errorInicio == null &&
+        errorFin == null &&
+        errorCosto == null &&
+        errorCupo == null &&
         !enviando
 
     Column(
         modifier = modifier
             .fillMaxSize()
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -139,27 +158,52 @@ fun CreateEventoScreen(
             }
         }
 
-        OutlinedTextField(
-            value = inicioAt,
-            onValueChange = { inicioAt = it },
+        SelectorFechaHora(
+            etiqueta = "Empieza",
+            valor = inicioAt,
+            onCambio = { inicioAt = it },
+            error = errorInicio,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Inicio (ISO, ej. 2026-08-25T19:00:00Z)") },
-            singleLine = true,
+        )
+        SelectorFechaHora(
+            etiqueta = "Termina (opcional)",
+            valor = finAt,
+            onCambio = { finAt = it },
+            onQuitar = { finAt = null },
+            minimo = inicioAt,
+            sugerencia = inicioAt + DOS_HORAS_MS,
+            placeholder = "Toca si quieres poner hora de fin",
+            error = errorFin,
+            modifier = Modifier.fillMaxWidth(),
         )
 
         OutlinedTextField(
             value = costo,
-            onValueChange = { if (it.all { c -> c.isDigit() }) costo = it },
+            onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) costo = it },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Costo MXN (opcional, 0 = gratis)") },
             singleLine = true,
+            isError = errorCosto != null,
+            supportingText = if (errorCosto != null) {
+                { Text(errorCosto) }
+            } else {
+                null
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
         )
         OutlinedTextField(
             value = cupo,
-            onValueChange = { if (it.all { c -> c.isDigit() }) cupo = it },
+            onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) cupo = it },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Cupo (opcional)") },
             singleLine = true,
+            isError = errorCupo != null,
+            supportingText = if (errorCupo != null) {
+                { Text(errorCupo) }
+            } else {
+                null
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
         )
 
         if (comunidades.isNotEmpty()) {
@@ -205,8 +249,15 @@ fun CreateEventoScreen(
             }
         }
 
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
         Button(
             onClick = {
+                // El formulario pudo quedarse abierto un rato: se revisa otra vez al publicar.
+                if (inicioAt < System.currentTimeMillis()) {
+                    error = "La hora de inicio ya pasó. Elige otra."
+                    return@Button
+                }
                 scope.launch {
                     enviando = true
                     error = null
@@ -217,15 +268,16 @@ fun CreateEventoScreen(
                                 descripcion = descripcion.trim(),
                                 tipo = tipo,
                                 lugar = lugar.trim(),
-                                inicioAt = inicioAt.trim(),
-                                costoMxn = costo.toIntOrNull(),
-                                cupo = cupo.toIntOrNull(),
+                                inicioAt = isoUtc(inicioAt),
+                                finAt = finAt?.let(::isoUtc),
+                                costoMxn = costoNumero,
+                                cupo = cupoNumero,
                                 comunidadSlug = comunidadSlug,
                             ),
                         )
                         onCreado(resp.id)
                     } catch (e: Exception) {
-                        error = mensajeDe(e)
+                        error = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
                     } finally {
                         enviando = false
                     }
@@ -244,7 +296,5 @@ fun CreateEventoScreen(
         OutlinedButton(onClick = onCancelar, modifier = Modifier.fillMaxWidth()) {
             Text("Cancelar")
         }
-
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
 }

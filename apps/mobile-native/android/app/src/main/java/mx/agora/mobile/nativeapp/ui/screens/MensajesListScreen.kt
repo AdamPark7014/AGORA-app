@@ -36,6 +36,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -44,6 +45,7 @@ import mx.agora.mobile.nativeapp.data.api.ConversacionDto
 import mx.agora.mobile.nativeapp.data.api.MensajesApi
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
@@ -62,15 +64,32 @@ fun MensajesListScreen(
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    fun cargar(refresh: Boolean = false) {
+    /** Hay una carga en curso: el refresco automático no encima otra. */
+    var ocupado by remember { mutableStateOf(false) }
+
+    /**
+     * [jalon]: la pidió el usuario jalando la lista (enseña la ruedita).
+     * [silencioso]: el refresco automático; no enseña nada y, si falla, deja
+     * la lista como estaba sin pintar error encima.
+     */
+    fun cargar(jalon: Boolean = false, silencioso: Boolean = false) {
+        if (silencioso && ocupado) return
         scope.launch {
-            if (refresh) refrescando = true else if (conversaciones.isEmpty()) cargando = true
-            error = null
+            ocupado = true
+            when {
+                jalon -> refrescando = true
+                !silencioso && conversaciones.isEmpty() -> cargando = true
+            }
+            if (!silencioso) error = null
             try {
                 conversaciones = ApiClient.api<MensajesApi>(tokenProvider).bandeja().conversaciones
+                error = null
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                error = mensajeDe(e)
+                if (!silencioso || conversaciones.isEmpty()) error = mensajeDe(e)
             } finally {
+                ocupado = false
                 cargando = false
                 refrescando = false
             }
@@ -81,13 +100,13 @@ fun MensajesListScreen(
         cargar()
         while (isActive) {
             delay(15_000)
-            cargar(refresh = true)
+            cargar(silencioso = true)
         }
     }
 
     AgoraPullToRefreshBox(
         isRefreshing = refrescando,
-        onRefresh = { cargar(refresh = true) },
+        onRefresh = { cargar(jalon = true) },
         modifier = modifier.fillMaxSize(),
     ) {
         when {
@@ -95,19 +114,21 @@ fun MensajesListScreen(
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
             error != null && conversaciones.isEmpty() -> {
-                AgoraErrorState(
-                    message = error!!,
-                    modifier = Modifier.align(Alignment.Center),
-                    onRetry = { cargar() },
-                )
+                AgoraEstadoDesplazable {
+                    AgoraErrorState(
+                        message = error!!,
+                        onRetry = { cargar() },
+                    )
+                }
             }
             conversaciones.isEmpty() -> {
-                AgoraEmptyState(
-                    state = AgoraCopy.emptyMensajes,
-                    modifier = Modifier.align(Alignment.Center),
-                    ctaLabel = AgoraCopy.cta.explorarDirectorio,
-                    onCta = onBuscar,
-                )
+                AgoraEstadoDesplazable {
+                    AgoraEmptyState(
+                        state = AgoraCopy.emptyMensajes,
+                        ctaLabel = AgoraCopy.cta.explorarDirectorio,
+                        onCta = onBuscar,
+                    )
+                }
             }
             else -> {
                 LazyColumn(

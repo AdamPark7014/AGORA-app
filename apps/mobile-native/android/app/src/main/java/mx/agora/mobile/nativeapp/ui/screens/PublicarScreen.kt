@@ -18,13 +18,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -40,9 +39,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,10 +59,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.MediaRepository
@@ -76,6 +75,7 @@ import mx.agora.mobile.nativeapp.data.api.PostsApi
 import mx.agora.mobile.nativeapp.data.gamificacion.GamificacionEvents
 import mx.agora.mobile.nativeapp.data.local.OfflineCache
 import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
+import mx.agora.mobile.nativeapp.ui.components.MiniaturaAdjunto
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.HapticType
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
@@ -88,6 +88,7 @@ private const val LIMITE_OPCION = 100
 private const val MIN_OPCIONES = 2
 private const val MAX_OPCIONES = 6
 
+/** Igual que `crearPostSchema.mediaIds.max(4)` en packages/contracts. */
 private const val MAX_ADJUNTOS = 4
 
 private data class AdjuntoPendiente(
@@ -137,27 +138,73 @@ fun PublicarScreen(
     var preguntaEncuesta by remember { mutableStateOf("") }
     val opcionesEncuesta = remember { mutableStateListOf("", "") }
 
-    val picker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-    ) { uri ->
-        if (uri == null || adjuntos.size >= MAX_ADJUNTOS) return@rememberLauncherForActivityResult
-        val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
-        val esVideo = mime.startsWith("video/")
-        val indice = adjuntos.size
-        adjuntos.add(AdjuntoPendiente(uri = uri, esVideo = esVideo, subiendo = true))
-        scope.launch {
-            try {
-                val subida = mediaRepo.subir(uri, tokenProvider)
-                adjuntos[indice] = adjuntos[indice].copy(
-                    mediaId = subida.id,
-                    previewUrl = ApiClient.resolveUrl(subida.url),
-                    esVideo = subida.mime?.startsWith("video/") == true || esVideo,
-                    subiendo = false,
-                )
-            } catch (e: Exception) {
-                snackbarHostState.showSnackbar(mensajeDe(e))
-                adjuntos.removeAt(indice)
+    // Cada adjunto se ubica por su uri, nunca por un índice guardado: si la
+    // persona quita otro mientras este sube, el índice ya no apunta a él.
+    fun agregarAdjuntos(uris: List<Uri>) {
+        val nuevos = uris.distinct().filter { uri -> adjuntos.none { it.uri == uri } }
+        if (nuevos.isEmpty()) return
+        val aceptados = nuevos.take((MAX_ADJUNTOS - adjuntos.size).coerceAtLeast(0))
+        if (aceptados.size < nuevos.size) {
+            scope.launch {
+                snackbarHostState.showSnackbar("Solo caben $MAX_ADJUNTOS fotos o videos por publicación.")
             }
+        }
+        aceptados.forEach { uri ->
+            val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+            val esVideo = mime.startsWith("video/")
+            adjuntos.add(AdjuntoPendiente(uri = uri, esVideo = esVideo, subiendo = true))
+            scope.launch {
+                try {
+                    val subida = mediaRepo.subir(uri, tokenProvider)
+                    val i = adjuntos.indexOfFirst { it.uri == uri }
+                    if (i >= 0) {
+                        adjuntos[i] = adjuntos[i].copy(
+                            mediaId = subida.id,
+                            previewUrl = ApiClient.resolveUrl(subida.url),
+                            esVideo = subida.mime?.startsWith("video/") == true || esVideo,
+                            subiendo = false,
+                        )
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    adjuntos.removeAll { it.uri == uri }
+                    snackbarHostState.showSnackbar(mensajeDe(e))
+                }
+            }
+        }
+    }
+
+    val cupoAdjuntos = (MAX_ADJUNTOS - adjuntos.size).coerceAtLeast(0)
+    // PickMultipleVisualMedia exige maxItems > 1; con un solo lugar libre se usa el selector simple.
+    val pickerVarios = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = cupoAdjuntos.coerceAtLeast(2)),
+    ) { uris -> agregarAdjuntos(uris) }
+    val pickerUno = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> if (uri != null) agregarAdjuntos(listOf(uri)) }
+
+    // Posts que estaban en cola sin conexión y que el servidor rechazó (4xx):
+    // ya salieron de la cola; aquí se avisa una vez y se ofrece recuperar el texto.
+    LaunchedEffect(Unit) {
+        val rechazados = offlineCache.tomarPostsRechazados()
+        if (rechazados.isEmpty()) return@LaunchedEffect
+        val primero = rechazados.first()
+        val mensaje = if (rechazados.size == 1) {
+            "No se pudo publicar tu post pendiente" + (primero.motivo?.let { ": $it" } ?: ".")
+        } else {
+            "No se pudieron publicar ${rechazados.size} posts pendientes" +
+                (primero.motivo?.let { ": $it" } ?: ".")
+        }
+        val recuperable = primero.texto.isNotBlank()
+        val resultado = snackbarHostState.showSnackbar(
+            message = mensaje,
+            actionLabel = if (recuperable) "Recuperar texto" else null,
+            withDismissAction = !recuperable,
+            duration = SnackbarDuration.Long,
+        )
+        if (resultado == SnackbarResult.ActionPerformed && texto.isBlank()) {
+            texto = primero.texto.take(LIMITE_TEXTO)
         }
     }
 
@@ -197,9 +244,13 @@ fun PublicarScreen(
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         Column(
+            // Con edge-to-edge (targetSdk 36) adjustResize ya no encoge la ventana:
+            // imePadding va antes del scroll para que el teclado no tape los campos.
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -233,59 +284,13 @@ fun PublicarScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    itemsIndexed(adjuntos, key = { _, a -> a.uri.toString() }) { index, adj ->
-                        Box {
-                            if (adj.esVideo) {
-                                Surface(
-                                    modifier = Modifier
-                                        .size(120.dp)
-                                        .clip(RoundedCornerShape(8.dp)),
-                                    color = AgoraColors.Naranja.copy(alpha = 0.15f),
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        if (adj.subiendo) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(28.dp),
-                                                color = AgoraColors.Naranja,
-                                            )
-                                        } else {
-                                            Text("🎬", style = MaterialTheme.typography.headlineMedium)
-                                        }
-                                    }
-                                }
-                            } else {
-                                AsyncImage(
-                                    model = adj.previewUrl ?: adj.uri,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(120.dp)
-                                        .clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.Crop,
-                                )
-                                if (adj.subiendo) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier
-                                            .size(120.dp)
-                                            .padding(40.dp),
-                                        color = AgoraColors.Naranja,
-                                    )
-                                }
-                            }
-                            IconButton(
-                                onClick = { adjuntos.removeAt(index) },
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(28.dp)
-                                    .background(Color.Black.copy(0.5f), CircleShape),
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Quitar",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                            }
-                        }
+                    items(adjuntos, key = { a -> a.uri.toString() }) { adj ->
+                        MiniaturaAdjunto(
+                            model = adj.previewUrl ?: adj.uri,
+                            esVideo = adj.esVideo,
+                            subiendo = adj.subiendo,
+                            onQuitar = { adjuntos.removeAll { it.uri == adj.uri } },
+                        )
                     }
                 }
             }
@@ -293,17 +298,16 @@ fun PublicarScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = {
-                        picker.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo),
-                        )
+                        val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                        if (cupoAdjuntos >= 2) pickerVarios.launch(request) else pickerUno.launch(request)
                     },
-                    enabled = !subiendoAlguno && adjuntos.size < MAX_ADJUNTOS,
+                    enabled = !subiendoAlguno && cupoAdjuntos > 0,
                 ) {
                     Text(
                         when {
                             subiendoAlguno -> "Subiendo…"
-                            adjuntos.size >= MAX_ADJUNTOS -> "Máx. $MAX_ADJUNTOS"
-                            else -> "📷 Foto o video"
+                            cupoAdjuntos == 0 -> "Máx. $MAX_ADJUNTOS"
+                            else -> "📷 Fotos o videos"
                         },
                     )
                 }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,8 +36,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.EnviarMensajeRequest
@@ -46,8 +47,18 @@ import mx.agora.mobile.nativeapp.data.api.ParticipanteConversacionDto
 import mx.agora.mobile.nativeapp.data.realtime.RealtimeBus
 import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
+import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.util.formatearHora
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
+import retrofit2.HttpException
+import java.time.Instant
+import java.util.UUID
+
+/** Prefijo de los mensajes que pintamos antes de que el servidor confirme su id. */
+private const val PREFIJO_LOCAL = "local-"
+
+private fun MensajeDto.esLocal(): Boolean = id.startsWith(PREFIJO_LOCAL)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,34 +75,50 @@ fun MensajeDetalleScreen(
     var cargandoAntiguos by remember { mutableStateOf(false) }
     var enviando by remember { mutableStateOf(false) }
     var texto by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
+    /** Falló la primera carga y no hay nada que enseñar. */
+    var errorCarga by remember { mutableStateOf<String?>(null) }
+    /** Falló el último envío (o traer mensajes anteriores). */
+    var errorEnvio by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    fun traerRecientes() {
-        scope.launch {
-            try {
-                val datos = ApiClient.api<MensajesApi>(tokenProvider).conversacion(conversacionId)
-                con = datos.con
-                siguienteCursor = datos.siguienteCursor
-                val ids = mensajes.map { it.id }.toSet()
-                val nuevos = datos.mensajes.filter { it.id !in ids }
-                mensajes = if (mensajes.isEmpty()) datos.mensajes else if (nuevos.isNotEmpty()) mensajes + nuevos else mensajes
-                error = null
-            } catch (e: Exception) {
-                if (mensajes.isEmpty()) error = mensajeDe(e)
-            }
-        }
+    /** Índice del último mensaje en la lista (el botón de «anteriores» va antes). */
+    fun indiceUltimo(): Int = mensajes.lastIndex + if (siguienteCursor != null) 1 else 0
+
+    /**
+     * Trae la página más reciente y la junta con lo que ya hay, sin repetir ids.
+     * Suspende hasta tener respuesta: antes lanzaba otra corrutina y el «ya
+     * cargó» y el scroll al final corrían antes de que llegaran los datos.
+     * Devuelve false si falló.
+     */
+    suspend fun traerRecientes(): Boolean = try {
+        val datos = ApiClient.api<MensajesApi>(tokenProvider).conversacion(conversacionId)
+        con = datos.con
+        if (mensajes.isEmpty()) siguienteCursor = datos.siguienteCursor
+        val ids = mensajes.mapTo(HashSet()) { it.id }
+        val nuevos = datos.mensajes.filter { it.id !in ids }
+        mensajes = if (mensajes.isEmpty()) datos.mensajes else mensajes + nuevos
+        errorCarga = null
+        true
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        if (mensajes.isEmpty()) errorCarga = mensajeDe(e)
+        false
     }
 
-    LaunchedEffect(conversacionId) {
+    suspend fun cargarInicial() {
         cargando = true
+        errorCarga = null
         traerRecientes()
-        cargando = false
         if (mensajes.isNotEmpty()) {
-            listState.scrollToItem(mensajes.lastIndex)
+            // Se pide antes de pintar la lista: abre ya en el último mensaje.
+            listState.requestScrollToItem(indiceUltimo())
         }
+        cargando = false
     }
+
+    LaunchedEffect(conversacionId) { cargarInicial() }
 
     DisposableEffect(conversacionId) {
         RealtimeBus.watchConversacion(conversacionId)
@@ -101,9 +128,16 @@ fun MensajeDetalleScreen(
     LaunchedEffect(conversacionId) {
         RealtimeBus.mensajes.collect { evento ->
             if (evento.conversacionId != conversacionId) return@collect
-            if (mensajes.any { it.id == evento.mensaje.id }) return@collect
-            mensajes = mensajes + evento.mensaje
-            listState.animateScrollToItem(mensajes.lastIndex)
+            val real = evento.mensaje
+            if (mensajes.any { it.id == real.id }) return@collect
+            // Si es el eco de lo que acabo de mandar, reemplaza la burbuja local.
+            val local = if (real.mio) mensajes.firstOrNull { it.esLocal() && it.texto == real.texto } else null
+            if (local != null) {
+                mensajes = mensajes.map { if (it.id == local.id) real else it }
+            } else {
+                mensajes = mensajes + real
+                listState.animateScrollToItem(indiceUltimo())
+            }
         }
     }
 
@@ -114,9 +148,12 @@ fun MensajeDetalleScreen(
             try {
                 val datos = ApiClient.api<MensajesApi>(tokenProvider).conversacion(conversacionId, cursor = cursor)
                 siguienteCursor = datos.siguienteCursor
-                mensajes = datos.mensajes + mensajes
-            } catch (_: Exception) {
-                // Silencioso.
+                val ids = mensajes.mapTo(HashSet()) { it.id }
+                mensajes = datos.mensajes.filter { it.id !in ids } + mensajes
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorEnvio = mensajeDe(e)
             } finally {
                 cargandoAntiguos = false
             }
@@ -126,18 +163,40 @@ fun MensajeDetalleScreen(
     fun enviar() {
         val limpio = texto.trim()
         if (limpio.isBlank() || enviando) return
+        // Se pinta de inmediato; el id real llega al recargar o por el SSE.
+        val local = MensajeDto(
+            id = PREFIJO_LOCAL + UUID.randomUUID(),
+            texto = limpio,
+            createdAt = Instant.now().toString(),
+            mio = true,
+        )
         scope.launch {
             enviando = true
-            error = null
+            errorEnvio = null
+            texto = ""
+            mensajes = mensajes + local
+            listState.animateScrollToItem(indiceUltimo())
             try {
-                ApiClient.api<MensajesApi>(tokenProvider).enviar(
+                // `enviar` regresa Response<Unit>: un 4xx/5xx no lanza solo.
+                val resp = ApiClient.api<MensajesApi>(tokenProvider).enviar(
                     conversacionId,
                     EnviarMensajeRequest(limpio),
                 )
+                if (!resp.isSuccessful) throw HttpException(resp)
                 AgoraAnalytics.dmEnviado(tokenProvider, mapOf("conversacionId" to conversacionId))
-                texto = ""
+                // Trae el mensaje con su id real (dedupe por id con el SSE) y
+                // quita la burbuja local. Si la recarga falla, la local se queda:
+                // el mensaje sí se mandó.
+                if (traerRecientes()) {
+                    val yaLlego = mensajes.any { !it.esLocal() && it.mio && it.texto == limpio }
+                    if (yaLlego) mensajes = mensajes.filter { it.id != local.id }
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                error = mensajeDe(e)
+                mensajes = mensajes.filter { it.id != local.id }
+                if (texto.isBlank()) texto = limpio
+                errorEnvio = mensajeDe(e)
             } finally {
                 enviando = false
             }
@@ -156,9 +215,12 @@ fun MensajeDetalleScreen(
                     }
                 },
                 actions = {
-                    con?.handle?.let { handle ->
-                        IconButton(onClick = { onPerfilClick(handle) }) {
-                            Text("@", style = MaterialTheme.typography.titleMedium)
+                    con?.let { persona ->
+                        IconButton(onClick = { onPerfilClick(persona.handle) }) {
+                            Icon(
+                                Icons.Outlined.AccountCircle,
+                                contentDescription = "Ver perfil de ${persona.nombre}",
+                            )
                         }
                     }
                 },
@@ -175,6 +237,16 @@ fun MensajeDetalleScreen(
             return@Scaffold
         }
 
+        val fallo = errorCarga
+        if (fallo != null && mensajes.isEmpty()) {
+            AgoraErrorState(
+                message = fallo,
+                modifier = Modifier.fillMaxSize().padding(padding),
+                onRetry = { scope.launch { cargarInicial() } },
+            )
+            return@Scaffold
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -187,7 +259,7 @@ fun MensajeDetalleScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (siguienteCursor != null) {
-                    item {
+                    item(key = "anteriores") {
                         Box(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center,
@@ -203,7 +275,7 @@ fun MensajeDetalleScreen(
                 }
 
                 if (mensajes.isEmpty()) {
-                    item {
+                    item(key = "vacio") {
                         AgoraEmptyState(
                             state = AgoraCopy.emptyMensajeDetalle,
                             modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
@@ -212,11 +284,11 @@ fun MensajeDetalleScreen(
                 }
 
                 items(mensajes, key = { it.id }) { mensaje ->
-                    BurbujaMensaje(mensaje)
+                    BurbujaMensaje(mensaje, enviando = mensaje.esLocal())
                 }
             }
 
-            error?.let {
+            errorEnvio?.let {
                 Text(
                     it,
                     color = MaterialTheme.colorScheme.error,
@@ -251,26 +323,44 @@ fun MensajeDetalleScreen(
     }
 }
 
+/**
+ * Burbuja que se ajusta al texto, con tope del 82 % del ancho, y la hora corta
+ * (hora de México) abajo. Mientras el servidor no confirma dice «Enviando…».
+ */
 @Composable
-private fun BurbujaMensaje(mensaje: MensajeDto) {
+private fun BurbujaMensaje(mensaje: MensajeDto, enviando: Boolean) {
     val mio = mensaje.mio
+    val alineacion = if (mio) Alignment.CenterEnd else Alignment.CenterStart
+    val colorTexto = if (mio) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     Box(
         modifier = Modifier.fillMaxWidth(),
-        contentAlignment = if (mio) Alignment.CenterEnd else Alignment.CenterStart,
+        contentAlignment = alineacion,
     ) {
+        // Este marco solo pone el tope; la burbuja de adentro mide lo que el texto.
         Box(
-            modifier = Modifier
-                .fillMaxWidth(0.82f)
-                .background(
-                    color = if (mio) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(16.dp),
-                )
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth(0.82f),
+            contentAlignment = alineacion,
         ) {
-            Text(
-                mensaje.texto,
-                color = if (mio) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-            )
+            Column(
+                modifier = Modifier
+                    .background(
+                        color = if (mio) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(16.dp),
+                    )
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.End,
+            ) {
+                Text(mensaje.texto, color = colorTexto)
+                val pie = if (enviando) "Enviando…" else formatearHora(mensaje.createdAt)
+                if (pie.isNotEmpty()) {
+                    Text(
+                        pie,
+                        color = colorTexto.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
         }
     }
 }

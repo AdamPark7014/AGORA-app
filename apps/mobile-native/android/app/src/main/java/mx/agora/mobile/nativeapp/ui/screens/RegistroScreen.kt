@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -53,6 +54,7 @@ import mx.agora.mobile.nativeapp.data.api.CatalogoDto
 import mx.agora.mobile.nativeapp.data.api.CrearPerfilRequest
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.SessionUser
+import mx.agora.mobile.nativeapp.ui.components.ZonaCampus
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 import java.util.Calendar
@@ -76,7 +78,10 @@ fun RegistroScreen(
     var usuarioCreado by remember { mutableStateOf<SessionUser?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    val generacion = Calendar.getInstance().get(Calendar.YEAR)
+    val anioActual = remember { Calendar.getInstance(ZonaCampus).get(Calendar.YEAR) }
+    /** Mismo rango y default que la web (`apps/web/app/registro`): 10 años, del que entra hacia atrás. */
+    val generaciones = remember(anioActual) { List(10) { anioActual + 1 - it } }
+    var generacion by remember { mutableIntStateOf(anioActual) }
 
     LaunchedEffect(Unit) {
         cargandoCatalogo = true
@@ -198,6 +203,25 @@ fun RegistroScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = AgoraColors.TextoMedio,
                             )
+                        }
+                        item {
+                            Text("Generación", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                "El año en que entraste a la UDLAP",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AgoraColors.TextoMedio,
+                            )
+                        }
+                        item {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(generaciones, key = { it }) { anio ->
+                                    FilterChip(
+                                        selected = generacion == anio,
+                                        onClick = { generacion = anio },
+                                        label = { Text(anio.toString()) },
+                                    )
+                                }
+                            }
                         }
                         item { Text("Carrera", style = MaterialTheme.typography.titleSmall) }
                         items(carreras, key = { it.slug }) { carrera ->

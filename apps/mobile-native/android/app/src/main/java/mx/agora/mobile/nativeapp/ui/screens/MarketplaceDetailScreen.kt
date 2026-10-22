@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ActualizarAnuncioRequest
 import mx.agora.mobile.nativeapp.data.api.AnuncioDetalleDto
@@ -64,6 +66,7 @@ fun MarketplaceDetailScreen(
     var anuncio by remember { mutableStateOf<AnuncioDetalleDto?>(null) }
     var cargando by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var cambiandoEstado by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     /** Índice de la imagen abierta en el visor a pantalla completa. */
@@ -84,6 +87,28 @@ fun MarketplaceDetailScreen(
     }
 
     LaunchedEffect(anuncioId) { cargar() }
+
+    /** Cambia el estado de venta con lo que regresa la API, sin recargar todo. */
+    fun cambiarEstado(nuevo: String) {
+        if (cambiandoEstado) return
+        scope.launch {
+            cambiandoEstado = true
+            error = null
+            try {
+                val resp = ApiClient.api<MarketplaceApi>(tokenProvider).actualizar(
+                    anuncioId,
+                    ActualizarAnuncioRequest(nuevo),
+                )
+                anuncio = anuncio?.copy(estadoVenta = resp.estadoVenta)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                error = mensajeDe(e)
+            } finally {
+                cambiandoEstado = false
+            }
+        }
+    }
 
     when {
         cargando && anuncio == null -> {
@@ -139,11 +164,17 @@ fun MarketplaceDetailScreen(
                     VisorImagenes(urls = urls, inicio = inicio, onCerrar = { visor = null })
                 }
 
-                Text(
-                    "${formatearPrecio(item.precioMxn)} MXN",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = AgoraColors.Naranja,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        "${formatearPrecio(item.precioMxn)} MXN",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = AgoraColors.Naranja,
+                    )
+                    EtiquetaEstadoAnuncio(item.estadoVenta)
+                }
                 Text(item.titulo, style = MaterialTheme.typography.headlineSmall)
                 Text(
                     "${item.vendedor?.nombre ?: "Alguien"} · ${haceCuanto(item.createdAt)}",
@@ -152,36 +183,59 @@ fun MarketplaceDetailScreen(
                 )
                 Text(item.descripcion, style = MaterialTheme.typography.bodyLarge)
 
-                if (item.estadoVenta != "DISPONIBLE") {
-                    Text(
-                        "Este artículo ya no está disponible.",
-                        color = MaterialTheme.colorScheme.error,
+                when (item.estadoVenta) {
+                    ESTADO_APARTADO -> Text(
+                        if (item.esMio) {
+                            "Lo tienes apartado. Libéralo si el trato no se cierra."
+                        } else {
+                            "Ya está apartado. Escríbele por si se libera."
+                        },
+                        color = AgoraColors.TextoMedio,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    ESTADO_VENDIDO -> Text(
+                        if (item.esMio) "Lo marcaste como vendido." else "Este artículo ya se vendió.",
+                        color = AgoraColors.TextoMedio,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
 
                 when {
                     item.esMio -> {
-                        OutlinedButton(
-                            onClick = {
-                                scope.launch {
-                                    try {
-                                        ApiClient.api<MarketplaceApi>(tokenProvider).actualizar(
-                                            anuncioId,
-                                            ActualizarAnuncioRequest("VENDIDO"),
+                        // Como en la web: Apartar/Liberar y Vendido; si ya se vendió,
+                        // se puede volver a poner a la venta.
+                        when (item.estadoVenta) {
+                            ESTADO_VENDIDO -> OutlinedButton(
+                                onClick = { cambiarEstado(ESTADO_DISPONIBLE) },
+                                enabled = !cambiandoEstado,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Volver a ponerlo a la venta")
+                            }
+                            else -> {
+                                OutlinedButton(
+                                    onClick = {
+                                        cambiarEstado(
+                                            if (item.estadoVenta == ESTADO_APARTADO) ESTADO_DISPONIBLE else ESTADO_APARTADO,
                                         )
-                                        cargar()
-                                    } catch (e: Exception) {
-                                        error = mensajeDe(e)
-                                    }
+                                    },
+                                    enabled = !cambiandoEstado,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(if (item.estadoVenta == ESTADO_APARTADO) "Liberar" else "Apartar")
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Marcar como vendido")
+                                Button(
+                                    onClick = { cambiarEstado(ESTADO_VENDIDO) },
+                                    enabled = !cambiandoEstado,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text("Marcar como vendido")
+                                }
+                            }
                         }
+                        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }
-                    item.estadoVenta == "DISPONIBLE" && item.vendedor != null -> {
+                    item.estadoVenta != ESTADO_VENDIDO && item.vendedor != null -> {
                         Button(
                             onClick = {
                                 scope.launch {
@@ -206,6 +260,14 @@ fun MarketplaceDetailScreen(
                             Text("Ver perfil del vendedor")
                         }
                     }
+                    item.vendedor != null -> {
+                        OutlinedButton(
+                            onClick = { item.vendedor?.handle?.let(onPerfilClick) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Ver perfil del vendedor")
+                        }
+                    }
                 }
 
                 OutlinedButton(
@@ -216,7 +278,9 @@ fun MarketplaceDetailScreen(
                     Text(AgoraCopy.compartir.accion, modifier = Modifier.padding(start = 8.dp))
                 }
 
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (!item.esMio) {
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
             }
         }
     }

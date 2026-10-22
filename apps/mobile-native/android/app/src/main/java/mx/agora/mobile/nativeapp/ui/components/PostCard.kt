@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +18,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -44,8 +47,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -55,6 +67,7 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -70,6 +83,7 @@ import mx.agora.mobile.nativeapp.ui.util.HapticType
 import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
 import mx.agora.mobile.nativeapp.ui.util.rememberHaptics
+import java.io.IOException
 
 data class ReaccionInfo(
     val tipo: String,
@@ -104,6 +118,9 @@ fun PostCard(
     var totalReacciones by remember(post.id) { mutableIntStateOf(post.numReactions) }
     var encuesta by remember(post.id) { mutableStateOf(post.encuesta) }
     var votando by remember(post.id) { mutableStateOf(false) }
+    // El feed no trae el voto propio; solo la respuesta de votar (miVoto).
+    var miVoto by remember(post.id) { mutableStateOf<String?>(null) }
+    var errorVoto by remember(post.id) { mutableStateOf<String?>(null) }
     var suppressCardClick by remember(post.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
@@ -132,17 +149,18 @@ fun PostCard(
     fun votar(opcionId: String) {
         if (votando || encuesta == null) return
         votando = true
+        errorVoto = null
         haptics.perform(HapticType.Toggle)
         scope.launch {
             try {
                 val resp = ApiClient.api<PostsApi>(tokenProvider).votar(post.id, VotarEncuestaRequest(opcionId))
-                encuesta = encuesta?.copy(
-                    pregunta = encuesta!!.pregunta,
-                    opciones = resp.opciones,
-                )
+                if (resp.opciones.isNotEmpty()) encuesta = encuesta?.copy(opciones = resp.opciones)
+                miVoto = resp.miVoto ?: opcionId
                 haptics.perform(HapticType.Success)
-            } catch (_: Exception) {
-                // silencioso
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorVoto = mensajeErrorVoto(e)
             } finally {
                 votando = false
             }
@@ -186,7 +204,8 @@ fun PostCard(
                 )
                 if (onRetirar != null) {
                     Box {
-                        IconButton(onClick = { menuAbierto = true }, modifier = Modifier.size(36.dp)) {
+                        // Tamaño por defecto de IconButton: 48dp de área táctil.
+                        IconButton(onClick = { menuAbierto = true }) {
                             Icon(
                                 Icons.Filled.MoreVert,
                                 contentDescription = "Más opciones",
@@ -241,6 +260,8 @@ fun PostCard(
                     onVotar = ::votar,
                     votando = votando,
                     modifier = Modifier.padding(top = 10.dp),
+                    miVoto = miVoto,
+                    error = errorVoto,
                 )
             }
 
@@ -267,10 +288,11 @@ fun ReaccionesRow(
     modifier: Modifier = Modifier,
     onCompartir: (() -> Unit)? = null,
 ) {
+    // Cada reacción ya ocupa 48dp de área táctil: sin espacio extra entre ellas
+    // para que la fila quepa en pantallas de 360dp.
     Row(
         modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         REACCIONES_POST.forEach { reaccion ->
             ReaccionButton(
@@ -283,7 +305,11 @@ fun ReaccionesRow(
             totalReacciones.toString(),
             style = MaterialTheme.typography.labelSmall,
             color = AgoraColors.TextoMedio,
-            modifier = Modifier.padding(start = 4.dp, end = 8.dp, bottom = 6.dp),
+            modifier = Modifier
+                .padding(start = 2.dp, end = 8.dp)
+                .semantics {
+                    contentDescription = if (totalReacciones == 1) "1 reacción" else "$totalReacciones reacciones"
+                },
         )
         Text(
             "💬 $numComments",
@@ -301,7 +327,8 @@ fun ReaccionesRow(
         )
         if (onCompartir != null) {
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = onCompartir, modifier = Modifier.size(36.dp)) {
+            // Tamaño por defecto de IconButton: 48dp de área táctil; el icono sigue en 18dp.
+            IconButton(onClick = onCompartir) {
                 Icon(
                     Icons.Outlined.Share,
                     contentDescription = AgoraCopy.compartir.accion,
@@ -350,19 +377,28 @@ private fun ReaccionButton(
         label = "labelAlpha",
     )
 
+    // 48dp de área táctil sin agrandar el emoji. TalkBack lee la etiqueta en
+    // español y el estado, no el nombre del emoji.
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(horizontal = 2.dp),
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button) {
+                bounceKey++
+                onClick()
+            }
+            .semantics {
+                contentDescription = "Reaccionar con ${reaccion.etiqueta.lowercase()}"
+                this.selected = selected
+            },
     ) {
         Text(
             text = reaccion.emoji,
             modifier = Modifier
                 .scale(scale)
-                .clickable {
-                    bounceKey++
-                    onClick()
-                }
-                .padding(horizontal = 4.dp, vertical = 4.dp),
+                .clearAndSetSemantics {},
             style = MaterialTheme.typography.bodyMedium.copy(
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             ),
@@ -374,7 +410,7 @@ private fun ReaccionButton(
                 modifier = Modifier
                     .scale(labelScale)
                     .alpha(labelAlpha)
-                    .padding(bottom = 2.dp),
+                    .clearAndSetSemantics {},
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                 color = AgoraColors.Naranja,
                 fontWeight = FontWeight.SemiBold,
@@ -449,26 +485,43 @@ fun TextoConHashtags(
     )
 }
 
+/**
+ * Encuesta de un post. [miVoto] resalta la opción elegida (viene en la
+ * respuesta de votar) y [error] se muestra debajo si el voto falló.
+ */
 @Composable
 fun EncuestaBloque(
     encuesta: EncuestaDto,
     onVotar: (String) -> Unit,
     votando: Boolean,
     modifier: Modifier = Modifier,
+    miVoto: String? = null,
+    error: String? = null,
 ) {
     val votosTotales = encuesta.opciones.sumOf { it.votos }
+    val forma = RoundedCornerShape(8.dp)
 
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier = modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(encuesta.pregunta, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         encuesta.opciones.forEach { opcion ->
             val pct = if (votosTotales > 0) opcion.votos * 100 / votosTotales else 0
+            val elegida = opcion.id == miVoto
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(forma)
                     .background(AgoraColors.Fondo)
-                    .clickable(enabled = !votando) { onVotar(opcion.id) },
+                    .then(
+                        if (elegida) Modifier.border(1.5.dp, AgoraColors.Naranja, forma) else Modifier,
+                    )
+                    .selectable(
+                        selected = elegida,
+                        enabled = !votando,
+                        role = Role.RadioButton,
+                        onClick = { onVotar(opcion.id) },
+                    )
+                    .semantics { if (elegida) stateDescription = "Tu voto" },
             ) {
                 if (pct > 0) {
                     Box(
@@ -479,13 +532,32 @@ fun EncuestaBloque(
                     )
                 }
                 Text(
-                    "${opcion.texto} · $pct%",
+                    if (elegida) "✓ ${opcion.texto} · $pct%" else "${opcion.texto} · $pct%",
                     style = MaterialTheme.typography.bodySmall,
+                    fontWeight = if (elegida) FontWeight.Bold else FontWeight.Normal,
+                    color = if (elegida) AgoraColors.Naranja else Color.Unspecified,
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .padding(horizontal = 10.dp),
                 )
             }
         }
+        if (error != null) {
+            Text(
+                error,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
     }
 }
+
+/** Mensaje del servidor (p. ej. «Esa encuesta ya cerró.») o uno genérico según el tipo de fallo. */
+fun mensajeErrorVoto(e: Throwable): String =
+    ApiClient.mensajeDelServidor(e)
+        ?: if (e is IOException) {
+            "No se pudo registrar tu voto. Revisa tu conexión."
+        } else {
+            "No se pudo registrar tu voto. Intenta de nuevo."
+        }

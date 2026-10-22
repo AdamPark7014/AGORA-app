@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -22,13 +23,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.HashtagsApi
 import mx.agora.mobile.nativeapp.data.api.PostDto
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
+import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.AgoraPieErrorPagina
 import mx.agora.mobile.nativeapp.ui.components.PostCard
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
 @Composable
 fun HashtagScreen(
@@ -42,26 +47,53 @@ fun HashtagScreen(
     var publicaciones by remember { mutableStateOf<List<PostDto>>(emptyList()) }
     var cursor by remember { mutableStateOf<String?>(null) }
     var cargando by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var cargandoMas by remember { mutableStateOf(false) }
+    var errorMas by remember { mutableStateOf<String?>(null) }
+    /** Sube con «Reintentar» para volver a pedir la primera página. */
+    var intento by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
-    fun cargar(desde: String? = null) {
+    fun cargarMas() {
+        val desde = cursor ?: return
+        if (cargandoMas) return
         scope.launch {
+            cargandoMas = true
+            errorMas = null
             try {
                 val datos = ApiClient.api<HashtagsApi>(tokenProvider).publicaciones(tag, desde)
-                publicaciones = if (desde != null) publicaciones + datos.publicaciones else datos.publicaciones
+                val vistos = publicaciones.mapTo(HashSet()) { it.id }
+                publicaciones = publicaciones + datos.publicaciones.filter { it.id !in vistos }
                 cursor = datos.siguienteCursor
-            } catch (_: Exception) {
-                if (desde == null) publicaciones = emptyList()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorMas = mensajeDe(e)
+            } finally {
+                cargandoMas = false
             }
         }
     }
 
-    LaunchedEffect(tag) {
+    // La primera página se espera aquí mismo: antes se lanzaba aparte y
+    // «cargando» se apagaba antes de tener datos, así que parpadeaba el vacío.
+    LaunchedEffect(tag, intento) {
         cargando = true
-        publicaciones = emptyList()
-        cursor = null
-        cargar()
-        cargando = false
+        error = null
+        errorMas = null
+        try {
+            val datos = ApiClient.api<HashtagsApi>(tokenProvider).publicaciones(tag, null)
+            publicaciones = datos.publicaciones
+            cursor = datos.siguienteCursor
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            publicaciones = emptyList()
+            cursor = null
+            error = mensajeDe(e)
+        } finally {
+            cargando = false
+        }
     }
 
     when {
@@ -70,13 +102,22 @@ fun HashtagScreen(
                 CircularProgressIndicator()
             }
         }
+        error != null -> {
+            Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                AgoraErrorState(
+                    message = error!!,
+                    title = "No pudimos cargar #$tag",
+                    onRetry = { intento++ },
+                )
+            }
+        }
         else -> {
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
                 contentPadding = PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                item {
+                item(key = "titulo") {
                     Text(
                         "#$tag",
                         style = MaterialTheme.typography.headlineSmall,
@@ -85,7 +126,7 @@ fun HashtagScreen(
                     )
                 }
                 if (publicaciones.isEmpty()) {
-                    item {
+                    item(key = "vacio") {
                         AgoraEmptyState(
                             state = AgoraCopy.emptyHashtag,
                             modifier = Modifier.fillMaxWidth(),
@@ -105,8 +146,23 @@ fun HashtagScreen(
                         )
                     }
                     if (cursor != null) {
-                        item {
-                            LaunchedEffect(cursor) { cargar(cursor) }
+                        item(key = "mas") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                when {
+                                    cargandoMas -> CircularProgressIndicator()
+                                    errorMas != null -> AgoraPieErrorPagina(
+                                        mensaje = errorMas!!,
+                                        onReintentar = { cargarMas() },
+                                    )
+                                    // Llegar al final pide la siguiente página.
+                                    else -> LaunchedEffect(cursor) { cargarMas() }
+                                }
+                            }
                         }
                     }
                 }

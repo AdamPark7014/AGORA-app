@@ -10,8 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,13 +21,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.GuardadosApi
 import mx.agora.mobile.nativeapp.data.api.PostDto
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
+import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
+import mx.agora.mobile.nativeapp.ui.components.AgoraPieErrorPagina
 import mx.agora.mobile.nativeapp.ui.components.PostCard
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,18 +46,52 @@ fun GuardadosScreen(
     var publicaciones by remember { mutableStateOf<List<PostDto>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
     var refrescando by remember { mutableStateOf(false) }
+    /** Falló la primera página. Antes se veía como «no tienes guardados». */
+    var error by remember { mutableStateOf<String?>(null) }
+    /** Cursor de la siguiente página: antes solo se veían los primeros 20. */
+    var cursor by remember { mutableStateOf<String?>(null) }
+    var cargandoMas by remember { mutableStateOf(false) }
+    var errorMas by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun cargar(refresh: Boolean = false) {
         scope.launch {
             if (refresh) refrescando = true else cargando = true
+            error = null
             try {
-                publicaciones = ApiClient.api<GuardadosApi>(tokenProvider).listar().publicaciones
-            } catch (_: Exception) {
-                publicaciones = emptyList()
+                val resp = ApiClient.api<GuardadosApi>(tokenProvider).listar()
+                publicaciones = resp.publicaciones
+                cursor = resp.siguienteCursor
+                errorMas = null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Si ya había lista, se queda; el error solo tapa la pantalla vacía.
+                error = mensajeDe(e)
             } finally {
                 cargando = false
                 refrescando = false
+            }
+        }
+    }
+
+    fun cargarMas() {
+        val desde = cursor ?: return
+        if (cargandoMas) return
+        scope.launch {
+            cargandoMas = true
+            errorMas = null
+            try {
+                val resp = ApiClient.api<GuardadosApi>(tokenProvider).listar(cursor = desde)
+                val vistos = publicaciones.mapTo(HashSet()) { it.id }
+                publicaciones = publicaciones + resp.publicaciones.filter { it.id !in vistos }
+                cursor = resp.siguienteCursor
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorMas = mensajeDe(e)
+            } finally {
+                cargandoMas = false
             }
         }
     }
@@ -70,11 +107,19 @@ fun GuardadosScreen(
             cargando && publicaciones.isEmpty() -> {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
+            error != null && publicaciones.isEmpty() -> {
+                AgoraEstadoDesplazable {
+                    AgoraErrorState(
+                        message = error!!,
+                        title = "No pudimos traer tus guardados",
+                        onRetry = { cargar() },
+                    )
+                }
+            }
             publicaciones.isEmpty() -> {
-                AgoraEmptyState(
-                    state = AgoraCopy.emptyGuardados,
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                AgoraEstadoDesplazable {
+                    AgoraEmptyState(state = AgoraCopy.emptyGuardados)
+                }
             }
             else -> {
                 LazyColumn(
@@ -92,6 +137,26 @@ fun GuardadosScreen(
                             },
                             onMentionClick = onAuthorClick,
                         )
+                    }
+                    if (cursor != null) {
+                        item(key = "mas") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                when {
+                                    cargandoMas -> CircularProgressIndicator()
+                                    errorMas != null -> AgoraPieErrorPagina(
+                                        mensaje = errorMas!!,
+                                        onReintentar = { cargarMas() },
+                                    )
+                                    // Llegar al final pide la siguiente página.
+                                    else -> LaunchedEffect(cursor) { cargarMas() }
+                                }
+                            }
+                        }
                     }
                 }
             }

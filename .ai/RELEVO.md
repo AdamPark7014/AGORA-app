@@ -1,8 +1,31 @@
 # RELEVO
 
 - **Último turno:** claude-code (sesión lateral de Ágora, en la compu de Adam)
-- **Fecha:** 2026-10-21
+- **Fecha:** 2026-10-22
 - **Rama:** main
+
+## Pasada grande del 22-10 (en curso): fallos, funciones y fichas de tienda
+
+Adam pidió auditar fallos y arreglarlos, listar funciones que faltan para chavos de 18-22 y dejar
+completas las fichas de App Store y Play. Hecho hasta ahora:
+- **Android, 33 arreglos de la auditoría** (3 agentes en archivos separados; compila junto y
+  `testDebugUnitTest` en verde; **sin probar aún en emulador**): adjuntos por uri y varios a la vez,
+  comentarios en barra fija con teclado, doble envío bloqueado, votos y reacciones con error visible y
+  48dp, cola sin conexión que saca los 4xx y avisa en Publicar, selector de fecha/hora en eventos y
+  aventones (hora de México), validación de cupo/cuota/precio sin `toInt()` que truene, «No voy»
+  quitado (tocar otra vez quita la respuesta), confirmación antes de borrar o cancelar, generación en el
+  registro, chat que abre abajo y burbuja optimista, errores del servidor en español
+  (`Format.mensajeDe`), estados de carga/vacío/error distintos con «Reintentar», carrusel del feed sin
+  parpadeo, apartar/liberar/vendido en marketplace, ícono y canal de notificación en el manifest.
+  Componentes nuevos: `SelectorFechaHora`, `DialogoConfirmacion`, `EstadoDesplazable`,
+  `MiniaturaAdjunto`, `CarruselFeed`.
+- **Cuenta de revisión para las tiendas creada en producción** (`@revision_tiendas`, solo miembro de
+  la plaza del campus, visibilidad COMUNIDADES): correo y contraseña **solo** en
+  `C:\dev\secrets\agora-store\cuenta-revision.txt`; entrada probada contra udlagora.com. Contacto de App
+  Review copiado del de NEXARA a `contacto-revision.txt` (misma carpeta).
+- **Producción está vacía: 4 usuarios, 2 perfiles, 0 publicaciones, 0 eventos.** El revisor de Apple
+  vería un feed vacío (riesgo de rechazo 2.1/4.2). Antes de mandar a revisión hace falta contenido real
+  publicado por el equipo (bienvenida, eventos reales del campus); no se inventó nada.
 
 ## Hecho en este turno (21-10)
 

@@ -20,6 +20,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -40,8 +42,10 @@ import mx.agora.mobile.nativeapp.data.api.ResponderEventoRequest
 import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.util.formatearFecha
+import mx.agora.mobile.nativeapp.ui.util.formatearPrecio
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
 /** Mismo orden y etiquetas que el filtro de la web (`apps/web/app/eventos`). */
@@ -60,6 +64,16 @@ internal fun textoCupo(cupo: Int?, vanAIr: Int): String? {
     if (cupo == null) return null
     val quedan = (cupo - vanAIr).coerceAtLeast(0)
     return if (quedan == 0) "cupo $cupo · lleno" else "cupo $cupo · quedan $quedan"
+}
+
+/**
+ * Costo como lo define el contrato: 0 es gratis; null es «no especificado» y no se
+ * muestra (no hay que prometer «Gratis» si el organizador no lo dijo).
+ */
+private fun textoCosto(costoMxn: Int?): String? = when (costoMxn) {
+    null -> null
+    0 -> "Gratis"
+    else -> "${formatearPrecio(costoMxn)} MXN"
 }
 
 private val iconoTipo = mapOf(
@@ -83,7 +97,14 @@ fun EventosScreen(
     var refrescando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var tipo by remember { mutableStateOf<String?>(null) }
+    /** Evento con un «Voy» en camino: evita el doble toque. */
+    var respondiendo by remember { mutableStateOf<String?>(null) }
+    val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    fun avisar(mensaje: String) {
+        scope.launch { snackbar.showSnackbar(mensaje) }
+    }
 
     fun cargar(refresh: Boolean = false) {
         scope.launch {
@@ -92,7 +113,10 @@ fun EventosScreen(
             try {
                 eventos = ApiClient.api<EventosApi>(tokenProvider).proximos(tipo = tipo).eventos
             } catch (e: Exception) {
-                error = mensajeDe(e)
+                val mensaje = mensajeDe(e)
+                error = mensaje
+                // Con la lista ya en pantalla el estado de error no se ve: se avisa aparte.
+                if (eventos.isNotEmpty()) avisar(mensaje)
             } finally {
                 cargando = false
                 refrescando = false
@@ -100,95 +124,115 @@ fun EventosScreen(
         }
     }
 
+    fun responderVoy(evento: EventoDto) {
+        if (respondiendo != null) return
+        scope.launch {
+            respondiendo = evento.id
+            try {
+                val resp = ApiClient.api<EventosApi>(tokenProvider).responder(
+                    evento.id,
+                    ResponderEventoRequest("VOY"),
+                )
+                AgoraAnalytics.eventoAsistencia(
+                    tokenProvider,
+                    mapOf("eventoId" to evento.id, "respuesta" to "VOY"),
+                )
+                avisar(if (resp.miRespuesta == "VOY") "¡Te apuntaste! Nos vemos ahí." else "Quitaste tu «Voy».")
+                cargar(refresh = true)
+            } catch (e: Exception) {
+                avisar(ApiClient.mensajeDelServidor(e) ?: mensajeDe(e))
+            } finally {
+                respondiendo = null
+            }
+        }
+    }
+
     LaunchedEffect(tipo) { cargar() }
 
-    AgoraPullToRefreshBox(
-        isRefreshing = refrescando,
-        onRefresh = { cargar(refresh = true) },
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                Button(onClick = onCrearClick) {
-                    Text("+ Crear evento")
-                }
-            }
-
-            LazyRow(
-                modifier = Modifier.padding(bottom = 4.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(filtrosTipo, key = { it.first ?: "todos" }) { (valor, etiqueta) ->
-                    FilterChip(
-                        selected = tipo == valor,
-                        onClick = { tipo = valor },
-                        label = { Text(etiqueta) },
-                    )
-                }
-            }
-
-            Box(modifier = Modifier.weight(1f)) {
-                when {
-                    cargando && eventos.isEmpty() -> {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+    Box(modifier = Modifier.fillMaxSize()) {
+        AgoraPullToRefreshBox(
+            isRefreshing = refrescando,
+            onRefresh = { cargar(refresh = true) },
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    Button(onClick = onCrearClick) {
+                        Text("+ Crear evento")
                     }
-                    error != null && eventos.isEmpty() -> {
-                        AgoraErrorState(
-                            message = error!!,
-                            modifier = Modifier.align(Alignment.Center),
-                            onRetry = { cargar() },
+                }
+
+                LazyRow(
+                    modifier = Modifier.padding(bottom = 4.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(filtrosTipo, key = { it.first ?: "todos" }) { (valor, etiqueta) ->
+                        FilterChip(
+                            selected = tipo == valor,
+                            onClick = { tipo = valor },
+                            label = { Text(etiqueta) },
                         )
                     }
-                    eventos.isEmpty() -> {
-                        AgoraEmptyState(
-                            state = AgoraCopy.emptyEventos,
-                            modifier = Modifier.align(Alignment.Center),
-                            ctaLabel = AgoraCopy.cta.publicarAlgo,
-                            onCta = onCrearClick,
-                        )
-                    }
-                    else -> {
-                        LazyColumn(
-                            contentPadding = PaddingValues(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(eventos, key = { it.id }) { evento ->
-                                EventoCard(
-                                    evento = evento,
-                                    onClick = { onEventoClick(evento.id) },
-                                    onAsistencia = { voy ->
-                                        scope.launch {
-                                            try {
-                                                ApiClient.api<EventosApi>(tokenProvider).responder(
-                                                    evento.id,
-                                                    ResponderEventoRequest(if (voy) "VOY" else "ME_INTERESA"),
-                                                )
-                                                AgoraAnalytics.eventoAsistencia(
-                                                    tokenProvider,
-                                                    mapOf(
-                                                        "eventoId" to evento.id,
-                                                        "respuesta" to if (voy) "VOY" else "ME_INTERESA",
-                                                    ),
-                                                )
-                                                cargar(refresh = true)
-                                            } catch (e: Exception) {
-                                                error = mensajeDe(e)
-                                            }
-                                        }
-                                    },
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    when {
+                        cargando && eventos.isEmpty() -> {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        }
+                        // Vacío y error van en algo desplazable para que el jalón de refrescar funcione.
+                        error != null && eventos.isEmpty() -> {
+                            AgoraEstadoDesplazable {
+                                AgoraErrorState(
+                                    message = error!!,
+                                    onRetry = { cargar() },
                                 )
+                            }
+                        }
+                        eventos.isEmpty() -> {
+                            AgoraEstadoDesplazable {
+                                AgoraEmptyState(
+                                    state = AgoraCopy.emptyEventos,
+                                    ctaLabel = AgoraCopy.cta.publicarAlgo,
+                                    onCta = onCrearClick,
+                                    secondaryCtaLabel = AgoraCopy.cta.reintentar,
+                                    onSecondaryCta = { cargar() },
+                                )
+                            }
+                        }
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(eventos, key = { it.id }) { evento ->
+                                    EventoCard(
+                                        evento = evento,
+                                        ocupado = respondiendo == evento.id,
+                                        onClick = { onEventoClick(evento.id) },
+                                        onVoy = { responderVoy(evento) },
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbar,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(12.dp),
+        )
     }
 }
 
@@ -196,7 +240,8 @@ fun EventosScreen(
 private fun EventoCard(
     evento: EventoDto,
     onClick: () -> Unit,
-    onAsistencia: (voy: Boolean) -> Unit,
+    onVoy: () -> Unit,
+    ocupado: Boolean = false,
 ) {
     val icono = iconoTipo[evento.tipo] ?: "📌"
     val yaVoy = evento.miRespuesta == "VOY"
@@ -221,23 +266,29 @@ private fun EventoCard(
                 listOfNotNull(
                     "${evento.vanAIr} van",
                     textoCupo(evento.cupo, evento.vanAIr),
-                    evento.costoMxn?.let { "$$it MXN" } ?: "Gratis",
+                    textoCosto(evento.costoMxn),
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
             if (yaVoy) {
-                OutlinedButton(onClick = { onAsistencia(true) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("✓ Voy (tocar para quitar)")
+                OutlinedButton(onClick = onVoy, enabled = !ocupado, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (ocupado) "Un momento…" else "✓ Voy (tocar para quitar)")
                 }
             } else {
                 val lleno = evento.cupo != null && evento.vanAIr >= evento.cupo
                 Button(
-                    onClick = { onAsistencia(true) },
-                    enabled = !lleno,
+                    onClick = onVoy,
+                    enabled = !lleno && !ocupado,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (lleno) "Sin lugares" else "Voy")
+                    Text(
+                        when {
+                            lleno -> "Sin lugares"
+                            ocupado -> "Apuntándote…"
+                            else -> "Voy"
+                        },
+                    )
                 }
             }
         }

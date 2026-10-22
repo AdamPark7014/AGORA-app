@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +21,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -211,21 +213,26 @@ fun MasScreen(
             }
         }
 
+        // TextButton trae el área táctil mínima de 48 dp; el texto suelto con
+        // clickable medía lo que la letra (~20 dp) y costaba atinarle.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "Términos",
-                color = AgoraColors.Naranja,
-                modifier = Modifier.clickable(onClick = onTerminos),
-            )
-            Text(" · ", color = AgoraColors.TextMuted)
-            Text(
-                "Privacidad",
-                color = AgoraColors.Naranja,
-                modifier = Modifier.clickable(onClick = onPrivacidad),
-            )
+            TextButton(
+                onClick = onTerminos,
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) {
+                Text("Términos", color = AgoraColors.Naranja)
+            }
+            Text("·", color = AgoraColors.TextMuted)
+            TextButton(
+                onClick = onPrivacidad,
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) {
+                Text("Privacidad", color = AgoraColors.Naranja)
+            }
         }
 
         OutlinedButton(

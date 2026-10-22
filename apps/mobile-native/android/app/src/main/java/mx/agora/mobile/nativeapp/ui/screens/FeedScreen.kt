@@ -24,6 +24,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.NetworkMonitor
@@ -40,20 +41,13 @@ import mx.agora.mobile.nativeapp.ui.components.AgoraChipItem
 import mx.agora.mobile.nativeapp.ui.components.AgoraChipRow
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
 import mx.agora.mobile.nativeapp.ui.components.AgoraFeedSkeleton
-import mx.agora.mobile.nativeapp.ui.components.CampusPulseBanner
-import mx.agora.mobile.nativeapp.ui.components.CampusTipBanner
-import mx.agora.mobile.nativeapp.ui.components.EventosEnVivoBanner
-import mx.agora.mobile.nativeapp.ui.components.LeaderboardRachasRow
+import mx.agora.mobile.nativeapp.ui.components.AgoraPieErrorPagina
+import mx.agora.mobile.nativeapp.ui.components.CarruselFeed
 import mx.agora.mobile.nativeapp.ui.components.OfflineBanner
 import mx.agora.mobile.nativeapp.ui.components.PostCard
-import mx.agora.mobile.nativeapp.ui.components.PreguntaDelDiaBanner
-import mx.agora.mobile.nativeapp.ui.components.RachaBadgeRow
 import mx.agora.mobile.nativeapp.ui.components.RetirarPostDialogo
-import mx.agora.mobile.nativeapp.ui.components.RetoSemanalBanner
-import mx.agora.mobile.nativeapp.ui.components.RetosAmigosRow
-import mx.agora.mobile.nativeapp.ui.components.RetosHistorialRow
-import mx.agora.mobile.nativeapp.ui.components.RetosRankingSemanalRow
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
 import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
@@ -76,6 +70,8 @@ fun FeedScreen(
     var cargandoMas by remember { mutableStateOf(false) }
     var refrescando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    /** Falló la siguiente página: se enseña al pie con «Reintentar». */
+    var errorMas by remember { mutableStateOf<String?>(null) }
     var comunidades by remember { mutableStateOf<List<ComunidadDto>>(emptyList()) }
     var comunidadSlug by remember { mutableStateOf<String?>(null) }
     var siguiendo by remember { mutableStateOf(false) }
@@ -156,6 +152,7 @@ fun FeedScreen(
             else if (desde == null) cargando = true
             else cargandoMas = true
             error = null
+            errorMas = null
             try {
                 val api = ApiClient.feedApi(tokenProvider)
                 val resp = api.feed(
@@ -168,12 +165,22 @@ fun FeedScreen(
                 if (reemplazar && desde == null) {
                     offlineCache.saveFeed(resp)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 if (reemplazar) {
-                    cargarCache()
+                    // Lo que ya está en pantalla se queda; la caché solo si no hay nada.
+                    if (posts.isEmpty()) cargarCache()
                     if (posts.isEmpty()) {
                         error = mensajeDe(e)
+                    } else {
+                        // Hay lista en pantalla: no se tapa, pero se avisa.
+                        Toast.makeText(context, mensajeDe(e), Toast.LENGTH_SHORT).show()
                     }
+                } else {
+                    // Falló la siguiente página: pie con el motivo y «Reintentar».
+                    // Además frena el scroll infinito para que no reintente en bucle.
+                    errorMas = mensajeDe(e)
                 }
             } finally {
                 cargando = false
@@ -196,13 +203,12 @@ fun FeedScreen(
                 }
                 val viewportStart = layoutInfo.viewportStartOffset
                 val viewportEnd = layoutInfo.viewportEndOffset
-                val postsStartIndex = 11 + if (sinConexion) 1 else 0
+                // Por key y no por índice: así no depende de cuántos items
+                // (carrusel, aviso sin conexión, filtros) van antes de los posts.
+                val idsPosts = currentPosts.mapTo(HashSet()) { it.id }
 
                 val mostVisible = layoutInfo.visibleItemsInfo
-                    .filter { item ->
-                        val postIndex = item.index - postsStartIndex
-                        postIndex in currentPosts.indices
-                    }
+                    .filter { item -> item.key in idsPosts }
                     .maxByOrNull { item ->
                         val itemStart = item.offset
                         val itemEnd = item.offset + item.size
@@ -211,15 +217,15 @@ fun FeedScreen(
                         visibleEnd - visibleStart
                     }
 
-                activePostId = mostVisible?.let { currentPosts[it.index - postsStartIndex].id }
+                activePostId = mostVisible?.key as? String
             }
     }
 
-    LaunchedEffect(finCercano, cursor, cargandoMas, cargando) {
+    LaunchedEffect(finCercano, cursor, cargandoMas, cargando, errorMas) {
         snapshotFlow { finCercano }
             .distinctUntilChanged()
             .collect { cerca ->
-                if (cerca && cursor != null && !cargandoMas && !cargando) {
+                if (cerca && cursor != null && !cargandoMas && !cargando && errorMas == null) {
                     traer(desde = cursor, reemplazar = false)
                 }
             }
@@ -235,11 +241,13 @@ fun FeedScreen(
                 AgoraFeedSkeleton(modifier = Modifier.fillMaxSize())
             }
             error != null && posts.isEmpty() -> {
-                AgoraErrorState(
-                    message = error!!,
-                    onRetry = { traer(null, reemplazar = true) },
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                // Desplazable: así también se puede jalar para refrescar.
+                AgoraEstadoDesplazable {
+                    AgoraErrorState(
+                        message = error!!,
+                        onRetry = { traer(null, reemplazar = true) },
+                    )
+                }
             }
             else -> {
                 LazyColumn(
@@ -247,78 +255,14 @@ fun FeedScreen(
                     contentPadding = PaddingValues(AgoraSpacing.Sm),
                     verticalArrangement = Arrangement.spacedBy(AgoraSpacing.Xs),
                 ) {
-                    item(key = "pregunta") {
-                        PreguntaDelDiaBanner(
-                            tokenProvider = tokenProvider,
-                            modifier = Modifier.padding(bottom = AgoraSpacing.Xxs),
-                        )
-                    }
-
-                    item(key = "campus") {
-                        CampusPulseBanner(
+                    // Pregunta del día, pulso, eventos en vivo, racha, retos y tip:
+                    // un solo item horizontal que no se recrea al hacer scroll.
+                    item(key = "carrusel") {
+                        CarruselFeed(
                             tokenProvider = tokenProvider,
                             onHashtagClick = onHashtagClick,
                             onPerfilClick = onAuthorClick,
-                            modifier = Modifier.padding(bottom = AgoraSpacing.Xxs),
-                        )
-                    }
-
-                    item(key = "eventos_en_vivo") {
-                        EventosEnVivoBanner(
-                            tokenProvider = tokenProvider,
                             onEventoClick = onEventoClick,
-                            modifier = Modifier.padding(bottom = AgoraSpacing.Xxs),
-                        )
-                    }
-
-                    item(key = "racha") {
-                        RachaBadgeRow(
-                            tokenProvider = tokenProvider,
-                            modifier = Modifier.padding(bottom = AgoraSpacing.Xxs),
-                        )
-                    }
-
-                    item(key = "reto_semanal") {
-                        RetoSemanalBanner(
-                            tokenProvider = tokenProvider,
-                            modifier = Modifier.padding(bottom = AgoraSpacing.Xxs),
-                        )
-                    }
-
-                    item(key = "retos_amigos") {
-                        RetosAmigosRow(
-                            tokenProvider = tokenProvider,
-                            modifier = Modifier.padding(bottom = AgoraSpacing.Xxs),
-                        )
-                    }
-
-                    item(key = "retos_ranking") {
-                        RetosRankingSemanalRow(
-                            tokenProvider = tokenProvider,
-                            onPerfilClick = onAuthorClick,
-                            modifier = Modifier.padding(bottom = AgoraSpacing.Xxs),
-                        )
-                    }
-
-                    item(key = "retos_historial") {
-                        RetosHistorialRow(
-                            tokenProvider = tokenProvider,
-                            onPerfilClick = onAuthorClick,
-                            modifier = Modifier.padding(bottom = AgoraSpacing.Xxs),
-                        )
-                    }
-
-                    item(key = "leaderboard") {
-                        LeaderboardRachasRow(
-                            tokenProvider = tokenProvider,
-                            onPerfilClick = onAuthorClick,
-                            modifier = Modifier.padding(bottom = AgoraSpacing.Xxs),
-                        )
-                    }
-
-                    item(key = "campus_tip") {
-                        CampusTipBanner(
-                            modifier = Modifier.padding(bottom = AgoraSpacing.Xxs),
                         )
                     }
 
@@ -379,6 +323,13 @@ fun FeedScreen(
                             ) {
                                 CircularProgressIndicator()
                             }
+                        }
+                    } else if (errorMas != null && cursor != null) {
+                        item(key = "pie_error") {
+                            AgoraPieErrorPagina(
+                                mensaje = errorMas!!,
+                                onReintentar = { traer(desde = cursor, reemplazar = false) },
+                            )
                         }
                     }
                 }

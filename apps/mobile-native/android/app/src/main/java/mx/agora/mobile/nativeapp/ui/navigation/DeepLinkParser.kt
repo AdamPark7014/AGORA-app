@@ -87,7 +87,12 @@ object DeepLinkParser {
             "mensajes" -> segments.getOrNull(1)?.let { AgoraRoutes.mensaje(it) } ?: AgoraRoutes.MENSAJES
             "evento", "eventos" -> when (segments.getOrNull(1)?.lowercase()) {
                 "crear" -> AgoraRoutes.EVENTOS_CREAR
-                null -> null
+                // `/eventos` (la lista). En nativo la lista es la pestaña Eventos de
+                // MainShell y no hay ruta de NavHost que la abra, así que se lleva
+                // al inicio (antes devolvía null y el enlace no hacía nada).
+                // Pendiente: ruta `eventos` en AgoraNavHost (o un argumento de
+                // pestaña para MainShell) y devolverla aquí.
+                null -> AgoraRoutes.MAIN
                 else -> AgoraRoutes.evento(segments[1])
             }
             "hashtag" -> segments.getOrNull(1)?.let { AgoraRoutes.hashtag(it) }
@@ -105,7 +110,10 @@ object DeepLinkParser {
             "buscar" -> AgoraRoutes.BUSCAR
             "mas" -> AgoraRoutes.MAS
             "feed" -> AgoraRoutes.MAIN
-            // Nativo muestra retos en el feed (sin pantalla /retos dedicada).
+            // `/retos` y `/retos/...`: a propósito al feed. En nativo no hay
+            // pantalla de retos; la racha, el reto semanal, los retos con amigos,
+            // el ranking y el historial viven en el carrusel de arriba del feed
+            // (ui/components/CarruselFeed.kt), que es lo primero que se ve.
             "retos" -> AgoraRoutes.MAIN
             else -> null
         }

@@ -16,8 +16,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.AnonimoApi
@@ -41,16 +46,21 @@ import mx.agora.mobile.nativeapp.data.api.PublicarAnonimoRequest
 import mx.agora.mobile.nativeapp.data.api.ReaccionarRequest
 import mx.agora.mobile.nativeapp.data.api.ReportesApi
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
+import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
+import mx.agora.mobile.nativeapp.ui.components.DialogoConfirmacion
 import mx.agora.mobile.nativeapp.ui.components.ReportarDialogo
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
+/** Las mismas tres que la web (`apps/web/app/anonimo`): tipo, emoji y etiqueta. */
 private val reacciones = listOf(
-    "ME_LATE" to "🔥",
-    "ME_RIO" to "😂",
-    "APOYO" to "🤝",
+    Triple("ME_LATE", "🔥", "Me late"),
+    Triple("ME_RIO", "😂", "Me río"),
+    Triple("APOYO", "🤝", "Apoyo"),
 )
 
 @Composable
@@ -58,17 +68,32 @@ fun AnonimoScreen(
     tokenProvider: () -> String?,
     modifier: Modifier = Modifier,
 ) {
+    /** null = aún no se sabe (cargando o falló la red); false = el equipo la apagó. */
     var habilitada by remember { mutableStateOf<Boolean?>(null) }
     var alias by remember { mutableStateOf<String?>(null) }
     var posts by remember { mutableStateOf<List<AnonimoPostDto>>(emptyList()) }
     var texto by remember { mutableStateOf("") }
     var cargando by remember { mutableStateOf(true) }
+    var refrescando by remember { mutableStateOf(false) }
+    /** Falló la carga (estado o feed): se muestra con «Reintentar», no como zona apagada. */
+    var errorCarga by remember { mutableStateOf<String?>(null) }
     var enviando by remember { mutableStateOf(false) }
+    /** Error al publicar: vive junto al cuadro de texto. */
     var error by remember { mutableStateOf<String?>(null) }
     /** Post anónimo que se está reportando (se reporta igual que uno normal). */
     var reportandoId by remember { mutableStateOf<String?>(null) }
+    /** Post propio que se pidió borrar y falta confirmar. */
+    var porBorrar by remember { mutableStateOf<String?>(null) }
+    var borrando by remember { mutableStateOf(false) }
+    /** Post con una reacción en camino: evita el doble toque. */
+    var reaccionando by remember { mutableStateOf<String?>(null) }
+    val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    fun avisar(mensaje: String) {
+        scope.launch { snackbar.showSnackbar(mensaje) }
+    }
 
     fun reportar(postId: String, motivo: String) {
         reportandoId = null
@@ -79,152 +104,225 @@ fun AnonimoScreen(
                 if (!resp.isSuccessful) throw retrofit2.HttpException(resp)
                 Toast.makeText(context, "Gracias. Un moderador lo va a revisar.", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
-                error = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                avisar(ApiClient.mensajeDelServidor(e) ?: mensajeDe(e))
             }
         }
     }
 
-    fun cargarFeed() {
+    /** Estado de la zona + feed + alias. Con [refresh] se usa el indicador de jalar. */
+    fun cargarTodo(refresh: Boolean = false) {
+        scope.launch {
+            if (refresh) refrescando = true else cargando = true
+            errorCarga = null
+            try {
+                val api = ApiClient.api<AnonimoApi>(tokenProvider)
+                val estado = api.estado()
+                habilitada = estado.habilitada
+                if (estado.habilitada) {
+                    posts = api.feed().publicaciones
+                    if (alias == null) {
+                        alias = try {
+                            api.alias().alias
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                val mensaje = mensajeDe(e)
+                // Si la zona ya estaba en pantalla, no se tapa: basta con avisar.
+                if (refresh && habilitada == true) avisar(mensaje) else errorCarga = mensaje
+            } finally {
+                cargando = false
+                refrescando = false
+            }
+        }
+    }
+
+    /** Solo el feed, sin indicador (después de publicar). */
+    fun recargarFeed() {
         scope.launch {
             try {
                 posts = ApiClient.api<AnonimoApi>(tokenProvider).feed().publicaciones
             } catch (e: Exception) {
-                posts = emptyList()
+                avisar(mensajeDe(e))
             }
         }
     }
 
-    LaunchedEffect(Unit) {
-        cargando = true
-        try {
-            val estado = ApiClient.api<AnonimoApi>(tokenProvider).estado()
-            habilitada = estado.habilitada
-            if (estado.habilitada) {
-                cargarFeed()
-                alias = ApiClient.api<AnonimoApi>(tokenProvider).alias().alias
+    fun reaccionar(post: AnonimoPostDto, tipo: String) {
+        if (reaccionando != null) return
+        scope.launch {
+            reaccionando = post.id
+            try {
+                // Siempre se manda el tipo tocado: el API alterna (el mismo tipo otra vez la quita).
+                val resp = ApiClient.api<PostsApi>(tokenProvider).reaccionar(
+                    post.id,
+                    ReaccionarRequest(tipo),
+                )
+                val mia = resp.miReaccion
+                // Mismo cálculo que la web: cambiar de reacción no mueve el total.
+                val delta = when {
+                    mia != null && post.miReaccion == null -> 1
+                    mia == null && post.miReaccion != null -> -1
+                    else -> 0
+                }
+                posts = posts.map {
+                    if (it.id == post.id) {
+                        it.copy(miReaccion = mia, numReactions = (it.numReactions + delta).coerceAtLeast(0))
+                    } else {
+                        it
+                    }
+                }
+            } catch (e: Exception) {
+                avisar(ApiClient.mensajeDelServidor(e) ?: mensajeDe(e))
+            } finally {
+                reaccionando = null
             }
-        } catch (_: Exception) {
-            habilitada = false
-        } finally {
-            cargando = false
         }
     }
 
-    when {
-        cargando -> {
-            Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    fun borrar(postId: String) {
+        scope.launch {
+            borrando = true
+            try {
+                val resp = ApiClient.api<AnonimoApi>(tokenProvider).borrar(postId)
+                if (!resp.isSuccessful) throw retrofit2.HttpException(resp)
+                posts = posts.filterNot { it.id == postId }
+                porBorrar = null
+                avisar("Se borró tu publicación.")
+            } catch (e: Exception) {
+                porBorrar = null
+                avisar(ApiClient.mensajeDelServidor(e) ?: mensajeDe(e))
+            } finally {
+                borrando = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) { cargarTodo() }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        if (cargando && habilitada == null && errorCarga == null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-        }
-        habilitada != true -> {
-            Column(
-                modifier = modifier.fillMaxSize().padding(24.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
+        } else {
+            AgoraPullToRefreshBox(
+                isRefreshing = refrescando,
+                onRefresh = { cargarTodo(refresh = true) },
+                modifier = Modifier.fillMaxSize(),
             ) {
-                Text("Zona sin nombre apagada", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "El equipo la tiene desactivada por ahora.",
-                    color = AgoraColors.TextoMedio,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-        }
-        else -> {
-            LazyColumn(
-                modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = AgoraColors.Superficie),
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                "Publicas como ${alias ?: "…"}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = AgoraColors.TextoMedio,
+                when {
+                    // Error y zona apagada van en algo desplazable para que el jalón de refrescar funcione.
+                    errorCarga != null -> {
+                        AgoraEstadoDesplazable {
+                            AgoraErrorState(
+                                message = errorCarga!!,
+                                title = "No pudimos abrir la zona",
+                                onRetry = { cargarTodo() },
                             )
-                            OutlinedTextField(
-                                value = texto,
-                                onValueChange = { if (it.length <= 600) texto = it },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(100.dp),
-                                placeholder = { Text("Di algo sin que sepan quién eres…") },
-                            )
-                            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                            Button(
-                                onClick = {
-                                    if (texto.isBlank()) return@Button
-                                    scope.launch {
-                                        enviando = true
-                                        error = null
-                                        try {
-                                            ApiClient.api<AnonimoApi>(tokenProvider).publicar(
-                                                PublicarAnonimoRequest(texto.trim()),
-                                            )
-                                            texto = ""
-                                            cargarFeed()
-                                        } catch (e: Exception) {
-                                            error = mensajeDe(e)
-                                        } finally {
-                                            enviando = false
+                        }
+                    }
+                    habilitada != true -> {
+                        AgoraEstadoDesplazable {
+                            Column(
+                                modifier = Modifier.padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text("Zona sin nombre apagada", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "El equipo la tiene desactivada por ahora.",
+                                    color = AgoraColors.TextoMedio,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            item {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                                    colors = CardDefaults.cardColors(containerColor = AgoraColors.Superficie),
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(
+                                            "Publicas como ${alias ?: "…"}",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = AgoraColors.TextoMedio,
+                                        )
+                                        OutlinedTextField(
+                                            value = texto,
+                                            onValueChange = { if (it.length <= 600) texto = it },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(100.dp),
+                                            placeholder = { Text("Di algo sin que sepan quién eres…") },
+                                        )
+                                        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                                        Button(
+                                            onClick = {
+                                                if (texto.isBlank()) return@Button
+                                                scope.launch {
+                                                    enviando = true
+                                                    error = null
+                                                    try {
+                                                        ApiClient.api<AnonimoApi>(tokenProvider).publicar(
+                                                            PublicarAnonimoRequest(texto.trim()),
+                                                        )
+                                                        texto = ""
+                                                        recargarFeed()
+                                                    } catch (e: Exception) {
+                                                        error = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                                                    } finally {
+                                                        enviando = false
+                                                    }
+                                                }
+                                            },
+                                            enabled = !enviando && texto.isNotBlank(),
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Text(if (enviando) "…" else "Publicar")
                                         }
                                     }
-                                },
-                                enabled = !enviando && texto.isNotBlank(),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(if (enviando) "…" else "Publicar")
+                                }
+                            }
+
+                            if (posts.isEmpty()) {
+                                item {
+                                    AgoraEmptyState(
+                                        state = AgoraCopy.emptyAnonimo,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            } else {
+                                items(posts, key = { it.id }) { post ->
+                                    AnonimoPostCard(
+                                        post = post,
+                                        reaccionando = reaccionando == post.id,
+                                        onReaccionar = { tipo -> reaccionar(post, tipo) },
+                                        onBorrar = { porBorrar = post.id },
+                                        onReportar = { reportandoId = post.id },
+                                    )
+                                }
                             }
                         }
                     }
                 }
-
-                if (posts.isEmpty()) {
-                    item {
-                        AgoraEmptyState(
-                            state = AgoraCopy.emptyAnonimo,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                } else {
-                    items(posts, key = { it.id }) { post ->
-                        AnonimoPostCard(
-                            post = post,
-                            onReaccionar = { tipo ->
-                                scope.launch {
-                                    try {
-                                        val quita = post.miReaccion == tipo
-                                        ApiClient.api<PostsApi>(tokenProvider).reaccionar(
-                                            post.id,
-                                            ReaccionarRequest(if (quita) null else tipo),
-                                        )
-                                        cargarFeed()
-                                    } catch (e: Exception) {
-                                        error = mensajeDe(e)
-                                    }
-                                }
-                            },
-                            onBorrar = {
-                                scope.launch {
-                                    try {
-                                        ApiClient.api<AnonimoApi>(tokenProvider).borrar(post.id)
-                                        cargarFeed()
-                                    } catch (e: Exception) {
-                                        error = mensajeDe(e)
-                                    }
-                                }
-                            },
-                            onReportar = { reportandoId = post.id },
-                        )
-                    }
-                }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbar,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(12.dp),
+        )
     }
 
     reportandoId?.let { postId ->
@@ -232,6 +330,17 @@ fun AnonimoScreen(
             titulo = "Reportar publicación",
             onMotivo = { motivo -> reportar(postId, motivo) },
             onCerrar = { reportandoId = null },
+        )
+    }
+
+    porBorrar?.let { postId ->
+        DialogoConfirmacion(
+            titulo = "¿Borrar tu publicación?",
+            mensaje = "Se borra para todos y no se puede deshacer.",
+            textoConfirmar = "Sí, borrar",
+            onConfirmar = { borrar(postId) },
+            onCerrar = { porBorrar = null },
+            enProceso = borrando,
         )
     }
 }
@@ -242,6 +351,7 @@ private fun AnonimoPostCard(
     onReaccionar: (String) -> Unit,
     onBorrar: () -> Unit,
     onReportar: () -> Unit,
+    reaccionando: Boolean = false,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -265,14 +375,32 @@ private fun AnonimoPostCard(
             }
             Text(haceCuanto(post.createdAt), style = MaterialTheme.typography.labelSmall, color = AgoraColors.TextoMedio)
             Text(post.texto, style = MaterialTheme.typography.bodyMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                reacciones.forEach { (tipo, emoji) ->
-                    TextButton(onClick = { onReaccionar(tipo) }) {
-                        Text(
-                            "$emoji ${post.numReactions}",
-                            color = if (post.miReaccion == tipo) AgoraColors.Naranja else AgoraColors.TextoMedio,
-                        )
-                    }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // El API solo da el total (numReactions), no el conteo por tipo: los emojis
+                // van sin número y el total se muestra una sola vez, como en la web.
+                reacciones.forEach { (tipo, emoji, etiqueta) ->
+                    val mia = post.miReaccion == tipo
+                    // El color no pinta un emoji: la reacción propia se marca con el chip seleccionado.
+                    FilterChip(
+                        selected = mia,
+                        onClick = { onReaccionar(tipo) },
+                        enabled = !reaccionando,
+                        label = { Text(emoji, style = MaterialTheme.typography.bodyLarge) },
+                        modifier = Modifier.semantics {
+                            contentDescription = if (mia) "$etiqueta (tu reacción, toca para quitarla)" else etiqueta
+                        },
+                    )
+                }
+                if (post.numReactions > 0) {
+                    Text(
+                        if (post.numReactions == 1) "1 reacción" else "${post.numReactions} reacciones",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = AgoraColors.TextoMedio,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
                 }
             }
         }

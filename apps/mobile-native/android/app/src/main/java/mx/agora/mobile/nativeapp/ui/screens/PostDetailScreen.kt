@@ -4,15 +4,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -34,6 +39,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -50,9 +56,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.YoCache
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -68,9 +77,12 @@ import mx.agora.mobile.nativeapp.data.api.PostsApi
 import mx.agora.mobile.nativeapp.data.api.ReaccionarRequest
 import mx.agora.mobile.nativeapp.data.api.ReportesApi
 import mx.agora.mobile.nativeapp.data.api.VotarEncuestaRequest
+import mx.agora.mobile.nativeapp.ui.components.AgoraAvatar
+import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.EncuestaBloque
 import mx.agora.mobile.nativeapp.ui.components.GuardarButton
 import mx.agora.mobile.nativeapp.ui.components.MOTIVOS_REPORTE
+import mx.agora.mobile.nativeapp.ui.components.mensajeErrorVoto
 import mx.agora.mobile.nativeapp.ui.components.RetirarPostDialogo
 import mx.agora.mobile.nativeapp.ui.components.PostMediaGrid
 import mx.agora.mobile.nativeapp.ui.components.ReaccionesRow
@@ -112,6 +124,9 @@ fun PostDetailScreen(
     var totalReacciones by remember(postId) { mutableIntStateOf(0) }
     var encuesta by remember(postId) { mutableStateOf<EncuestaDto?>(null) }
     var votando by remember(postId) { mutableStateOf(false) }
+    // El detalle no trae el voto propio; solo la respuesta de votar (miVoto).
+    var miVoto by remember(postId) { mutableStateOf<String?>(null) }
+    var enviandoComentario by remember(postId) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptics = rememberHaptics()
@@ -177,28 +192,52 @@ fun PostDetailScreen(
         if (votando || encuesta == null) return
         votando = true
         scope.launch {
+            var fallo: Exception? = null
             try {
                 val resp = ApiClient.api<PostsApi>(tokenProvider).votar(postId, VotarEncuestaRequest(opcionId))
-                encuesta = encuesta?.copy(opciones = resp.opciones)
-            } catch (_: Exception) {
-                // silencioso
+                if (resp.opciones.isNotEmpty()) encuesta = encuesta?.copy(opciones = resp.opciones)
+                miVoto = resp.miVoto ?: opcionId
+                haptics.perform(HapticType.Success)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                fallo = e
             } finally {
                 votando = false
             }
+            fallo?.let { snackbarHostState.showSnackbar(mensajeErrorVoto(it)) }
         }
     }
 
     fun comentar() {
         val texto = textoComentario.trim()
-        if (texto.isBlank()) return
+        // enviandoComentario evita que un doble toque publique el comentario dos veces.
+        if (texto.isBlank() || enviandoComentario) return
+        enviandoComentario = true
         scope.launch {
-            try {
+            var fallo: Exception? = null
+            val resp = try {
                 ApiClient.api<PostsApi>(tokenProvider).comentar(postId, CrearComentarioRequest(texto))
-                textoComentario = ""
-                cargar()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar(mensajeDe(e))
+                fallo = e
+                null
+            } finally {
+                enviandoComentario = false
             }
+            if (resp == null) {
+                val e = fallo
+                snackbarHostState.showSnackbar(
+                    e?.let { ApiClient.mensajeDelServidor(it) ?: mensajeDe(it) } ?: AgoraCopy.errors.generic,
+                )
+                return@launch
+            }
+            // Solo se limpia si no siguió escribiendo mientras se enviaba.
+            if (textoComentario.trim() == texto) textoComentario = ""
+            cargar()
+            // Si la moderación lo dejó en revisión, el API lo explica en `aviso`.
+            resp.aviso?.takeIf { it.isNotBlank() }?.let { snackbarHostState.showSnackbar(it) }
         }
     }
 
@@ -332,6 +371,18 @@ fun PostDetailScreen(
                 },
             )
         },
+        // Caja de comentar fija abajo: con edge-to-edge (targetSdk 36) el
+        // teclado ya no encoge la ventana, así que la barra sube con imePadding.
+        bottomBar = {
+            if (post != null) {
+                BarraComentar(
+                    texto = textoComentario,
+                    onTextoChange = { textoComentario = it },
+                    enviando = enviandoComentario,
+                    onEnviar = ::comentar,
+                )
+            }
+        },
     ) { padding ->
         AgoraPullToRefreshBox(
             isRefreshing = refrescando,
@@ -346,7 +397,11 @@ fun PostDetailScreen(
                 }
                 post == null -> {
                     BoxCentered {
-                        Text(error ?: "No se pudo cargar.", color = MaterialTheme.colorScheme.error)
+                        AgoraErrorState(
+                            title = "No pudimos abrir esta publicación",
+                            message = error ?: AgoraCopy.errors.generic,
+                            onRetry = { cargar() },
+                        )
                     }
                 }
                 else -> {
@@ -396,7 +451,12 @@ fun PostDetailScreen(
                         }
 
                         encuesta?.let { poll ->
-                            EncuestaBloque(encuesta = poll, onVotar = ::votar, votando = votando)
+                            EncuestaBloque(
+                                encuesta = poll,
+                                onVotar = ::votar,
+                                votando = votando,
+                                miVoto = miVoto,
+                            )
                         }
 
                         Row(
@@ -414,30 +474,29 @@ fun PostDetailScreen(
                                 postId = postId,
                                 guardado = actual.miGuardado,
                                 tokenProvider = tokenProvider,
+                                onError = { mensaje -> scope.launch { snackbarHostState.showSnackbar(mensaje) } },
                             )
                         }
 
                         Text("Comentarios", style = MaterialTheme.typography.titleSmall)
 
+                        if (actual.comentarios.isEmpty()) {
+                            Text(
+                                "Nadie ha comentado todavía. ¡Rompe el hielo!",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AgoraColors.TextoMedio,
+                            )
+                        }
+
                         actual.comentarios.forEach { comentario ->
                             ComentarioFila(
                                 comentario = comentario,
+                                onAutorClick = onAuthorClick,
                                 onReportar = {
                                     reporteComentarioId = comentario.id
                                     dialogoReporte = true
                                 },
                             )
-                        }
-
-                        OutlinedTextField(
-                            value = textoComentario,
-                            onValueChange = { textoComentario = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Escribe un comentario…") },
-                            minLines = 2,
-                        )
-                        Button(onClick = ::comentar, modifier = Modifier.fillMaxWidth()) {
-                            Text("Comentar")
                         }
                     }
                 }
@@ -522,30 +581,56 @@ fun PostDetailScreen(
 @Composable
 private fun ComentarioFila(
     comentario: ComentarioDto,
+    onAutorClick: (String) -> Unit,
     onReportar: () -> Unit,
 ) {
     var menuAbierto by remember { mutableStateOf(false) }
+    val nombre = comentario.autor?.nombre ?: "Alguien"
+    val handle = comentario.autor?.handle
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(AgoraColors.Superficie)
-            .padding(10.dp),
+            .padding(start = 10.dp, end = 0.dp, top = 4.dp, bottom = 10.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                comentario.autor?.nombre ?: "Alguien",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-            )
+            // Avatar y nombre llevan al perfil, igual que el autor en PostCard.
+            Row(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .then(
+                        if (handle != null) {
+                            Modifier.clickable(
+                                role = Role.Button,
+                                onClickLabel = "Ver perfil de $nombre",
+                            ) { onAutorClick(handle) }
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .padding(end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AgoraAvatar(nombre = comentario.autor?.nombre, fotoUrl = comentario.autor?.fotoUrl, size = 32.dp)
+                Text(
+                    nombre,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+            }
             Box {
-                IconButton(onClick = { menuAbierto = true }, modifier = Modifier.padding(0.dp)) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Opciones", modifier = Modifier.padding(0.dp))
+                IconButton(onClick = { menuAbierto = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Opciones del comentario")
                 }
                 DropdownMenu(expanded = menuAbierto, onDismissRequest = { menuAbierto = false }) {
                     DropdownMenuItem(
@@ -559,22 +644,71 @@ private fun ComentarioFila(
                 }
             }
         }
-        Text(comentario.texto, style = MaterialTheme.typography.bodyMedium)
-        Text(
-            haceCuanto(comentario.createdAt),
-            style = MaterialTheme.typography.labelSmall,
-            color = AgoraColors.TextoMedio,
-        )
+        Column(modifier = Modifier.padding(end = 10.dp)) {
+            Text(comentario.texto, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                haceCuanto(comentario.createdAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = AgoraColors.TextoMedio,
+            )
+        }
     }
 }
 
+/** Mismo límite que `crearComentarioSchema` en packages/contracts. */
+private const val LIMITE_COMENTARIO = 1000
+
+@Composable
+private fun BarraComentar(
+    texto: String,
+    onTextoChange: (String) -> Unit,
+    enviando: Boolean,
+    onEnviar: () -> Unit,
+) {
+    Surface(color = AgoraColors.Superficie, shadowElevation = 6.dp) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedTextField(
+                value = texto,
+                onValueChange = { if (it.length <= LIMITE_COMENTARIO) onTextoChange(it) },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Escribe un comentario…") },
+                maxLines = 4,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            )
+            Button(
+                onClick = onEnviar,
+                enabled = !enviando && texto.isNotBlank(),
+            ) {
+                Text(if (enviando) "Enviando…" else "Comentar")
+            }
+        }
+    }
+}
+
+/**
+ * Centra el contenido pero con scroll aunque quepa: sin un hijo desplazable
+ * el gesto de jalar para recargar no llega a [AgoraPullToRefreshBox].
+ */
 @Composable
 private fun BoxCentered(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(
-        modifier = modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        content()
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = maxHeight),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            content()
+        }
     }
 }

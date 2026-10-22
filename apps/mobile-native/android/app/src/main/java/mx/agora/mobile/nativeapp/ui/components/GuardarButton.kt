@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.components
 
+import android.widget.Toast
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -18,12 +19,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.GuardadosApi
-import mx.agora.mobile.nativeapp.data.api.PostsApi
 import mx.agora.mobile.nativeapp.ui.util.HapticType
 import mx.agora.mobile.nativeapp.ui.util.rememberHaptics
+import java.io.IOException
 
 @Composable
 fun GuardarButton(
@@ -32,7 +35,10 @@ fun GuardarButton(
     tokenProvider: () -> String?,
     modifier: Modifier = Modifier,
     onChanged: (Boolean) -> Unit = {},
+    /** Si la pantalla tiene snackbar, pásalo aquí; si no, el aviso sale como Toast. */
+    onError: ((String) -> Unit)? = null,
 ) {
+    val context = LocalContext.current
     var estado by remember(postId, guardado) { mutableStateOf(guardado) }
     var cargando by remember { mutableStateOf(false) }
     var bounceKey by remember { mutableIntStateOf(0) }
@@ -55,20 +61,29 @@ fun GuardarButton(
         onClick = {
             haptics.perform(HapticType.Toggle)
             bounceKey++
+            val anterior = estado
+            // Optimista: el icono cambia ya. El endpoint es un interruptor, así
+            // que un fallo NO se reintenta: si la primera llamada sí llegó, la
+            // segunda desharía el guardado. Se revierte y se avisa.
+            estado = !anterior
             scope.launch {
                 cargando = true
                 try {
-                    val api = ApiClient.api<GuardadosApi>(tokenProvider)
-                    val resp = api.alternar(postId)
+                    val resp = ApiClient.api<GuardadosApi>(tokenProvider).alternar(postId)
                     estado = resp.guardado
                     onChanged(resp.guardado)
-                } catch (_: Exception) {
-                    try {
-                        val resp = ApiClient.api<PostsApi>(tokenProvider).guardar(postId)
-                        estado = resp.guardado
-                        onChanged(resp.guardado)
-                    } catch (_: Exception) {
-                        // Sin feedback visual extra: el icono queda como estaba.
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    estado = anterior
+                    val accion = if (anterior) "No se pudo quitar de guardados." else "No se pudo guardar."
+                    val detalle = ApiClient.mensajeDelServidor(e)
+                        ?: if (e is IOException) "Revisa tu conexión." else "Intenta de nuevo."
+                    val mensaje = "$accion $detalle"
+                    if (onError != null) {
+                        onError(mensaje)
+                    } else {
+                        Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
                     }
                 } finally {
                     cargando = false

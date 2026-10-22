@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -28,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.BuscarAnuncioDto
@@ -36,11 +38,13 @@ import mx.agora.mobile.nativeapp.data.api.BuscarPersonaDto
 import mx.agora.mobile.nativeapp.data.api.BuscarPublicacionDto
 import mx.agora.mobile.nativeapp.data.api.BusquedaApi
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
+import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.formatearFecha
 import mx.agora.mobile.nativeapp.ui.util.formatearPrecio
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
+import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
 private data class TipoBusqueda(val valor: String, val etiqueta: String)
 
@@ -68,13 +72,19 @@ fun BuscarScreen(
     var eventos by remember { mutableStateOf<List<BuscarEventoDto>>(emptyList()) }
     var anuncios by remember { mutableStateOf<List<BuscarAnuncioDto>>(emptyList()) }
     var cargando by remember { mutableStateOf(false) }
+    /** Falló la búsqueda (red, servidor). No es lo mismo que «no hay resultados». */
+    var error by remember { mutableStateOf<String?>(null) }
+    /** Sube con «Reintentar» para repetir la misma búsqueda. */
+    var intento by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(q, tipo) {
+    LaunchedEffect(q, tipo, intento) {
+        error = null
         if (q.trim().length < 2) {
             personas = emptyList()
             publicaciones = emptyList()
             eventos = emptyList()
             anuncios = emptyList()
+            cargando = false
             return@LaunchedEffect
         }
         delay(300)
@@ -85,17 +95,21 @@ fun BuscarScreen(
             publicaciones = datos.publicaciones
             eventos = datos.eventos
             anuncios = datos.anuncios
-        } catch (_: Exception) {
+            cargando = false
+        } catch (e: CancellationException) {
+            // El usuario siguió escribiendo: la búsqueda nueva toma el relevo.
+            throw e
+        } catch (e: Exception) {
             personas = emptyList()
             publicaciones = emptyList()
             eventos = emptyList()
             anuncios = emptyList()
-        } finally {
+            error = mensajeDe(e)
             cargando = false
         }
     }
 
-    val vacio = q.trim().length >= 2 && !cargando &&
+    val vacio = q.trim().length >= 2 && !cargando && error == null &&
         personas.isEmpty() && publicaciones.isEmpty() && eventos.isEmpty() && anuncios.isEmpty()
 
     Column(
@@ -152,6 +166,17 @@ fun BuscarScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = AgoraColors.Naranja,
                     modifier = Modifier.padding(vertical = 2.dp),
+                )
+            }
+        }
+
+        error?.let { mensaje ->
+            if (q.trim().length >= 2 && !cargando) {
+                AgoraErrorState(
+                    message = mensaje,
+                    title = "No pudimos buscar",
+                    onRetry = { intento++ },
+                    modifier = Modifier.padding(top = 8.dp),
                 )
             }
         }

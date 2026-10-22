@@ -38,6 +38,21 @@
             </intent-filter>
         </activity>
 
+        <!--
+            Push que llega con la app en segundo plano: lo pinta el SDK de FCM, no
+            AgoraNotifications. Sin esto salía con un cuadro gris y en el canal
+            «Misceláneo». El id del canal es AgoraNotifications.CHANNEL_DEFAULT.
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/agora_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="agora_default" />
+
         <service
             android:name=".push.AgoraFirebaseService"
             android:exported="false">
