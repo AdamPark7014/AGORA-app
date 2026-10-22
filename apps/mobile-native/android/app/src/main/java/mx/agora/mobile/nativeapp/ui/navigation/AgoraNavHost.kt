@@ -26,8 +26,13 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.AuthRepository
+import mx.agora.mobile.nativeapp.data.SessionUser
+import mx.agora.mobile.nativeapp.data.api.YoResponse
 import mx.agora.mobile.nativeapp.ui.MainShell
+import mx.agora.mobile.nativeapp.ui.components.udlapPorConfirmar
+import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.screens.AjustesScreen
+import mx.agora.mobile.nativeapp.ui.screens.ConfirmarUdlapScreen
 import mx.agora.mobile.nativeapp.ui.screens.AnonimoScreen
 import mx.agora.mobile.nativeapp.ui.screens.AventonesScreen
 import mx.agora.mobile.nativeapp.ui.screens.BuscarScreen
@@ -77,6 +82,7 @@ object AgoraRoutes {
     const val EVENTO = "evento/{id}"
     const val EVENTOS_CREAR = "eventos/crear"
     const val CONEXIONES = "conexiones/{handle}/{tipo}"
+    const val CONFIRMAR_UDLAP = "confirmar-udlap"
 
     fun post(id: String) = "post/$id"
     fun mensaje(id: String) = "mensaje/$id"
@@ -92,6 +98,10 @@ fun AgoraNavHost(
     auth: AuthRepository,
     onLogout: () -> Unit,
     navController: NavHostController = rememberNavController(),
+    /** `auth/yo` de la sesión (lo lee [mx.agora.mobile.nativeapp.ui.AgoraApp]): aviso de la UDLAP por confirmar. */
+    yo: YoResponse? = null,
+    /** Se confirmó la UDLAP: la sesión nueva ya está guardada y hay contraseña otra vez. */
+    onUdlapConfirmada: (SessionUser) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     var cerrandoSesion by remember { mutableStateOf(false) }
@@ -123,6 +133,8 @@ fun AgoraNavHost(
             MainShell(
                 auth = auth,
                 onLogout = ::cerrarSesion,
+                avisoUdlap = yo?.takeIf { it.udlapPorConfirmar() },
+                onConfirmarUdlap = { navController.navigate(AgoraRoutes.CONFIRMAR_UDLAP) },
                 onNavigateToPost = { id -> navController.navigate(AgoraRoutes.post(id)) },
                 onNavigateToMensajes = { navController.navigate(AgoraRoutes.MENSAJES) },
                 onNavigateToPerfil = { handle -> navController.navigate(AgoraRoutes.perfil(handle)) },
@@ -391,6 +403,24 @@ fun AgoraNavHost(
                         auth.logout()
                         onLogout()
                     },
+                    onUdlapConfirmada = onUdlapConfirmada,
+                )
+            }
+        }
+
+        composable(AgoraRoutes.CONFIRMAR_UDLAP) {
+            SecondaryScaffold(
+                title = AgoraCopy.login.udlap.confirmarTitulo,
+                onBack = { navController.popBackStack() },
+            ) { padding ->
+                ConfirmarUdlapScreen(
+                    auth = auth,
+                    email = yo?.email ?: auth.loadSession()?.email.orEmpty(),
+                    onConfirmada = { user ->
+                        onUdlapConfirmada(user)
+                        navController.popBackStack()
+                    },
+                    modifier = Modifier.padding(padding),
                 )
             }
         }

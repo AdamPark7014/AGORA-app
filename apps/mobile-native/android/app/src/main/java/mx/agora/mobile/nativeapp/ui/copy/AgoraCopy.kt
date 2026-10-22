@@ -199,6 +199,46 @@ object AgoraCopy {
         const val pie = "Vence en 15 minutos y solo sirve una vez."
         const val remitente = "Llega de contacto@zynoratek.com («Ágora · Zynora Tek»)."
 
+        /** «¿No te llegó?» en el paso del código: el registro con el correo personal. */
+        const val noLlego = "¿No te llegó? Regístrate con tu correo personal"
+
+        /** Registro con correo personal (22-10-2026): el código va al personal y la UDLAP se confirma después. */
+        object personal {
+            const val titulo = "Regístrate con tu correo personal"
+            const val explicacion =
+                "Le preguntamos a Microsoft si tu correo UDLAP existe y te mandamos el código a tu correo personal. Después tendrás 30 días para confirmar tu correo UDLAP desde Ajustes."
+            const val etiqueta = "Tu correo personal"
+            const val placeholder = "nombre@gmail.com"
+            const val boton = "Mandar el código a mi correo personal"
+            const val botonEnviando = "Enviando…"
+            const val volver = "Volver al código UDLAP"
+            fun entradillaCodigo(correoPersonal: String) = "Te mandamos 6 dígitos a $correoPersonal."
+        }
+
+        /** Confirmar el correo @udlap.mx de una cuenta registrada con el personal (aviso, Ajustes y bloqueo). */
+        object udlap {
+            const val avisoTitulo = "Confirma tu correo UDLAP"
+            fun avisoTexto(dias: Int) =
+                "Te registraste con tu correo personal. Te quedan $dias ${if (dias == 1) "día" else "días"} para confirmar tu correo @udlap.mx."
+            const val avisoBoton = "Confirmar ahora"
+            const val ajustesTitulo = "Correo UDLAP"
+            const val ajustesBoton = "Confirmar mi correo UDLAP"
+            const val vencidoTitulo = "Confirma tu correo UDLAP para seguir"
+            const val vencidoTexto =
+                "Pasaron los 30 días para confirmar tu correo @udlap.mx. Pide el código a tu correo UDLAP para seguir usando Ágora."
+            const val cerrarSesion = "Cerrar sesión"
+            const val confirmarTitulo = "Confirma tu correo UDLAP"
+            fun confirmarTexto(email: String) =
+                "Te mandamos un código a $email. Al confirmarlo, tu cuenta queda verificada y elegirás tu contraseña de nuevo por seguridad."
+            const val boton = "Mandarme el código"
+            const val botonEnviando = "Enviando…"
+            const val confirmar = "Confirmar"
+            const val confirmando = "Confirmando…"
+            const val contrasenaTitulo = "Elige tu contraseña de nuevo"
+            const val contrasenaTexto = "Confirmaste tu correo UDLAP. Por seguridad, vuelve a elegir tu contraseña."
+            const val confirmada = "Listo: confirmaste tu correo UDLAP."
+        }
+
         object entrega {
             const val enviado = "Enviando tu código…"
             const val demorado = "Outlook está tardando en aceptarlo. Se reintenta solo; dale un minuto."
@@ -206,6 +246,12 @@ object AgoraCopy {
                 "Entregado en tu buzón UDLAP. Si no está en la bandeja principal, revisa la pestaña Otros o Correo no deseado."
             fun rebotado(email: String) =
                 "Outlook rechazó $email: esa dirección no existe en UDLAP. Revisa que esté bien escrita."
+            /** El código fue al correo personal: ni Outlook ni la UDLAP vienen al caso. */
+            const val entregadoPersonal =
+                "Entregado en tu correo personal. Si no está en la bandeja principal, revisa Spam o Promociones."
+            const val demoradoPersonal = "Tu proveedor de correo está tardando en aceptarlo. Se reintenta solo; dale un minuto."
+            fun rebotadoPersonal(email: String) =
+                "Tu proveedor rechazó $email: esa dirección no existe. Revisa que esté bien escrita."
             const val bloqueado =
                 "Esa dirección había rebotado antes y estaba en pausa. Ya la liberamos: pide el código otra vez."
             const val error = "No pudimos entregarlo. Intenta de nuevo en un minuto."

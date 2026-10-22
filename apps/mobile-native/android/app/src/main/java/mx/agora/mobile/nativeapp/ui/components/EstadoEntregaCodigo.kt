@@ -53,6 +53,8 @@ private enum class Tono { ESPERA, OK, MAL }
  *
  * [consultar] devuelve el estado, null si la API ya no conoce el envío (404,
  * se oculta la fila) o lanza si falló la red (se sigue preguntando).
+ * [personal]: el código fue al correo personal, no al buzón UDLAP (cambian los
+ * textos de entregado, demorado y rebotado).
  */
 @Composable
 fun EstadoEntregaCodigo(
@@ -62,6 +64,7 @@ fun EstadoEntregaCodigo(
     onCorregir: () -> Unit,
     onReenviar: () -> Unit,
     modifier: Modifier = Modifier,
+    personal: Boolean = false,
 ) {
     var estado by remember(envioId) { mutableStateOf("enviado") }
     var agotado by remember(envioId) { mutableStateOf(false) }
@@ -97,10 +100,14 @@ fun EstadoEntregaCodigo(
 
     val textos = AgoraCopy.login.entrega
     when (estado) {
-        "entregado" -> FilaEntrega(Tono.OK, textos.entregado, modifier = modifier)
+        "entregado" -> FilaEntrega(
+            Tono.OK,
+            if (personal) textos.entregadoPersonal else textos.entregado,
+            modifier = modifier,
+        )
         "rebotado" -> FilaEntrega(
             Tono.MAL,
-            textos.rebotado(email),
+            if (personal) textos.rebotadoPersonal(email) else textos.rebotado(email),
             accion = AgoraCopy.login.cambiarCorreo,
             onAccion = onCorregir,
             modifier = modifier,
@@ -116,7 +123,7 @@ fun EstadoEntregaCodigo(
             Tono.ESPERA,
             when {
                 agotado -> textos.sinNoticias
-                estado == "demorado" -> textos.demorado
+                estado == "demorado" -> if (personal) textos.demoradoPersonal else textos.demorado
                 else -> textos.enviado
             },
             girando = !agotado,

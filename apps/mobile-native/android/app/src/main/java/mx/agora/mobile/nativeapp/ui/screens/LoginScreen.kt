@@ -66,12 +66,17 @@ import retrofit2.HttpException
  *    cuenta, para una cuenta de antes que aún no tiene contraseña y para
  *    «olvidé mi contraseña». Es la única verificación institucional, por eso
  *    no se quita: solo se pide una vez.
+ *  - `personal` → `codigo-personal`: si el código UDLAP no llega, el código va
+ *    al correo personal (la API pregunta a Microsoft si el buzón UDLAP existe)
+ *    y la cuenta tiene 30 días para confirmar la UDLAP desde Ajustes.
  *  - `contrasena`: después del código, cuando la cuenta no tiene contraseña o
  *    se vino por «olvidé», se elige una antes de pasar al perfil o al feed.
  */
 private const val PASO_ENTRAR = "entrar"
 private const val PASO_PEDIR = "pedir"
 private const val PASO_CODIGO = "codigo"
+private const val PASO_PERSONAL = "personal"
+private const val PASO_CODIGO_PERSONAL = "codigo-personal"
 private const val PASO_CONTRASENA = "contrasena"
 
 private const val MOTIVO_REGISTRO = "registro"
@@ -95,6 +100,9 @@ fun LoginScreen(
     var aviso by remember { mutableStateOf<String?>(null) }
     /** Id de seguimiento del último código enviado (cabecera X-Envio-Id). */
     var envioId by remember { mutableStateOf<String?>(null) }
+    /** Correo personal cuando el código UDLAP no llega, y el seguimiento de su código. */
+    var correoPersonal by remember { mutableStateOf("") }
+    var envioIdPersonal by remember { mutableStateOf<String?>(null) }
     /** Sesión abierta por código que espera a que se elija la contraseña. */
     var verificado by remember { mutableStateOf<SessionUser?>(null) }
     val scope = rememberCoroutineScope()
@@ -168,13 +176,51 @@ fun LoginScreen(
         envioId = null
     }
 
-    fun verificar() {
+    /**
+     * El código al correo personal. El límite (uno por minuto) es por cuenta,
+     * cuente el buzón: un 429 aquí puede venir del código UDLAP recién pedido,
+     * así que solo se pasa a escribir el código si ya se había mandado uno.
+     */
+    fun pedirCodigoPersonal() {
+        if (cargando || !correoPersonal.contains("@")) return
+        scope.launch {
+            cargando = true
+            error = null
+            try {
+                envioIdPersonal = auth.solicitarOtpPersonal(email, correoPersonal)
+                aviso = null
+                if (paso != PASO_CODIGO_PERSONAL) codigo = ""
+                paso = PASO_CODIGO_PERSONAL
+            } catch (e: HttpException) {
+                val delServidor = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                if (e.code() == 429 && paso == PASO_CODIGO_PERSONAL) aviso = delServidor else error = delServidor
+            } catch (e: Exception) {
+                error = mensajeDe(e).ifBlank { copy.errorEnviar }
+            } finally {
+                cargando = false
+            }
+        }
+    }
+
+    fun volverAlPersonal() {
+        paso = PASO_PERSONAL
+        codigo = ""
+        error = null
+        aviso = null
+        envioIdPersonal = null
+    }
+
+    fun verificar(personal: Boolean = false) {
         if (cargando || codigo.length != 6) return
         scope.launch {
             cargando = true
             error = null
             try {
-                val entrada = auth.verificarOtp(email, codigo)
+                val entrada = if (personal) {
+                    auth.verificarOtpPersonal(email, correoPersonal, codigo)
+                } else {
+                    auth.verificarOtp(email, codigo)
+                }
                 // Sin contraseña todavía (cuenta nueva o de antes), o vino a
                 // cambiarla: se elige antes de entrar. Si ya tiene y solo
                 // prefirió el código, pasa. Con una API anterior (null) pasa.
@@ -226,7 +272,8 @@ fun LoginScreen(
                     Spacer(Modifier.height(AgoraSpacing.Xxs))
                     val titulo = when (paso) {
                         PASO_PEDIR -> if (motivo == MOTIVO_OLVIDE) AgoraCopy.login.pedir.tituloOlvide else AgoraCopy.login.pedir.tituloRegistro
-                        PASO_CODIGO -> copy.tituloCodigo
+                        PASO_CODIGO, PASO_CODIGO_PERSONAL -> copy.tituloCodigo
+                        PASO_PERSONAL -> AgoraCopy.login.personal.titulo
                         PASO_CONTRASENA ->
                             if (motivo == MOTIVO_OLVIDE) AgoraCopy.login.nuevaContrasena.tituloOlvide else AgoraCopy.login.nuevaContrasena.tituloCrear
                         else -> copy.lema
@@ -364,21 +411,7 @@ fun LoginScreen(
                             )
                             Spacer(Modifier.height(AgoraSpacing.Sm))
                         }
-                        OutlinedTextField(
-                            value = codigo,
-                            onValueChange = { nuevo -> codigo = nuevo.filter(Char::isDigit).take(6) },
-                            label = { Text(copy.etiquetaCodigo) },
-                            placeholder = { Text("000000") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.NumberPassword,
-                                imeAction = ImeAction.Done,
-                            ),
-                            keyboardActions = KeyboardActions(onDone = { verificar() }),
-                            colors = fieldColors,
-                            shape = MaterialTheme.shapes.medium,
-                        )
+                        CampoCodigo(codigo = codigo, onCambio = { codigo = it }, onDone = { verificar() })
                         Spacer(Modifier.height(AgoraSpacing.Sm))
                         AgoraPrimaryButton(
                             text = if (cargando) copy.botonVerificando else copy.botonCodigo,
@@ -394,6 +427,101 @@ fun LoginScreen(
                                 Text(copy.cambiarCorreo, color = AgoraColors.Naranja)
                             }
                             TextButton(onClick = { pedirCodigo() }, enabled = !cargando) {
+                                Text(copy.reenviar, color = AgoraColors.Naranja)
+                            }
+                        }
+                        TextButton(
+                            onClick = { irA(PASO_PERSONAL) },
+                            enabled = !cargando,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(copy.noLlego, color = AgoraColors.Naranja, textAlign = TextAlign.Center)
+                        }
+                    }
+
+                    PASO_PERSONAL -> {
+                        Text(
+                            AgoraCopy.login.personal.explicacion,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AgoraColors.TextoMedio,
+                        )
+                        Spacer(Modifier.height(AgoraSpacing.Sm))
+                        OutlinedTextField(
+                            value = correoPersonal,
+                            onValueChange = { correoPersonal = it.trim() },
+                            label = { Text(AgoraCopy.login.personal.etiqueta) },
+                            placeholder = { Text(AgoraCopy.login.personal.placeholder) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            enabled = !cargando,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Send,
+                                autoCorrectEnabled = false,
+                            ),
+                            keyboardActions = KeyboardActions(onSend = { pedirCodigoPersonal() }),
+                            colors = fieldColors,
+                            shape = MaterialTheme.shapes.medium,
+                        )
+                        Spacer(Modifier.height(AgoraSpacing.Sm))
+                        AgoraPrimaryButton(
+                            text = if (cargando) AgoraCopy.login.personal.botonEnviando else AgoraCopy.login.personal.boton,
+                            onClick = { pedirCodigoPersonal() },
+                            enabled = correoPersonal.contains("@"),
+                            loading = cargando,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            TextButton(onClick = { irA(PASO_CODIGO) }, enabled = !cargando) {
+                                Text(AgoraCopy.login.personal.volver, color = AgoraColors.Naranja)
+                            }
+                        }
+                    }
+
+                    PASO_CODIGO_PERSONAL -> {
+                        Text(
+                            AgoraCopy.login.personal.entradillaCodigo(correoPersonal),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AgoraColors.TextoMedio,
+                        )
+                        Spacer(Modifier.height(AgoraSpacing.Sm))
+                        envioIdPersonal?.let { id ->
+                            EstadoEntregaCodigo(
+                                envioId = id,
+                                email = correoPersonal,
+                                consultar = { auth.estadoEntrega(it) },
+                                onCorregir = { volverAlPersonal() },
+                                onReenviar = { pedirCodigoPersonal() },
+                                personal = true,
+                            )
+                            Spacer(Modifier.height(AgoraSpacing.Sm))
+                        }
+                        aviso?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AgoraColors.TextoMedio,
+                            )
+                            Spacer(Modifier.height(AgoraSpacing.Sm))
+                        }
+                        CampoCodigo(codigo = codigo, onCambio = { codigo = it }, onDone = { verificar(personal = true) })
+                        Spacer(Modifier.height(AgoraSpacing.Sm))
+                        AgoraPrimaryButton(
+                            text = if (cargando) copy.botonVerificando else copy.botonCodigo,
+                            onClick = { verificar(personal = true) },
+                            enabled = codigo.length == 6,
+                            loading = cargando,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            TextButton(onClick = { volverAlPersonal() }) {
+                                Text(copy.cambiarCorreo, color = AgoraColors.Naranja)
+                            }
+                            TextButton(onClick = { pedirCodigoPersonal() }, enabled = !cargando) {
                                 Text(copy.reenviar, color = AgoraColors.Naranja)
                             }
                         }
@@ -426,6 +554,15 @@ fun LoginScreen(
                 if (paso == PASO_CODIGO) {
                     Spacer(Modifier.height(AgoraSpacing.Md))
                     PistaCorreo()
+                } else if (paso == PASO_CODIGO_PERSONAL) {
+                    Spacer(Modifier.height(AgoraSpacing.Md))
+                    Text(
+                        "${copy.pie} ${copy.remitente}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AgoraColors.TextMuted,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
 
@@ -455,6 +592,32 @@ private fun CampoCorreo(
             autoCorrectEnabled = false,
         ),
         keyboardActions = KeyboardActions(onSend = { onEnviar() }),
+        colors = agoraFieldColors(),
+        shape = MaterialTheme.shapes.medium,
+    )
+}
+
+/** Los 6 dígitos del correo (solo números). También lo usa «Confirma tu correo UDLAP». */
+@Composable
+internal fun CampoCodigo(
+    codigo: String,
+    onCambio: (String) -> Unit,
+    onDone: () -> Unit,
+    enabled: Boolean = true,
+) {
+    OutlinedTextField(
+        value = codigo,
+        onValueChange = { nuevo -> onCambio(nuevo.filter(Char::isDigit).take(6)) },
+        label = { Text(AgoraCopy.login.etiquetaCodigo) },
+        placeholder = { Text("000000") },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        enabled = enabled,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.NumberPassword,
+            imeAction = ImeAction.Done,
+        ),
+        keyboardActions = KeyboardActions(onDone = { onDone() }),
         colors = agoraFieldColors(),
         shape = MaterialTheme.shapes.medium,
     )

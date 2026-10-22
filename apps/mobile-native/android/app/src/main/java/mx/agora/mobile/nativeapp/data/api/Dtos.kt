@@ -14,14 +14,36 @@ data class VerificarOtpRequest(
 )
 
 /**
- * Respuesta de `auth/otp/verificar`. `tieneContrasena` llegó con el login por
- * contraseña (21-10-2026): null si la API es anterior.
+ * `POST auth/otp/personal/solicitar`: el código va al correo personal cuando el
+ * de @udlap.mx no llega. La API pregunta a Microsoft si el buzón UDLAP existe.
+ */
+@JsonClass(generateAdapter = true)
+data class SolicitarOtpPersonalRequest(
+    val email: String,
+    val correoPersonal: String,
+)
+
+/** `POST auth/otp/personal/verificar`: responde igual que `auth/otp/verificar`. */
+@JsonClass(generateAdapter = true)
+data class VerificarOtpPersonalRequest(
+    val email: String,
+    val correoPersonal: String,
+    val codigo: String,
+    val modo: String = "token",
+)
+
+/**
+ * Respuesta de `auth/otp/verificar` (y de `auth/otp/personal/verificar`).
+ * `tieneContrasena` llegó con el login por contraseña (21-10-2026) y
+ * `udlapPendiente` con el registro por correo personal (22-10-2026): null si
+ * la API es anterior.
  */
 @JsonClass(generateAdapter = true)
 data class VerificarOtpResponse(
     val tienePerfil: Boolean,
     val token: String? = null,
     val tieneContrasena: Boolean? = null,
+    val udlapPendiente: Boolean? = null,
 )
 
 /** `POST auth/entrar`: correo + contraseña. `modo = token` para recibir el Bearer. */
@@ -39,6 +61,7 @@ data class EntrarResponse(
     val tieneContrasena: Boolean? = null,
     val token: String? = null,
     val expiraEn: String? = null,
+    val udlapPendiente: Boolean? = null,
 )
 
 /** `POST auth/contrasena`: fija la contraseña sin pedir la actual (cuenta sin contraseña o sesión recién abierta por código). */
@@ -64,6 +87,16 @@ data class YoResponse(
     val puedeModerar: Boolean = false,
     val puedeSuspender: Boolean = false,
     val fotoUrl: String? = null,
+    /**
+     * Registro con correo personal (22-10-2026): la cuenta aún no confirma su
+     * correo @udlap.mx. Todo null con una API anterior.
+     */
+    val udlapPendiente: Boolean? = null,
+    /** ISO del fin del plazo de 30 días para confirmar la UDLAP. */
+    val udlapVenceEn: String? = null,
+    /** Pasó el plazo: la API responde 403 en todo lo que no sea de `auth` ni de `cuenta`. */
+    val udlapVencida: Boolean? = null,
+    val udlapDiasRestantes: Int? = null,
 )
 
 /** Estado de la entrega del código OTP (`GET auth/otp/entrega/{envioId}`). */

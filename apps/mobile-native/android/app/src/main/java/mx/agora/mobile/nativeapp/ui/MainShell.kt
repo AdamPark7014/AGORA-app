@@ -9,7 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -52,7 +52,10 @@ import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.MensajesApi
 import mx.agora.mobile.nativeapp.data.api.NotificacionesApi
+import mx.agora.mobile.nativeapp.data.api.YoResponse
 import mx.agora.mobile.nativeapp.ui.components.AgoraMarcaHorizontal
+import mx.agora.mobile.nativeapp.ui.components.AvisoUdlap
+import mx.agora.mobile.nativeapp.ui.components.diasParaConfirmarUdlap
 import mx.agora.mobile.nativeapp.ui.screens.EventosScreen
 import mx.agora.mobile.nativeapp.ui.screens.FeedScreen
 import mx.agora.mobile.nativeapp.ui.screens.NotificacionesScreen
@@ -80,6 +83,9 @@ fun MainShell(
     onNavigateToEvento: (String) -> Unit = {},
     onNavigateToCreateEvento: () -> Unit = {},
     onNavigateUrl: (String) -> Unit = {},
+    /** `auth/yo` cuando la cuenta aún debe confirmar la UDLAP (dentro del plazo); null si no. */
+    avisoUdlap: YoResponse? = null,
+    onConfirmarUdlap: () -> Unit = {},
 ) {
     var tab by remember { mutableIntStateOf(0) }
     var feedKey by remember { mutableIntStateOf(0) }
@@ -259,8 +265,18 @@ fun MainShell(
             }
         },
     ) { padding ->
-        Box(Modifier.padding(padding)) {
+        Column(Modifier.padding(padding)) {
+            // Arriba del feed y fuera de su lista: el feed calcula el video activo
+            // por la posición de sus filas.
+            if (avisoUdlap != null && tab == 0) {
+                AvisoUdlap(
+                    dias = avisoUdlap.diasParaConfirmarUdlap(),
+                    onConfirmar = onConfirmarUdlap,
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp),
+                )
+            }
             AnimatedContent(
+                modifier = Modifier.weight(1f),
                 targetState = tab,
                 transitionSpec = {
                     fadeIn(animationSpec = tween(150)) togetherWith fadeOut(animationSpec = tween(150))

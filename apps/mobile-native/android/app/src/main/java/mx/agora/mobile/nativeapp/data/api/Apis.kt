@@ -21,6 +21,17 @@ interface AuthApi {
     @POST("auth/otp/verificar")
     suspend fun verificarOtp(@Body body: VerificarOtpRequest): VerificarOtpResponse
 
+    /**
+     * El código al correo personal (204 + `X-Envio-Id` opcional). 400 si el
+     * buzón UDLAP no existe, 409 si la cuenta ya confirmó o el personal es de
+     * otra, 503 si Microsoft no respondió, 429 si hay que esperar un minuto.
+     */
+    @POST("auth/otp/personal/solicitar")
+    suspend fun solicitarOtpPersonal(@Body body: SolicitarOtpPersonalRequest): Response<Unit>
+
+    @POST("auth/otp/personal/verificar")
+    suspend fun verificarOtpPersonal(@Body body: VerificarOtpPersonalRequest): VerificarOtpResponse
+
     /** Correo + contraseña. 401 uniforme si algo no cuadra; 429 tras cinco fallos. */
     @POST("auth/entrar")
     suspend fun entrar(@Body body: EntrarRequest): EntrarResponse

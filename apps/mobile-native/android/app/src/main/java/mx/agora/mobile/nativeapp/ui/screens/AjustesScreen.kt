@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -55,6 +57,7 @@ import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.MediaRepository
 import mx.agora.mobile.nativeapp.data.ModoTema
 import mx.agora.mobile.nativeapp.data.PreferenciasTema
+import mx.agora.mobile.nativeapp.data.SessionUser
 import mx.agora.mobile.nativeapp.data.api.ActualizarPerfilRequest
 import mx.agora.mobile.nativeapp.data.api.ActualizarPreferenciasRequest
 import mx.agora.mobile.nativeapp.data.YoCache
@@ -69,7 +72,9 @@ import mx.agora.mobile.nativeapp.data.api.NotificacionesApi
 import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PreferenciaNotificacionDto
 import mx.agora.mobile.nativeapp.data.api.SilenciarComunidadRequest
+import mx.agora.mobile.nativeapp.data.api.YoResponse
 import mx.agora.mobile.nativeapp.ui.components.FormularioContrasena
+import mx.agora.mobile.nativeapp.ui.components.diasParaConfirmarUdlap
 import mx.agora.mobile.nativeapp.ui.components.ModoContrasena
 import mx.agora.mobile.nativeapp.ui.components.SubScreenScaffold
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
@@ -123,11 +128,15 @@ fun AjustesScreen(
     auth: AuthRepository,
     modifier: Modifier = Modifier,
     onCuentaEliminada: () -> Unit = {},
+    /** Se confirmó la UDLAP desde la tarjeta «Correo UDLAP» (sesión nueva ya guardada). */
+    onUdlapConfirmada: (SessionUser) -> Unit = {},
 ) {
     AjustesScreenContent(
         tokenProvider = { auth.token() },
         modifier = modifier,
         onCuentaEliminada = onCuentaEliminada,
+        auth = auth,
+        onUdlapConfirmada = onUdlapConfirmada,
     )
 }
 
@@ -147,6 +156,9 @@ private fun AjustesScreenContent(
     tokenProvider: () -> String?,
     modifier: Modifier = Modifier,
     onCuentaEliminada: () -> Unit = {},
+    /** Sin él (variante solo con token) no se ofrece confirmar la UDLAP. */
+    auth: AuthRepository? = null,
+    onUdlapConfirmada: (SessionUser) -> Unit = {},
 ) {
     val context = LocalContext.current
     val mediaRepo = remember { MediaRepository(context) }
@@ -174,6 +186,8 @@ private fun AjustesScreenContent(
     var avisoPregunta by remember { mutableStateOf(true) }
     /** Si la cuenta ya tiene contraseña (`auth/yo`). Null: API anterior o sin respuesta; no se muestra la tarjeta. */
     var tieneContrasena by remember { mutableStateOf<Boolean?>(null) }
+    /** `auth/yo` si la cuenta se registró con el correo personal y aún debe confirmar la UDLAP. */
+    var yoUdlap by remember { mutableStateOf<YoResponse?>(null) }
     var modoTema by remember { mutableStateOf(PreferenciasTema.leer(context)) }
     var preferencias by remember { mutableStateOf<List<PreferenciaNotificacionDto>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
@@ -273,7 +287,9 @@ private fun AjustesScreenContent(
             preferencias = ApiClient.api<NotificacionesApi>(tokenProvider).preferencias().preferencias
             generacion = api.porHandle(perfil.handle).generacion
             // Aparte: si falla, el resto de Ajustes sigue sirviendo.
-            tieneContrasena = runCatching { ApiClient.api<AuthApi>(tokenProvider).yo().tieneContrasena }.getOrNull()
+            val yo = runCatching { ApiClient.api<AuthApi>(tokenProvider).yo() }.getOrNull()
+            tieneContrasena = yo?.tieneContrasena
+            yoUdlap = yo?.takeIf { it.udlapPendiente == true }
         } catch (e: Exception) {
             error = mensajeDe(e)
         } finally {
@@ -628,6 +644,21 @@ private fun AjustesScreenContent(
                         }
                     }
 
+                    val pendiente = yoUdlap
+                    if (auth != null && pendiente != null) {
+                        CorreoUdlapSeccion(
+                            auth = auth,
+                            yo = pendiente,
+                            onConfirmada = { user ->
+                                // Confirmar borró la contraseña y se eligió otra en el flujo.
+                                yoUdlap = null
+                                tieneContrasena = true
+                                error = null
+                                onUdlapConfirmada(user)
+                            },
+                        )
+                    }
+
                     tieneContrasena?.let { tiene ->
                         ContrasenaSeccion(
                             tiene = tiene,
@@ -799,6 +830,49 @@ private fun ContrasenaSeccion(
             )
             TextButton(onClick = { abierto = false }) {
                 Text(copy.cancelar)
+            }
+        }
+    }
+}
+
+/**
+ * Tarjeta «Correo UDLAP»: solo para una cuenta registrada con el correo personal
+ * que aún no confirma su buzón @udlap.mx. El texto del aviso del feed y el flujo
+ * de confirmación en la misma tarjeta.
+ */
+@Composable
+private fun CorreoUdlapSeccion(
+    auth: AuthRepository,
+    yo: YoResponse,
+    onConfirmada: (SessionUser) -> Unit,
+) {
+    val textos = AgoraCopy.login.udlap
+    var abierto by remember { mutableStateOf(false) }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(textos.ajustesTitulo, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+        yo.diasParaConfirmarUdlap()?.let { dias ->
+            Text(
+                textos.avisoTexto(dias),
+                style = MaterialTheme.typography.bodySmall,
+                color = AgoraColors.TextoMedio,
+            )
+        }
+        if (!abierto) {
+            OutlinedButton(
+                onClick = { abierto = true },
+                modifier = Modifier.padding(top = 4.dp),
+            ) {
+                Text(textos.ajustesBoton)
+            }
+        } else {
+            Spacer(Modifier.height(8.dp))
+            ConfirmarUdlap(
+                auth = auth,
+                email = yo.email ?: auth.loadSession()?.email.orEmpty(),
+                onConfirmada = onConfirmada,
+            )
+            TextButton(onClick = { abierto = false }) {
+                Text(AgoraCopy.login.ajustes.cancelar)
             }
         }
     }

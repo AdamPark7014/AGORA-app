@@ -7,10 +7,15 @@ import mx.agora.mobile.nativeapp.data.api.CrearContrasenaRequest
 import mx.agora.mobile.nativeapp.data.api.EntrarRequest
 import mx.agora.mobile.nativeapp.data.api.EntrarResponse
 import mx.agora.mobile.nativeapp.data.api.EntregaOtpResponse
+import mx.agora.mobile.nativeapp.data.api.SolicitarOtpPersonalRequest
 import mx.agora.mobile.nativeapp.data.api.SolicitarOtpRequest
+import mx.agora.mobile.nativeapp.data.api.VerificarOtpPersonalRequest
 import mx.agora.mobile.nativeapp.data.api.VerificarOtpRequest
 import mx.agora.mobile.nativeapp.data.api.VerificarOtpResponse
 import mx.agora.mobile.nativeapp.data.api.YoResponse
+import okhttp3.Headers
+import okhttp3.ResponseBody.Companion.toResponseBody
+import retrofit2.HttpException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -45,11 +50,29 @@ class AuthRepositoryTest {
         var tokenVistoEnYo: String? = null
         var ultimaCrear: CrearContrasenaRequest? = null
         var ultimaCambiar: CambiarContrasenaRequest? = null
+        var ultimoSolicitarPersonal: SolicitarOtpPersonalRequest? = null
+        var respuestaSolicitarPersonal: Response<Unit> =
+            Response.success(Unit, Headers.headersOf("X-Envio-Id", " env-42 "))
+        var ultimoVerificarPersonal: VerificarOtpPersonalRequest? = null
+        var respuestaVerificarPersonal: VerificarOtpResponse = VerificarOtpResponse(
+            tienePerfil = false,
+            token = "tok-personal",
+            tieneContrasena = false,
+            udlapPendiente = true,
+        )
 
         override suspend fun solicitarOtp(body: SolicitarOtpRequest): Response<Unit> = Response.success(Unit)
         override suspend fun verificarOtp(body: VerificarOtpRequest): VerificarOtpResponse {
             ultimoVerificar = body
             return respuestaVerificar
+        }
+        override suspend fun solicitarOtpPersonal(body: SolicitarOtpPersonalRequest): Response<Unit> {
+            ultimoSolicitarPersonal = body
+            return respuestaSolicitarPersonal
+        }
+        override suspend fun verificarOtpPersonal(body: VerificarOtpPersonalRequest): VerificarOtpResponse {
+            ultimoVerificarPersonal = body
+            return respuestaVerificarPersonal
         }
         override suspend fun entrar(body: EntrarRequest): EntrarResponse {
             ultimoEntrar = body
@@ -140,6 +163,100 @@ class AuthRepositoryTest {
         assertEquals("tok-otp", entrada.user.token)
         assertFalse(entrada.user.tienePerfil)
         assertEquals(entrada.user, almacen.guardado)
+    }
+
+    @Test
+    fun `solicitar otp personal manda el correo UDLAP normalizado y el personal, y devuelve el envio`() = runBlocking {
+        val api = AuthApiFalsa()
+        val almacen = AlmacenEnMemoria()
+
+        val envio = repositorio(api, almacen).solicitarOtpPersonal("  Ana.R@UDLAP.MX ", " Ana.R@Gmail.com ")
+
+        val pedido = api.ultimoSolicitarPersonal!!
+        assertEquals("ana.r@udlap.mx", pedido.email)
+        assertEquals("ana.r@gmail.com", pedido.correoPersonal)
+        assertEquals("env-42", envio)
+        // Pedir el código no abre sesión.
+        assertNull(almacen.guardado)
+    }
+
+    @Test
+    fun `solicitar otp personal sin cabecera devuelve null y un error llega como HttpException`() = runBlocking {
+        val api = AuthApiFalsa().apply { respuestaSolicitarPersonal = Response.success(Unit) }
+        val repo = repositorio(api, AlmacenEnMemoria())
+        assertNull(repo.solicitarOtpPersonal("ana@udlap.mx", "ana@gmail.com"))
+
+        api.respuestaSolicitarPersonal = Response.error(
+            409,
+            """{"mensaje":"Ese correo personal ya está ligado a otra cuenta."}""".toResponseBody(null),
+        )
+        try {
+            repo.solicitarOtpPersonal("ana@udlap.mx", "ana@gmail.com")
+            fail("Debía fallar con 409")
+        } catch (e: HttpException) {
+            assertEquals(409, e.code())
+        }
+    }
+
+    @Test
+    fun `verificar otp personal guarda la sesion con el correo UDLAP`() = runBlocking {
+        val api = AuthApiFalsa()
+        val almacen = AlmacenEnMemoria()
+
+        val entrada = repositorio(api, almacen)
+            .verificarOtpPersonal(" Ana@UDLAP.mx", "ANA@gmail.com ", " 654321 ")
+
+        val pedido = api.ultimoVerificarPersonal!!
+        assertEquals("ana@udlap.mx", pedido.email)
+        assertEquals("ana@gmail.com", pedido.correoPersonal)
+        assertEquals("654321", pedido.codigo)
+        assertEquals("token", pedido.modo)
+
+        assertEquals("tok-personal", entrada.user.token)
+        assertEquals("ana@udlap.mx", entrada.user.email)
+        assertEquals("maria", entrada.user.handle)
+        assertFalse(entrada.user.tienePerfil)
+        assertEquals(false, entrada.tieneContrasena)
+        assertEquals(true, entrada.udlapPendiente)
+        assertEquals(entrada.user, almacen.guardado)
+        assertEquals("tok-personal", api.tokenVistoEnYo)
+    }
+
+    @Test
+    fun `confirmar la UDLAP con verificar otp reemplaza la sesion guardada`() = runBlocking {
+        val api = AuthApiFalsa().apply {
+            respuestaVerificar = VerificarOtpResponse(
+                tienePerfil = true,
+                token = "tok-nueva",
+                tieneContrasena = false,
+                udlapPendiente = false,
+            )
+        }
+        val almacen = AlmacenEnMemoria().apply {
+            guardado = SessionUser(token = "tok-vieja", email = "ana@udlap.mx", handle = "maria", nombre = null, tienePerfil = true)
+        }
+
+        val entrada = repositorio(api, almacen).verificarOtp("ana@udlap.mx", "111222")
+
+        assertEquals("tok-nueva", almacen.guardado!!.token)
+        assertEquals(false, entrada.tieneContrasena)
+        assertEquals(false, entrada.udlapPendiente)
+    }
+
+    @Test
+    fun `verificar otp personal sin token no guarda nada`() = runBlocking {
+        val api = AuthApiFalsa().apply {
+            respuestaVerificarPersonal = VerificarOtpResponse(tienePerfil = false, token = null)
+        }
+        val almacen = AlmacenEnMemoria()
+
+        try {
+            repositorio(api, almacen).verificarOtpPersonal("ana@udlap.mx", "ana@gmail.com", "123456")
+            fail("Debía fallar sin token")
+        } catch (e: IllegalStateException) {
+            // esperado
+        }
+        assertNull(almacen.guardado)
     }
 
     @Test

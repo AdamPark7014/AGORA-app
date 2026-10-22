@@ -11,8 +11,11 @@ import mx.agora.mobile.nativeapp.data.api.CrearContrasenaRequest
 import mx.agora.mobile.nativeapp.data.api.CrearPerfilRequest
 import mx.agora.mobile.nativeapp.data.api.EntrarRequest
 import mx.agora.mobile.nativeapp.data.api.PerfilApi
+import mx.agora.mobile.nativeapp.data.api.SolicitarOtpPersonalRequest
 import mx.agora.mobile.nativeapp.data.api.SolicitarOtpRequest
+import mx.agora.mobile.nativeapp.data.api.VerificarOtpPersonalRequest
 import mx.agora.mobile.nativeapp.data.api.VerificarOtpRequest
+import mx.agora.mobile.nativeapp.data.api.VerificarOtpResponse
 import mx.agora.mobile.nativeapp.data.api.YoResponse
 import mx.agora.mobile.nativeapp.data.realtime.RealtimeBus
 import mx.agora.mobile.nativeapp.push.PushRegistration
@@ -25,6 +28,8 @@ import retrofit2.HttpException
 data class EntradaPorCodigo(
     val user: SessionUser,
     val tieneContrasena: Boolean?,
+    /** La cuenta entró con el correo personal y aún debe confirmar la UDLAP. */
+    val udlapPendiente: Boolean? = null,
 )
 
 class AuthRepository internal constructor(
@@ -51,8 +56,23 @@ class AuthRepository internal constructor(
      * Pide el código. Devuelve el id de seguimiento de la entrega (cabecera
      * `X-Envio-Id`) o null si la API no lo manda (API vieja o modo consola).
      */
-    suspend fun solicitarOtp(email: String): String? {
-        val resp = authApi.solicitarOtp(SolicitarOtpRequest(normalizar(email)))
+    suspend fun solicitarOtp(email: String): String? =
+        idDeEnvio(authApi.solicitarOtp(SolicitarOtpRequest(normalizar(email))))
+
+    /**
+     * Pide el código al correo personal cuando el de @udlap.mx no llega. La API
+     * confirma con Microsoft que el buzón UDLAP existe. Devuelve el id de
+     * seguimiento (`X-Envio-Id`) como [solicitarOtp]; los 400/409/429/503 llegan
+     * como [HttpException] con el `mensaje` de la API.
+     */
+    suspend fun solicitarOtpPersonal(email: String, correoPersonal: String): String? =
+        idDeEnvio(
+            authApi.solicitarOtpPersonal(
+                SolicitarOtpPersonalRequest(normalizar(email), normalizar(correoPersonal)),
+            ),
+        )
+
+    private fun idDeEnvio(resp: retrofit2.Response<Unit>): String? {
         if (!resp.isSuccessful) throw HttpException(resp)
         return resp.headers()["X-Envio-Id"]?.trim()?.takeIf { it.isNotEmpty() }
     }
@@ -69,14 +89,35 @@ class AuthRepository internal constructor(
         return resp.body()?.estado
     }
 
-    /** Entra con el código del correo y guarda la sesión. */
+    /**
+     * Entra con el código del correo y guarda la sesión. En una cuenta que se
+     * registró con el correo personal esto confirma la UDLAP: la API borra el
+     * personal y la contraseña, cierra todas las sesiones y da una nueva.
+     */
     suspend fun verificarOtp(email: String, codigo: String): EntradaPorCodigo {
         val resp = authApi.verificarOtp(
             VerificarOtpRequest(normalizar(email), codigo.trim(), "token"),
         )
+        return entradaDe(resp, normalizar(email))
+    }
+
+    /** Entra con el código que llegó al correo personal y guarda la sesión igual que [verificarOtp]. */
+    suspend fun verificarOtpPersonal(email: String, correoPersonal: String, codigo: String): EntradaPorCodigo {
+        val resp = authApi.verificarOtpPersonal(
+            VerificarOtpPersonalRequest(
+                email = normalizar(email),
+                correoPersonal = normalizar(correoPersonal),
+                codigo = codigo.trim(),
+                modo = "token",
+            ),
+        )
+        return entradaDe(resp, normalizar(email))
+    }
+
+    private suspend fun entradaDe(resp: VerificarOtpResponse, email: String): EntradaPorCodigo {
         val token = resp.token ?: throw IllegalStateException("La API no devolvió token.")
-        val user = abrirSesion(token, normalizar(email), resp.tienePerfil)
-        return EntradaPorCodigo(user, resp.tieneContrasena)
+        val user = abrirSesion(token, email, resp.tienePerfil)
+        return EntradaPorCodigo(user, resp.tieneContrasena, resp.udlapPendiente)
     }
 
     /**
