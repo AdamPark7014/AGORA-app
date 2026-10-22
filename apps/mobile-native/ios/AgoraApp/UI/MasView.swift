@@ -45,6 +45,7 @@ private let seccionesMas: [SeccionMas] = [
 struct MasView: View {
     let onNavigate: (String) -> Void
     let onTerminos: () -> Void
+    let onReglas: () -> Void
     let onPrivacidad: () -> Void
     let onLogout: () -> Void
     /// Globo en la fila «Mensajes» (`GET mensajes/no-leidos`).
@@ -120,17 +121,23 @@ struct MasView: View {
                     }
                 }
 
-                HStack {
-                    Spacer()
+                HStack(spacing: AgoraDesign.Spacing.xs) {
+                    Spacer(minLength: 0)
                     Button("Términos", action: onTerminos)
                         .foregroundStyle(AgoraDesign.Colors.naranja)
                     Text("·")
                         .foregroundStyle(AgoraDesign.Colors.textoMuted)
+                    Button("Reglas", action: onReglas)
+                        .foregroundStyle(AgoraDesign.Colors.naranja)
+                        .accessibilityLabel("Reglas de la comunidad")
+                    Text("·")
+                        .foregroundStyle(AgoraDesign.Colors.textoMuted)
                     Button("Privacidad", action: onPrivacidad)
                         .foregroundStyle(AgoraDesign.Colors.naranja)
-                    Spacer()
+                    Spacer(minLength: 0)
                 }
                 .font(.subheadline)
+                .frame(minHeight: 44)
 
                 Button("Cerrar sesión", role: .destructive, action: onLogout)
                     .frame(maxWidth: .infinity)

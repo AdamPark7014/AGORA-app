@@ -1,0 +1,156 @@
+name: ios-capturas
+
+# Capturas de iOS para App Store (6.9", 1320x2868), en claro y en oscuro, con el
+# seed de demo: feed, evento, aventones, mercado, mensajes y perfil. Postgres y
+# la API corren en el mismo Mac del CI, en modo desarrollo; nada toca
+# produccion. La misma prueba recorre el registro de una cuenta nueva y comprueba
+# la casilla de terminos (Apple 1.2). Las capturas salen en el artefacto
+# ios-capturas-tienda; scripts/tienda/enmarcar.py las enmarca.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile-native/ios/**'
+      - '.github/workflows/ios-capturas.yml'
+      - '.github/scripts/capturas-preparar.py'
+      - 'packages/db/prisma/demo-seed.ts'
+
+concurrency:
+  group: ios-capturas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capturas:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://agora:agora_ci@127.0.0.1:5432/agora?schema=public
+      DIRECT_DATABASE_URL: postgresql://agora:agora_ci@127.0.0.1:5432/agora?schema=public
+      SESSION_SECRET: ci-capturas-secret-minimo-32-caracteres!!
+      MAIL_PROVIDER: console
+      MAIL_FROM: 'Ágora <ci@udlagora.com>'
+      API_PORT: '4200'
+      MODERACION_OPCIONAL: 'true'
+      VERIFICAR_BUZON_UDLAP: 'off'
+      DEV_OTP_MAESTRO: '123456'
+      DEV_OTP_CORREOS: 'prueba.uno@udlap.mx,prueba.registro@udlap.mx'
+      WEB_URL: http://127.0.0.1:3200
+      NEXT_PUBLIC_WEB_URL: http://127.0.0.1:3200
+      API_URL: http://127.0.0.1:4200
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Postgres 17 y XcodeGen
+        run: |
+          brew install postgresql@17 xcodegen
+          PG="$(brew --prefix postgresql@17)/bin"
+          echo "$PG" >> "$GITHUB_PATH"
+          "$PG/initdb" -D "$RUNNER_TEMP/pg" -U postgres --auth=trust > /dev/null
+          "$PG/pg_ctl" -D "$RUNNER_TEMP/pg" -l "$RUNNER_TEMP/pg.log" -o "-p 5432 -h 127.0.0.1" -w start
+          "$PG/psql" -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE agora LOGIN PASSWORD 'agora_ci' CREATEDB;" \
+            -c "CREATE DATABASE agora OWNER agora;"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Dependencias, migraciones y build de la API
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm db:generate
+          pnpm db:migrate:deploy
+          pnpm exec turbo run build --filter=@agora/api...
+
+      - name: Seed (catálogo UDLAP + demo)
+        run: pnpm db:seed
+
+      - name: API en 127.0.0.1:4200
+        run: |
+          nohup pnpm --filter @agora/api start > "$RUNNER_TEMP/api.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:4200/api/salud > /dev/null && { echo "API lista (intento $i)"; exit 0; }
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/api.log"
+          exit 1
+
+      - name: Cuenta demo e ids del seed
+        run: python3 .github/scripts/capturas-preparar.py
+
+      - name: Simulador de 6.9 pulgadas
+        working-directory: apps/mobile-native/ios
+        run: |
+          xcodegen generate
+          DEV=$(xcrun simctl list devices available | grep -m1 -E 'iPhone 1[67] Pro Max \(' | sed -E 's/.*\(([A-F0-9-]{36})\).*/\1/')
+          if [ -z "$DEV" ]; then
+            RT=$(xcrun simctl list runtimes available | grep -o 'com.apple.CoreSimulator.SimRuntime.iOS-[0-9-]*' | tail -1)
+            DEV=$(xcrun simctl create "Capturas 6.9" com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max "$RT")
+          fi
+          xcrun simctl list devices | grep "$DEV"
+          echo "DEV=$DEV" >> "$GITHUB_ENV"
+          xcrun simctl boot "$DEV"
+          xcrun simctl bootstatus "$DEV" -b
+          # Barra de estado de ficha: 9:41, batería llena, señal completa.
+          xcrun simctl status_bar "$DEV" override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 \
+            --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
+
+      - name: Capturas y registro (XCUITest contra la API de demo)
+        working-directory: apps/mobile-native/ios
+        env:
+          TEST_RUNNER_AGORA_CAPTURAS: ${{ github.workspace }}/capturas-ios
+          TEST_RUNNER_AGORA_API_URL: http://127.0.0.1:4200/api
+          TEST_RUNNER_AGORA_DEMO_MAESTRO: '123456'
+          TEST_RUNNER_AGORA_REGISTRO_CORREO: prueba.registro@udlap.mx
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project AgoraApp.xcodeproj \
+            -scheme AgoraApp \
+            -destination "id=$DEV" \
+            -only-testing:AgoraAppUITests/CapturasTiendaUITests \
+            -resultBundlePath "$RUNNER_TEMP/capturas.xcresult" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \
+            2>&1 | tee xcodebuild-capturas.log | grep -E "Test Case .*(passed|failed|skipped)|error:|\*\* TEST (SUCCEEDED|FAILED)"
+
+      - name: Doce capturas de 1320x2868
+        if: always()
+        run: |
+          cd "$GITHUB_WORKSPACE/capturas-ios" || { echo "::error::No hay capturas"; exit 1; }
+          fallo=0
+          for tema in claro oscuro; do
+            for nombre in feed evento aventones mercado mensajes perfil; do
+              f="$tema/$nombre.png"
+              if [ ! -f "$f" ]; then echo "::error::Falta $f"; fallo=1; continue; fi
+              w=$(sips -g pixelWidth "$f" | awk '/pixelWidth/{print $2}')
+              h=$(sips -g pixelHeight "$f" | awk '/pixelHeight/{print $2}')
+              echo "$f ${w}x${h}"
+              if [ "$w" != 1320 ] || [ "$h" != 2868 ]; then echo "::error::$f mide ${w}x${h}"; fallo=1; fi
+            done
+          done
+          ls -la registro 2>/dev/null || true
+          exit $fallo
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-capturas-tienda
+          path: |
+            capturas-ios
+            apps/mobile-native/ios/xcodebuild-capturas.log
+            ${{ runner.temp }}/api.log
+          if-no-files-found: warn
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ios-capturas-xcresult
+          path: ${{ runner.temp }}/capturas.xcresult
+          if-no-files-found: ignore

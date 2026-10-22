@@ -40,6 +40,27 @@ completas las fichas de App Store y Play. Hecho hasta ahora:
   1.2). Correo público `contacto@zynoratek.com` (contacto@udlagora.com rebotaba: el dominio no tiene MX).
   Android (agente) e iOS (sesión de móvil, por mensaje) van por la misma casilla y una pantalla de Reglas.
 
+## Hecho en este turno (22-10, sesión lateral de móvil: iOS para Apple 1.2 y capturas de tienda)
+
+Pedido de la sesión principal (Apple 1.2: contenido de usuarios exige aceptar términos con cero
+tolerancia). Solo `apps/mobile-native/ios/**` y `.github/`:
+- **Registro:** casilla obligatoria «Acepto los Términos y las Reglas de la comunidad. Cero tolerancia…»
+  antes de «Entrar a Ágora» (`registro.terminos`, botón `registro.crear` desactivado sin ella). «Términos» y
+  «Reglas de la comunidad» son enlaces de la frase que abren hojas sin salir del registro. No va nada a la API.
+- **Reglas** (`ReglasView`, texto de `apps/web/app/reglas/page.tsx`, sin prometer filtro automático: cola que
+  el equipo revisa en <24 h, faltas graves o repetidas cuestan la cuenta). Enlace en Más (pie: Términos ·
+  Reglas · Privacidad) y en Yo; `/reglas`, `agora://reglas` y `udlagora.com/reglas` abren la pantalla.
+- **Términos** con «Cero tolerancia», disponibilidad y contacto; **Privacidad** resume el aviso nuevo de la web
+  y cierra con «Versión completa en udlagora.com/privacidad». Correo público `contacto@zynoratek.com`
+  (`AgoraContacto`). Los textos legales aceptan Markdown en línea (negritas, mailto).
+- **Capturas de tienda** (`.github/workflows/ios-capturas.yml`): Postgres + API en modo desarrollo en el Mac del
+  CI, `pnpm db:seed` (catálogo + demo), `capturas-preparar.py` pone una contraseña de un solo uso a
+  `prueba.uno@udlap.mx` (renata.mv) y saca los ids; `CapturasTiendaUITests` entra, recorre por enlaces
+  profundos feed, evento, aventones, mercado, mensajes y perfil (@diego.tr) en claro y oscuro y guarda
+  `capturas-ios/{claro,oscuro}/<nombre>.png` a 1320×2868 (artefacto `ios-capturas-tienda`). La misma prueba
+  registra una cuenta nueva y comprueba la casilla. En `pruebas-ui` se salta (sin `AGORA_CAPTURAS`).
+- Pendiente: el seed de demo va sin acentos («manana», «Calculo»); en las capturas se nota.
+
 ## Hecho en este turno (22-10, sesión lateral de móvil: correo personal y fallos de iOS)
 
 Adam: «si el código institucional tarda, que puedan registrarse con su correo normal y lo confirmen

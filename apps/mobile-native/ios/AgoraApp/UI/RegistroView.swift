@@ -12,8 +12,16 @@ struct RegistroView: View {
     @State private var carreraSlug: String?
     @State private var colegioSlug: String?
     @State private var generacion = Calendar.current.component(.year, from: Date())
+    @State private var aceptaTerminos = false
+    @State private var documento: DocumentoLegal?
     @State private var enviando = false
     @State private var error: String?
+
+    /// Lo que abren los enlaces de la casilla, en una hoja sobre el registro.
+    private enum DocumentoLegal: String, Identifiable {
+        case terminos, reglas
+        var id: String { rawValue }
+    }
 
     /// `GENERACION_MIN` de `packages/shared` (la API rechaza años anteriores).
     private static let generacionMin = 2015
@@ -30,12 +38,16 @@ struct RegistroView: View {
         catalogo?.escuelas?.flatMap { $0.carreras ?? [] } ?? []
     }
 
-    private var puedeEnviar: Bool {
-        !enviando &&
-            handle.count >= 3 &&
+    private var datosCompletos: Bool {
+        handle.count >= 3 &&
             nombre.count >= 2 &&
             apellidos.count >= 2 &&
             carreraSlug != nil
+    }
+
+    /// La casilla no viaja a la API: solo habilita el botón.
+    private var puedeEnviar: Bool {
+        !enviando && datosCompletos && aceptaTerminos
     }
 
     var body: some View {
@@ -56,6 +68,22 @@ struct RegistroView: View {
             .agoraScreenBackground()
             .navigationTitle("Registro")
             .task { await cargarCatalogo() }
+            .sheet(item: $documento) { doc in
+                NavigationStack {
+                    Group {
+                        switch doc {
+                        case .terminos: TerminosView()
+                        case .reglas: ReglasView()
+                        }
+                    }
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(AgoraCopy.cerrar) { documento = nil }
+                                .accessibilityIdentifier("legal.cerrar")
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -134,18 +162,30 @@ struct RegistroView: View {
                     }
                 }
 
-                AgoraPrimaryButton(
-                    title: enviando ? AgoraCopy.registroCreating : AgoraCopy.registroSubmit,
-                    action: { Task { await crearPerfil() } },
-                    enabled: puedeEnviar,
-                    loading: enviando
-                )
-                .padding(.top, AgoraDesign.Spacing.xs)
+                // Agrupado por el mismo tope de 10 hijos.
+                Group {
+                    casillaTerminos
+                        .padding(.top, AgoraDesign.Spacing.xs)
 
-                if let error {
-                    Text(error)
-                        .font(.footnote)
-                        .foregroundStyle(AgoraDesign.Colors.danger)
+                    AgoraPrimaryButton(
+                        title: enviando ? AgoraCopy.registroCreating : AgoraCopy.registroSubmit,
+                        action: { Task { await crearPerfil() } },
+                        enabled: puedeEnviar,
+                        loading: enviando
+                    )
+                    .accessibilityIdentifier("registro.crear")
+
+                    if datosCompletos && !aceptaTerminos {
+                        Text(AgoraCopy.registroTerminosFalta)
+                            .font(.caption)
+                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    }
+
+                    if let error {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(AgoraDesign.Colors.danger)
+                    }
                 }
             }
             .padding(AgoraDesign.Spacing.lg - 4)
@@ -172,6 +212,40 @@ struct RegistroView: View {
                 }
         }
     }
+
+    /// Casilla obligatoria (Apple 1.2). El cuadro y la frase van separados: dentro
+    /// de un botón, los enlaces de la frase no recibirían el toque.
+    private var casillaTerminos: some View {
+        HStack(alignment: .top, spacing: AgoraDesign.Spacing.xs) {
+            Button {
+                aceptaTerminos.toggle()
+            } label: {
+                Image(systemName: aceptaTerminos ? "checkmark.square.fill" : "square")
+                    .font(.title2)
+                    .foregroundStyle(aceptaTerminos ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.textoMedio)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.agoraPlain)
+            .accessibilityIdentifier("registro.terminos")
+            .accessibilityLabel(AgoraCopy.registroTerminosVoz)
+            .accessibilityValue(aceptaTerminos ? "Marcada" : "Sin marcar")
+            .accessibilityAddTraits(aceptaTerminos ? .isSelected : [])
+
+            Text(Self.textoTerminos)
+                .font(.footnote)
+                .foregroundStyle(AgoraDesign.Colors.texto)
+                .tint(AgoraDesign.Colors.naranja)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 11)
+                .environment(\.openURL, OpenURLAction { url in
+                    documento = url.host == "reglas" ? .reglas : .terminos
+                    return .handled
+                })
+        }
+    }
+
+    private static let textoTerminos: AttributedString =
+        (try? AttributedString(markdown: AgoraCopy.registroTerminos)) ?? AttributedString(AgoraCopy.registroTerminos)
 
     /// Año de ingreso. `String(ano)` evita que salga «2,026» con separador de miles.
     private var selectorGeneracion: some View {
@@ -238,7 +312,7 @@ struct RegistroView: View {
     }
 
     private func crearPerfil() async {
-        guard let carreraSlug else { return }
+        guard let carreraSlug, aceptaTerminos else { return }
         enviando = true
         error = nil
         defer { enviando = false }

@@ -197,6 +197,13 @@ enum AgoraCopy {
     static let registroCarreraHint = "Así te conectamos con tu comunidad"
     static let registroSubmit = "Entrar a Ágora"
     static let registroCreating = "Creando…"
+    /// Apple 1.2: términos con cero tolerancia aceptados al registrarse. Los
+    /// enlaces abren las hojas de `RegistroView` (no salen de la app).
+    static let registroTerminos = "Acepto los [Términos](agora://terminos) y las [Reglas de la comunidad](agora://reglas). "
+        + "Cero tolerancia al acoso, las amenazas y el contenido ofensivo."
+    static let registroTerminosVoz = "Acepto los Términos y las Reglas de la comunidad"
+    static let registroTerminosFalta = "Marca la casilla de los Términos y las Reglas para entrar."
+    static let cerrar = "Cerrar"
 
     // Empty states
     static let feedEmptyTitle = "Todavía no hay nada"

@@ -642,6 +642,7 @@ struct ProfileView: View {
     var onMensajesTap: (() -> Void)?
     var onAjustesTap: (() -> Void)?
     var onTerminosTap: (() -> Void)?
+    var onReglasTap: (() -> Void)?
     var onPrivacidadTap: (() -> Void)?
     var onModeracionTap: (() -> Void)?
     var onMarketplaceTap: (() -> Void)?
@@ -732,11 +733,16 @@ struct ProfileView: View {
                         if let onAjustesTap {
                             enlacePerfil(titulo: "Ajustes", icono: "gearshape", action: onAjustesTap)
                         }
-                        if let onTerminosTap {
-                            enlacePerfil(titulo: "Términos de uso", icono: "doc.text", action: onTerminosTap)
-                        }
-                        if let onPrivacidadTap {
-                            enlacePerfil(titulo: "Política de privacidad", icono: "hand.raised", action: onPrivacidadTap)
+                        Group {
+                            if let onTerminosTap {
+                                enlacePerfil(titulo: "Términos de uso", icono: "doc.text", action: onTerminosTap)
+                            }
+                            if let onReglasTap {
+                                enlacePerfil(titulo: "Reglas de la comunidad", icono: "checkmark.shield", action: onReglasTap)
+                            }
+                            if let onPrivacidadTap {
+                                enlacePerfil(titulo: "Aviso de privacidad", icono: "hand.raised", action: onPrivacidadTap)
+                            }
                         }
                         if session.currentUser?.puedeModerar == true, let onModeracionTap {
                             enlacePerfil(titulo: "Moderación", icono: "shield.lefthalf.filled", action: onModeracionTap)

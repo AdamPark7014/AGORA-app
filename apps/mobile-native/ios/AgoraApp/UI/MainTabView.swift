@@ -77,6 +77,7 @@ struct MainTabView: View {
                 MasView(
                     onNavigate: { ruta in navegarDesdeMas(ruta) },
                     onTerminos: { masPath.append(AppRoute.terminos) },
+                    onReglas: { masPath.append(AppRoute.reglas) },
                     onPrivacidad: { masPath.append(AppRoute.privacidad) },
                     onLogout: { AuthRepository.shared.logout() },
                     mensajesSinLeer: mensajesSinLeer
@@ -251,6 +252,7 @@ struct MainTabView: View {
             "guardados": .guardados,
             "ajustes": .ajustes,
             "terminos": .terminos,
+            "reglas": .reglas,
             "privacidad": .privacidad,
             "moderacion": .moderacion,
         ]
@@ -388,6 +390,7 @@ struct MainTabView: View {
                 onMensajesTap: { path.wrappedValue.append(AppRoute.mensajes) },
                 onAjustesTap: { path.wrappedValue.append(AppRoute.ajustes) },
                 onTerminosTap: { path.wrappedValue.append(AppRoute.terminos) },
+                onReglasTap: { path.wrappedValue.append(AppRoute.reglas) },
                 onPrivacidadTap: { path.wrappedValue.append(AppRoute.privacidad) },
                 onModeracionTap: { path.wrappedValue.append(AppRoute.moderacion) },
                 onMarketplaceTap: { path.wrappedValue.append(AppRoute.marketplace) },
@@ -401,6 +404,8 @@ struct MainTabView: View {
             AjustesView()
         case .terminos:
             TerminosView()
+        case .reglas:
+            ReglasView()
         case .privacidad:
             PrivacidadView()
         case .marketplace:
@@ -487,6 +492,7 @@ enum AppRoute: Hashable {
     case perfilYo
     case ajustes
     case terminos
+    case reglas
     case privacidad
     case marketplace
     case marketplaceDetalle(String)
