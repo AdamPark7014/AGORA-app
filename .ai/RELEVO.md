@@ -278,9 +278,14 @@ Retomado desde el turno de Cursor del 07-10 (Fase 0 de ÁGORA 2.0, plan en
    solo iPhone, aps production, enlaces universales); falta que Apple lo procese y agregar testers
    internos. «Android · Play» en verde: AAB 1.0.0 (código 2) firmado con la llave de subida, copia en
    `Documents\AGORA-builds\agora-1.0.0-2.aab` (para la siguiente versión; la 1 ya está en Play).
-   **Pendiente de Adam:** «Guardar y publicar» de la prueba interna en Play (versión 1, sin testers
-   todavía: después elegir lista en la pestaña Testers) y **aceptar el nuevo acuerdo del Apple
-   Developer Program antes del 28-10-2026** (si no, se corta el acceso a certificados, ASC y su API).
+   **22-10 13:13, por orden de Adam («dale guardar y publicar a todo, acepta todo»):** prueba interna de
+   Play **publicada** (versión 1 (1.0.0), «Disponible para testers internos»; nombre temporal
+   «mx.agora.mobile.nativeapp (unreviewed)» hasta completar la ficha), listas de testers «Equipo
+   Finanvoz» y «Plantilla nexara» (1 correo cada una), enlace para unirse
+   https://play.google.com/apps/internaltest/4701647825350555249. **Acuerdo nuevo del Apple Developer
+   Program aceptado.** TestFlight: build 2 procesada (VALID, «Lista para enviar»), grupo interno
+   «Equipo Ágora» con distribución automática y Adam (ad.pozo.ont@icloud.com) invitado.
+   Falta para tienda pública: ficha, capturas, cuenta de revisión, cuestionarios de Play y enviar a revisión.
 4. Android/iOS: probar el login con contraseña en el AVD (`nexara_phone`) contra producción: entrar,
    olvidé → crear, Ajustes → cambiar.
 5. Adam: cobro de GitHub ya no bloquea (repo público); queda arreglar el banco para los repos privados.
