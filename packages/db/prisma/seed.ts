@@ -36,10 +36,10 @@ async function main() {
 
   const universidad = await prisma.university.upsert({
     where: { slug: 'udlap' },
-    update: { nombre: 'Universidad de las Americas Puebla', emailDomain: UDLAP_EMAIL_DOMAIN },
+    update: { nombre: 'Universidad de las Américas Puebla', emailDomain: UDLAP_EMAIL_DOMAIN },
     create: {
       slug: 'udlap',
-      nombre: 'Universidad de las Americas Puebla',
+      nombre: 'Universidad de las Américas Puebla',
       emailDomain: UDLAP_EMAIL_DOMAIN,
     },
   });
@@ -155,7 +155,7 @@ async function main() {
     await sembrarComunidad(
       slugComunidad('generacion', generacion),
       TipoComunidad.GENERACION,
-      `Generacion ${generacion}`,
+      `Generación ${generacion}`,
     );
   }
   for (const colegio of COLEGIOS_RESIDENCIALES) {

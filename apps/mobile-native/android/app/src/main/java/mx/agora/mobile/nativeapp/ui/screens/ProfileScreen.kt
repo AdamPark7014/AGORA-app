@@ -43,6 +43,7 @@ import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PerfilMioDto
 import mx.agora.mobile.nativeapp.data.api.PerfilPublicacionDto
 import mx.agora.mobile.nativeapp.data.local.OfflineCache
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.GamificacionProfileSection
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
@@ -269,9 +270,9 @@ private fun ProfileHome(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         publico?.let { p ->
-                            Text("${p.publicaciones ?: 0} posts", style = MaterialTheme.typography.bodySmall)
+                            Text(cuenta(p.publicaciones ?: 0, "publicación", "publicaciones"), style = MaterialTheme.typography.bodySmall)
                             ContadorConexion(
-                                texto = "${p.seguidores ?: 0} seguidores",
+                                texto = cuenta(p.seguidores ?: 0, "seguidor", "seguidores"),
                                 habilitado = true,
                                 onClick = { onConexiones(miHandle, TipoConexion.SEGUIDORES) },
                             )

@@ -42,22 +42,22 @@ const PERSONAJES: readonly Personaje[] = [
     email: 'prueba.uno@udlap.mx',
     handle: 'renata.mv',
     nombre: 'Renata',
-    apellidos: 'Marquez',
+    apellidos: 'Márquez',
     carrera: 'ing-sistemas-computacionales',
     generacion: 2024,
     colegio: 'cain-murray',
-    bio: 'LIS. Vivo en la biblioteca en epoca de parciales.',
-    intereses: ['programacion', 'cafe', 'anime'],
+    bio: 'LIS. Vivo en la biblioteca en época de parciales.',
+    intereses: ['programación', 'café', 'anime'],
   },
   {
     email: 'prueba.dos@udlap.mx',
     handle: 'diego.tr',
     nombre: 'Diego',
-    apellidos: 'Teran',
+    apellidos: 'Terán',
     carrera: 'ing-sistemas-computacionales',
     generacion: 2023,
-    bio: 'Conmuto desde Puebla todos los dias. Preguntame por aventones.',
-    intereses: ['futbol', 'musica', 'aventones'],
+    bio: 'Conmuto desde Puebla todos los días. Pregúntame por aventones.',
+    intereses: ['fútbol', 'música', 'aventones'],
   },
   {
     email: 'prueba.tres@udlap.mx',
@@ -67,52 +67,52 @@ const PERSONAJES: readonly Personaje[] = [
     carrera: 'derecho',
     generacion: 2024,
     colegio: 'ray-lindley',
-    bio: 'Derecho. Debate y cafe, en ese orden.',
+    bio: 'Derecho. Debate y café, en ese orden.',
     intereses: ['debate', 'cine', 'voluntariado'],
   },
   {
     email: 'demo.sofia.martinez@udlap.mx',
     handle: 'sofia.mtz',
-    nombre: 'Sofia',
-    apellidos: 'Martinez',
+    nombre: 'Sofía',
+    apellidos: 'Martínez',
     carrera: 'psicologia-clinica',
     generacion: 2025,
     colegio: 'ignacio-bernal',
-    bio: 'Psicologia clinica. Siempre con termo de te.',
-    intereses: ['psicologia', 'yoga', 'lectura'],
+    bio: 'Psicología clínica. Siempre con termo de té.',
+    intereses: ['psicología', 'yoga', 'lectura'],
   },
   {
     email: 'demo.carlos.hernandez@udlap.mx',
     handle: 'carlos.hdz',
     nombre: 'Carlos',
-    apellidos: 'Hernandez',
+    apellidos: 'Hernández',
     carrera: 'ing-industrial',
     generacion: 2022,
     colegio: 'jose-gaos',
     bio: 'Industrial. Organizo torneos de FIFA en el colegio.',
-    intereses: ['fifa', 'logistica', 'tacos'],
+    intereses: ['fifa', 'logística', 'tacos'],
   },
   {
     email: 'demo.valentina.lopez@udlap.mx',
     handle: 'vale.lopez',
     nombre: 'Valentina',
-    apellidos: 'Lopez',
+    apellidos: 'López',
     carrera: 'comunicacion-produccion-medios',
     generacion: 2023,
     colegio: 'ray-lindley',
-    bio: 'Comunicacion. Grabo podcasts en el estudio del campus.',
-    intereses: ['podcast', 'fotografia', 'redes'],
+    bio: 'Comunicación. Grabo podcasts en el estudio del campus.',
+    intereses: ['podcast', 'fotografía', 'redes'],
   },
   {
     email: 'demo.mateo.sanchez@udlap.mx',
     handle: 'mateo.snc',
     nombre: 'Mateo',
-    apellidos: 'Sanchez',
+    apellidos: 'Sánchez',
     carrera: 'ing-mecatronica',
     generacion: 2025,
     colegio: 'cain-murray',
-    bio: 'Mecatronica. Armo robots en mi tiempo libre.',
-    intereses: ['robotica', 'arduino', 'cafe'],
+    bio: 'Mecatrónica. Armo robots en mi tiempo libre.',
+    intereses: ['robótica', 'arduino', 'café'],
   },
   {
     email: 'demo.isabella.ruiz@udlap.mx',
@@ -123,7 +123,7 @@ const PERSONAJES: readonly Personaje[] = [
     generacion: 2022,
     colegio: 'ignacio-bernal',
     bio: 'Arquitectura. Colecciono maquetas de edificios.',
-    intereses: ['diseno', 'viajes', 'sketch'],
+    intereses: ['diseño', 'viajes', 'sketch'],
   },
   {
     email: 'demo.santiago.morales@udlap.mx',
@@ -132,18 +132,18 @@ const PERSONAJES: readonly Personaje[] = [
     apellidos: 'Morales',
     carrera: 'administracion-empresas',
     generacion: 2020,
-    bio: 'ADE. Egresado en camino, buscando practicas.',
+    bio: 'ADE. Egresado en camino, buscando prácticas.',
     intereses: ['emprendimiento', 'finanzas', 'networking'],
   },
   {
     email: 'demo.lucia.vega@udlap.mx',
     handle: 'lucia.vga',
-    nombre: 'Lucia',
+    nombre: 'Lucía',
     apellidos: 'Vega',
     carrera: 'biologia',
     generacion: 2024,
     colegio: 'jose-gaos',
-    bio: 'Biologia. Investigacion en laboratorio los fines de semana.',
+    bio: 'Biología. Investigación en laboratorio los fines de semana.',
     intereses: ['ciencia', 'naturaleza', 'senderismo'],
   },
   {
@@ -164,19 +164,19 @@ const PERSONAJES: readonly Personaje[] = [
     carrera: 'mercadotecnia',
     generacion: 2023,
     colegio: 'cain-murray',
-    bio: 'Mercadotecnia. Siempre con ideas para campanas del campus.',
+    bio: 'Mercadotecnia. Siempre con ideas para campañas del campus.',
     intereses: ['branding', 'tiktok', 'eventos'],
   },
   {
     email: 'demo.fernando.jimenez@udlap.mx',
     handle: 'fer.jim',
     nombre: 'Fernando',
-    apellidos: 'Jimenez',
+    apellidos: 'Jiménez',
     carrera: 'fisica',
     generacion: 2021,
     colegio: 'ray-lindley',
-    bio: 'Fisica. Explico relatividad en fiestas (no me invitan ya).',
-    intereses: ['fisica', 'astronomia', 'videojuegos'],
+    bio: 'Física. Explico relatividad en fiestas (no me invitan ya).',
+    intereses: ['física', 'astronomía', 'videojuegos'],
   },
   {
     email: 'demo.ana.cruz@udlap.mx',
@@ -186,7 +186,7 @@ const PERSONAJES: readonly Personaje[] = [
     carrera: 'enfermeria',
     generacion: 2024,
     colegio: 'ignacio-bernal',
-    bio: 'Enfermeria. Turnos de practica y mucho cafe.',
+    bio: 'Enfermería. Turnos de práctica y mucho café.',
     intereses: ['salud', 'voluntariado', 'running'],
   },
   {
@@ -198,7 +198,7 @@ const PERSONAJES: readonly Personaje[] = [
     generacion: 2022,
     colegio: 'jose-gaos',
     bio: 'RI. Modelo ONU y debates los viernes.',
-    intereses: ['politica', 'idiomas', 'debate'],
+    intereses: ['política', 'idiomas', 'debate'],
   },
   {
     email: 'demo.daniela.reyes@udlap.mx',
@@ -208,8 +208,8 @@ const PERSONAJES: readonly Personaje[] = [
     carrera: 'diseno-informacion-visual',
     generacion: 2025,
     colegio: 'cain-murray',
-    bio: 'Diseno visual. Illustrator abierto 24/7.',
-    intereses: ['diseno', 'ilustracion', 'tipografia'],
+    bio: 'Diseño visual. Illustrator abierto 24/7.',
+    intereses: ['diseño', 'ilustración', 'tipografía'],
   },
   {
     email: 'demo.luis.navarro@udlap.mx',
@@ -218,8 +218,8 @@ const PERSONAJES: readonly Personaje[] = [
     apellidos: 'Navarro',
     carrera: 'ing-civil',
     generacion: 2020,
-    bio: 'Civil. Practico en obra los sabados.',
-    intereses: ['construccion', 'futbol', 'cerveza artesanal'],
+    bio: 'Civil. Practico en obra los sábados.',
+    intereses: ['construcción', 'fútbol', 'cerveza artesanal'],
   },
   {
     email: 'demo.gabriela.herrera@udlap.mx',
@@ -229,8 +229,8 @@ const PERSONAJES: readonly Personaje[] = [
     carrera: 'actuaria',
     generacion: 2023,
     colegio: 'ray-lindley',
-    bio: 'Actuaria. Los numeros no mienten, la gente si.',
-    intereses: ['estadistica', 'excel', 'series'],
+    bio: 'Actuaría. Los números no mienten, la gente sí.',
+    intereses: ['estadística', 'excel', 'series'],
   },
   {
     email: 'demo.alejandro.vargas@udlap.mx',
@@ -241,18 +241,18 @@ const PERSONAJES: readonly Personaje[] = [
     generacion: 2024,
     colegio: 'jose-gaos',
     bio: 'Banca e inversiones. Trading paper desde el 2023.',
-    intereses: ['finanzas', 'bolsa', 'economia'],
+    intereses: ['finanzas', 'bolsa', 'economía'],
   },
   {
     email: 'demo.camila.garcia@udlap.mx',
     handle: 'cami.garcia',
     nombre: 'Camila',
-    apellidos: 'Garcia',
+    apellidos: 'García',
     carrera: 'medico-cirujano',
     generacion: 2021,
     colegio: 'cain-murray',
     bio: 'Medicina. Parciales cada dos semanas, ayuda.',
-    intereses: ['medicina', 'anatomia', 'cafe'],
+    intereses: ['medicina', 'anatomía', 'café'],
   },
 ];
 
@@ -273,176 +273,176 @@ const PUBLICACIONES: readonly Publicacion[] = [
     autor: 'renata.mv',
     comunidad: 'carrera:ing-sistemas-computacionales',
     texto:
-      'El parcial de Estructuras estuvo imposible. ¿Alguien entendio el ejercicio 4? Llevo dos horas y sigo igual. #parciales #lis',
+      'El parcial de Estructuras estuvo imposible. ¿Alguien entendió el ejercicio 4? Llevo dos horas y sigo igual. #parciales #lis',
     haceMinutos: 12,
   },
   {
     autor: 'diego.tr',
     comunidad: 'carrera:ing-sistemas-computacionales',
     texto:
-      'Arme un repo con los apuntes de Arquitecturas hasta el parcial 2, por si a alguien le sirve. Esta en Verilog, no en VHDL, ojo. #apuntes #arquitecturas',
+      'Armé un repo con los apuntes de Arquitecturas hasta el parcial 2, por si a alguien le sirve. Está en Verilog, no en VHDL, ojo. #apuntes #arquitecturas',
     haceMinutos: 47,
   },
   {
     autor: 'ximena.oc',
     comunidad: 'generacion:2024',
     texto:
-      '¿Cuando armamos la reunion de generacion? Propongo esta semana antes de que empiecen los finales. #generacion2024',
+      '¿Cuándo armamos la reunión de generación? Propongo esta semana antes de que empiecen los finales. #generacion2024',
     haceMinutos: 95,
-    encuesta: { pregunta: '¿Que dia nos vemos?', opciones: ['Jueves', 'Viernes', 'Sabado'] },
+    encuesta: { pregunta: '¿Qué día nos vemos?', opciones: ['Jueves', 'Viernes', 'Sabado'] },
   },
   {
     autor: 'diego.tr',
     comunidad: 'generacion:2023',
     texto:
-      'Aviso: manana el transporte de las 7:00 sale de la otra puerta. Me entere por pura suerte, no lo anunciaron en ningun lado. #transporte',
+      'Aviso: mañana el transporte de las 7:00 sale de la otra puerta. Me enteré por pura suerte, no lo anunciaron en ningún lado. #transporte',
     haceMinutos: 160,
   },
   {
     autor: 'renata.mv',
     comunidad: 'colegio:cain-murray',
     texto:
-      '¿A alguien mas se le fue el agua caliente en el piso 3? Ya reporte, pero quiero saber si soy solo yo. #cainmurray',
+      '¿A alguien más se le fue el agua caliente en el piso 3? Ya reporté, pero quiero saber si soy solo yo. #cainmurray',
     haceMinutos: 220,
   },
   {
     autor: 'sofia.mtz',
     comunidad: 'carrera:psicologia-clinica',
     texto:
-      'Alguien tiene los apuntes de Psicopatologia I? Se me olvido el folder en casa y tengo exposicion manana. #psicologia #ayuda',
+      'Alguien tiene los apuntes de Psicopatología I? Se me olvidó el folder en casa y tengo exposición mañana. #psicologia #ayuda',
     haceMinutos: 35,
   },
   {
     autor: 'carlos.hdz',
     comunidad: 'colegio:jose-gaos',
     texto:
-      'Torneo de FIFA en el salon del colegio el viernes a las 8pm. Inscripciones abiertas, traigan control propio. #fifa #josegaos',
+      'Torneo de FIFA en el salón del colegio el viernes a las 8pm. Inscripciones abiertas, traigan control propio. #fifa #josegaos',
     haceMinutos: 180,
   },
   {
     autor: 'vale.lopez',
     comunidad: 'carrera:comunicacion-produccion-medios',
     texto:
-      'Busco voces para un podcast sobre vida universitaria. Si te late hablar en microfono, mandame DM. #podcast #comunicacion',
+      'Busco voces para un podcast sobre vida universitaria. Si te late hablar en micrófono, mándame DM. #podcast #comunicacion',
     haceMinutos: 300,
   },
   {
     autor: 'mateo.snc',
     comunidad: 'carrera:ing-mecatronica',
     texto:
-      'Termine el prototipo del brazo robotico para el proyecto final. Aun le falta calibracion pero ya mueve los 6 ejes. #robotica #mecatronica',
+      'Terminé el prototipo del brazo robótico para el proyecto final. Aún le falta calibración pero ya mueve los 6 ejes. #robotica #mecatronica',
     haceMinutos: 420,
   },
   {
     autor: 'isa.ruiz',
     comunidad: 'carrera:arquitectura',
     texto:
-      '¿Alguien sabe si la plotter de la escuela ya funciona? Tengo entrega de lamina el lunes. #arquitectura #plotter',
+      '¿Alguien sabe si la plotter de la escuela ya funciona? Tengo entrega de lámina el lunes. #arquitectura #plotter',
     haceMinutos: 90,
   },
   {
     autor: 'santi.mor',
     comunidad: 'carrera:administracion-empresas',
     texto:
-      'Compania buscando practicantes en finanzas corporativas. Si conocen a alguien de ADE 2020-2022 pasenle el dato. #practicas #ade',
+      'Compañía buscando practicantes en finanzas corporativas. Si conocen a alguien de ADE 2020-2022 pásenle el dato. #practicas #ade',
     haceMinutos: 1440,
   },
   {
     autor: 'lucia.vga',
     comunidad: 'carrera:biologia',
     texto:
-      'Salida de campo al volcan el proximo sabado. Faltan 3 lugares, traigan botas y termo. #biologia #campo',
+      'Salida de campo al volcán el próximo sábado. Faltan 3 lugares, traigan botas y termo. #biologia #campo',
     haceMinutos: 2880,
   },
   {
     autor: 'emilio.cst',
     comunidad: 'carrera:ciencia-datos',
     texto:
-      'Comparto mi notebook de analisis del dataset del profe. Tiene visualizaciones en matplotlib que quedaron bonitas. #datascience #python',
+      'Comparto mi notebook de análisis del dataset del profe. Tiene visualizaciones en matplotlib que quedaron bonitas. #datascience #python',
     haceMinutos: 600,
   },
   {
     autor: 'paula.ort',
     comunidad: 'generacion:2023',
     texto:
-      '¿Quien va al concierto de la banda en el auditorio? Armemos grupo para ir juntos. #concierto #campus',
+      '¿Quién va al concierto de la banda en el auditorio? Armemos grupo para ir juntos. #concierto #campus',
     haceMinutos: 720,
   },
   {
     autor: 'fer.jim',
     comunidad: 'carrera:fisica',
     texto:
-      'La demostracion de ondas en el laboratorio hoy estuvo increible. Nunca habia visto interferencia tan clara. #fisica #lab',
+      'La demostración de ondas en el laboratorio hoy estuvo increíble. Nunca había visto interferencia tan clara. #fisica #lab',
     haceMinutos: 480,
   },
   {
     autor: 'ana.cruz',
     comunidad: 'carrera:enfermeria',
     texto:
-      'Recordatorio: la clinica del campus tiene vacuna de influenza gratis esta semana. Pasen antes de parciales. #salud #enfermeria',
+      'Recordatorio: la clínica del campus tiene vacuna de influenza gratis esta semana. Pasen antes de parciales. #salud #enfermeria',
     haceMinutos: 360,
   },
   {
     autor: 'roberto.mnd',
     comunidad: 'carrera:relaciones-internacionales',
     texto:
-      'Debate abierto sobre politica exterior manana en el salon 204. Todos invitados, traigan argumentos. #debate #ri',
+      'Debate abierto sobre política exterior mañana en el salón 204. Todos invitados, traigan argumentos. #debate #ri',
     haceMinutos: 540,
   },
   {
     autor: 'dani.reyes',
     comunidad: 'carrera:diseno-informacion-visual',
     texto:
-      'Subi mi portafolio de branding al perfil. Feedback bienvenido, especialmente sobre tipografia. #diseno #portafolio',
+      'Subí mi portafolio de branding al perfil. Feedback bienvenido, especialmente sobre tipografía. #diseno #portafolio',
     haceMinutos: 200,
   },
   {
     autor: 'luis.nav',
     comunidad: 'carrera:ing-civil',
     texto:
-      'Alguien de civil que haya hecho practicas en Puebla? Quiero saber como es el ambiente en obra. #civil #practicas',
+      'Alguien de civil que haya hecho prácticas en Puebla? Quiero saber cómo es el ambiente en obra. #civil #practicas',
     haceMinutos: 1200,
   },
   {
     autor: 'gaby.hrr',
     comunidad: 'carrera:actuaria',
     texto:
-      'El profe de Probabilidad dijo que el examen final sera take-home. ¿Alguien mas no le cree? #actuaria #finales',
+      'El profe de Probabilidad dijo que el examen final será take-home. ¿Alguien más no le cree? #actuaria #finales',
     haceMinutos: 150,
   },
   {
     autor: 'alex.vrg',
     comunidad: 'carrera:banca-inversiones',
     texto:
-      'Club de inversiones: reunion el miercoles para analizar el reporte trimestral. Nuevos bienvenidos. #inversiones #finanzas',
+      'Club de inversiones: reunión el miércoles para analizar el reporte trimestral. Nuevos bienvenidos. #inversiones #finanzas',
     haceMinutos: 800,
   },
   {
     autor: 'cami.garcia',
     comunidad: 'carrera:medico-cirujano',
     texto:
-      'Grupo de estudio de Anatomia los domingos en la biblioteca. Ya somos 8, caben 4 mas. #medicina #anatomia',
+      'Grupo de estudio de Anatomía los domingos en la biblioteca. Ya somos 8, caben 4 más. #medicina #anatomia',
     haceMinutos: 960,
   },
   {
     autor: 'diego.tr',
     comunidad: 'universidad:udlap',
     texto:
-      '¿Saben si el comedor ya tiene opcion vegana fija? Llevo dos semanas preguntando y nadie sabe. #comedor #udlap',
+      '¿Saben si el comedor ya tiene opción vegana fija? Llevo dos semanas preguntando y nadie sabe. #comedor #udlap',
     haceMinutos: 240,
   },
   {
     autor: 'renata.mv',
     comunidad: 'generacion:2024',
     texto:
-      'Fotos del evento de integracion de ayer en mi perfil. Taggeen si salen. #integracion #gen2024',
+      'Fotos del evento de integración de ayer en mi perfil. Taggeen si salen. #integracion #gen2024',
     haceMinutos: 1440,
   },
   {
     autor: 'ximena.oc',
     comunidad: 'colegio:ray-lindley',
     texto:
-      'El wifi del colegio lleva 3 dias intermitente. ¿Alguien ya reporto a TI? #wifi #raylindley',
+      'El wifi del colegio lleva 3 días intermitente. ¿Alguien ya reportó a TI? #wifi #raylindley',
     haceMinutos: 180,
   },
 ];
@@ -458,19 +458,19 @@ const COMENTARIOS: readonly ComentarioSeed[] = [
   {
     postTexto: PUBLICACIONES[0]!.texto,
     autor: 'diego.tr',
-    texto: 'El 4 era con arboles AVL. Revisa el ejemplo de la clase 12.',
+    texto: 'El 4 era con árboles AVL. Revisa el ejemplo de la clase 12.',
     haceMinutos: 8,
   },
   {
     postTexto: PUBLICACIONES[0]!.texto,
     autor: 'mateo.snc',
-    texto: 'Yo tambien me atore ahi. Encontre un video en YouTube que lo explica bien.',
+    texto: 'Yo también me atoré ahí. Encontré un video en YouTube que lo explica bien.',
     haceMinutos: 5,
   },
   {
     postTexto: PUBLICACIONES[0]!.texto,
     autor: 'emilio.cst',
-    texto: 'Si quieren armamos sesion de estudio manana en la biblio.',
+    texto: 'Si quieren armamos sesión de estudio mañana en la biblio.',
     haceMinutos: 3,
   },
   {
@@ -482,19 +482,19 @@ const COMENTARIOS: readonly ComentarioSeed[] = [
   {
     postTexto: PUBLICACIONES[1]!.texto,
     autor: 'mateo.snc',
-    texto: '¿Tienes los ejercicios resueltos del capitulo 5?',
+    texto: '¿Tienes los ejercicios resueltos del capítulo 5?',
     haceMinutos: 25,
   },
   {
     postTexto: PUBLICACIONES[2]!.texto,
     autor: 'renata.mv',
-    texto: 'Viernes me funciona mejor, despues de clases.',
+    texto: 'Viernes me funciona mejor, después de clases.',
     haceMinutos: 60,
   },
   {
     postTexto: PUBLICACIONES[2]!.texto,
     autor: 'paula.ort',
-    texto: 'Yo voto sabado, tengo parcial el jueves.',
+    texto: 'Yo voto sábado, tengo parcial el jueves.',
     haceMinutos: 50,
   },
   {
@@ -518,13 +518,13 @@ const COMENTARIOS: readonly ComentarioSeed[] = [
   {
     postTexto: PUBLICACIONES[11]!.texto,
     autor: 'lucia.vga',
-    texto: 'Yo voy. ¿A que hora salimos del campus?',
+    texto: 'Yo voy. ¿A qué hora salimos del campus?',
     haceMinutos: 2000,
   },
   {
     postTexto: PUBLICACIONES[11]!.texto,
     autor: 'fer.jim',
-    texto: 'Suena interesante, aunque no soy de biologia me late el volcan.',
+    texto: 'Suena interesante, aunque no soy de biología me late el volcán.',
     haceMinutos: 1900,
   },
   {
@@ -536,13 +536,13 @@ const COMENTARIOS: readonly ComentarioSeed[] = [
   {
     postTexto: PUBLICACIONES[21]!.texto,
     autor: 'sofia.mtz',
-    texto: 'Mi roomie de medicina dice que si hay espacio.',
+    texto: 'Mi roomie de medicina dice que sí hay espacio.',
     haceMinutos: 750,
   },
   {
     postTexto: PUBLICACIONES[22]!.texto,
     autor: 'paula.ort',
-    texto: 'Pregunte en cafeteria y dijeron que si, pero solo un plato al dia.',
+    texto: 'Pregunté en cafetería y dijeron que sí, pero solo un plato al día.',
     haceMinutos: 200,
   },
 ];
@@ -600,7 +600,7 @@ const EVENTOS: readonly EventoDemo[] = [
     descripcion:
       'Sobrevivimos la semana 9. Traigan lo que quieran tomar, hay bocinas y alberca. Avisen si se van a quedar a dormir.',
     tipo: 'FIESTA',
-    lugar: 'Casa en Lomas de Angelopolis',
+    lugar: 'Casa en Lomas de Angelópolis',
     enDias: 2,
     hora: 22,
     costoMxn: 150,
@@ -617,7 +617,7 @@ const EVENTOS: readonly EventoDemo[] = [
     autor: 'diego.tr',
     titulo: 'Repaso abierto de Arquitecturas',
     descripcion:
-      'Voy a repasar segmentacion y riesgos en el pipeline antes del parcial. Llevo mis apuntes en Verilog.',
+      'Voy a repasar segmentación y riesgos en el pipeline antes del parcial. Llevo mis apuntes en Verilog.',
     tipo: 'ACADEMICO',
     lugar: 'Biblioteca, sala de estudio 3',
     enDias: 1,
@@ -632,10 +632,10 @@ const EVENTOS: readonly EventoDemo[] = [
   },
   {
     autor: 'renata.mv',
-    titulo: 'Cascarita de futbol, generacion 2024',
+    titulo: 'Cascarita de fútbol, generación 2024',
     descripcion: 'Equipos mixtos, se arma cuando lleguemos. Traigan playera clara y oscura.',
     tipo: 'DEPORTIVO',
-    lugar: 'Canchas de pasto sintetico',
+    lugar: 'Canchas de pasto sintético',
     enDias: 4,
     hora: 19,
     costoMxn: 0,
@@ -662,15 +662,15 @@ interface AnuncioDemo {
 const ANUNCIOS: readonly AnuncioDemo[] = [
   {
     vendedor: 'renata.mv',
-    titulo: 'Calculo de Stewart 8va edicion',
-    descripcion: 'Buen estado, sin subrayado. Lo use solo un semestre.',
+    titulo: 'Cálculo de Stewart 8va edición',
+    descripcion: 'Buen estado, sin subrayado. Lo usé solo un semestre.',
     categoria: 'LIBROS',
     precioMxn: 350,
   },
   {
     vendedor: 'diego.tr',
     titulo: 'Laptop Dell Inspiron i5 16GB',
-    descripcion: 'Funciona perfecto, bateria dura 4h. Incluye cargador original.',
+    descripcion: 'Funciona perfecto, batería dura 4h. Incluye cargador original.',
     categoria: 'ELECTRONICA',
     precioMxn: 8500,
   },
@@ -683,7 +683,7 @@ const ANUNCIOS: readonly AnuncioDemo[] = [
   },
   {
     vendedor: 'dani.reyes',
-    titulo: 'Servicio de diseno de logos',
+    titulo: 'Servicio de diseño de logos',
     descripcion: 'Estudiante de DIV. Logos para proyectos, startups o eventos del campus.',
     categoria: 'SERVICIOS',
     precioMxn: 500,
@@ -691,7 +691,7 @@ const ANUNCIOS: readonly AnuncioDemo[] = [
   {
     vendedor: 'cami.garcia',
     titulo: 'Bata de laboratorio talla M',
-    descripcion: 'Casi nueva, la use un semestre. Sin manchas.',
+    descripcion: 'Casi nueva, la usé un semestre. Sin manchas.',
     categoria: 'ROPA',
     precioMxn: 200,
   },
@@ -714,7 +714,7 @@ const AVENTONES: readonly AventonDemo[] = [
   {
     conductor: 'diego.tr',
     sentido: 'A_CAMPUS',
-    origen: 'Angelopolis',
+    origen: 'Angelópolis',
     destino: 'UDLAP',
     enDias: 1,
     hora: 7,
@@ -732,19 +732,19 @@ const AVENTONES: readonly AventonDemo[] = [
     hora: 18,
     lugares: 2,
     cuotaMxn: 25,
-    nota: 'Pasó por el mercado si quieren.',
+    nota: 'Paso por el mercado si quieren.',
     pasajeros: ['mateo.snc', 'emilio.cst'],
   },
   {
     conductor: 'luis.nav',
     sentido: 'A_CAMPUS',
-    origen: 'Lomas de Angelopolis',
+    origen: 'Lomas de Angelópolis',
     destino: 'UDLAP',
     enDias: 2,
     hora: 8,
     lugares: 4,
     cuotaMxn: 0,
-    nota: 'Gratis, solo buena platica.',
+    nota: 'Gratis, solo buena plática.',
     pasajeros: ['gaby.hrr'],
   },
 ];
@@ -758,9 +758,9 @@ const CONVERSACIONES: readonly ConversacionDemo[] = [
   {
     participantes: ['renata.mv', 'diego.tr'],
     mensajes: [
-      { autor: 'diego.tr', texto: 'Oye, ¿vas al repaso de Arquitecturas manana?', haceMinutos: 60 },
-      { autor: 'renata.mv', texto: 'Si, ahi estare. ¿Llevas los apuntes del capitulo 5?', haceMinutos: 55 },
-      { autor: 'diego.tr', texto: 'Si, te los paso en la biblio.', haceMinutos: 50 },
+      { autor: 'diego.tr', texto: 'Oye, ¿vas al repaso de Arquitecturas mañana?', haceMinutos: 60 },
+      { autor: 'renata.mv', texto: 'Sí, ahí estaré. ¿Llevas los apuntes del capítulo 5?', haceMinutos: 55 },
+      { autor: 'diego.tr', texto: 'Sí, te los paso en la biblio.', haceMinutos: 50 },
     ],
   },
   {
@@ -774,7 +774,7 @@ const CONVERSACIONES: readonly ConversacionDemo[] = [
   {
     participantes: ['mateo.snc', 'emilio.cst'],
     mensajes: [
-      { autor: 'emilio.cst', texto: 'Vi tu post del brazo robotico. ¿Que motor usaste?', haceMinutos: 400 },
+      { autor: 'emilio.cst', texto: 'Vi tu post del brazo robótico. ¿Qué motor usaste?', haceMinutos: 400 },
       { autor: 'mateo.snc', texto: 'Servos MG996R. Funcionan bien para el peso.', haceMinutos: 390 },
       { autor: 'emilio.cst', texto: 'Cool, gracias. Te aviso si armo algo parecido.', haceMinutos: 385 },
     ],
@@ -782,15 +782,15 @@ const CONVERSACIONES: readonly ConversacionDemo[] = [
   {
     participantes: ['sofia.mtz', 'ana.cruz'],
     mensajes: [
-      { autor: 'sofia.mtz', texto: '¿Sigues buscando grupo de estudio de Anatomia?', haceMinutos: 900 },
-      { autor: 'ana.cruz', texto: 'Si! Mi roomie me dijo que hay uno los domingos.', haceMinutos: 890 },
+      { autor: 'sofia.mtz', texto: '¿Sigues buscando grupo de estudio de Anatomía?', haceMinutos: 900 },
+      { autor: 'ana.cruz', texto: '¡Sí! Mi roomie me dijo que hay uno los domingos.', haceMinutos: 890 },
     ],
   },
   {
     participantes: ['vale.lopez', 'dani.reyes'],
     mensajes: [
-      { autor: 'vale.lopez', texto: 'Vi tu portafolio, esta increible. ¿Harias el arte para mi podcast?', haceMinutos: 150 },
-      { autor: 'dani.reyes', texto: 'Claro, mandame el brief por aqui.', haceMinutos: 140 },
+      { autor: 'vale.lopez', texto: 'Vi tu portafolio, está increíble. ¿Harías el arte para mi podcast?', haceMinutos: 150 },
+      { autor: 'dani.reyes', texto: 'Claro, mándame el brief por aquí.', haceMinutos: 140 },
     ],
   },
 ];
@@ -808,21 +808,21 @@ const NOTIFICACIONES: readonly NotificacionDemo[] = [
     destinatario: 'renata.mv',
     actor: 'diego.tr',
     tipo: 'COMENTARIO',
-    texto: 'Diego comento tu publicacion',
+    texto: 'Diego comentó tu publicación',
     url: '/feed',
   },
   {
     destinatario: 'renata.mv',
     actor: 'mateo.snc',
     tipo: 'REACCION',
-    texto: 'Mateo reacciono a tu publicacion',
+    texto: 'Mateo reaccionó a tu publicación',
     url: '/feed',
   },
   {
     destinatario: 'diego.tr',
     actor: 'renata.mv',
     tipo: 'MENSAJE',
-    texto: 'Renata te envio un mensaje',
+    texto: 'Renata te envió un mensaje',
     url: '/mensajes',
   },
   {
@@ -836,28 +836,28 @@ const NOTIFICACIONES: readonly NotificacionDemo[] = [
     destinatario: 'diego.tr',
     actor: 'renata.mv',
     tipo: 'AVENTON_APARTADO',
-    texto: 'Renata aparto un lugar en tu aventon',
+    texto: 'Renata apartó un lugar en tu aventón',
     url: '/aventones',
   },
   {
     destinatario: 'mateo.snc',
     actor: 'emilio.cst',
     tipo: 'MENCION',
-    texto: 'Emilio te menciono en una publicacion',
+    texto: 'Emilio te mencionó en una publicación',
     url: '/feed',
   },
   {
     destinatario: 'dani.reyes',
     actor: 'vale.lopez',
     tipo: 'SEGUIDOR',
-    texto: 'Valentina empezo a seguirte',
+    texto: 'Valentina empezó a seguirte',
     url: '/perfil/vale.lopez',
   },
   {
     destinatario: 'carlos.hdz',
     actor: 'alex.vrg',
     tipo: 'REACCION',
-    texto: 'Alejandro reacciono a tu publicacion',
+    texto: 'Alejandro reaccionó a tu publicación',
     url: '/feed',
   },
 ];

@@ -33,6 +33,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -272,8 +274,15 @@ private fun EventoCard(
                 color = MaterialTheme.colorScheme.primary,
             )
             if (yaVoy) {
-                OutlinedButton(onClick = onVoy, enabled = !ocupado, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (ocupado) "Un momento…" else "✓ Voy (tocar para quitar)")
+                // El texto corto se lee mejor en la lista; TalkBack sí dice que tocar quita la respuesta.
+                OutlinedButton(
+                    onClick = onVoy,
+                    enabled = !ocupado,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = "Vas a ir. Toca para quitar tu respuesta." },
+                ) {
+                    Text(if (ocupado) "Un momento…" else "✓ Vas a ir")
                 }
             } else {
                 val lleno = evento.cupo != null && evento.vanAIr >= evento.cupo

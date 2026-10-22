@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -44,6 +45,7 @@ import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.EnlacesWeb
+import mx.agora.mobile.nativeapp.ui.util.agregarACalendario
 import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
 import mx.agora.mobile.nativeapp.ui.util.formatearFecha
 import mx.agora.mobile.nativeapp.ui.util.formatearPrecio
@@ -240,6 +242,27 @@ fun EventoDetalleScreen(
                             modifier = Modifier.size(18.dp),
                         )
                         Text(AgoraCopy.compartir.accion, modifier = Modifier.padding(start = 8.dp))
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            agregarACalendario(
+                                context,
+                                titulo = item.titulo,
+                                descripcion = item.descripcion,
+                                lugar = item.lugar,
+                                inicioIso = item.inicioAt,
+                                finIso = item.finAt,
+                                enlace = EnlacesWeb.evento(eventoId),
+                            )
+                        },
+                    ) {
+                        Icon(
+                            Icons.Outlined.Event,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text("Agregar a mi calendario", modifier = Modifier.padding(start = 8.dp))
                     }
 
                     if (item.esMio) {

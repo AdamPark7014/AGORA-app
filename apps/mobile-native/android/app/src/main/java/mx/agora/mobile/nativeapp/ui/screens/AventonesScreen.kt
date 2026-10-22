@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -199,20 +200,30 @@ fun AventonesScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // Los filtros se desplazan y el botón conserva su ancho: en teléfonos de 360dp
+            // los tres chips no caben y el botón se aplastaba en una barra vertical.
             Row(
-                modifier = Modifier.padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                filtrosSentido.forEach { (valor, etiqueta) ->
-                    FilterChip(
-                        selected = sentido == valor,
-                        onClick = { sentido = valor },
-                        label = { Text(etiqueta) },
-                    )
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    filtrosSentido.forEach { (valor, etiqueta) ->
+                        FilterChip(
+                            selected = sentido == valor,
+                            onClick = { sentido = valor },
+                            label = { Text(etiqueta, maxLines = 1) },
+                        )
+                    }
                 }
-                Button(onClick = { abrirNuevo() }, modifier = Modifier.padding(start = 4.dp)) {
-                    Text("+ Ofrecer")
+                Button(onClick = { abrirNuevo() }, modifier = Modifier.padding(start = 8.dp)) {
+                    Text("+ Ofrecer", maxLines = 1, softWrap = false)
                 }
             }
 

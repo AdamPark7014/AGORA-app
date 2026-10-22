@@ -84,3 +84,7 @@ fun mensajeDe(error: Throwable): String = when (error) {
     }
     else -> AgoraCopy.errors.generic
 }
+
+/** «1 seguidor» / «3 seguidores»: el plural en español solo cuando no es uno. */
+fun cuenta(n: Int, singular: String, plural: String = singular + "s"): String =
+    "$n ${if (n == 1) singular else plural}"

@@ -55,6 +55,19 @@ completas las fichas de App Store y Play. Hecho hasta ahora:
   falta para 18-22, con lo visual marcado para mockup: `docs/funciones-universitarios.md`.
 - **Privacidad corregida otra vez:** las apps mandan fallos y eventos de uso a `/analytics/*` ligados a la
   cuenta; ya lo dicen el aviso, la etiqueta de Apple y la Seguridad de los datos de Play.
+- **Desplegado `837cb15` el 22-10 16:27 MX** (rollback `prev-20261022-1627`; migración del recordatorio de
+  aventones aplicada; `.ics` responde 401 sin sesión).
+- **Recorrido en el emulador** (`agora-capturas`, API local + seed de demo, nunca producción) y arreglos que
+  salieron: el catálogo entero no tenía acentos («Ingenieria», «Psicologia Clinica», «Universidad de las
+  Americas») → `udlap.ts` + migración de datos `20261022210000_catalogo_acentos` (solo `UPDATE … nombre` por
+  slug en escuelas, departamentos, carreras, colegios y sus comunidades derivadas; no borra nada); el seed de
+  demo tampoco (123 textos); Aventones aplastaba «+ Ofrecer» en una barra vertical; «Retar 🔥» se partía en dos
+  líneas; «1 seguidores»; «✓ Voy (tocar para quitar)» en la lista → «✓ Vas a ir»; y «Agregar a mi calendario»
+  en Android (intent del calendario, sin permisos; probado: abre Google Calendar). El permiso de notificaciones
+  salta al entrar, antes de la bienvenida: queda en `docs/funciones-universitarios.md` (A).
+- **Capturas de Android listas** en `docs/tienda/capturas/android-telefono/` (7, 1080×1920, enmarcadas, barra de
+  estado en modo demo). `.gitignore` ignoraba toda carpeta `capturas/`; ahora `docs/tienda/capturas/` sí se
+  versiona. iOS: el flujo `ios-capturas.yml` de la sesión de móvil deja el artefacto; falta enmarcarlo.
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: iOS para Apple 1.2 y capturas de tienda)
 

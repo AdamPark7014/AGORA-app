@@ -70,6 +70,7 @@ import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PerfilPublicacionDto
 import mx.agora.mobile.nativeapp.data.api.RetosApi
 import mx.agora.mobile.nativeapp.data.gamificacion.GamificacionEvents
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.GamificacionPublicSection
@@ -507,9 +508,9 @@ fun PerfilAjenoScreen(
                                 }
 
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    Text("${p.publicaciones ?: 0} posts", style = MaterialTheme.typography.bodySmall)
+                                    Text(cuenta(p.publicaciones ?: 0, "publicación", "publicaciones"), style = MaterialTheme.typography.bodySmall)
                                     ContadorConexion(
-                                        texto = "${p.seguidores ?: 0} seguidores",
+                                        texto = cuenta(p.seguidores ?: 0, "seguidor", "seguidores"),
                                         habilitado = !p.restringido,
                                         onClick = { onConexiones(TipoConexion.SEGUIDORES) },
                                     )
@@ -540,28 +541,31 @@ fun PerfilAjenoScreen(
                                         }
                                     }
                                     else -> {
-                                        Row(
+                                        // FlowRow: con «Retar» los tres botones no caben en 360dp y el
+                                        // último se partía en dos líneas.
+                                        FlowRow(
                                             modifier = Modifier.padding(top = 8.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
                                             Button(
                                                 onClick = { alternarSeguir() },
                                                 enabled = !ocupado && !bloqueado,
                                             ) {
-                                                Text(if (siguiendo) "✓ Siguiendo" else "＋ Seguir")
+                                                Text(if (siguiendo) "✓ Siguiendo" else "＋ Seguir", maxLines = 1, softWrap = false)
                                             }
                                             OutlinedButton(
                                                 onClick = { escribir() },
                                                 enabled = !ocupado && !bloqueado,
                                             ) {
-                                                Text("Escribirle")
+                                                Text("Escribirle", maxLines = 1, softWrap = false)
                                             }
                                             if (puedeRetar) {
                                                 OutlinedButton(
                                                     onClick = { mostrarDialogRetar = true },
                                                     enabled = !ocupado && !enviandoReto && !bloqueado,
                                                 ) {
-                                                    Text("Retar 🔥")
+                                                    Text("Retar 🔥", maxLines = 1, softWrap = false)
                                                 }
                                             }
                                         }

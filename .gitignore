@@ -35,6 +35,9 @@ Thumbs.db
 
 # Capturas de revision visual: se regeneran con `npx playwright test capturas`
 capturas/
+# …salvo las de las tiendas, que se suben tal cual a App Store y Play (docs/tienda/README.md)
+!docs/tienda/capturas/
+__pycache__/
 test-results/
 
 # artefactos de despliegue empaquetados — el control de versiones los sustituye
