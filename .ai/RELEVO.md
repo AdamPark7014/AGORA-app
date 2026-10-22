@@ -28,8 +28,7 @@ proyectos (nunca `volume prune`).
   `deploy/.env.bak-20261021`; `chmod 600`), API recreada y verificada (`/push/vapid-public-key`
   → `activo: true`; el JSON de FCM parsea dentro del contenedor). Firebase: proyecto
   `agora-udlap` (sin Analytics), app Android `mx.agora.mobile.nativeapp`, `google-services.json`
-  real versionado. **APNs (iOS) sin configurar**: el clasificador de permisos bloquea el portal
-  de Apple y la app tampoco compila sin Mac.
+  real versionado. **APNs (iOS) configurado el 22-10** (ver abajo).
 - **Tiendas:** llave de subida `apps/mobile-native/keystore/agora-release.jks` (fuera de git,
   contraseña en `local.properties`; **respaldar**), AAB firmado 1.0.0 (1) en
   `app/build/outputs/bundle/release/`. Play Console: el clasificador de permisos de Claude
@@ -49,7 +48,16 @@ proyectos (nunca `volume prune`).
   llave de subida, porque el original (11 MB) pasaba el tope de 10 MB de la subida por navegador;
   el `mapping.txt` se puede subir aparte (`docs/PLAY_STORE.md`). Apple: «Register a New Key» con
   nombre «Agora UDLAP APNs» y APNs marcado, en «Configure Key»; Adam elige *Sandbox & Production*,
-  Save, Continue, Register y descarga el `.p8` (también bloqueado para Claude). Los
+  Save, Continue, Register y descarga el `.p8` (también bloqueado para Claude).
+- **APNs listo (22-10 13:20 MX):** llave **`8JBG8G5JT3`** (equipo `AHNW9K8745`, *Sandbox & Production*,
+  Team Scoped), guardada en `C:\dev\secrets\agora-ios\AuthKey_8JBG8G5JT3.p8` (+ `LEEME.txt`) y borrada
+  de Descargas. En el Hetzner: `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_SIGNING_KEY` (una línea con `\n`),
+  `APNS_BUNDLE_ID=mx.agora.mobile.AgoraApp`, `APNS_PRODUCTION=true` en `deploy/.env` (respaldo
+  `.env.bak-apns-20261022`, `chmod 600`); `deploy/docker-compose.yml` ahora pasa `APNS_PRODUCTION`
+  (`998a086`, copiado al servidor) y la API se recreó. **Verificado contra Apple**: un envío con token
+  falso responde `400 BadDeviceToken` (la llave y el JWT son válidos). El App ID
+  `mx.agora.mobile.AgoraApp` tiene **Push Notifications** y **Associated Domains** activados. Falta
+  probar con un iPhone real desde TestFlight (el token llega por `POST /push/suscribir-apns`). Los
   vectores de Android/iOS están validados como XML pero **sin compilar** aquí (la sesión de
   móvil corre gradle en el mismo checkout; su `assembleDebug` los compila).
 
