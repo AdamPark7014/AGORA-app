@@ -167,6 +167,7 @@ enum AgoraCopy {
     static let udlapContrasenaTexto = "Confirmaste tu correo UDLAP. Por seguridad, vuelve a elegir tu contraseña."
     static let udlapConfirmada = "Listo: confirmaste tu correo UDLAP."
     static let cerrarSesion = "Cerrar sesión"
+    static let tecladoListo = "Listo"
 
     // Entrega del código (paridad con `copy.login.codigo.entrega` en la web)
     static let entregaEnviado = "Enviando tu código…"

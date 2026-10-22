@@ -166,10 +166,10 @@ struct AnonimoView: View {
         }
     }
 
+    /// Siempre con el tipo: si ya era tu reacción, la API la quita.
     private func reaccionar(post: AnonimoPostDto, tipo: String) async {
-        let quita = post.miReaccion == tipo
         do {
-            _ = try await AgoraApi.reaccionar(postId: post.id, tipo: quita ? nil : tipo)
+            _ = try await AgoraApi.reaccionar(postId: post.id, tipo: tipo)
             await cargarFeed()
         } catch {
             self.error = FormatUtils.mensajeDe(error)

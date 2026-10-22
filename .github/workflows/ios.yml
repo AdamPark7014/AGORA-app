@@ -85,7 +85,8 @@ jobs:
         run: |
           nohup python3 "$GITHUB_WORKSPACE/.github/scripts/api-falsa.py" 8765 > "$RUNNER_TEMP/api-falsa.log" 2>&1 &
           for i in $(seq 1 20); do
-            curl -s -o /dev/null -X POST http://127.0.0.1:8765/api/auth/entrar && break
+            # GET a una ruta inexistente: no debe contar como petición de la app.
+            curl -s -o /dev/null http://127.0.0.1:8765/api/listo && break
             sleep 1
           done
           cat "$RUNNER_TEMP/api-falsa.log"

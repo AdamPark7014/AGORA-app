@@ -27,6 +27,11 @@ struct PostDetailView: View {
     @State private var retirando = false
     @State private var motivoRetiro = ""
     @State private var aviso: String?
+    /// Comentarios mostrados: los 50 recientes del detalle más las páginas previas.
+    @State private var comentarios: [ComentarioDto] = []
+    /// `comentariosAnteriores` de la API: id para `antesDe`; nil = no hay más.
+    @State private var cursorAnteriores: String?
+    @State private var cargandoAnteriores = false
 
     private var esMia: Bool {
         guard let post else { return false }
@@ -188,13 +193,35 @@ struct PostDetailView: View {
                     }
                 }
 
-                Text("Comentarios")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(AgoraDesign.Colors.texto)
-                    .padding(.top, AgoraDesign.Spacing.xs)
+                // Agrupado: en iOS 16 un ViewBuilder admite como máximo 10 hijos por bloque.
+                Group {
+                    Text("Comentarios")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                        .padding(.top, AgoraDesign.Spacing.xs)
 
-                ForEach(post.comentarios ?? []) { comentario in
-                    ComentarioRowView(comentario: comentario)
+                    if cursorAnteriores != nil {
+                        Button {
+                            Task { await verAnteriores() }
+                        } label: {
+                            HStack(spacing: AgoraDesign.Spacing.xs) {
+                                if cargandoAnteriores {
+                                    ProgressView()
+                                }
+                                Text(cargandoAnteriores ? "Cargando…" : "Ver comentarios anteriores")
+                                    .font(.subheadline)
+                            }
+                            .foregroundStyle(AgoraDesign.Colors.naranja)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, AgoraDesign.Spacing.xs)
+                        }
+                        .buttonStyle(.agoraPlain)
+                        .disabled(cargandoAnteriores)
+                    }
+
+                    ForEach(comentarios) { comentario in
+                        ComentarioRowView(comentario: comentario)
+                    }
                 }
 
                 TextField("Escribe un comentario…", text: $textoComentario, axis: .vertical)
@@ -273,6 +300,17 @@ struct PostDetailView: View {
             totalReacciones = detalle.numReactions ?? 0
             guardado = detalle.miGuardado ?? false
             encuesta = detalle.encuesta
+            let recientes = detalle.comentarios ?? []
+            if let primero = recientes.first,
+               let idx = comentarios.firstIndex(where: { $0.id == primero.id }),
+               idx > 0 {
+                // Al recargar (p. ej. tras comentar) se conservan los anteriores
+                // que ya se habían pedido, y su cursor sigue valiendo.
+                comentarios = Array(comentarios[..<idx]) + recientes
+            } else {
+                comentarios = recientes
+                cursorAnteriores = detalle.comentariosAnteriores
+            }
         } catch {
             self.error = FormatUtils.mensajeDe(error)
         }
@@ -305,6 +343,22 @@ struct PostDetailView: View {
         } catch {
             miReaccion = anterior
             totalReacciones = totalAnterior
+        }
+    }
+
+    /// Pide la página previa y la antepone (la API ya la manda en orden cronológico).
+    private func verAnteriores() async {
+        guard let cursor = cursorAnteriores, !cargandoAnteriores else { return }
+        cargandoAnteriores = true
+        defer { cargandoAnteriores = false }
+        do {
+            let pagina = try await AgoraApi.comentariosAnteriores(postId: postId, antesDe: cursor)
+            let yaEstan = Set(comentarios.map(\.id))
+            let nuevos = (pagina.comentarios ?? []).filter { !yaEstan.contains($0.id) }
+            comentarios = nuevos + comentarios
+            cursorAnteriores = pagina.comentariosAnteriores
+        } catch {
+            aviso = "No se pudieron cargar los comentarios anteriores."
         }
     }
 

@@ -6,6 +6,14 @@ import UniformTypeIdentifiers
 private let limiteTextoPublicar = 2000
 private let maxAdjuntos = 4
 
+/// Lo que respondió la API cuando la publicación no pasó limpia.
+private struct AvisoPublicacion {
+    let titulo: String
+    let mensaje: String
+    /// false = `RETIRADO`: nadie la ve, así que no se manda al feed.
+    let visible: Bool
+}
+
 private struct AdjuntoLocal: Identifiable {
     let id = UUID()
     var item: PhotosPickerItem?
@@ -30,6 +38,7 @@ struct PublicarView: View {
     @State private var enviando = false
     @State private var error: String?
     @State private var mensajeCola: String?
+    @State private var avisoPublicacion: AvisoPublicacion?
 
     @State private var conEncuesta = false
     @State private var preguntaEncuesta = ""
@@ -200,6 +209,45 @@ struct PublicarView: View {
         .agoraScreenBackground()
         .navigationTitle("Publicar")
         .task { await cargarComunidades() }
+        .alert(
+            avisoPublicacion?.titulo ?? "",
+            isPresented: Binding(
+                get: { avisoPublicacion != nil },
+                set: { presentado in
+                    guard !presentado, let aviso = avisoPublicacion else { return }
+                    avisoPublicacion = nil
+                    if aviso.visible { onPublicado() }
+                }
+            ),
+            presenting: avisoPublicacion
+        ) { _ in
+            Button("Entendido", role: .cancel) {}
+        } message: { aviso in
+            Text(aviso.mensaje)
+        }
+    }
+
+    /// nil = pasó limpia (`PUBLICADO` sin aviso): se va directo al feed.
+    private static func avisoDe(_ resp: CrearPostResponse) -> AvisoPublicacion? {
+        let aviso = resp.aviso?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tieneAviso = !(aviso ?? "").isEmpty
+        switch resp.estado ?? "PUBLICADO" {
+        case "RETIRADO":
+            return AvisoPublicacion(
+                titulo: "No se publicó",
+                mensaje: tieneAviso ? (aviso ?? "") : "Tu publicación no cumple las reglas de Ágora, así que nadie la verá.",
+                visible: false
+            )
+        case "EN_REVISION":
+            return AvisoPublicacion(
+                titulo: "Quedó en revisión",
+                mensaje: tieneAviso ? (aviso ?? "") : "Ya se ve en el feed, pero un moderador la va a revisar.",
+                visible: true
+            )
+        default:
+            guard tieneAviso else { return nil }
+            return AvisoPublicacion(titulo: "Publicado con aviso", mensaje: aviso ?? "", visible: true)
+        }
     }
 
     private var comunidadPicker: some View {
@@ -310,7 +358,12 @@ struct PublicarView: View {
             adjuntos = []
             conEncuesta = false
             mensajeCola = nil
-            onPublicado()
+            if let aviso = PublicarView.avisoDe(resp) {
+                // Retirada o en revisión: se explica en vez de darla por publicada.
+                avisoPublicacion = aviso
+            } else {
+                onPublicado()
+            }
         } catch let err {
             if PublicarView.esSinConexion(err) {
                 PendingPostQueue.enqueue(comunidadSlug: slug, texto: limpio, mediaIds: ids)

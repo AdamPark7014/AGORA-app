@@ -202,7 +202,8 @@ enum AgoraApi {
 
   // MARK: Posts — interacciones
 
-  static func reaccionar(postId: String, tipo: String?) async throws -> ReaccionarResponse {
+  /// Interruptor: la misma reacción la quita, otra distinta la reemplaza.
+  static func reaccionar(postId: String, tipo: String) async throws -> ReaccionarResponse {
     let data = try await client.postJSON(
       "posts/\(postId)/reacciones",
       body: ReaccionarRequest(tipo: tipo)
@@ -233,6 +234,12 @@ enum AgoraApi {
       "posts/\(postId)/comentarios",
       body: CrearComentarioRequest(texto: texto)
     )
+  }
+
+  /// Comentarios anteriores al id `antesDe` (cursor `comentariosAnteriores` del detalle).
+  static func comentariosAnteriores(postId: String, antesDe: String) async throws -> ComentariosPaginaResponse {
+    let data = try await client.get("posts/\(postId)/comentarios", query: ["antesDe": antesDe])
+    return try ApiClient.decodeOne(data)
   }
 
   static func guardarPost(id: String) async throws -> GuardarResponse {
@@ -266,11 +273,15 @@ enum AgoraApi {
     return try ApiClient.decodeOne(data)
   }
 
-  static func enviarMensaje(conversacionId: String, texto: String) async throws {
-    _ = try await client.postJSON(
+  /// `POST mensajes/:id` responde `{ id, createdAt }`. Devuelve nil si la
+  /// respuesta no trae esa forma (el mensaje sí se envió: toca recargar).
+  @discardableResult
+  static func enviarMensaje(conversacionId: String, texto: String) async throws -> EnviarMensajeResponse? {
+    let data = try await client.postJSON(
       "mensajes/\(conversacionId)",
       body: EnviarMensajeRequest(texto: texto)
     )
+    return try? ApiClient.decodeOne(data)
   }
 
   /// Total de mensajes sin leer (`{ total }`), para el globo de Mensajes.

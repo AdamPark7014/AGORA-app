@@ -73,6 +73,11 @@ struct CrearPostRequest: Encodable {
 
 struct CrearPostResponse: Decodable {
     let id: String
+    /// `PUBLICADO`, `EN_REVISION` (se ve, pero la revisa un moderador) o
+    /// `RETIRADO` (el clasificador la bajó y nadie la ve).
+    let estado: String?
+    /// Por qué se marcó o retiró; nil si pasó limpia.
+    let aviso: String?
     let nuevasInsignias: [String]?
 }
 
@@ -88,9 +93,19 @@ struct PostDetalleDto: Decodable {
     let numReactions: Int?
     let miReaccion: String?
     let miGuardado: Bool?
+    /// Los 50 comentarios más recientes, en orden cronológico.
     let comentarios: [ComentarioDto]?
+    /// Cursor (id del comentario más viejo de la página) para pedir los
+    /// anteriores con `antesDe`; nil = ya no hay más.
+    let comentariosAnteriores: String?
     let anonimo: Bool?
     let alias: String?
+}
+
+/// `GET posts/:id/comentarios?antesDe=` — la página previa, también en orden cronológico.
+struct ComentariosPaginaResponse: Decodable {
+    let comentarios: [ComentarioDto]?
+    let comentariosAnteriores: String?
 }
 
 /// `PATCH posts/:id` — solo el autor; las anónimas no se editan.
@@ -113,8 +128,10 @@ struct CrearComentarioRequest: Encodable {
     let texto: String
 }
 
+/// La API exige `tipo` siempre (`reaccionarSchema`): mandar la misma reacción
+/// que ya tienes la quita. Con `tipo` nulo el cuerpo salía `{}` y daba 400.
 struct ReaccionarRequest: Encodable {
-    let tipo: String?
+    let tipo: String
 }
 
 struct ReaccionarResponse: Decodable {
@@ -220,6 +237,9 @@ struct PerfilPublicacionDto: Decodable, Identifiable {
     let comunidad: String
     let numComments: Int?
     let numReactions: Int?
+    /// Misma forma que en el feed (`aMediaVista`): sin esto, los posts de solo
+    /// foto se veían vacíos en el perfil.
+    let media: [MediaDto]?
 }
 
 struct PerfilPublicacionesResponse: Decodable {
@@ -461,6 +481,12 @@ struct ConversacionDetalleResponse: Decodable {
 
 struct EnviarMensajeRequest: Encodable {
     let texto: String
+}
+
+/// `POST mensajes/:id` — solo el id y la hora del mensaje creado.
+struct EnviarMensajeResponse: Decodable {
+    let id: String
+    let createdAt: String
 }
 
 struct AbrirConversacionRequest: Encodable {

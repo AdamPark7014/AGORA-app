@@ -151,10 +151,20 @@ struct MensajeDetalleView: View {
         error = nil
         defer { enviando = false }
         do {
-            try await AgoraApi.enviarMensaje(conversacionId: conversacionId, texto: limpio)
+            let resp = try await AgoraApi.enviarMensaje(conversacionId: conversacionId, texto: limpio)
             AgoraAnalytics.dmEnviado(["conversacionId": conversacionId])
             texto = ""
-            await traerRecientes()
+            if let resp {
+                // Se agrega ya con el id real; si el SSE lo trae antes o después,
+                // el filtro por id evita la burbuja doble.
+                if !mensajes.contains(where: { $0.id == resp.id }) {
+                    mensajes.append(
+                        MensajeDto(id: resp.id, texto: limpio, createdAt: resp.createdAt, mio: true, autor: nil)
+                    )
+                }
+            } else {
+                await traerRecientes()
+            }
         } catch {
             self.error = FormatUtils.mensajeDe(error)
         }

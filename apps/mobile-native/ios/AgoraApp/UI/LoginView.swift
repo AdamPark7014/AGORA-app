@@ -131,6 +131,19 @@ struct LoginView: View {
             .scrollDismissesKeyboard(.interactively)
             .agoraScreenBackground()
             .navigationBarHidden(true)
+            // «Listo» encima del teclado: con él arriba, «Entrar» queda tapado en
+            // un iPhone normal y no había forma evidente de bajarlo.
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button(AgoraCopy.tecladoListo) {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+                        )
+                    }
+                    .accessibilityIdentifier("teclado.listo")
+                }
+            }
         }
     }
 

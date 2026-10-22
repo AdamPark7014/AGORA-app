@@ -12,11 +12,17 @@ private let filtrosSentido: [FiltroSentido] = [
     FiltroSentido(valor: "DESDE_CAMPUS", etiqueta: "← Desde campus"),
 ]
 
+/// Valores de `SENTIDOS_AVENTON` en `packages/contracts`.
+private let sentidosAventon: [(valor: String, etiqueta: String)] = [
+    ("A_CAMPUS", "Hacia el campus"),
+    ("DESDE_CAMPUS", "Desde el campus"),
+]
+
 private struct NuevoAventonForm {
     var sentido = "A_CAMPUS"
     var origen = ""
     var destino = "Campus UDLAP"
-    var salidaAt = mananaTempranoIso()
+    var salidaAt: Date = mananaTemprano()
     var lugares = "3"
     var cuotaMxn = "25"
     var nota = ""
@@ -116,10 +122,33 @@ struct AventonesView: View {
                 Text("Nuevo aventón")
                     .font(.title2.bold())
 
-                TextField("Origen", text: $nuevo.origen)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Destino", text: $nuevo.destino)
-                    .textFieldStyle(.roundedBorder)
+                // Agrupado: en iOS 16 un ViewBuilder admite como máximo 10 hijos por bloque.
+                Group {
+                    Picker("Sentido", selection: Binding(
+                        get: { nuevo.sentido },
+                        set: { cambiarSentido($0) }
+                    )) {
+                        ForEach(sentidosAventon, id: \.valor) { opcion in
+                            Text(opcion.etiqueta).tag(opcion.valor)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    TextField("Salgo de", text: $nuevo.origen)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Llego a", text: $nuevo.destino)
+                        .textFieldStyle(.roundedBorder)
+
+                    // La API acepta hasta 15 min en el pasado; aquí se pide desde ahora.
+                    DatePicker(
+                        "Salida",
+                        selection: $nuevo.salidaAt,
+                        in: Date()...,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .tint(AgoraDesign.Colors.naranja)
+                }
+
                 TextField("Lugares", text: Binding(
                     get: { nuevo.lugares },
                     set: { nuevo.lugares = $0.filter(\.isNumber) }
@@ -200,6 +229,16 @@ struct AventonesView: View {
         }
     }
 
+    /// Como la web: al invertir el sentido se intercambian origen y destino,
+    /// para no volver a escribir «Campus UDLAP».
+    private func cambiarSentido(_ valor: String) {
+        guard valor != nuevo.sentido else { return }
+        let origen = nuevo.origen
+        nuevo.origen = nuevo.destino
+        nuevo.destino = origen
+        nuevo.sentido = valor
+    }
+
     private func crear() async {
         guard let lugares = Int(nuevo.lugares), let cuota = Int(nuevo.cuotaMxn) else { return }
         enviando = true
@@ -211,7 +250,7 @@ struct AventonesView: View {
                     sentido: nuevo.sentido,
                     origen: nuevo.origen.trimmingCharacters(in: .whitespacesAndNewlines),
                     destino: nuevo.destino.trimmingCharacters(in: .whitespacesAndNewlines),
-                    salidaAt: nuevo.salidaAt,
+                    salidaAt: FormatUtils.isoConZona(nuevo.salidaAt),
                     lugares: lugares,
                     cuotaMxn: cuota,
                     nota: nuevo.nota.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : nuevo.nota.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -329,18 +368,15 @@ private struct AventonCardView: View {
     }
 }
 
-private func mananaTempranoIso() -> String {
+/// Salida sugerida: mañana a las 7:30 (hora del centro de México).
+private func mananaTemprano() -> Date {
+    let respaldo = Date().addingTimeInterval(24 * 60 * 60)
     var cal = Calendar(identifier: .gregorian)
     cal.timeZone = TimeZone(identifier: "America/Mexico_City") ?? .current
-    guard let manana = cal.date(byAdding: .day, value: 1, to: Date()) else { return "" }
+    guard let manana = cal.date(byAdding: .day, value: 1, to: Date()) else { return respaldo }
     var components = cal.dateComponents([.year, .month, .day], from: manana)
     components.hour = 7
     components.minute = 30
     components.second = 0
-    components.timeZone = TimeZone(identifier: "America/Mexico_City")
-    guard let date = cal.date(from: components) else { return "" }
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime]
-    formatter.timeZone = TimeZone(identifier: "America/Mexico_City")
-    return formatter.string(from: date)
+    return cal.date(from: components) ?? respaldo
 }

@@ -18,7 +18,10 @@ struct CreateEventoView: View {
     @State private var descripcion = ""
     @State private var tipo = "FIESTA"
     @State private var lugar = ""
-    @State private var inicioAt = mananaNocheIso()
+    @State private var inicioAt: Date = mananaNoche()
+    /// El fin es opcional en la API (`crearEventoSchema.finAt`).
+    @State private var conFin = false
+    @State private var finAt: Date = mananaNoche().addingTimeInterval(3 * 60 * 60)
     @State private var costo = ""
     @State private var cupo = ""
     @State private var comunidadSlug: String?
@@ -30,7 +33,7 @@ struct CreateEventoView: View {
         titulo.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3
             && !descripcion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && lugar.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2
-            && !inicioAt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && (!conFin || finAt > inicioAt)
             && !enviando
     }
 
@@ -78,7 +81,7 @@ struct CreateEventoView: View {
                     }
                 }
 
-                campo("Inicio (ISO, ej. 2026-08-25T19:00:00Z)", text: $inicioAt)
+                seccionFechas
                 campo("Costo MXN (opcional, 0 = gratis)", text: $costo, digitsOnly: true)
                 campo("Cupo (opcional)", text: $cupo, digitsOnly: true)
 
@@ -130,6 +133,37 @@ struct CreateEventoView: View {
         .task { await cargarComunidades() }
     }
 
+    /// Inicio y fin con selector; se mandan en ISO 8601 con zona.
+    private var seccionFechas: some View {
+        VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
+            DatePicker(
+                "Empieza",
+                selection: $inicioAt,
+                in: Date()...,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+
+            Toggle("Poner hora de fin", isOn: $conFin)
+
+            if conFin {
+                DatePicker(
+                    "Termina",
+                    selection: $finAt,
+                    in: inicioAt.addingTimeInterval(60)...,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+            }
+        }
+        .font(.subheadline)
+        .tint(AgoraDesign.Colors.naranja)
+        .onChange(of: inicioAt) { nuevo in
+            // El evento no puede terminar antes de empezar (la API lo rechaza).
+            if finAt <= nuevo {
+                finAt = nuevo.addingTimeInterval(3 * 60 * 60)
+            }
+        }
+    }
+
     private func campo(_ label: String, text: Binding<String>, digitsOnly: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
@@ -164,8 +198,8 @@ struct CreateEventoView: View {
                     descripcion: descripcion.trimmingCharacters(in: .whitespacesAndNewlines),
                     tipo: tipo,
                     lugar: lugar.trimmingCharacters(in: .whitespacesAndNewlines),
-                    inicioAt: inicioAt.trimmingCharacters(in: .whitespacesAndNewlines),
-                    finAt: nil,
+                    inicioAt: FormatUtils.isoConZona(inicioAt),
+                    finAt: conFin ? FormatUtils.isoConZona(finAt) : nil,
                     costoMxn: Int(costo),
                     cupo: Int(cupo),
                     comunidadSlug: comunidadSlug
@@ -178,18 +212,15 @@ struct CreateEventoView: View {
     }
 }
 
-private func mananaNocheIso() -> String {
-    let tz = TimeZone(identifier: "America/Mexico_City") ?? .current
+/// Inicio sugerido: mañana a las 19:00 (hora del centro de México).
+private func mananaNoche() -> Date {
+    let respaldo = Date().addingTimeInterval(24 * 60 * 60)
     var cal = Calendar(identifier: .gregorian)
-    cal.timeZone = tz
-    guard let manana = cal.date(byAdding: .day, value: 1, to: Date()) else { return "" }
+    cal.timeZone = TimeZone(identifier: "America/Mexico_City") ?? .current
+    guard let manana = cal.date(byAdding: .day, value: 1, to: Date()) else { return respaldo }
     var components = cal.dateComponents([.year, .month, .day], from: manana)
     components.hour = 19
     components.minute = 0
     components.second = 0
-    guard let localDate = cal.date(from: components) else { return "" }
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime]
-    formatter.timeZone = TimeZone(secondsFromGMT: 0)
-    return formatter.string(from: localDate)
+    return cal.date(from: components) ?? respaldo
 }

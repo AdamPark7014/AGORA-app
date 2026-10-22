@@ -67,7 +67,14 @@ final class LoginUITests: XCTestCase {
         XCTAssertTrue(contrasena.waitForExistence(timeout: 10))
         contrasena.tap()
         contrasena.typeText("no-es-la-buena")
-        tocarEnElBorde(app.buttons["login.entrar"])
+        // Con el teclado arriba el botón queda debajo de él en un iPhone
+        // normal: se baja con «Listo», como lo haría una persona.
+        let listo = app.buttons["teclado.listo"]
+        if listo.waitForExistence(timeout: 3) { listo.tap() }
+        let entrar = app.buttons["login.entrar"]
+        XCTAssertTrue(entrar.waitForExistence(timeout: 5))
+        XCTAssertTrue(entrar.isEnabled, "«Entrar» sigue desactivado: no se escribió la contraseña")
+        tocarEnElBorde(entrar)
         let error = app.staticTexts["login.error"]
         XCTAssertTrue(error.waitForExistence(timeout: 15), "No apareció el error del servidor")
         XCTAssertTrue(error.label.contains("Correo o contraseña incorrectos"), error.label)

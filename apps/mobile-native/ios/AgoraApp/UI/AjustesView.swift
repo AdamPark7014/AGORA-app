@@ -7,6 +7,7 @@ private let etiquetasPreferencia: [String: String] = [
     "REACCION": "Reacciones",
     "MENSAJE": "Mensajes",
     "EVENTO_NUEVO": "Eventos nuevos",
+    "EVENTO_RECORDATORIO": "Recordatorio de eventos a los que vas",
     "AVENTON_APARTADO": "Aventones",
     "AVENTON_CANCELADO": "Aventones cancelados",
     "MODERACION": "Moderación",

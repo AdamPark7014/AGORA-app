@@ -320,28 +320,9 @@ struct PerfilAjenoView: View {
         }
 
         ForEach(publicaciones) { pub in
-            Button {
+            PublicacionPerfilCard(pub: pub) {
                 onPostTap(pub.id)
-            } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("\(FormatUtils.haceCuanto(pub.createdAt)) · \(pub.comunidad)")
-                        .font(.caption)
-                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                    Text(pub.texto)
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(4)
-                        .multilineTextAlignment(.leading)
-                    Text("\(pub.numReactions ?? 0) reacciones · \(pub.numComments ?? 0) comentarios")
-                        .font(.caption.bold())
-                        .foregroundStyle(AgoraDesign.Colors.naranja)
-                }
-                .padding(AgoraDesign.Spacing.sm)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(AgoraDesign.Colors.superficie)
-                .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
             }
-            .buttonStyle(.agoraPlain)
         }
 
         if cursor != nil {
@@ -502,6 +483,53 @@ struct PerfilAjenoView: View {
         } catch {
             self.error = FormatUtils.mensajeDe(error)
         }
+    }
+}
+
+/// Tarjeta de una publicación en el perfil: texto, fotos/videos y contadores.
+/// Todo abre el detalle; el carrusel va fuera del `Button` para que se pueda
+/// deslizar y reproducir video (como en `PostCardView`).
+private struct PublicacionPerfilCard: View {
+    let pub: PerfilPublicacionDto
+    let onTap: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button(action: onTap) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("\(FormatUtils.haceCuanto(pub.createdAt)) · \(pub.comunidad)")
+                        .font(.caption)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    if !pub.texto.isEmpty {
+                        Text(pub.texto)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(4)
+                            .multilineTextAlignment(.leading)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.agoraPlain)
+
+            if let media = pub.media, !media.isEmpty {
+                PostMediaCarousel(media: media, altura: 200, onToque: onTap)
+            }
+
+            Button(action: onTap) {
+                Text("\(pub.numReactions ?? 0) reacciones · \(pub.numComments ?? 0) comentarios")
+                    .font(.caption.bold())
+                    .foregroundStyle(AgoraDesign.Colors.naranja)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.agoraPlain)
+        }
+        .padding(AgoraDesign.Spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AgoraDesign.Colors.superficie)
+        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
     }
 }
 

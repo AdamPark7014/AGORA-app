@@ -11,10 +11,20 @@ struct RegistroView: View {
     @State private var apellidos = ""
     @State private var carreraSlug: String?
     @State private var colegioSlug: String?
+    @State private var generacion = Calendar.current.component(.year, from: Date())
     @State private var enviando = false
     @State private var error: String?
 
-    private var generacion: Int { Calendar.current.component(.year, from: Date()) }
+    /// `GENERACION_MIN` de `packages/shared` (la API rechaza años anteriores).
+    private static let generacionMin = 2015
+
+    /// Como la web: el año que entra y los nueve anteriores, nunca antes de
+    /// `generacionMin`. La API acepta hasta el año actual + 1.
+    private static var generaciones: [Int] {
+        let tope = Calendar.current.component(.year, from: Date()) + 1
+        let piso = max(generacionMin, tope - 9)
+        return Array(stride(from: tope, through: piso, by: -1))
+    }
 
     private var carreras: [CarreraDto] {
         catalogo?.escuelas?.flatMap { $0.carreras ?? [] } ?? []
@@ -89,8 +99,12 @@ struct RegistroView: View {
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 }
 
-                campo("Nombre", text: $nombre)
-                campo("Apellidos", text: $apellidos)
+                // Agrupado: en iOS 16 un ViewBuilder admite como máximo 10 hijos por bloque.
+                Group {
+                    campo("Nombre", text: $nombre)
+                    campo("Apellidos", text: $apellidos)
+                    selectorGeneracion
+                }
 
                 VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs) {
                     Text("Carrera")
@@ -156,6 +170,36 @@ struct RegistroView: View {
                     RoundedRectangle(cornerRadius: AgoraDesign.Radii.button)
                         .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
                 }
+        }
+    }
+
+    /// Año de ingreso. `String(ano)` evita que salga «2,026» con separador de miles.
+    private var selectorGeneracion: some View {
+        VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs + 2) {
+            Text("Generación (año en que entraste)")
+                .font(.caption.bold())
+            HStack {
+                Text("Generación")
+                    .font(.subheadline)
+                    .foregroundStyle(AgoraDesign.Colors.texto)
+                Spacer()
+                Picker("Generación", selection: $generacion) {
+                    ForEach(Self.generaciones, id: \.self) { ano in
+                        Text(String(ano)).tag(ano)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(AgoraDesign.Colors.naranja)
+                .labelsHidden()
+            }
+            .padding(.horizontal, AgoraDesign.Spacing.sm)
+            .padding(.vertical, AgoraDesign.Spacing.xxs)
+            .background(AgoraDesign.Colors.superficie)
+            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.button))
+            .overlay {
+                RoundedRectangle(cornerRadius: AgoraDesign.Radii.button)
+                    .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+            }
         }
     }
 

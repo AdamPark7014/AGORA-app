@@ -16,6 +16,19 @@ enum FormatUtils {
     return fechaCorta.string(from: date)
   }
 
+  private static let isoConZonaFormatter: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime]
+    f.timeZone = zona
+    return f
+  }()
+
+  /// ISO 8601 con desfase (`2026-10-23T07:30:00-06:00`), como espera la API
+  /// (`z.coerce.date()`). El instante es el mismo sin importar la zona.
+  static func isoConZona(_ date: Date) -> String {
+    isoConZonaFormatter.string(from: date)
+  }
+
   static func haceCuanto(_ iso: String) -> String {
     guard let date = parseISO(iso) else { return iso }
     let min = Int(Date().timeIntervalSince(date) / 60)
