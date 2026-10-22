@@ -26,6 +26,13 @@ final class LoginUITests: XCTestCase {
         campo.typeText(texto)
     }
 
+    /// Baja el teclado con «Listo» (la barra encima del teclado): con él arriba,
+    /// el botón de abajo queda tapado en un iPhone normal.
+    private func bajarTeclado() {
+        let listo = app.buttons["teclado.listo"]
+        if listo.waitForExistence(timeout: 3) { listo.tap() }
+    }
+
     private func irAlCodigoUdlap() {
         tocarEnElBorde(app.buttons["login.crearCuenta"])
         escribir("prueba.ui@udlap.mx", en: "login.correo")
@@ -55,6 +62,8 @@ final class LoginUITests: XCTestCase {
     func testUnCodigoMaloMuestraElMensajeDelServidor() {
         irAlCodigoUdlap()
         escribir("123456", en: "codigo.campo")
+        // El teclado numérico no tiene «Enviar»: se baja con «Listo».
+        bajarTeclado()
         tocarEnElBorde(app.buttons["codigo.entrar"])
         let error = app.staticTexts["login.error"]
         XCTAssertTrue(error.waitForExistence(timeout: 15), "No apareció el error del servidor")
@@ -67,10 +76,7 @@ final class LoginUITests: XCTestCase {
         XCTAssertTrue(contrasena.waitForExistence(timeout: 10))
         contrasena.tap()
         contrasena.typeText("no-es-la-buena")
-        // Con el teclado arriba el botón queda debajo de él en un iPhone
-        // normal: se baja con «Listo», como lo haría una persona.
-        let listo = app.buttons["teclado.listo"]
-        if listo.waitForExistence(timeout: 3) { listo.tap() }
+        bajarTeclado()
         let entrar = app.buttons["login.entrar"]
         XCTAssertTrue(entrar.waitForExistence(timeout: 5))
         XCTAssertTrue(entrar.isEnabled, "«Entrar» sigue desactivado: no se escribió la contraseña")
