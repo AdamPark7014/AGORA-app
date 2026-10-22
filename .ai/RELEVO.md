@@ -38,7 +38,23 @@ completas las fichas de App Store y Play. Hecho hasta ahora:
   en < 24 h; `/reglas` ya no promete un filtro automático (**producción no tiene `OPENAI_API_KEY`**: el
   filtro previo del código está apagado); casilla obligatoria de Términos y Reglas al crear el perfil (Apple
   1.2). Correo público `contacto@zynoratek.com` (contacto@udlagora.com rebotaba: el dominio no tiene MX).
-  Android (agente) e iOS (sesión de móvil, por mensaje) van por la misma casilla y una pantalla de Reglas.
+  Android (agente) e iOS (sesión de móvil, `7dc30e2`) ya tienen la misma casilla y una pantalla de Reglas.
+- **Desplegado `e195135` el 22-10 16:17 MX** (rollback `prev-20261022-1617`, smoke OK, migración del
+  recordatorio de eventos aplicada; /soporte, /eliminar-cuenta, /privacidad, /terminos y /reglas en 200).
+- **Android, segunda tanda** (agente, compila y 44 pruebas en verde): `ReaccionarRequest.tipo` no nulo,
+  fotos en las publicaciones del perfil, aviso de moderación al publicar, voto que se queda marcado
+  (`encuesta.miVoto` en la API y el contrato), id real del mensaje enviado, «Ver comentarios anteriores»,
+  navegación de Yo/Perfil y deep link a la pestaña Eventos, MainShell con pestaña guardada, Atrás y sin doble
+  espacio sobre el teclado, Ajustes manda `""` para borrar y no deja editar si el perfil no cargó,
+  `PendingPostSync` registrado una vez, casilla de términos, pantalla de Reglas, términos y privacidad al día.
+  Dos fallos extra: guardar en Ajustes siempre tronaba al leer `{ ok: true }`, y el texto legal quedaba
+  debajo de la barra.
+- **Funciones nuevas sin cambio visual grande:** recordatorio de aventón (~30 min antes, conductor con
+  pasajeros y cada pasajero; tipo `AVENTON_RECORDATORIO`, migración aditiva `20261022200000`) y «Agregar a
+  mi calendario» (`GET /eventos/:id/calendario.ics`, botón en la web). Lista completa y priorizada de lo que
+  falta para 18-22, con lo visual marcado para mockup: `docs/funciones-universitarios.md`.
+- **Privacidad corregida otra vez:** las apps mandan fallos y eventos de uso a `/analytics/*` ligados a la
+  cuenta; ya lo dicen el aviso, la etiqueta de Apple y la Seguridad de los datos de Play.
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: iOS para Apple 1.2 y capturas de tienda)
 

@@ -50,7 +50,9 @@ export default function Privacidad() {
         <li>
           <strong>Datos técnicos:</strong> dirección IP y tipo de navegador o teléfono (para limitar
           intentos y cuidar tu cuenta), cookies de sesión y, si aceptas avisos, el identificador de
-          notificaciones de tu teléfono o navegador.
+          notificaciones de tu teléfono o navegador. La app nos manda, ligados a tu cuenta, el error
+          y la versión cuando se cierra de golpe, y eventos de uso básicos (como entrar o confirmar
+          un evento) para saber qué funciona y qué arreglar.
         </li>
       </ul>
       <p>

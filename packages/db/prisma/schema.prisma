@@ -606,6 +606,7 @@ enum TipoNotificacion {
   EVENTO_RECORDATORIO
   AVENTON_APARTADO
   AVENTON_CANCELADO
+  AVENTON_RECORDATORIO
   MODERACION
   MENCION
   SEGUIDOR
@@ -794,6 +795,8 @@ model Aventon {
   cuotaMxn     Int            @default(0)
   nota         String?        @db.VarChar(500)
   estado       EstadoContenido @default(PUBLICADO)
+  /// Cuando se le avisó al conductor que su aventón está por salir.
+  recordatorioAt DateTime?
   createdAt    DateTime       @default(now())
 
   conductor  User            @relation("conductor", fields: [conductorId], references: [id], onDelete: Cascade)
@@ -808,6 +811,8 @@ model AsientoAventon {
   id        String   @id @default(cuid())
   aventonId String
   userId    String
+  /// Cuando se le avisó al pasajero que el aventón está por salir.
+  recordatorioAt DateTime?
   createdAt DateTime @default(now())
 
   aventon Aventon @relation(fields: [aventonId], references: [id], onDelete: Cascade)

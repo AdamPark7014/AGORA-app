@@ -14,6 +14,7 @@ const ETIQUETAS: Record<string, string> = {
   EVENTO_RECORDATORIO: 'Recordatorio de eventos a los que vas',
   AVENTON_APARTADO: 'Aventones',
   AVENTON_CANCELADO: 'Aventones cancelados',
+  AVENTON_RECORDATORIO: 'Tu aventón está por salir',
   MODERACION: 'Moderación',
   INSIGNIA: 'Insignias',
   RETO: 'Retos y duelos',

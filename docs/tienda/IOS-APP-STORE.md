@@ -62,12 +62,16 @@ https://udlagora.com/privacidad.
 | Contenido del usuario → Otro contenido del usuario | Publicaciones, comentarios, mensajes directos, anuncios, eventos, aventones, encuestas | Sí | Funcionalidad de la app |
 | Identificadores → ID de usuario | Id interno y nombre de usuario | Sí | Funcionalidad de la app |
 | Identificadores → ID del dispositivo | Token de notificaciones (APNs) | Sí | Funcionalidad de la app |
-| Datos de uso → Interacción con el producto | Seguir, guardar, reaccionar, rachas, insignias | Sí | Funcionalidad de la app; Analíticas |
-| Diagnóstico → Datos de fallos | Errores del servidor (sin datos personales) | No | Funcionalidad de la app |
+| Datos de uso → Interacción con el producto | Seguir, guardar, reaccionar, rachas, insignias y eventos de uso que la app manda a `POST /analytics/evento` (entrar, confirmar un evento, publicar) | Sí | Funcionalidad de la app; Analíticas |
+| Diagnóstico → Datos de fallos | Mensaje y traza de los cierres inesperados, con la versión, que la app manda a `POST /analytics/crash` con la sesión | Sí | Funcionalidad de la app; Analíticas |
 | Otros datos → Otros tipos de datos | Cumpleaños sin año, carrera, generación, colegio, ciudad de origen, Instagram, intereses | Sí | Funcionalidad de la app |
 
 **No** se recopila: ubicación, contactos, salud, finanzas, compras, historial de navegación o de búsqueda,
-datos sensibles, audio. La app no tiene anuncios ni SDKs de terceros (el push de iOS va directo a APNs).
+datos sensibles, audio. La app no tiene anuncios ni SDKs de terceros (el push de iOS va directo a APNs; los
+fallos y eventos de uso van a la API propia).
+
+`PrivacyInfo.xcprivacy` declara los fallos como **no** ligados: hay que cambiarlo a ligado (la API los guarda
+con el id del usuario) para que coincida con esta tabla. Pedido a la sesión de móvil.
 
 ## 6. Información de revisión
 

@@ -32,6 +32,7 @@ const ICONO: Record<string, LucideIcon> = {
   EVENTO_RECORDATORIO: CalendarDays,
   AVENTON_APARTADO: Car,
   AVENTON_CANCELADO: Car,
+  AVENTON_RECORDATORIO: Car,
   MODERACION: Scale,
   MENCION: AtSign,
   SEGUIDOR: UserPlus,

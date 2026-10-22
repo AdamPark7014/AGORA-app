@@ -100,12 +100,13 @@ Coincide con https://udlagora.com/privacidad y con la etiqueta de Apple (`IOS-AP
 | Fotos y videos → Fotos | Opcional | Funciones de la app |
 | Fotos y videos → Videos | Opcional | Funciones de la app |
 | Mensajes → Otros mensajes en la app (mensajes directos) | Opcional | Funciones de la app |
-| Actividad en la app → Interacciones en la app (seguir, guardar, reaccionar, rachas) | Obligatorio | Funciones de la app, estadísticas |
+| Actividad en la app → Interacciones en la app (seguir, guardar, reaccionar, rachas y eventos de uso que la app manda a `/analytics/evento`) | Obligatorio | Funciones de la app, estadísticas |
+| Información y rendimiento de la app → Registros de fallos (mensaje, traza y versión, a `/analytics/crash`) | Obligatorio | Estadísticas |
 | Actividad en la app → Otro contenido generado por el usuario (publicaciones, comentarios, eventos, aventones, anuncios) | Opcional | Funciones de la app |
 | ID de dispositivo u otros → ID del dispositivo (token de notificaciones de FCM) | Opcional | Funciones de la app |
 
 **No** se recopila: ubicación, información financiera, salud, contactos, calendario, audio, archivos,
-historial web, búsquedas, registros de fallos ni diagnósticos de la app Android (no lleva SDK de fallos).
+historial web ni búsquedas. Los fallos y eventos de uso van a la API propia, no a un SDK de terceros.
 
 ## 7. Después de la ficha
 

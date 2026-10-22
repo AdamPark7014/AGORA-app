@@ -9,8 +9,10 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   crearEventoSchema,
   editarEventoSchema,
@@ -26,6 +28,7 @@ import {
 
 import { ZodPipe } from '../comun/zod.pipe.js';
 import { SesionGuard, type RequestConSesion } from '../comun/sesion.guard.js';
+import { icsDeEvento } from './calendario.js';
 import { EventosService } from './eventos.service.js';
 
 @Controller('eventos')
@@ -52,6 +55,23 @@ export class EventosController {
   @Get(':id')
   async detalle(@Req() req: RequestConSesion, @Param('id') id: string) {
     return this.eventos.detalle(id, req.usuario!.id);
+  }
+
+  /**
+   * «Agregar a mi calendario»: el mismo evento como .ics. Pasa por `detalle`,
+   * así que solo lo baja quien puede ver el evento.
+   */
+  @Get(':id/calendario.ics')
+  async calendario(
+    @Req() req: RequestConSesion,
+    @Param('id') id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<string> {
+    const evento = await this.eventos.detalle(id, req.usuario!.id);
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="agora-evento-${evento.id}.ics"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return icsDeEvento(evento);
   }
 
   @Post()

@@ -42,6 +42,8 @@ export const feedPostResponseSchema = z.object({
           votos: z.number().int(),
         }),
       ),
+      /** Id de la opcion que voto quien mira; `null` si no ha votado. */
+      miVoto: z.string().nullable(),
     })
     .nullable(),
   numComments: z.number().int(),

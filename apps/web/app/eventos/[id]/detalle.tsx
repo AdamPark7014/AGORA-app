@@ -152,16 +152,29 @@ export default function EventoDetalle({ params }: { params: Promise<{ id: string
           </Link>
         )}
 
-        {!evento.esMio && (
-          <div className="acciones" style={{ marginTop: 18 }}>
-            <button type="button" className={evento.miRespuesta === 'VOY' ? '' : 'secundario'} onClick={() => responder('VOY')}>
-              {evento.miRespuesta === 'VOY' ? '✓ Voy' : 'Voy'}
-            </button>
-            <button type="button" className="fantasma" onClick={() => responder('ME_INTERESA')}>
-              {evento.miRespuesta === 'ME_INTERESA' ? '✓ Me interesa' : 'Me interesa'}
-            </button>
-          </div>
-        )}
+        <div className="acciones" style={{ marginTop: 18 }}>
+          {!evento.esMio && (
+            <>
+              <button type="button" className={evento.miRespuesta === 'VOY' ? '' : 'secundario'} onClick={() => responder('VOY')}>
+                {evento.miRespuesta === 'VOY' ? '✓ Voy' : 'Voy'}
+              </button>
+              <button type="button" className="fantasma" onClick={() => responder('ME_INTERESA')}>
+                {evento.miRespuesta === 'ME_INTERESA' ? '✓ Me interesa' : 'Me interesa'}
+              </button>
+            </>
+          )}
+          {/* Mismo origen: la cookie de sesión va sola y el navegador lo abre
+              con Calendario o Google Calendar. */}
+          <a
+            href={`/api/eventos/${id}/calendario.ics`}
+            download
+            className="reaccion"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+          >
+            <CalendarDays size={16} strokeWidth={1.75} aria-hidden="true" />
+            Agregar a mi calendario
+          </a>
+        </div>
 
         {evento.esMio && (
           <button type="button" className="fantasma" style={{ marginTop: 16 }} onClick={async () => {

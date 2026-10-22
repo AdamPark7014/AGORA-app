@@ -82,3 +82,34 @@ test('los adjuntos mandan la miniatura y las medidas para las listas', () => {
     },
   );
 });
+
+test('la encuesta trae el voto de quien mira para que sobreviva a recargar', () => {
+  const conEncuesta = {
+    ...post(false),
+    poll: {
+      id: 'poll1',
+      postId: 'p1',
+      pregunta: 'cafe o te?',
+      cierraAt: null,
+      options: [
+        { id: 'o1', pollId: 'poll1', texto: 'cafe', orden: 0, _count: { votes: 3 }, votes: [] },
+        { id: 'o2', pollId: 'poll1', texto: 'te', orden: 1, _count: { votes: 1 }, votes: [{ id: 'v1' }] },
+      ],
+    },
+  } as unknown as PostConRelaciones;
+
+  const vista = aVistaPost(conEncuesta, false);
+  assert.equal(vista.encuesta?.miVoto, 'o2');
+  assert.deepEqual(vista.encuesta?.opciones.map((o) => o.votos), [3, 1]);
+  // Los votos crudos (de quien sea) no salen: solo el id de la opcion propia.
+  assert.ok(!JSON.stringify(vista).includes('v1'));
+
+  const sinVoto = aVistaPost(
+    {
+      ...conEncuesta,
+      poll: { ...conEncuesta.poll!, options: conEncuesta.poll!.options.map((o) => ({ ...o, votes: [] })) },
+    } as PostConRelaciones,
+    false,
+  );
+  assert.equal(sinVoto.encuesta?.miVoto, null);
+});

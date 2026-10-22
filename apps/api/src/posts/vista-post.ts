@@ -17,8 +17,10 @@ import { esStaff } from '@agora/rbac';
 /**
  * Lo que hay que traer de la base para poder pintar una publicacion.
  *
- * Es funcion y no constante porque `reactions` se filtra por quien mira: solo
- * interesa **tu** reaccion, no las nueve mil.
+ * Es funcion y no constante porque `reactions` y los `votes` de la encuesta se
+ * filtran por quien mira: solo interesa **tu** reaccion y **tu** voto, no los
+ * nueve mil. Prisma los trae en la misma tanda que el resto del `include` (una
+ * consulta por relacion para toda la pagina, no una por publicacion).
  */
 export const incluirVistaPost = (userId: string) =>
   ({
@@ -33,7 +35,13 @@ export const incluirVistaPost = (userId: string) =>
     media: true,
     poll: {
       include: {
-        options: { orderBy: { orden: 'asc' }, include: { _count: { select: { votes: true } } } },
+        options: {
+          orderBy: { orden: 'asc' },
+          include: {
+            _count: { select: { votes: true } },
+            votes: { where: { userId }, select: { id: true } },
+          },
+        },
       },
     },
     reactions: { where: { userId }, select: { tipo: true } },
@@ -98,6 +106,11 @@ export interface VistaPost {
   encuesta: {
     pregunta: string;
     opciones: Array<{ id: string; texto: string; votos: number }>;
+    /**
+     * Id de la opcion que voto quien mira, o `null` si no ha votado. Antes solo
+     * lo devolvia `POST posts/:id/votos`: al recargar, la app olvidaba el voto.
+     */
+    miVoto: string | null;
   } | null;
   numComments: number;
   numReactions: number;
@@ -146,6 +159,7 @@ export function aVistaPost(post: PostConRelaciones, miGuardado: boolean): VistaP
             texto: o.texto,
             votos: o._count.votes,
           })),
+          miVoto: post.poll.options.find((o) => o.votes.length > 0)?.id ?? null,
         }
       : null,
     numComments: post.numComments,
