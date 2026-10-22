@@ -93,8 +93,48 @@ después del despliegue (o cuando quiera, desde Ajustes).
 - `e2e/contrasena.spec.ts` (API real) y `registro-y-feed.spec.ts` (navegador):
   código → contraseña → entrar sin código.
 
+## Correo personal cuando el código UDLAP tarda (22-10-2026)
+
+Outlook de la UDLAP a veces tarda horas o manda el código a cuarentena. Quien no
+lo recibe puede **registrarse con su correo personal** y confirmar el UDLAP
+después:
+
+1. En «Revisa tu correo»: «¿No te llegó? Regístrate con tu correo personal».
+2. `POST /auth/otp/personal/solicitar {email, correoPersonal}`: la API pregunta
+   a Microsoft si el buzón @udlap.mx existe (`GetCredentialType`, el mismo
+   endpoint que usa el inicio de sesión de Outlook; no manda nada ni inicia
+   sesión). 0 = existe → manda el código al correo personal; 1 = no existe →
+   400 «Ese correo no existe en la UDLAP»; sin respuesta → 503 (no se adivina).
+   `VERIFICAR_BUZON_UDLAP=off` lo apaga en desarrollo y CI.
+3. `POST /auth/otp/personal/verificar {email, correoPersonal, codigo, modo?}`:
+   abre sesión; la cuenta queda **pendiente de UDLAP** 30 días
+   (`users.udlapPendienteDesde`, `PLAZO_UDLAP_DIAS` en `@agora/auth`).
+4. Las apps y la web avisan arriba del feed y en Ajustes («Confirma tu correo
+   UDLAP · te quedan N días»). Confirmar = pedir el código normal al @udlap.mx
+   y canjearlo con `otp/verificar`.
+5. Vencido el plazo, `SesionGuard` responde **403** en todo menos `/auth/*` y
+   `/cuenta/*`; las pantallas muestran un bloqueo con el mismo flujo de
+   confirmar. `GET /auth/yo` trae `udlapPendiente`, `udlapVenceEn`,
+   `udlapVencida` y `udlapDiasRestantes`.
+
+Reglas de seguridad:
+
+- **El buzón UDLAP sigue siendo la raíz de confianza.** Confirmarlo borra el
+  correo personal y la contraseña y cierra todas las sesiones: si alguien se
+  registró con el correo UDLAP de otra persona, el dueño la recupera al
+  confirmar y elige su contraseña.
+- Solo para cuentas que **nunca** confirmaron su UDLAP (`emailVerifiedAt` nulo):
+  una cuenta confirmada entra con contraseña o con el código institucional.
+- El código personal va atado a ese correo (`otp_codes.destino = 'personal'`,
+  hash con el correo personal): no sirve por la puerta del código UDLAP ni con
+  otro correo. Comparte el cupo de 1 por minuto y 10 al día por cuenta.
+- Un correo personal, una cuenta (`users.correoPersonal` único). Ni la
+  contraseña ni el código personal marcan `emailVerifiedAt`.
+
+Migración aditiva `20261022140000_correo_personal`. Pruebas en
+`apps/api/src/auth/auth.personal.test.ts` y `packages/auth/src/udlap.test.ts`.
+
 ## Pendiente
 
-- Apps nativas (Android/iOS): siguen entrando con código. Falta pantalla de
-  contraseña (`POST /auth/entrar` con `modo: 'token'`) y «crear contraseña»
-  tras el código.
+- Nada en las apps nativas: Android e iOS ya entran con contraseña (21-10) y
+  tienen el registro con correo personal (22-10).

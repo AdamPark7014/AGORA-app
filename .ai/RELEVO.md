@@ -27,6 +27,39 @@ completas las fichas de App Store y Play. Hecho hasta ahora:
   vería un feed vacío (riesgo de rechazo 2.1/4.2). Antes de mandar a revisión hace falta contenido real
   publicado por el equipo (bienvenida, eventos reales del campus); no se inventó nada.
 
+## Hecho en este turno (22-10, sesión lateral de móvil: correo personal y fallos de iOS)
+
+Adam: «si el código institucional tarda, que puedan registrarse con su correo normal y lo confirmen
+después» + «mejora todas esas posibles problemáticas» + TestFlight nuevo verificado.
+- **Registro con correo personal** (contrato en `docs/autenticacion.md` pendiente de ampliar; el detalle
+  está en los commits). Si el código UDLAP no llega, «¿No te llegó? Regístrate con tu correo personal»:
+  la API pregunta a **Microsoft (GetCredentialType)** si el buzón @udlap.mx existe (0 existe, 1 no; sin
+  respuesta → 503, no se adivina; `VERIFICAR_BUZON_UDLAP=off` lo apaga en dev/CI), manda el código al
+  personal (atado a ese correo, `otp_codes.destino='personal'`, comparte cupo 1/min y 10/día) y la cuenta
+  queda **pendiente de UDLAP 30 días** (`users.udlapPendienteDesde`, `users.correoPersonal` único).
+  Vencido el plazo, `SesionGuard` da **403** en todo salvo `/auth/*` y `/cuenta/*` (no 401: la sesión
+  sigue). **El buzón UDLAP manda:** confirmar con el código UDLAP borra el correo personal y la
+  contraseña y cierra todas las sesiones (si alguien se registró con el correo de otro, el dueño la
+  recupera y elige contraseña). Solo para cuentas que nunca confirmaron UDLAP. Migración aditiva
+  `20261022140000_correo_personal`. API `0c45850` (CI 250/250; en esta PC las pruebas de la API no
+  corren: Control de aplicaciones bloquea el binario de argon2), web `298e3dd`, Android `b45746d`
+  (42/42), iOS `c7b9024`. **Desplegado** API (`0c45850`) y web (`298e3dd`) el 22-10 ~14:45 MX, rollback
+  `prev-20261022-1444`; probado en producción: buzón inexistente → «Ese correo no existe en la UDLAP».
+- **iOS, toques:** «Enviarme el código» no respondía fuera de las letras (TestFlight 2): ButtonStyle
+  propio sin `contentShape`. Arreglado en `AgoraScaleButtonStyle` y los 47 `.plain` → `.agoraPlain`;
+  enlaces del login de 44 pt, «Listo» encima del teclado (tapaba «Entrar»), código exige 6 dígitos.
+- **iOS, fallos de contrato** (auditoría Android de la otra sesión, `7f45a63`): reacciones del anónimo
+  con tipo siempre, selector de generación, aventones con sentido y fecha, evento con DatePicker y fin,
+  estado/aviso al publicar, «Ver comentarios anteriores», media en perfil ajeno, mensaje enviado al
+  momento; etiqueta `EVENTO_RECORDATORIO`.
+- **Pruebas de interfaz iOS** (`ios.yml` → job `pruebas-ui`): XCUITest contra `.github/scripts/api-falsa.py`
+  en el Mac del CI, tocando cada botón en su borde (crear cuenta, correo personal, código malo,
+  contraseña mala) + 18 unitarias. `ApiClient` acepta `AGORA_API_URL` del entorno (solo pruebas/Xcode).
+- **TestFlight 1.0.0 (4)** subido con todo lo anterior; grupo interno «Equipo Ágora» (Adam).
+- **Pendiente:** Play necesita un AAB nuevo (versionCode ≥ 3) con el correo personal; la otra sesión
+  tiene arreglos de Android sin commitear y la subida de la ficha por API: acordado que lo lance quien
+  cierre Android. `docs/autenticacion.md` aún no describe el correo personal.
+
 ## Hecho en este turno (21-10)
 
 Adam pidió tres cosas: estado de builds móviles, ícono nuevo y login sin fricción.
