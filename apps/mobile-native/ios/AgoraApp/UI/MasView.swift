@@ -104,7 +104,7 @@ struct MasView: View {
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 14)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.agoraPlain)
 
                             if index < seccion.enlaces.count - 1 {
                                 Divider()
@@ -179,7 +179,7 @@ struct MasView: View {
                     .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 
     private func avatarConAnillo(nombre: String) -> some View {

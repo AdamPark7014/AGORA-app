@@ -26,7 +26,7 @@ struct CampusTipBanner: View {
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         .padding(6)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.agoraPlain)
                 .accessibilityLabel("Cerrar tip")
             }
             .padding(.horizontal, AgoraDesign.Spacing.sm + 2)

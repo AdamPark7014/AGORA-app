@@ -273,7 +273,7 @@ struct FeedView: View {
                         .stroke(selected ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.borde, lineWidth: 1)
                 }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 
     private func cargarComunidades() async {
@@ -402,7 +402,7 @@ struct EventosView: View {
                                         )
                                 }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.agoraPlain)
                     }
                 }
                 .padding(.horizontal, AgoraDesign.Spacing.sm)
@@ -551,7 +551,7 @@ private struct EventoCardView: View {
                     .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 }
 
@@ -823,7 +823,7 @@ struct ProfileView: View {
             .background(AgoraDesign.Colors.superficie)
             .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 }
 

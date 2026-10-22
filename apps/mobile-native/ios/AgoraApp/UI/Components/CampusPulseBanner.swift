@@ -33,7 +33,7 @@ struct CampusPulseBanner: View {
                                                 .foregroundStyle(AgoraDesign.Colors.naranja)
                                                 .clipShape(Capsule())
                                         }
-                                        .buttonStyle(.plain)
+                                        .buttonStyle(.agoraPlain)
                                     }
                                 }
                             }
@@ -60,7 +60,7 @@ struct CampusPulseBanner: View {
                                             }
                                             .frame(width: 64)
                                         }
-                                        .buttonStyle(.plain)
+                                        .buttonStyle(.agoraPlain)
                                     }
                                 }
                             }

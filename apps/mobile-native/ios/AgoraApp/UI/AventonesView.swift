@@ -184,7 +184,7 @@ struct AventonesView: View {
                         .stroke(selected ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.borde, lineWidth: 1)
                 }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 
     private func cargar() async {

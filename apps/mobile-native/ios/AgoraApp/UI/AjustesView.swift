@@ -45,6 +45,8 @@ struct AjustesView: View {
     /// Si la cuenta ya tiene contraseña (`auth/yo`). `nil`: API anterior o sin respuesta; no se muestra la tarjeta.
     @State private var tieneContrasena: Bool?
     @State private var contrasenaAbierta = false
+    @State private var confirmandoUdlap = false
+    @ObservedObject private var udlap = UdlapEstado.shared
     @State private var cargando = true
     @State private var guardando = false
     @State private var subiendoFoto = false
@@ -117,6 +119,7 @@ struct AjustesView: View {
                             seccionComunidades
                             seccionNotificaciones
                             seccionApariencia
+                            seccionUdlap
                             seccionContrasena
                         }
 
@@ -340,6 +343,39 @@ struct AjustesView: View {
         }
     }
 
+    /// Tarjeta «Correo UDLAP»: solo si la cuenta se registró con correo personal
+    /// y aún no confirma su buzón @udlap.mx.
+    @ViewBuilder
+    private var seccionUdlap: some View {
+        if udlap.pendiente {
+            VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
+                Text(AgoraCopy.udlapAvisoTitulo)
+                    .font(.headline)
+                    .padding(.top, AgoraDesign.Spacing.xs)
+                Text(AgoraCopy.udlapAvisoTexto(udlap.diasRestantes ?? 30))
+                    .font(.caption)
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    .fixedSize(horizontal: false, vertical: true)
+                AgoraOutlinedButton(title: AgoraCopy.udlapAjustesBoton, action: { confirmandoUdlap = true })
+                    .accessibilityIdentifier("ajustes.udlap")
+            }
+            .sheet(isPresented: $confirmandoUdlap) {
+                NavigationStack {
+                    ConfirmarUdlapView(modo: .normal) {
+                        confirmandoUdlap = false
+                        Task { await cargar() }
+                    }
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(AgoraCopy.ajustesContrasenaCancelar) { confirmandoUdlap = false }
+                        }
+                    }
+                }
+                .environmentObject(SessionStore.shared)
+            }
+        }
+    }
+
     /// Tarjeta «Contraseña» (paridad con `componentes/seccion-contrasena.tsx`).
     /// Quien aún no tiene (cuenta de antes de las contraseñas) la crea aquí sin
     /// más trámite: su sesión ya prueba que el buzón es suyo. Quien tiene, la
@@ -410,7 +446,7 @@ struct AjustesView: View {
                             .background(AgoraDesign.Colors.naranjaSuave)
                             .clipShape(Capsule())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.agoraPlain)
                 }
             }
             HStack {
@@ -523,7 +559,7 @@ struct AjustesView: View {
                 .foregroundStyle(visibilidad == valor ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.texto)
                 .clipShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 
     private func agregarInteres() {

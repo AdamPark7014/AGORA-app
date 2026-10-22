@@ -39,6 +39,8 @@ struct AgoraApp: App {
 /// Raíz de navegación: login → welcome → registro → tabs principales.
 struct RootView: View {
     @EnvironmentObject var session: SessionStore
+    /// Correo UDLAP pendiente (registro con correo personal): aviso y bloqueo.
+    @ObservedObject private var udlap = UdlapEstado.shared
 
     @State private var showWelcome = false
 
@@ -61,6 +63,14 @@ struct RootView: View {
                 RegistroView(onCompletado: { _ in
                     PendingDeepLink.flush()
                 })
+            } else if udlap.vencida {
+                // Pasó el plazo para confirmar el correo UDLAP: la API ya no
+                // deja usar nada más (403), así que no se muestra el feed.
+                NavigationStack {
+                    ConfirmarUdlapView(modo: .bloqueo) {
+                        Task { await udlap.refrescar() }
+                    }
+                }
             } else {
                 SessionExpiredHost {
                     MainTabView()
@@ -68,6 +78,7 @@ struct RootView: View {
                 }
             }
         }
+        .task(id: session.currentUser?.token) { await udlap.refrescar() }
         .animation(.easeInOut(duration: 0.2), value: session.currentUser?.tienePerfil)
         .insigniaCelebracionOverlay()
         .onAppear {

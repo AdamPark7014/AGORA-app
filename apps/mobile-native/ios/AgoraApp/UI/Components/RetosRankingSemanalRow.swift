@@ -68,7 +68,7 @@ struct RetosRankingSemanalRow: View {
             .background(AgoraDesign.Colors.fondo)
             .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 
     @ViewBuilder

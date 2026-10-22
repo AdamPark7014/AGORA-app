@@ -10,6 +10,7 @@ on:
     paths:
       - 'apps/mobile-native/ios/**'
       - '.github/workflows/ios.yml'
+      - '.github/scripts/api-falsa.py'
 
 concurrency:
   group: ios-${{ github.ref }}
@@ -60,4 +61,62 @@ jobs:
           path: |
             apps/mobile-native/ios/capturas
             apps/mobile-native/ios/xcodebuild.log
+          if-no-files-found: warn
+
+  # Pruebas de interfaz (XCUITest) contra una API falsa en el mismo Mac:
+  # recorren la puerta de entrada tocando cada botón cerca de su borde, que es
+  # donde TestFlight 1.0.0 (2) no respondía, y comprueban que la petición llega
+  # y que la pantalla muestra lo que contesta el servidor.
+  pruebas-ui:
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/mobile-native/ios
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generar proyecto (XcodeGen)
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: API falsa en 127.0.0.1:8765
+        run: |
+          nohup python3 "$GITHUB_WORKSPACE/.github/scripts/api-falsa.py" 8765 > "$RUNNER_TEMP/api-falsa.log" 2>&1 &
+          for i in $(seq 1 20); do
+            curl -s -o /dev/null -X POST http://127.0.0.1:8765/api/auth/entrar && break
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/api-falsa.log"
+
+      - name: Pruebas de interfaz y unitarias (simulador)
+        run: |
+          set -o pipefail
+          DEV=$(xcrun simctl list devices available | grep -m1 -E 'iPhone 1[5-7]( Pro)? \(' | sed -E 's/.*\(([A-F0-9-]{36})\).*/\1/')
+          echo "Simulador: $DEV"
+          xcodebuild test \
+            -project AgoraApp.xcodeproj \
+            -scheme AgoraApp \
+            -destination "id=$DEV" \
+            -resultBundlePath "$RUNNER_TEMP/pruebas.xcresult" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \
+            2>&1 | tee xcodebuild-pruebas.log | grep -E "Test Case .*(passed|failed)|error:|\*\* TEST (SUCCEEDED|FAILED)|Executed"
+
+      - name: La API falsa recibió las peticiones de la pantalla
+        if: always()
+        run: |
+          cat "$RUNNER_TEMP/api-falsa.log"
+          for ruta in "POST /api/auth/otp/solicitar" "POST /api/auth/otp/personal/solicitar" "POST /api/auth/entrar" "POST /api/auth/otp/verificar"; do
+            grep -q "$ruta" "$RUNNER_TEMP/api-falsa.log" || { echo "::error::La app no mandó $ruta"; exit 1; }
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-pruebas-ui
+          path: |
+            apps/mobile-native/ios/xcodebuild-pruebas.log
+            ${{ runner.temp }}/pruebas.xcresult
+            ${{ runner.temp }}/api-falsa.log
           if-no-files-found: warn

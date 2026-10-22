@@ -59,7 +59,7 @@ struct SeguidoresView: View {
                     } label: {
                         fila(persona)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.agoraPlain)
                     .listRowBackground(AgoraDesign.Colors.superficie)
                 }
                 .listStyle(.plain)

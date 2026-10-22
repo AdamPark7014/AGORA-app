@@ -156,7 +156,7 @@ struct EventoDetalleView: View {
                                     )
                             }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.agoraPlain)
                 }
             }
             .padding(.vertical, AgoraDesign.Spacing.xs)

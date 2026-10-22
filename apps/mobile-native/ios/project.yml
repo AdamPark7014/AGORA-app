@@ -57,6 +57,24 @@ targets:
         Release:
           CODE_SIGN_ENTITLEMENTS: Resources/AgoraApp.Release.entitlements
 
+  # Pruebas de interfaz en el simulador contra una API falsa (ios.yml →
+  # pruebas-ui): tocan los botones en el borde, donde antes no respondían.
+  AgoraAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: AgoraAppUITests
+    dependencies:
+      - target: AgoraApp
+    settings:
+      base:
+        TEST_TARGET_NAME: AgoraApp
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: mx.agora.mobile.AgoraAppUITests
+        TARGETED_DEVICE_FAMILY: "1"
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGNING_ALLOWED: NO
+
   AgoraAppTests:
     type: bundle.unit-test
     platform: iOS
@@ -82,6 +100,7 @@ schemes:
       config: Debug
       targets:
         - AgoraAppTests
+        - AgoraAppUITests
     profile:
       config: Release
     analyze:

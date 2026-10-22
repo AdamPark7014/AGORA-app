@@ -107,7 +107,7 @@ struct PostCardView: View {
                         .clipShape(Capsule())
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.agoraPlain)
             .disabled(onAuthorTap == nil || esAnonimo)
 
             if !texto.isEmpty {
@@ -128,7 +128,7 @@ struct PostCardView: View {
                             .multilineTextAlignment(.leading)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.agoraPlain)
                 }
             }
 

@@ -38,7 +38,7 @@ struct EncuestaBloque: View {
                     }
                     .frame(height: 36)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.agoraPlain)
                 .disabled(votando)
             }
         }

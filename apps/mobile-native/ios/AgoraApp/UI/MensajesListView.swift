@@ -114,7 +114,7 @@ private struct ConversacionRowView: View {
                     .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 
     private var ultimoTexto: String {

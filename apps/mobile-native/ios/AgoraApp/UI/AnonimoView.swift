@@ -251,7 +251,7 @@ private struct AnonimoPostCard: View {
                                     : AgoraDesign.Colors.textoMedio
                             )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.agoraPlain)
                 }
             }
         }

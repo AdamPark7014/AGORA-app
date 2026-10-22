@@ -16,6 +16,22 @@ struct VerificarOtpResponse: Decodable {
     let tienePerfil: Bool
     let token: String?
     let tieneContrasena: Bool?
+    /// Registrada con correo personal: falta confirmar el buzón UDLAP (22-10-2026).
+    let udlapPendiente: Bool?
+}
+
+/// `POST auth/otp/personal/solicitar`: cuando el código a la UDLAP no llega.
+struct SolicitarOtpPersonalRequest: Encodable {
+    let email: String
+    let correoPersonal: String
+}
+
+/// `POST auth/otp/personal/verificar`: canjea el código del correo personal.
+struct VerificarOtpPersonalRequest: Encodable {
+    let email: String
+    let correoPersonal: String
+    let codigo: String
+    let modo: String
 }
 
 /// `POST auth/entrar`: correo + contraseña. `modo = token` para recibir el Bearer.
@@ -31,6 +47,7 @@ struct EntrarResponse: Decodable {
     let tieneContrasena: Bool?
     let token: String?
     let expiraEn: String?
+    let udlapPendiente: Bool?
 }
 
 /// `POST auth/contrasena`: fija la contraseña sin pedir la actual (cuenta sin
@@ -54,6 +71,12 @@ struct YoResponse: Decodable {
     let tieneContrasena: Bool?
     let puedeModerar: Bool?
     let puedeSuspender: Bool?
+    /// Registro con correo personal: falta confirmar el buzón UDLAP antes del plazo.
+    let udlapPendiente: Bool?
+    let udlapVenceEn: String?
+    /// Pasó el plazo: la API solo deja usar las rutas de la cuenta hasta confirmar.
+    let udlapVencida: Bool?
+    let udlapDiasRestantes: Int?
 }
 
 /// `GET auth/otp/entrega/:envioId` — si el código llegó al buzón.

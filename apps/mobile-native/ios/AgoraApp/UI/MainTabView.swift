@@ -37,6 +37,8 @@ struct MainTabView: View {
                     onHashtagTap: { tag in feedPath.append(AppRoute.hashtag(tag)) },
                     onEventoTap: { id in feedPath.append(AppRoute.eventoDetalle(id)) }
                 )
+                // Registro con correo personal: recordatorio de confirmar la UDLAP.
+                .safeAreaInset(edge: .top) { AvisoUdlapView() }
                 .navigationDestination(for: AppRoute.self) { route in
                     hubDestination(route, path: $feedPath)
                 }
@@ -573,7 +575,7 @@ private struct AgoraAnimatedTabBar: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
         .animation(AgoraDesign.Animation.spring, value: selected)
     }
 

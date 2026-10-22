@@ -125,14 +125,14 @@ struct PerfilAjenoView: View {
                 } label: {
                     Text("\(p.seguidores ?? 0) seguidores").font(.caption)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.agoraPlain)
                 .disabled(p.restringido == true)
                 Button {
                     onSiguiendo(p.handle)
                 } label: {
                     Text("\(p.siguiendo ?? 0) siguiendo").font(.caption)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.agoraPlain)
                 .disabled(p.restringido == true)
             }
             .foregroundStyle(AgoraDesign.Colors.textoMedio)
@@ -262,7 +262,7 @@ struct PerfilAjenoView: View {
                     .background(AgoraDesign.Colors.fondo)
                     .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.agoraPlain)
                 .disabled(enviandoReto)
 
                 Button {
@@ -280,7 +280,7 @@ struct PerfilAjenoView: View {
                     .background(AgoraDesign.Colors.fondo)
                     .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.agoraPlain)
                 .disabled(enviandoReto)
 
                 if enviandoReto {
@@ -341,7 +341,7 @@ struct PerfilAjenoView: View {
                 .background(AgoraDesign.Colors.superficie)
                 .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.agoraPlain)
         }
 
         if cursor != nil {

@@ -68,3 +68,21 @@ struct AgoraScaleButtonStyle: ButtonStyle {
             .animation(AgoraDesign.Animation.press, value: configuration.isPressed)
     }
 }
+
+/// Reemplazo de `.plain` para toda la app. `PlainButtonStyle` solo recibe
+/// toques donde hay algo dibujado: en una fila `HStack { avatar; texto; Spacer() }`
+/// el hueco del Spacer no respondía, y tocar «a un lado» del texto no hacía
+/// nada (el mismo fallo que «Enviarme el código» en TestFlight 1.0.0 (2)).
+/// Este estilo hace tocable todo el rectángulo del contenido y atenúa al pulsar.
+struct AgoraPlainButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.6 : 1)
+    }
+}
+
+extension ButtonStyle where Self == AgoraPlainButtonStyle {
+    /// `.buttonStyle(.agoraPlain)`: como `.plain`, pero tocable en toda su área.
+    static var agoraPlain: AgoraPlainButtonStyle { AgoraPlainButtonStyle() }
+}

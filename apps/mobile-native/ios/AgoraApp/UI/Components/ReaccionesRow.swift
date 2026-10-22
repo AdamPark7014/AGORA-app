@@ -44,7 +44,7 @@ struct ReaccionesRow: View {
                     .font(.subheadline)
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.agoraPlain)
             .disabled(onCommentsTap == nil)
             .padding(.horizontal, 4)
             .padding(.bottom, 4)
@@ -75,7 +75,7 @@ private struct ReaccionButton: View {
                     }
                 }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
         .accessibilityLabel(reaccion.etiqueta)
     }
 }
@@ -104,7 +104,7 @@ struct GuardarButton: View {
                 .font(.title3)
                 .foregroundStyle(estado ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.textoMedio)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
         .disabled(cargando)
         .onChange(of: guardado) { nuevo in estado = nuevo }
     }

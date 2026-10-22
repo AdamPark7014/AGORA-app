@@ -138,6 +138,36 @@ enum AgoraCopy {
     static let ajustesContrasenaCreada = "Listo: ya entras con tu contraseña."
     static let ajustesContrasenaCambiada = "Contraseña cambiada."
 
+    // Registro con correo personal cuando el código UDLAP no llega (22-10-2026)
+    static let loginNoLlego = "¿No te llegó? Regístrate con tu correo personal"
+    static let personalTitulo = "Regístrate con tu correo personal"
+    static let personalExplicacion = "Le preguntamos a Microsoft si tu correo UDLAP existe y te mandamos el código a tu correo personal. Después tendrás 30 días para confirmar tu correo UDLAP desde Ajustes."
+    static let personalEtiqueta = "Tu correo personal"
+    static let personalPlaceholder = "nombre@gmail.com"
+    static let personalBoton = "Mandar el código a mi correo personal"
+    static let personalVolver = "Volver al código UDLAP"
+    static func personalEntradillaCodigo(_ correo: String) -> String {
+        "Te mandamos 6 dígitos a \(correo)."
+    }
+    static let udlapAvisoTitulo = "Confirma tu correo UDLAP"
+    static func udlapAvisoTexto(_ dias: Int) -> String {
+        "Te registraste con tu correo personal. Te quedan \(dias) \(dias == 1 ? "día" : "días") para confirmar tu correo @udlap.mx."
+    }
+    static let udlapAvisoBoton = "Confirmar ahora"
+    static let udlapAjustesBoton = "Confirmar mi correo UDLAP"
+    static let udlapVencidoTitulo = "Confirma tu correo UDLAP para seguir"
+    static let udlapVencidoTexto = "Pasaron los 30 días para confirmar tu correo @udlap.mx. Pide el código a tu correo UDLAP para seguir usando Ágora."
+    static let udlapConfirmarTitulo = "Confirma tu correo UDLAP"
+    static func udlapConfirmarExplicacion(_ email: String) -> String {
+        "Te mandamos un código a \(email). Al confirmarlo, tu cuenta queda verificada y elegirás tu contraseña de nuevo por seguridad."
+    }
+    static let udlapBoton = "Mandarme el código"
+    static let udlapConfirmar = "Confirmar"
+    static let udlapContrasenaTitulo = "Elige tu contraseña de nuevo"
+    static let udlapContrasenaTexto = "Confirmaste tu correo UDLAP. Por seguridad, vuelve a elegir tu contraseña."
+    static let udlapConfirmada = "Listo: confirmaste tu correo UDLAP."
+    static let cerrarSesion = "Cerrar sesión"
+
     // Entrega del código (paridad con `copy.login.codigo.entrega` en la web)
     static let entregaEnviado = "Enviando tu código…"
     static let entregaDemorado = "Outlook está tardando en aceptarlo. Se reintenta solo; dale un minuto."

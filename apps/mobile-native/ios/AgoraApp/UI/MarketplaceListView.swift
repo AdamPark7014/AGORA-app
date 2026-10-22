@@ -117,7 +117,7 @@ struct MarketplaceListView: View {
                         .stroke(selected ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.borde, lineWidth: 1)
                 }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 
     private func programarBusqueda() {
@@ -197,6 +197,6 @@ private struct AnuncioCardView: View {
                     .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 }

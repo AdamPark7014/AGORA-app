@@ -154,7 +154,7 @@ struct PreguntaDelDiaBanner: View {
                     .background(AgoraDesign.Colors.superficie)
                     .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.agoraPlain)
             .disabled(respondiendo)
         }
     }

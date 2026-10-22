@@ -15,6 +15,8 @@ struct CampoContrasena: View {
     /// `true` para una contraseña nueva (el llavero propone una fuerte).
     var nueva = false
     var enviar: (() -> Void)? = nil
+    /// Identificador de accesibilidad del campo (lo usan las pruebas de interfaz).
+    var id: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs) {
@@ -39,13 +41,18 @@ struct CampoContrasena: View {
                         valor = String(nuevoValor.prefix(PoliticaContrasena.maximo))
                     }
                 }
+                .accessibilityIdentifier(id ?? etiqueta)
 
                 Button {
                     visible.toggle()
                 } label: {
                     Image(systemName: visible ? "eye.slash" : "eye")
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                        // 44 pt: el ojito era un blanco de 20 pt, difícil de atinar.
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.agoraPlain)
                 .accessibilityLabel(visible ? AgoraCopy.loginOcultarContrasena : AgoraCopy.loginMostrarContrasena)
             }
             .padding(AgoraDesign.Spacing.sm)

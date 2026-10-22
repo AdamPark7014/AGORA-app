@@ -92,7 +92,7 @@ struct LeaderboardRachasRow: View {
             .background(AgoraDesign.Colors.fondo)
             .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 
     private func leaderboardAvatar(nombre: String) -> some View {

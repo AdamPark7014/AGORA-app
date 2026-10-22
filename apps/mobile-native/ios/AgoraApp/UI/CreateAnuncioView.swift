@@ -96,7 +96,7 @@ struct CreateAnuncioView: View {
                                         .stroke(categoria == cat.valor ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.borde, lineWidth: 1)
                                 }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.agoraPlain)
                     }
                 }
 

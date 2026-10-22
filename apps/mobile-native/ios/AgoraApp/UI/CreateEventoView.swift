@@ -73,7 +73,7 @@ struct CreateEventoView: View {
                                     .foregroundStyle(tipo == valor ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.texto)
                                     .clipShape(Capsule())
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.agoraPlain)
                         }
                     }
                 }

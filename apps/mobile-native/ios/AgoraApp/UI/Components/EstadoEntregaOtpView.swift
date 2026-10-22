@@ -118,7 +118,7 @@ struct EstadoEntregaOtpView: View {
                     Button(accion, action: onAccion)
                         .font(.footnote.bold())
                         .foregroundStyle(AgoraDesign.Colors.naranja)
-                        .buttonStyle(.plain)
+                        .buttonStyle(.agoraPlain)
                 }
             }
             Spacer(minLength: 0)

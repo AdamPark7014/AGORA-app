@@ -62,10 +62,19 @@ final class ApiClient {
 
     private init() {
         #if DEBUG
-        self.baseURL = URL(string: "http://localhost:4200/api")!
+        let porDefecto = URL(string: "http://localhost:4200/api")!
         #else
-        self.baseURL = URL(string: "https://udlagora.com/api")!
+        let porDefecto = URL(string: "https://udlagora.com/api")!
         #endif
+        // Las pruebas de interfaz (`AgoraAppUITests`) apuntan la app a una API
+        // falsa en el Mac del CI. Solo el ejecutor de pruebas o Xcode pueden
+        // poner variables de entorno: una app instalada desde la tienda no.
+        if let otra = ProcessInfo.processInfo.environment["AGORA_API_URL"],
+           let url = URL(string: otra) {
+            self.baseURL = url
+        } else {
+            self.baseURL = porDefecto
+        }
 
         let cfg = URLSessionConfiguration.default
         cfg.timeoutIntervalForRequest = 22

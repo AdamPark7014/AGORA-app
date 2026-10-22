@@ -126,7 +126,7 @@ struct PostDetailView: View {
                             .font(.headline)
                             .foregroundStyle(AgoraDesign.Colors.texto)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.agoraPlain)
                     .disabled(onAuthorTap == nil || post.autor?.handle == nil)
                     Text("· \(post.comunidad.nombre) · \(FormatUtils.haceCuanto(post.createdAt))")
                         .font(.caption)

@@ -5,6 +5,8 @@ import Foundation
 struct EntradaPorCodigo {
     let user: SessionUser
     let tieneContrasena: Bool?
+    /// Se abrió con el correo personal: falta confirmar el buzón UDLAP.
+    var udlapPendiente: Bool = false
 }
 
 /// Repositorio de autenticación (código al correo y contraseña). Paridad con
@@ -52,7 +54,51 @@ final class AuthRepository {
             throw ApiError.http(-1, "La API no devolvió token.")
         }
         let user = await abrirSesion(token: token, email: normalizedEmail, tienePerfil: resp.tienePerfil)
-        return EntradaPorCodigo(user: user, tieneContrasena: resp.tieneContrasena)
+        return EntradaPorCodigo(
+            user: user,
+            tieneContrasena: resp.tieneContrasena,
+            udlapPendiente: resp.udlapPendiente ?? false
+        )
+    }
+
+    /// Cuando el código a la UDLAP no llega: manda uno al correo personal.
+    /// La API antes confirma con Microsoft que el buzón UDLAP existe. Devuelve el
+    /// id de seguimiento de la entrega (cabecera `X-Envio-Id`) o `nil`.
+    @discardableResult
+    func solicitarOtpPersonal(email: String, correoPersonal: String) async throws -> String? {
+        let (_, http) = try await ApiClient.shared.postJSONConRespuesta(
+            "auth/otp/personal/solicitar",
+            body: SolicitarOtpPersonalRequest(email: normalizar(email), correoPersonal: normalizar(correoPersonal))
+        )
+        let cabecera = http.value(forHTTPHeaderField: "X-Envio-Id")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let envioId = cabecera, !envioId.isEmpty else { return nil }
+        return envioId
+    }
+
+    /// Canjea el código del correo personal y guarda la sesión. La cuenta queda
+    /// pendiente de confirmar su UDLAP (plazo de 30 días).
+    func verificarOtpPersonal(email: String, correoPersonal: String, codigo: String) async throws -> EntradaPorCodigo {
+        let normalizedEmail = normalizar(email)
+        let data = try await ApiClient.shared.postJSON(
+            "auth/otp/personal/verificar",
+            body: VerificarOtpPersonalRequest(
+                email: normalizedEmail,
+                correoPersonal: normalizar(correoPersonal),
+                codigo: codigo.trimmingCharacters(in: .whitespacesAndNewlines),
+                modo: "token"
+            )
+        )
+        let resp: VerificarOtpResponse = try ApiClient.decodeOne(data)
+        guard let token = resp.token, !token.isEmpty else {
+            throw ApiError.http(-1, "La API no devolvió token.")
+        }
+        let user = await abrirSesion(token: token, email: normalizedEmail, tienePerfil: resp.tienePerfil)
+        return EntradaPorCodigo(
+            user: user,
+            tieneContrasena: resp.tieneContrasena,
+            udlapPendiente: resp.udlapPendiente ?? true
+        )
     }
 
     /// Entra con correo + contraseña (`POST auth/entrar`) y guarda la sesión igual

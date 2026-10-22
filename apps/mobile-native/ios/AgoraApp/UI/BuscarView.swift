@@ -56,7 +56,7 @@ struct BuscarView: View {
                                     .foregroundStyle(tipo == t.valor ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.texto)
                                     .clipShape(Capsule())
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.agoraPlain)
                         }
                     }
                 }
@@ -170,7 +170,7 @@ struct BuscarView: View {
             .background(AgoraDesign.Colors.superficie)
             .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 
     private func tarjetaResultado(titulo: String? = nil, meta: String, texto: String? = nil, onTap: @escaping () -> Void) -> some View {
@@ -192,7 +192,7 @@ struct BuscarView: View {
             .background(AgoraDesign.Colors.superficie)
             .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 
     private func programarBusqueda() {

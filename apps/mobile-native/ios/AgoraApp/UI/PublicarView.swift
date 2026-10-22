@@ -214,7 +214,7 @@ struct PublicarView: View {
                         .foregroundStyle(slug == c.slug ? AgoraDesign.Colors.naranja : .primary)
                         .clipShape(Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.agoraPlain)
             }
         }
     }

@@ -70,7 +70,7 @@ struct EventosEnVivoBanner: View {
             .background(AgoraDesign.Colors.fondo)
             .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.agoraPlain)
     }
 
     private func badgeText(for evento: EventoEnVivoDto) -> String {
