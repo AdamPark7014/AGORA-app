@@ -8,10 +8,12 @@ import {
 import type { ActualizarPerfil, CrearPerfil } from '@agora/contracts';
 import { esStaff } from '@agora/rbac';
 
+import type { Prisma } from '@agora/db';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from '../auth/auth.service.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
 import { hayBloqueo, ocultosPara } from '../bloqueos/bloqueos.js';
+import { aPersonaResumen } from '../comun/personas.js';
 import { aMediaVista } from '../posts/vista-post.js';
 
 @Injectable()
@@ -359,7 +361,12 @@ export class PerfilService {
       };
     }
 
-    const [seguidores, siguiendo, publicaciones] = await Promise.all([
+    // «Lo siguen Renata e Isabella»: seguidores de este perfil a los que yo sigo.
+    const enComun: Prisma.FollowWhereInput | null =
+      solicitanteId && solicitanteId !== perfil.userId
+        ? { seguidoId: perfil.userId, seguidor: { estado: { not: 'BAJA' }, seguidores: { some: { seguidorId: solicitanteId } } } }
+        : null;
+    const [seguidores, siguiendo, publicaciones, comunes, numSeguidoresEnComun] = await Promise.all([
       this.prisma.follow.count({ where: { seguidoId: perfil.userId } }),
       this.prisma.follow.count({ where: { seguidorId: perfil.userId } }),
       // Sin las anonimas: si el numero de alguien sube justo cuando sale un
@@ -371,6 +378,15 @@ export class PerfilService {
           estado: { in: ['PUBLICADO', 'EN_REVISION'] },
         },
       }),
+      enComun
+        ? this.prisma.follow.findMany({
+            where: enComun,
+            select: { seguidor: { select: { profile: { select: { handle: true, nombre: true, apellidos: true, fotoUrl: true } } } } },
+            orderBy: { createdAt: 'desc' },
+            take: 3,
+          })
+        : Promise.resolve([]),
+      enComun ? this.prisma.follow.count({ where: enComun }) : Promise.resolve(0),
     ]);
 
     return {
@@ -389,6 +405,8 @@ export class PerfilService {
       seguidores,
       siguiendo,
       publicaciones,
+      seguidoresEnComun: comunes.flatMap((f) => (f.seguidor.profile ? [aPersonaResumen(f.seguidor.profile)] : [])),
+      numSeguidoresEnComun,
       generacion: perfil.generacion,
       escuela: perfil.carrera?.escuela.nombre ?? null,
       carrera: perfil.carrera?.nombre ?? null,

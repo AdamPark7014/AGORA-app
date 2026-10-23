@@ -14,6 +14,8 @@ import { moderacionPreviaActiva } from '../comun/moderacion.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
 import { enSegundoPlano } from '../comun/segundo-plano.js';
 import { mapearEventoEnVivo, whereEventosEnVivo } from './eventos-en-vivo.js';
+import { elegirAsistentes, type PersonaResumen } from '../comun/personas.js';
+import { ocultosPara } from '../bloqueos/bloqueos.js';
 
 const VISIBLES = ['PUBLICADO', 'EN_REVISION'] as const;
 
@@ -29,6 +31,31 @@ export class EventosService {
   private async moderar(texto: string): Promise<Veredicto> {
     if (!moderacionPreviaActiva()) return { decision: DECISIONES.PUBLICAR };
     return moderarTexto(texto, { apiKey: process.env.OPENAI_API_KEY! });
+  }
+
+  /**
+   * «Quién va» para la fila de avatares del diseño D: hasta 5 por evento,
+   * primero gente que sigues. Dos consultas para toda la página, no una por
+   * evento.
+   */
+  private async asistentesDe(eventoIds: string[], userId: string): Promise<Map<string, PersonaResumen[]>> {
+    if (eventoIds.length === 0) return new Map();
+    const [filas, ocultos, sigo] = await Promise.all([
+      this.prisma.asistenciaEvento.findMany({
+        where: { eventoId: { in: eventoIds }, respuesta: 'VOY' },
+        select: {
+          eventoId: true,
+          userId: true,
+          user: { select: { profile: { select: { handle: true, nombre: true, apellidos: true, fotoUrl: true } } } },
+        },
+        orderBy: { createdAt: 'asc' },
+        // Con 5 por evento basta; el tope evita traerse eventos de miles.
+        take: eventoIds.length * 60,
+      }),
+      ocultosPara(this.prisma, userId),
+      this.prisma.follow.findMany({ where: { seguidorId: userId }, select: { seguidoId: true } }),
+    ]);
+    return elegirAsistentes(filas, new Set(sigo.map((f) => f.seguidoId)), ocultos, userId);
   }
 
   async crear(userId: string, datos: CrearEvento) {
@@ -184,6 +211,7 @@ export class EventosService {
       orderBy: { inicioAt: 'asc' },
       take: filtros.limite,
     });
+    const asistentes = await this.asistentesDe(eventos.map((e) => e.id), userId);
 
     return {
       eventos: eventos.map((e) => ({
@@ -206,6 +234,7 @@ export class EventosService {
           : null,
         comunidad: e.community ? { slug: e.community.slug, nombre: e.community.nombre } : null,
         vanAIr: e._count.asistencias,
+        asistentes: asistentes.get(e.id) ?? [],
         miRespuesta: e.asistencias[0]?.respuesta ?? null,
       })),
     };
@@ -274,6 +303,7 @@ export class EventosService {
       },
     });
     if (!evento) throw new NotFoundException('Ese evento no existe.');
+    const asistentes = await this.asistentesDe([evento.id], userId);
 
     return {
       id: evento.id,
@@ -296,6 +326,7 @@ export class EventosService {
         : null,
       comunidad: evento.community ? { slug: evento.community.slug, nombre: evento.community.nombre } : null,
       vanAIr: evento._count.asistencias,
+      asistentes: asistentes.get(evento.id) ?? [],
       miRespuesta: evento.asistencias[0]?.respuesta ?? null,
     };
   }

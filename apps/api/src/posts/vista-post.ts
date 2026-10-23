@@ -114,6 +114,8 @@ export interface VistaPost {
   } | null;
   numComments: number;
   numReactions: number;
+  /** Cuántas de cada reacción: el diseño D las muestra como chips con número. */
+  reacciones: ConteoReacciones;
   miReaccion: string | null;
   anonimo: boolean;
   /** Solo en publicaciones anonimas; en las firmadas es `null`. */
@@ -131,7 +133,51 @@ export interface VistaPost {
  * (detalle, guardados, feed). El alias solo se manda en las anonimas: en una
  * firmada ligaria a la persona real con su alias.
  */
-export function aVistaPost(post: PostConRelaciones, miGuardado: boolean): VistaPost {
+export const TIPOS_REACCION = ['ME_LATE', 'ME_RIO', 'APOYO', 'NO_MAMES'] as const;
+export type ConteoReacciones = Record<(typeof TIPOS_REACCION)[number], number>;
+
+export const sinReacciones = (): ConteoReacciones => ({ ME_LATE: 0, ME_RIO: 0, APOYO: 0, NO_MAMES: 0 });
+
+type ConReacciones = {
+  reaction: {
+    groupBy(args: {
+      by: ['postId', 'tipo'];
+      where: { postId: { in: string[] } };
+      _count: { _all: true };
+    }): PromiseLike<Array<{ postId: string; tipo: string; _count: { _all: number } }>>;
+  };
+};
+
+/**
+ * Reacciones por tipo de varias publicaciones en UNA consulta (`groupBy`), no
+ * una por publicación: el feed pide 20 a la vez.
+ */
+export async function conteosReacciones(
+  prisma: ConReacciones,
+  postIds: string[],
+): Promise<Map<string, ConteoReacciones>> {
+  const conteos = new Map<string, ConteoReacciones>();
+  if (postIds.length === 0) return conteos;
+  const filas = await prisma.reaction.groupBy({
+    by: ['postId', 'tipo'],
+    where: { postId: { in: postIds } },
+    _count: { _all: true },
+  });
+  for (const fila of filas) {
+    const actual = conteos.get(fila.postId) ?? sinReacciones();
+    if ((TIPOS_REACCION as readonly string[]).includes(fila.tipo)) {
+      actual[fila.tipo as keyof ConteoReacciones] = fila._count._all;
+    }
+    conteos.set(fila.postId, actual);
+  }
+  return conteos;
+}
+
+export function aVistaPost(
+  post: PostConRelaciones,
+  miGuardado: boolean,
+  reacciones: ConteoReacciones = sinReacciones(),
+): VistaPost {
   const anonimo = post.anonimo;
   return {
     id: post.id,
@@ -164,6 +210,7 @@ export function aVistaPost(post: PostConRelaciones, miGuardado: boolean): VistaP
       : null,
     numComments: post.numComments,
     numReactions: post.numReactions,
+    reacciones,
     miReaccion: post.reactions[0]?.tipo ?? null,
   };
 }

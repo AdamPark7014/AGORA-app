@@ -249,6 +249,8 @@ export type Reaccionar = z.infer<typeof reaccionarSchema>;
 export const feedSchema = z.object({
   comunidadSlug: z.string().trim().optional(),
   siguiendo: z.enum(['true', 'false']).optional(),
+  /** `clips`: solo publicaciones con video (la pantalla de clips del diseño D). */
+  tipo: z.enum(['todo', 'clips']).optional(),
   cursor: z.string().optional(),
   limite: z.coerce.number().int().min(1).max(50).default(20),
 });

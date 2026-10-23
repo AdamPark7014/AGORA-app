@@ -48,6 +48,12 @@ export const feedPostResponseSchema = z.object({
     .nullable(),
   numComments: z.number().int(),
   numReactions: z.number().int(),
+  reacciones: z.object({
+    ME_LATE: z.number().int(),
+    ME_RIO: z.number().int(),
+    APOYO: z.number().int(),
+    NO_MAMES: z.number().int(),
+  }),
   miReaccion: z.enum(TIPOS_REACCION).nullable(),
 });
 

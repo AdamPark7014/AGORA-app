@@ -4,6 +4,17 @@
 - **Fecha:** 2026-10-23
 - **Rama:** main
 
+## Rediseño D (aprobado por Adam el 23-10, «si confirmado», relayado por la sesión principal)
+
+Guía única para las tres plataformas: `docs/diseno-d.md` (tokens claro/oscuro, componentes, pantallas,
+contrato). Reparto: API, web e iOS en esta sesión; Android en la sesión de móvil.
+- **API (aditiva):** `reacciones` por tipo en feed, detalle y guardados (una `groupBy` por página);
+  `GET /feed?tipo=clips` (solo publicaciones con video); `asistentes` (hasta 5, primero a quien sigues, sin
+  bloqueados) en `GET /eventos` y `/eventos/:id`; `seguidoresEnComun` + `numSeguidoresEnComun` en
+  `GET /perfil/:handle`. Pruebas en `comun/personas.test.ts` y `posts/vista-post.test.ts` (API 274+).
+- **Pendiente:** el seed de demo no tiene fotos ni videos, así que los clips salen vacíos en local y en
+  las capturas.
+
 ## Pasada de profesionalismo del 23-10 (en curso)
 
 Adam: «mejora y profesionaliza aún más… noto muchas cosas de UI/UX y funciones nada profesionales».

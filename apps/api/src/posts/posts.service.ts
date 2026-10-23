@@ -25,7 +25,7 @@ import { HashtagsService } from '../hashtags/hashtags.service.js';
 import { moderacionPreviaActiva } from '../comun/moderacion.js';
 import { enSegundoPlano } from '../comun/segundo-plano.js';
 import { hayBloqueo, ocultosPara } from '../bloqueos/bloqueos.js';
-import { aVistaPost, incluirVistaPost } from './vista-post.js';
+import { aVistaPost, conteosReacciones, incluirVistaPost } from './vista-post.js';
 
 /** Lo que se ve en el feed. EN_REVISION sigue visible: la IA no borra sola. */
 const VISIBLES = ['PUBLICADO', 'EN_REVISION'] as const;
@@ -192,6 +192,8 @@ export class PostsService {
       estado: { in: [...VISIBLES] },
       anonimo: false,
       ...(ocultos.size > 0 ? { authorId: { notIn: [...ocultos] } } : {}),
+      // Clips: solo publicaciones con al menos un video.
+      ...(filtros.tipo === 'clips' ? { media: { some: { mime: { startsWith: 'video/' } } } } : {}),
     };
 
     if (filtros.siguiendo === 'true') {
@@ -227,9 +229,10 @@ export class PostsService {
       select: { postId: true },
     });
     const guardadosSet = new Set(guardados.map((g) => g.postId));
+    const reacciones = await conteosReacciones(this.prisma, pagina.map((p) => p.id));
 
     return {
-      publicaciones: pagina.map((p) => aVistaPost(p, guardadosSet.has(p.id))),
+      publicaciones: pagina.map((p) => aVistaPost(p, guardadosSet.has(p.id), reacciones.get(p.id))),
       siguienteCursor: hayMas ? (pagina[pagina.length - 1]?.id ?? null) : null,
     };
   }
@@ -250,13 +253,14 @@ export class PostsService {
       throw new NotFoundException('Esa publicacion no existe.');
     }
 
-    const [pagina, guardado] = await Promise.all([
+    const [pagina, guardado, reacciones] = await Promise.all([
       this.paginaComentarios(postId, ocultos),
       this.prisma.guardado.findUnique({ where: { userId_postId: { userId, postId } } }),
+      conteosReacciones(this.prisma, [postId]),
     ]);
 
     return {
-      ...aVistaPost(post, Boolean(guardado)),
+      ...aVistaPost(post, Boolean(guardado), reacciones.get(postId)),
       ...pagina,
     };
   }

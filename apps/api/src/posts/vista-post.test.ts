@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BadRequestException } from '@nestjs/common';
 
-import { aMediaVista, aVistaPost, type PostConRelaciones } from './vista-post.js';
+import { aMediaVista, aVistaPost, conteosReacciones, type PostConRelaciones } from './vista-post.js';
 import { PostsService } from './posts.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
@@ -112,4 +112,27 @@ test('la encuesta trae el voto de quien mira para que sobreviva a recargar', () 
     false,
   );
   assert.equal(sinVoto.encuesta?.miVoto, null);
+});
+
+test('conteosReacciones: una sola consulta y ceros donde no hay', async () => {
+  let consultas = 0;
+  const prisma = {
+    reaction: {
+      groupBy: async () => {
+        consultas += 1;
+        return [
+          { postId: 'p1', tipo: 'ME_LATE', _count: { _all: 3 } },
+          { postId: 'p1', tipo: 'NO_MAMES', _count: { _all: 1 } },
+          { postId: 'p2', tipo: 'APOYO', _count: { _all: 2 } },
+        ];
+      },
+    },
+  };
+  const conteos = await conteosReacciones(prisma, ['p1', 'p2', 'p3']);
+  assert.equal(consultas, 1);
+  assert.deepEqual(conteos.get('p1'), { ME_LATE: 3, ME_RIO: 0, APOYO: 0, NO_MAMES: 1 });
+  assert.deepEqual(conteos.get('p2'), { ME_LATE: 0, ME_RIO: 0, APOYO: 2, NO_MAMES: 0 });
+  assert.equal(conteos.get('p3'), undefined);
+  assert.equal((await conteosReacciones(prisma, [])).size, 0);
+  assert.equal(consultas, 1);
 });

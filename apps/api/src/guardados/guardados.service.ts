@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
-import { aVistaPost, incluirVistaPost } from '../posts/vista-post.js';
+import { aVistaPost, conteosReacciones, incluirVistaPost } from '../posts/vista-post.js';
 
 const VISIBLES = ['PUBLICADO', 'EN_REVISION'] as const;
 
@@ -47,11 +47,12 @@ export class GuardadosService {
 
     const hayMas = filas.length > limite;
     const pagina = hayMas ? filas.slice(0, limite) : filas;
+    const reacciones = await conteosReacciones(this.prisma, pagina.map((f) => f.post.id));
 
     return {
       publicaciones: pagina
         .filter((f) => VISIBLES.includes(f.post.estado as (typeof VISIBLES)[number]))
-        .map((f) => ({ ...aVistaPost(f.post, true), guardadoAt: f.createdAt })),
+        .map((f) => ({ ...aVistaPost(f.post, true, reacciones.get(f.post.id)), guardadoAt: f.createdAt })),
       siguienteCursor: hayMas ? (pagina[pagina.length - 1]?.id ?? null) : null,
     };
   }
