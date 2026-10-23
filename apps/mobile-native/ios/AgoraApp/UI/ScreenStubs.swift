@@ -528,7 +528,7 @@ private struct EventoCardView: View {
                 Button {
                     onAsistencia(true)
                 } label: {
-                    Text(yaVoy ? "✓ Voy (tocar para quitar)" : "Voy")
+                    Text(yaVoy ? "✓ Vas a ir" : "Voy")
                         .font(.subheadline.bold())
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -536,6 +536,7 @@ private struct EventoCardView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(yaVoy ? .clear : AgoraTheme.accent)
                 .foregroundStyle(yaVoy ? AgoraTheme.accent : .white)
+                .accessibilityHint(yaVoy ? "Toca para quitar tu respuesta" : "")
                 .overlay {
                     if yaVoy {
                         RoundedRectangle(cornerRadius: 8)

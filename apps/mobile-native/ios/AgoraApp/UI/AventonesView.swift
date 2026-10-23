@@ -346,9 +346,11 @@ private struct AventonCardView: View {
                     .buttonStyle(.bordered)
             } else if aventon.ocupados < aventon.lugares {
                 if aventon.voyYo == true {
-                    Button("✓ Voy en este (tocar para quitar)", action: onApartar)
+                    // Texto corto a la vista; VoiceOver sí dice que tocar suelta el lugar.
+                    Button("✓ Vas en este", action: onApartar)
                         .frame(maxWidth: .infinity)
                         .buttonStyle(.bordered)
+                        .accessibilityHint("Toca para soltar tu lugar")
                 } else {
                     Button("Apartar lugar", action: onApartar)
                         .frame(maxWidth: .infinity)

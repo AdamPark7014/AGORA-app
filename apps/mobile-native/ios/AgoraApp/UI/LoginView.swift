@@ -37,6 +37,8 @@ struct LoginView: View {
     @State private var error: String?
     /// Aviso neutro en el paso del código (sin seguimiento o tras un 429).
     @State private var aviso: String?
+    /// El buzón UDLAP no existe: se dice junto al correo UDLAP, no debajo del personal.
+    @State private var errorUdlap: String?
     /// Id de seguimiento del último código enviado (cabecera `X-Envio-Id`).
     @State private var envioId: String?
     /// Sesión abierta por código que espera a que se elija la contraseña.
@@ -232,6 +234,8 @@ struct LoginView: View {
 
     private var pasoPersonal: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
+            tarjetaCorreoUdlap
+
             campoTexto(
                 etiqueta: AgoraCopy.personalEtiqueta,
                 placeholder: AgoraCopy.personalPlaceholder,
@@ -256,6 +260,45 @@ struct LoginView: View {
             .padding(.top, AgoraDesign.Spacing.xxs)
             .disabled(cargando)
         }
+    }
+
+    /// El correo UDLAP que se va a confirmar, a la vista y con «Cambiar». Sin esto,
+    /// quien lo escribió mal (sin el punto) solo veía el error debajo de su correo
+    /// personal y creía que le rechazaban ese (Adam, 23-10).
+    private var tarjetaCorreoUdlap: some View {
+        VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(AgoraCopy.personalConfirmaremos)
+                        .font(.footnote)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    Text(emailNormalizado)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                }
+                Spacer(minLength: AgoraDesign.Spacing.xs)
+                enlace(AgoraCopy.personalCambiar, id: "personal.cambiarUdlap") {
+                    volverAlCorreo()
+                }
+                .font(.subheadline.weight(.semibold))
+                .disabled(cargando)
+            }
+            if let errorUdlap {
+                Text(errorUdlap)
+                    .font(.footnote)
+                    .foregroundStyle(AgoraDesign.Colors.danger)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(AgoraDesign.Spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(errorUdlap == nil ? AgoraDesign.Colors.superficie : AgoraDesign.Colors.dangerSuave)
+        .overlay(
+            RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium)
+                .stroke(errorUdlap == nil ? AgoraDesign.Colors.borde : AgoraDesign.Colors.danger, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
+        .accessibilityElement(children: .contain)
     }
 
     private var pasoCodigo: some View {
@@ -447,6 +490,7 @@ struct LoginView: View {
         paso = destino
         error = nil
         aviso = nil
+        errorUdlap = nil
     }
 
     private func volverAlCorreo() {
@@ -454,6 +498,7 @@ struct LoginView: View {
         codigo = ""
         error = nil
         aviso = nil
+        errorUdlap = nil
         envioId = nil
     }
 
@@ -533,6 +578,10 @@ struct LoginView: View {
         } catch let api as ApiError where api.codigoHttp == 429 {
             aviso = api.mensajeServidor ?? AgoraCopy.loginDemasiadosIntentos
             paso = .codigoPersonal
+        } catch let api as ApiError where api.codigoHttp == 400
+            && (api.mensajeServidor ?? "").hasPrefix("El correo UDLAP") {
+            // El que falló es el UDLAP (p. ej. sin el punto): se dice junto a él.
+            errorUdlap = api.mensajeServidor
         } catch {
             // 400 (el buzón UDLAP no existe), 409 (cuenta ya confirmada o correo
             // personal en uso), 503 (Microsoft no contestó): el texto de la API.

@@ -146,6 +146,8 @@ enum AgoraCopy {
     static let personalPlaceholder = "nombre@gmail.com"
     static let personalBoton = "Mandar el código a mi correo personal"
     static let personalVolver = "Volver al código UDLAP"
+    static let personalConfirmaremos = "Vamos a confirmar"
+    static let personalCambiar = "Cambiar"
     static func personalEntradillaCodigo(_ correo: String) -> String {
         "Te mandamos 6 dígitos a \(correo)."
     }

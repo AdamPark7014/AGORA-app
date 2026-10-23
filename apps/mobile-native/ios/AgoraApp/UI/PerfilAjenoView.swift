@@ -119,11 +119,11 @@ struct PerfilAjenoView: View {
             }
 
             HStack(spacing: AgoraDesign.Spacing.md) {
-                Text("\(p.publicaciones ?? 0) posts").font(.caption)
+                Text(cuenta(p.publicaciones ?? 0, "publicación", "publicaciones")).font(.caption)
                 Button {
                     onSeguidores(p.handle)
                 } label: {
-                    Text("\(p.seguidores ?? 0) seguidores").font(.caption)
+                    Text(cuenta(p.seguidores ?? 0, "seguidor", "seguidores")).font(.caption)
                 }
                 .buttonStyle(.agoraPlain)
                 .disabled(p.restringido == true)
@@ -577,4 +577,9 @@ private struct FlowWrapLayout: Layout {
         }
         return (CGSize(width: maxWidth, height: y + rowHeight), frames)
     }
+}
+
+/// «1 seguidor» / «3 seguidores»: el plural en español solo cuando no es uno.
+func cuenta(_ n: Int, _ singular: String, _ plural: String) -> String {
+    "\(n) \(n == 1 ? singular : plural)"
 }

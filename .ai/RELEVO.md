@@ -1,8 +1,26 @@
 # RELEVO
 
 - **Último turno:** claude-code (sesión lateral de Ágora, en la compu de Adam)
-- **Fecha:** 2026-10-22
+- **Fecha:** 2026-10-23
 - **Rama:** main
+
+## Pasada de profesionalismo del 23-10 (en curso)
+
+Adam: «mejora y profesionaliza aún más… noto muchas cosas de UI/UX y funciones nada profesionales».
+Reparto: esta sesión lleva **web e iOS**; la sesión de móvil lleva **Android** desde `55fe226`.
+- **Capturas reales** de las 21 pantallas web (teléfono claro/oscuro y escritorio) y de iOS (artefacto de
+  `ios-capturas.yml`). Hallazgos de la web en manos de un agente: chat con el campo aplastado, «Choose File»
+  en Ajustes, avatar recortado, adorno roto en Aventones, hidratación en modo oscuro (4 rutas), vacíos que
+  salen mientras carga, hashtags partidos, «Sin nombre» explicando configuración interna, retos sin estado
+  vacío y el registro con correo personal sin mostrar el UDLAP.
+- **Mockups para que Adam elija** (https://claude.ai/artifact/FWFgnBnjxfAT9HTojpUDuU): feed A/B/C/D, clips a
+  pantalla completa, evento, perfil, mercado, registro y bienvenida. A Adam le gustaron el feed B y los clips
+  y pidió «más profesional, que no parezca copia de Instagram»; la D es la propuesta con identidad propia.
+  **No construir el rediseño hasta que lo confirme.**
+- **iOS (este commit, sin compilar en local: lo compila `ios.yml`)**: «✓ Vas en este» / «✓ Vas a ir» con
+  pista de VoiceOver, plurales en el perfil (`cuenta()`), y en el registro con correo personal la tarjeta
+  «Vamos a confirmar <correo UDLAP>» con «Cambiar» (id `personal.cambiarUdlap`), con el error de buzón
+  inexistente ahí y no debajo del Gmail. Android ya lo tiene (`55fe226`).
 
 ## Pasada grande del 22-10: fallos, funciones y fichas de tienda (cerrada por Claude; pendientes de Adam abajo)
 
