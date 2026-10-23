@@ -69,8 +69,9 @@ completas las fichas de App Store y Play. Hecho hasta ahora:
   estado en modo demo). `.gitignore` ignoraba toda carpeta `capturas/`; ahora `docs/tienda/capturas/` sí se
   versiona. iOS: el flujo `ios-capturas.yml` de la sesión de móvil deja el artefacto; falta enmarcarlo.
 - **CI:** la casilla de términos rompió 3 e2e que crean perfil (capturas, humo, registro-y-feed); ya la
-  marcan. Otras 4 (anonimo, capturas-admin, moderacion, navegacion) fallan desde `298e3dd` (registro con
-  correo personal): pasadas a la sesión de móvil. **Desplegado `efe8943` 17:06 MX** (rollback
+  marcan. Las otras 4 (anonimo, capturas-admin, moderacion, navegacion) no venían del correo personal sino de
+  un moderador que no existía en la base nueva del CI; la sesión de móvil lo arregló en `2a188fc` y `ci` pasó
+  por primera vez (32/32 e2e, run 39969506967). **Desplegado `efe8943` 17:06 MX** (rollback
   `prev-20261022-1706`): catálogo con acentos ya en producción.
 - **Play Console por Chrome (17:20 MX):** la «Ficha de Play Store predeterminada» quedó llena en el Chrome de
   Adam (textos, ícono, gráfico, 7 capturas) **sin guardar**; luego Chrome le quitó a la extensión el acceso a
@@ -93,6 +94,8 @@ completas las fichas de App Store y Play. Hecho hasta ahora:
 4. Decidir la moderación automática: crear `OPENAI_API_KEY` (la moderación de OpenAI no cobra) para encender el
    filtro previo que ya existe; mientras, el compromiso con Apple es revisar reportes en menos de 24 h.
 5. Riesgo de marca: «Ágora UDLAP» usa el nombre de la universidad; plan B «Ágora · Red del campus».
+6. **Sin super_admin (23-10):** por pedido de Adam, la sesión principal borró sus 3 cuentas en producción; solo
+   queda la cuenta demo de revisión. Cuando Adam se vuelva a registrar hay que darle el rol `super_admin`.
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: iOS para Apple 1.2 y capturas de tienda)
 
