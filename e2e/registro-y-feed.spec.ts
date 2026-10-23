@@ -111,6 +111,8 @@ test('registro completo deja al usuario en sus comunidades y pudiendo publicar',
   await page.locator('select').nth(2).selectOption('2025');
   await page.locator('select').nth(3).selectOption('cain-murray');
 
+  // Casilla obligatoria de Términos y Reglas (App Store 1.2): sin ella el botón no se activa.
+  await page.getByRole('checkbox', { name: /Acepto los Términos/ }).check();
   await page.getByRole('button', { name: 'Crear mi perfil' }).click();
 
   // Primera vez: pasa por la bienvenida antes del feed.

@@ -59,6 +59,8 @@ test('capturas de las pantallas principales', async ({ page }) => {
   await page.locator('select').nth(2).selectOption('2024');
   await page.locator('select').nth(3).selectOption('cain-murray');
   await page.locator('form textarea').fill('5to semestre. Me late Verilog más de lo que debería.');
+  // Casilla obligatoria de Términos y Reglas (App Store 1.2): sin ella el botón no se activa.
+  await page.getByRole('checkbox', { name: /Acepto los Términos/ }).check();
   await page.getByRole('button', { name: 'Crear mi perfil' }).click();
 
   // Primera vez: pasa por la bienvenida antes del feed.

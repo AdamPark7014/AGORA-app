@@ -68,6 +68,10 @@ completas las fichas de App Store y Play. Hecho hasta ahora:
 - **Capturas de Android listas** en `docs/tienda/capturas/android-telefono/` (7, 1080×1920, enmarcadas, barra de
   estado en modo demo). `.gitignore` ignoraba toda carpeta `capturas/`; ahora `docs/tienda/capturas/` sí se
   versiona. iOS: el flujo `ios-capturas.yml` de la sesión de móvil deja el artefacto; falta enmarcarlo.
+- **CI:** la casilla de términos rompió 3 e2e que crean perfil (capturas, humo, registro-y-feed); ya la
+  marcan. Otras 4 (anonimo, capturas-admin, moderacion, navegacion) fallan desde `298e3dd` (registro con
+  correo personal): pasadas a la sesión de móvil. **Desplegado `efe8943` 17:06 MX** (rollback
+  `prev-20261022-1706`): catálogo con acentos ya en producción.
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: iOS para Apple 1.2 y capturas de tienda)
 

@@ -113,6 +113,8 @@ test('cada ruta de la web carga sin error de compilacion', async ({ page }) => {
   await page.locator('select').first().selectOption('ingenieria');
   await page.locator('select').nth(1).selectOption('ing-sistemas-computacionales');
   await page.locator('select').nth(2).selectOption('2024');
+  // Casilla obligatoria de Términos y Reglas (App Store 1.2): sin ella el botón no se activa.
+  await page.getByRole('checkbox', { name: /Acepto los Términos/ }).check();
   await page.getByRole('button', { name: 'Crear mi perfil' }).click();
   await expect(page).toHaveURL(/\/(feed|bienvenida)$/);
 
