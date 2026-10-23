@@ -212,6 +212,8 @@ object AgoraCopy {
             const val boton = "Mandar el código a mi correo personal"
             const val botonEnviando = "Enviando…"
             const val volver = "Volver al código UDLAP"
+            const val confirmaremos = "Vamos a confirmar"
+            const val cambiar = "Cambiar"
             fun entradillaCodigo(correoPersonal: String) = "Te mandamos 6 dígitos a $correoPersonal."
         }
 

@@ -1,5 +1,7 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -98,6 +100,8 @@ fun LoginScreen(
     var error by remember { mutableStateOf<String?>(null) }
     /** Nota neutra bajo el estado de entrega (p. ej. el 429 "espera un minuto"). */
     var aviso by remember { mutableStateOf<String?>(null) }
+    /** El buzón UDLAP no existe: va junto al correo UDLAP, no debajo del personal. */
+    var errorUdlap by remember { mutableStateOf<String?>(null) }
     /** Id de seguimiento del último código enviado (cabecera X-Envio-Id). */
     var envioId by remember { mutableStateOf<String?>(null) }
     /** Correo personal cuando el código UDLAP no llega, y el seguimiento de su código. */
@@ -119,6 +123,7 @@ fun LoginScreen(
         paso = destino
         error = null
         aviso = null
+        errorUdlap = null
     }
 
     fun entrar() {
@@ -173,6 +178,7 @@ fun LoginScreen(
         codigo = ""
         error = null
         aviso = null
+        errorUdlap = null
         envioId = null
     }
 
@@ -193,7 +199,12 @@ fun LoginScreen(
                 paso = PASO_CODIGO_PERSONAL
             } catch (e: HttpException) {
                 val delServidor = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
-                if (e.code() == 429 && paso == PASO_CODIGO_PERSONAL) aviso = delServidor else error = delServidor
+                when {
+                    // El que falló es el UDLAP (p. ej. sin el punto): se dice junto a él.
+                    e.code() == 400 && delServidor.startsWith("El correo UDLAP") -> errorUdlap = delServidor
+                    e.code() == 429 && paso == PASO_CODIGO_PERSONAL -> aviso = delServidor
+                    else -> error = delServidor
+                }
             } catch (e: Exception) {
                 error = mensajeDe(e).ifBlank { copy.errorEnviar }
             } finally {
@@ -440,6 +451,13 @@ fun LoginScreen(
                     }
 
                     PASO_PERSONAL -> {
+                        TarjetaCorreoUdlap(
+                            email = email,
+                            error = errorUdlap,
+                            enabled = !cargando,
+                            onCambiar = { volverAlCorreo() },
+                        )
+                        Spacer(Modifier.height(AgoraSpacing.Sm))
                         Text(
                             AgoraCopy.login.personal.explicacion,
                             style = MaterialTheme.typography.bodyMedium,
@@ -646,3 +664,48 @@ private fun PistaCorreo() {
         modifier = Modifier.fillMaxWidth(),
     )
 }
+
+/**
+ * El correo UDLAP que se va a confirmar, a la vista y con «Cambiar». Sin esto,
+ * quien lo escribió mal (sin el punto) solo veía el error debajo de su correo
+ * personal y creía que le rechazaban ese (Adam, 23-10).
+ */
+@Composable
+private fun TarjetaCorreoUdlap(email: String, error: String?, enabled: Boolean, onCambiar: () -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = if (error != null) AgoraColors.DangerSuave else AgoraColors.Superficie,
+        border = BorderStroke(1.dp, if (error != null) AgoraColors.Danger else AgoraColors.Borde),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(start = 14.dp, end = 4.dp, top = 8.dp, bottom = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        AgoraCopy.login.personal.confirmaremos,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AgoraColors.TextoMedio,
+                    )
+                    Text(
+                        email,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AgoraColors.Texto,
+                    )
+                }
+                TextButton(onClick = onCambiar, enabled = enabled) {
+                    Text(AgoraCopy.login.personal.cambiar, color = AgoraColors.Naranja)
+                }
+            }
+            error?.let {
+                Text(
+                    it,
+                    color = AgoraColors.Danger,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(end = 10.dp, top = 2.dp),
+                )
+            }
+        }
+    }
+}
+
