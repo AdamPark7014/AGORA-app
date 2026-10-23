@@ -169,7 +169,15 @@ test('si Microsoft dice que el buzón no existe, no se manda nada', async () => 
   await conSecreto(async () => {
     const b = base();
     b.servicio.verificarBuzon = async () => RESULTADO_BUZON.NO_EXISTE;
-    await assert.rejects(b.servicio.solicitarCodigoPersonal(UDLAP, PERSONAL, AHORA), BadRequestException);
+    // El aviso sale bajo el campo del correo personal: dice cuál correo falló
+    // para que no parezca que rechazan el personal.
+    await assert.rejects(
+      b.servicio.solicitarCodigoPersonal(UDLAP, PERSONAL, AHORA),
+      (e: unknown) =>
+        e instanceof BadRequestException &&
+        e.message.includes(UDLAP) &&
+        e.message.includes('tu correo personal está bien'),
+    );
     assert.equal(b.enviados.length, 0);
     assert.equal(b.usuarios.length, 0, 'ni siquiera se crea la cuenta');
   });

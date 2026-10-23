@@ -104,7 +104,7 @@ después:
    a Microsoft si el buzón @udlap.mx existe (`GetCredentialType`, el mismo
    endpoint que usa el inicio de sesión de Outlook; no manda nada ni inicia
    sesión). 0 = existe → manda el código al correo personal; 1 = no existe →
-   400 «Ese correo no existe en la UDLAP»; sin respuesta → 503 (no se adivina).
+   400 «El correo UDLAP … no existe; tu correo personal está bien»; sin respuesta → 503 (no se adivina).
    `VERIFICAR_BUZON_UDLAP=off` lo apaga en desarrollo y CI.
 3. `POST /auth/otp/personal/verificar {email, correoPersonal, codigo, modo?}`:
    abre sesión; la cuenta queda **pendiente de UDLAP** 30 días

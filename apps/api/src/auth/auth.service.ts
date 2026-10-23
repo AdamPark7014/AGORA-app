@@ -339,7 +339,13 @@ export class AuthService {
 
     const buzon = await this.verificarBuzon(email);
     if (buzon === RESULTADO_BUZON.NO_EXISTE) {
-      throw new BadRequestException('Ese correo no existe en la UDLAP. Revisa que esté bien escrito.');
+      // Sale debajo del campo del correo personal, así que tiene que decir cuál
+      // falló: «Ese correo» se leía como el personal (Adam, 23-10, escribió el
+      // UDLAP sin el punto y creyó que le rechazaban su Gmail).
+      throw new BadRequestException(
+        `El correo UDLAP ${email} no existe; tu correo personal está bien. ` +
+          'Regresa y corrige el UDLAP: suele ser nombre.apellido@udlap.mx, con punto.',
+      );
     }
     if (buzon !== RESULTADO_BUZON.EXISTE) {
       throw new ServiceUnavailableException(

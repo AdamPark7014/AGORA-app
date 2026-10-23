@@ -150,6 +150,11 @@ tolerancia). Solo `apps/mobile-native/ios/**` y `.github/`:
   (2.2 GB, modelos de hoy) y el `/api/health` de NEXARA da 503 por su umbral de 90 % (la web sí responde).
   Al terminar ese benchmark se pueden borrar sus modelos. La API de Brevo rechaza la IPv6 del servidor:
   consultar eventos con `curl -4`.
+- Segundo intento de Adam (12:07): escribió el UDLAP sin punto (`adamdelpozoos@`); Microsoft dice que no
+  existe (verificado: el suyo con punto da IfExistsResult 0) y el aviso «Ese correo no existe en la UDLAP»
+  salía bajo el campo del correo personal, así que parecía que rechazaba su Gmail. Ahora el 400 nombra el
+  correo UDLAP, dice que el personal está bien y recuerda `nombre.apellido@udlap.mx`. Falta en las apps:
+  mostrar en la pantalla del correo personal qué correo UDLAP se va a revisar (pedido a la sesión de UI).
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: correo personal y fallos de iOS)
 
