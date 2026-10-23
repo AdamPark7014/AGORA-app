@@ -69,7 +69,11 @@ jobs:
           pnpm db:migrate:deploy
           pnpm exec turbo run build --filter=@agora/api...
 
+      # El seed pone horas «locales» (fiesta a las 22, aventón a las 7) y la app
+      # las muestra en hora de México: en UTC salían a las 16:00 y a la 1:00.
       - name: Seed (catálogo UDLAP + demo)
+        env:
+          TZ: America/Mexico_City
         run: pnpm db:seed
 
       - name: API en 127.0.0.1:4200

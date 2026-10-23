@@ -122,6 +122,10 @@ tolerancia). Solo `apps/mobile-native/ios/**` y `.github/`:
 - `ios-capturas.yml` firma con «-» (sin firma el simulador no escribe en el Keychain y la sesión no se
   guarda) y la prueba salta la bienvenida de tres pantallas. `XCUIApplication.open(agora://…)` relanzaba la
   app y no navegaba: los enlaces profundos de iOS siguen sin probarse en el simulador.
+- **Verificado (23-10):** `ios-capturas` run 39905898520 en verde: 12 capturas de 1320×2868 con datos del
+  seed (claro y oscuro de verdad, relanzando con `-agora.apariencia oscuro`) y el registro de una cuenta
+  nueva: pidió crear la contraseña, abrió Términos y Reglas desde la frase y solo habilitó el botón con la
+  casilla. El seed del flujo corre con `TZ=America/Mexico_City` (si no, la fiesta salía a las 16:00).
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: correo personal y fallos de iOS)
 
