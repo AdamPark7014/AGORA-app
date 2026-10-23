@@ -34,11 +34,15 @@ final class CapturasTiendaUITests: XCTestCase {
         XCTAssertTrue(pestanaFeed.waitForExistence(timeout: 30), "No llegó al feed después de entrar")
 
         recorrido(tema: "claro")
-        if #available(iOS 17.0, *) {
-            XCUIDevice.shared.appearance = .dark
-            recorrido(tema: "oscuro")
-            XCUIDevice.shared.appearance = .light
-        }
+
+        // Oscuro: la app lee el tema de `agora.apariencia` (Ajustes → Apariencia);
+        // cambiar la apariencia del simulador desde la prueba no le llegaba. La
+        // sesión sigue en el Keychain, así que relanzar entra directo al feed.
+        app.terminate()
+        app.launchArguments += ["-agora.apariencia", "oscuro"]
+        app.launch()
+        XCTAssertTrue(pestanaFeed.waitForExistence(timeout: 30), "No volvió al feed en oscuro")
+        recorrido(tema: "oscuro")
 
         cerrarSesion()
         XCTAssertTrue(faltantes.isEmpty, "Pantallas sin el contenido del seed: \(faltantes.joined(separator: ", "))")
@@ -51,7 +55,10 @@ final class CapturasTiendaUITests: XCTestCase {
     private func recorrido(tema: String) {
         cerrarAlertasDelSistema()
         tocar(app.buttons["tab.0"])
-        capturar("feed", tema: tema, esperando: ["Renata", "Diego", "Sofía", "Ximena", "Paula"])
+        let autores = ["Renata", "Diego", "Sofía", "Ximena", "Paula"]
+        _ = esperarAlguno(autores, timeout: 25)
+        bajarALasPublicaciones()
+        capturar("feed", tema: tema, esperando: autores)
 
         tocar(app.buttons["tab.1"])
         tocarTexto("Fiesta de fin de parciales")
@@ -72,6 +79,15 @@ final class CapturasTiendaUITests: XCTestCase {
         bajarTeclado()
         tocarTexto("Diego")
         capturar("perfil", tema: tema, esperando: ["Conmuto"])
+    }
+
+    /// El feed abre con la pregunta del día, la racha y el reto: se baja hasta los
+    /// filtros para que la captura muestre publicaciones. Quedarse quieto al final
+    /// evita que el desplazamiento siga de largo.
+    private func bajarALasPublicaciones() {
+        let inicio = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+        let fin = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
+        inicio.press(forDuration: 0.1, thenDragTo: fin, withVelocity: .default, thenHoldForDuration: 0.4)
     }
 
     /// Pestaña Más, de vuelta a su inicio, y la fila `mas.<ruta>`.
@@ -179,10 +195,10 @@ final class CapturasTiendaUITests: XCTestCase {
         guardar(nombre: "registro-sin-aceptar")
 
         // Los dos enlaces de la frase abren su documento sin salir del registro.
-        app.links["Términos"].tap()
+        tocarEnlace("Términos", enX: 0.27)
         XCTAssertTrue(app.staticTexts["Cero tolerancia"].waitForExistence(timeout: 5), "Términos sin «Cero tolerancia»")
         tocar(app.buttons["legal.cerrar"])
-        app.links["Reglas de la comunidad"].tap()
+        tocarEnlace("Reglas de la comunidad", enX: 0.66)
         XCTAssertTrue(app.staticTexts["Las cinco líneas rojas"].waitForExistence(timeout: 5), "No abrió las Reglas")
         tocar(app.buttons["legal.cerrar"])
 
@@ -195,6 +211,17 @@ final class CapturasTiendaUITests: XCTestCase {
     }
 
     // MARK: Piezas
+
+    /// Los enlaces de un `Text` no salen como elementos propios: se toca la
+    /// palabra sobre la frase (posición medida en el iPhone de 6.9" del CI,
+    /// primera línea).
+    private func tocarEnlace(_ nombre: String, enX dx: CGFloat) {
+        let enlace = app.links[nombre]
+        if enlace.exists { return enlace.tap() }
+        let frase = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Acepto los")).firstMatch
+        XCTAssertTrue(frase.waitForExistence(timeout: 5), "No está la frase de los términos")
+        frase.coordinate(withNormalizedOffset: CGVector(dx: dx, dy: 0.16)).tap()
+    }
 
     /// Pestaña Feed de la barra propia (`tab.<n>` en `MainTabView`).
     private var pestanaFeed: XCUIElement { app.buttons["tab.0"] }
