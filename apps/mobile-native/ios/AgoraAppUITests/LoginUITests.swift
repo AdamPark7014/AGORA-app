@@ -49,7 +49,10 @@ final class LoginUITests: XCTestCase {
     func testSiNoLlegaSePuedeRegistrarConElCorreoPersonal() {
         irAlCodigoUdlap()
         tocarEnElBorde(app.buttons["codigo.noLlego"])
+        // La tarjeta «Vamos a confirmar <UDLAP>» empuja el botón: con el teclado arriba queda tapado.
+        XCTAssertTrue(app.buttons["personal.cambiarUdlap"].waitForExistence(timeout: 5), "No se ve el correo UDLAP a confirmar")
         escribir("prueba.ui@gmail.com", en: "personal.correo")
+        bajarTeclado()
         tocarEnElBorde(app.buttons["personal.enviar"])
 
         let entradilla = app.staticTexts["login.entradilla"]
