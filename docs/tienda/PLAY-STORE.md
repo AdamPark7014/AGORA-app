@@ -5,6 +5,11 @@ predeterminado español (Latinoamérica, es-419). Prueba interna 1.0.0 (1) publi
 servicio de la API de Play: todo esto se llena en el navegador (Claude in Chrome con la sesión de Adam).
 Lo único que Claude no teclea son las credenciales de la cuenta demo (§4): las pega Adam.
 
+**Estado 22-10, 17:20 MX:** en el Chrome de Adam quedó abierta «Ficha de Play Store predeterminada» con
+nombre, descripción breve, descripción completa, ícono, gráfico de funciones y las 7 capturas ya puestos, **sin
+guardar** (falta «Guardar como borrador»). Si esa pestaña se recargó, se pierde: se vuelve a llenar con esta
+tabla. Lo demás (§2 a §6) sigue sin capturar: la extensión perdió acceso a play.google.com a mitad del trabajo.
+
 ## 1. Ficha principal de Play Store (Crecer → Presencia en Play Store → Ficha principal)
 
 | Campo | Valor |
@@ -110,9 +115,9 @@ historial web ni búsquedas. Los fallos y eventos de uso van a la API propia, no
 
 ## 7. Después de la ficha
 
-1. **Prueba cerrada:** las cuentas personales creadas después de nov-2023 necesitan 12 testers durante 14 días
-   antes de producción. La de NEXARA está a nombre de una organización; si la consola no pide la prueba
-   cerrada en «Panel → Producción», se pasa directo de prueba interna a producción.
+1. **Sin prueba cerrada obligatoria:** la consola muestra la cuenta de NEXARA como «Cuenta de organización»
+   (verificado el 22-10), así que no aplica la regla de 12 testers durante 14 días: se pasa de prueba interna a
+   producción.
 2. **Producción → Crear versión** con el AAB de «Android · Play» (versionCode mayor) y `notas-version-1.0.0.txt`.
 3. Países: México (o todos).
 4. Enviar a revisión. La primera revisión tarda de 1 a 7 días.

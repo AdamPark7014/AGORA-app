@@ -4,7 +4,7 @@
 - **Fecha:** 2026-10-22
 - **Rama:** main
 
-## Pasada grande del 22-10 (en curso): fallos, funciones y fichas de tienda
+## Pasada grande del 22-10: fallos, funciones y fichas de tienda (cerrada por Claude; pendientes de Adam abajo)
 
 Adam pidió auditar fallos y arreglarlos, listar funciones que faltan para chavos de 18-22 y dejar
 completas las fichas de App Store y Play. Hecho hasta ahora:
@@ -72,6 +72,22 @@ completas las fichas de App Store y Play. Hecho hasta ahora:
   marcan. Otras 4 (anonimo, capturas-admin, moderacion, navegacion) fallan desde `298e3dd` (registro con
   correo personal): pasadas a la sesión de móvil. **Desplegado `efe8943` 17:06 MX** (rollback
   `prev-20261022-1706`): catálogo con acentos ya en producción.
+- **Play Console por Chrome (17:20 MX):** la «Ficha de Play Store predeterminada» quedó llena en el Chrome de
+  Adam (textos, ícono, gráfico, 7 capturas) **sin guardar**; luego Chrome le quitó a la extensión el acceso a
+  play.google.com y no se pudo seguir. La consola confirma «Cuenta de organización»: no hay prueba cerrada de
+  14 días.
+
+### Lo que queda para Adam (una línea cada uno)
+1. Play: pulsar «Guardar como borrador» en la ficha abierta (o volver a llenarla con `docs/tienda/PLAY-STORE.md`
+   §1) y capturar §2 a §6 (configuración de la tienda, política, anuncios, acceso con la cuenta demo, IARC,
+   público 18+, Seguridad de los datos). Las credenciales demo las pega él.
+2. App Store Connect: etiqueta de privacidad (`docs/tienda/IOS-APP-STORE.md` §5), capturas de iPhone (cuando el
+   artefacto de `ios-capturas.yml` salga en verde: enmarcar con `enmarcar.py --plataforma ios-6.9` y correr
+   `asc-ficha.py`), enlazar la build y enviar.
+3. Contenido real en producción antes de enviar a revisión (hoy 0 publicaciones y 0 eventos).
+4. Decidir la moderación automática: crear `OPENAI_API_KEY` (la moderación de OpenAI no cobra) para encender el
+   filtro previo que ya existe; mientras, el compromiso con Apple es revisar reportes en menos de 24 h.
+5. Riesgo de marca: «Ágora UDLAP» usa el nombre de la universidad; plan B «Ágora · Red del campus».
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: iOS para Apple 1.2 y capturas de tienda)
 
