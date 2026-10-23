@@ -77,6 +77,11 @@ completas las fichas de App Store y Play. Hecho hasta ahora:
   play.google.com y no se pudo seguir. La consola confirma «Cuenta de organización»: no hay prueba cerrada de
   14 días.
 
+- **Disco del Hetzner (22-10 noche):** llegó al 100 %; la sesión principal borró los `agora-api:prev-*` viejos y
+  el log de Traefik. `scripts/desplegar.ps1` ahora deja solo los 2 `prev-*` más recientes de api y web en cada
+  despliegue; se aplicó también a los 7 `agora-web:prev-*` que quedaban (87 %). Rollback vigente:
+  `prev-20261022-1706`. Build «Android · Play» 1.0.0 (3) lanzado (run 39902540978) para la prueba interna.
+
 ### Lo que queda para Adam (una línea cada uno)
 1. Play: pulsar «Guardar como borrador» en la ficha abierta (o volver a llenarla con `docs/tienda/PLAY-STORE.md`
    §1) y capturar §2 a §6 (configuración de la tienda, política, anuncios, acceso con la cuenta demo, IARC,

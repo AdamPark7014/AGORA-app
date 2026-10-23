@@ -7,7 +7,8 @@
   Qué hace, en orden, y se detiene al primer error:
     1. Exige un árbol limpio y que main local sea igual a origin/main.
     2. Respalda Postgres en el servidor (scripts/backup-pg.sh).
-    3. Etiqueta las imágenes actuales como agora-api/web:prev-<fecha> (rollback).
+    3. Etiqueta las imágenes actuales como agora-api/web:prev-<fecha> (rollback) y borra las prev-* más
+       viejas: solo quedan las 2 más recientes.
     4. Sube el código con git archive (deploy/.env del servidor no se toca).
     5. Reconstruye api y web; las migraciones se aplican solas al arrancar la api.
     6. Reinstala la ruta de Traefik y corre el smoke.
@@ -61,6 +62,9 @@ if ($LASTEXITCODE -ne 0) { Falla 'El respaldo falló; no se toca nada más.' }
 Paso '3/6 Guardando las imágenes actuales para rollback'
 ssh @ssh "docker tag agora-api:latest agora-api:prev-$fecha && docker tag agora-web:latest agora-web:prev-$fecha && echo prev-$fecha"
 if ($LASTEXITCODE -ne 0) { Falla 'No se pudieron etiquetar las imágenes actuales.' }
+# Solo los 2 respaldos más recientes: el 22-10 el disco del Hetzner llegó al 100 % con siete prev-* de Ágora
+# acumulados. Las etiquetas prev-AAAAMMDD-HHmm ordenan por fecha; quitar una no toca la imagen en uso (latest).
+ssh @ssh 'for repo in agora-api agora-web; do docker images "$repo" --format "{{.Tag}}" | grep "^prev-" | sort -r | tail -n +3 | while read -r tag; do docker rmi "$repo:$tag" >/dev/null && echo "  quitado $repo:$tag"; done; done; true'
 
 Paso '4/6 Subiendo el código'
 $tar = Join-Path $env:TEMP "agora-$commit.tar.gz"
