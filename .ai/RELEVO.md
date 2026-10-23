@@ -145,8 +145,11 @@ tolerancia). Solo `apps/mobile-native/ios/**` y `.github/`:
   lo pidió 24 s después del UDLAP. Ahora el minuto es por buzón (`revisarCupo(…, destino)`); el tope de 10
   al día sigue siendo de la cuenta. Además el disco del Hetzner estaba al 99 % (Redis sin poder guardar,
   NEXARA en 503): se liberaron ~10 GB (caché de build de Docker, `.gradle-isolated` viejo dentro de
-  `/var/www/udlagora-app` y el respaldo `prev-20261022-1627` de Ágora); queda en 87 %. La API de Brevo
-  rechaza la IPv6 del servidor: consultar eventos con `curl -4`.
+  `/var/www/udlagora-app` y los respaldos `prev-20261022-*` de Ágora). Tras desplegar 73c3a0c (rollback
+  `prev-20261023-1157`) volvió a 90 %: un benchmark de Whisper de otra sesión corre en `/root/bench-whisper`
+  (2.2 GB, modelos de hoy) y el `/api/health` de NEXARA da 503 por su umbral de 90 % (la web sí responde).
+  Al terminar ese benchmark se pueden borrar sus modelos. La API de Brevo rechaza la IPv6 del servidor:
+  consultar eventos con `curl -4`.
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: correo personal y fallos de iOS)
 
