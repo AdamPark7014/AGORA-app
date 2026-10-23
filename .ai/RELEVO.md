@@ -126,6 +126,10 @@ tolerancia). Solo `apps/mobile-native/ios/**` y `.github/`:
   seed (claro y oscuro de verdad, relanzando con `-agora.apariencia oscuro`) y el registro de una cuenta
   nueva: pidió crear la contraseña, abrió Términos y Reglas desde la frase y solo habilitó el botón con la
   casilla. El seed del flujo corre con `TZ=America/Mexico_City` (si no, la fiesta salía a las 16:00).
+- `PrivacyInfo.xcprivacy` igual a `docs/tienda/IOS-APP-STORE.md` §5: fallos ligados (Funcionalidad +
+  Analíticas), interacción con Funcionalidad + Analíticas y «Otros tipos de datos» (cumpleaños, carrera,
+  intereses…), que faltaba. Ajustes: etiqueta de `AVENTON_RECORDATORIO` («Tu aventón está por salir»); el
+  push abre Aventones por su `url`.
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: correo personal y fallos de iOS)
 
