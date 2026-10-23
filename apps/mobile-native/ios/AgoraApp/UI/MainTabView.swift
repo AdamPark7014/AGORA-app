@@ -582,6 +582,7 @@ private struct AgoraAnimatedTabBar: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.agoraPlain)
+        .accessibilityIdentifier("tab.\(item.id)")
         .animation(AgoraDesign.Animation.spring, value: selected)
     }
 

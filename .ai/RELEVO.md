@@ -109,8 +109,9 @@ tolerancia). Solo `apps/mobile-native/ios/**` y `.github/`:
   (`AgoraContacto`). Los textos legales aceptan Markdown en línea (negritas, mailto).
 - **Capturas de tienda** (`.github/workflows/ios-capturas.yml`): Postgres + API en modo desarrollo en el Mac del
   CI, `pnpm db:seed` (catálogo + demo), `capturas-preparar.py` pone una contraseña de un solo uso a
-  `prueba.uno@udlap.mx` (renata.mv) y saca los ids; `CapturasTiendaUITests` entra, recorre por enlaces
-  profundos feed, evento, aventones, mercado, mensajes y perfil (@diego.tr) en claro y oscuro y guarda
+  `prueba.uno@udlap.mx` (renata.mv); `CapturasTiendaUITests` entra y recorre tocando (pestañas `tab.N`,
+  filas de Más `mas.<ruta>`) feed, evento, aventones, mercado, mensajes y perfil (@diego.tr por el
+  Directorio) en claro y oscuro y guarda
   `capturas-ios/{claro,oscuro}/<nombre>.png` a 1320×2868 (artefacto `ios-capturas-tienda`). La misma prueba
   registra una cuenta nueva y comprueba la casilla. En `pruebas-ui` se salta (sin `AGORA_CAPTURAS`).
 - **Arreglo de la puerta de iOS (venía del 21-10):** al canjear el código, `AuthRepository` ponía la sesión
@@ -119,7 +120,8 @@ tolerancia). Solo `apps/mobile-native/ios/**` y `.github/`:
   false)` y la sesión se guarda al terminar ese paso (`crearContrasena(_:token:)`). Confirmar la UDLAP sigue
   guardando de inmediato. Revisar si Android tiene lo mismo.
 - `ios-capturas.yml` firma con «-» (sin firma el simulador no escribe en el Keychain y la sesión no se
-  guarda) y la prueba salta la bienvenida de tres pantallas.
+  guarda) y la prueba salta la bienvenida de tres pantallas. `XCUIApplication.open(agora://…)` relanzaba la
+  app y no navegaba: los enlaces profundos de iOS siguen sin probarse en el simulador.
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: correo personal y fallos de iOS)
 

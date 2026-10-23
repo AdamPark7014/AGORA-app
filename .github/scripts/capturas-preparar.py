@@ -3,10 +3,10 @@
 
 Corre contra la API local del CI, nunca contra produccion: entra con el
 codigo maestro de desarrollo, le pone una contrasena de un solo uso a la
-cuenta de demo (la prueba de interfaz entra con ella) y busca los ids que
-necesitan los enlaces profundos (el evento y la conversacion del seed).
-Escribe las variables en $GITHUB_ENV con el prefijo TEST_RUNNER_, que
-xcodebuild pasa al proceso de las pruebas.
+cuenta de demo (la prueba de interfaz entra con ella) y comprueba que el seed
+dejo lo que se fotografia (el evento y la conversacion de la cuenta). Escribe
+las variables en $GITHUB_ENV con el prefijo TEST_RUNNER_, que xcodebuild pasa
+al proceso de las pruebas.
 """
 
 from __future__ import annotations
@@ -22,7 +22,6 @@ API = os.environ.get("API_LOCAL", "http://127.0.0.1:4200/api")
 CORREO = os.environ.get("DEMO_CORREO", "prueba.uno@udlap.mx")
 MAESTRO = os.environ["DEV_OTP_MAESTRO"]
 EVENTO = os.environ.get("DEMO_EVENTO", "Fiesta de fin de parciales")
-PERFIL = os.environ.get("DEMO_PERFIL", "diego.tr")
 
 if not API.startswith("http://127.0.0.1") and not API.startswith("http://localhost"):
     sys.exit("Solo contra la API local del CI.")
@@ -65,8 +64,6 @@ pedir("POST", "/auth/contrasena", {"contrasena": contrasena}, token)
 
 eventos = pedir("GET", "/eventos", token=token)
 evento_id = next((o["id"] for o in objetos(eventos) if o.get("titulo") == EVENTO and "id" in o), None)
-if not evento_id:
-    evento_id = next((o["id"] for o in objetos(eventos) if "titulo" in o and "id" in o), None)
 bandeja = pedir("GET", "/mensajes", token=token)
 conversacion_id = next((o["id"] for o in objetos(bandeja) if "id" in o), None)
 if not evento_id or not conversacion_id:
@@ -75,11 +72,8 @@ if not evento_id or not conversacion_id:
 variables = {
     "TEST_RUNNER_AGORA_DEMO_CORREO": CORREO,
     "TEST_RUNNER_AGORA_DEMO_CONTRASENA": contrasena,
-    "TEST_RUNNER_AGORA_DEMO_EVENTO": evento_id,
-    "TEST_RUNNER_AGORA_DEMO_CONVERSACION": conversacion_id,
-    "TEST_RUNNER_AGORA_DEMO_PERFIL": PERFIL,
 }
 with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as salida:
     for nombre, valor in variables.items():
         salida.write(f"{nombre}={valor}\n")
-print(f"Cuenta demo {CORREO} lista; evento {evento_id}, conversación {conversacion_id}, perfil @{PERFIL}")
+print(f"Cuenta demo {CORREO} lista; evento «{EVENTO}» {evento_id}, conversación {conversacion_id}")

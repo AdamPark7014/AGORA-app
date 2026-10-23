@@ -106,6 +106,7 @@ struct MasView: View {
                                 .padding(.vertical, 14)
                             }
                             .buttonStyle(.agoraPlain)
+                            .accessibilityIdentifier("mas.\(enlace.ruta)")
 
                             if index < seccion.enlaces.count - 1 {
                                 Divider()

@@ -44,36 +44,61 @@ final class CapturasTiendaUITests: XCTestCase {
         XCTAssertTrue(faltantes.isEmpty, "Pantallas sin el contenido del seed: \(faltantes.joined(separator: ", "))")
     }
 
-    /// Las seis pantallas de la ficha. Los enlaces profundos vacían la pila de
-    /// cada pestaña, así que la segunda vuelta no arrastra la primera.
+    /// Las seis pantallas de la ficha, tocando como una persona (los enlaces
+    /// profundos con `XCUIApplication.open` relanzaban la app y no navegaban).
+    /// La segunda vuelta reusa las pilas: Eventos ya tiene el detalle abierto y
+    /// Más se regresa a su inicio antes de cada fila.
     private func recorrido(tema: String) {
-        abrir("agora://feed")
+        cerrarAlertasDelSistema()
+        tocar(app.buttons["tab.0"])
         capturar("feed", tema: tema, esperando: ["Renata", "Diego", "Sofía", "Ximena", "Paula"])
 
-        abrir("agora://evento/\(entorno["AGORA_DEMO_EVENTO"] ?? "")")
-        capturar("evento", tema: tema, esperando: ["Fiesta de fin de parciales", "Voy", "Me interesa"])
+        tocar(app.buttons["tab.1"])
+        tocarTexto("Fiesta de fin de parciales")
+        capturar("evento", tema: tema, esperando: ["quedar a dormir", "bocinas y alberca"])
 
-        abrir("agora://aventones")
+        irAMas("aventones")
         capturar("aventones", tema: tema, esperando: ["Angelópolis", "Cholula centro", "Plaza Crystal"])
 
-        abrir("agora://marketplace")
+        irAMas("marketplace")
         capturar("mercado", tema: tema, esperando: ["Laptop", "Stewart", "Escritorio"])
 
-        abrir("agora://mensajes/\(entorno["AGORA_DEMO_CONVERSACION"] ?? "")")
+        irAMas("mensajes")
+        tocarTexto("Diego")
         capturar("mensajes", tema: tema, esperando: ["biblio", "Arquitecturas"])
 
-        abrir("agora://perfil/\(entorno["AGORA_DEMO_PERFIL"] ?? "diego.tr")")
-        capturar("perfil", tema: tema, esperando: ["Conmuto", "Diego"])
+        irAMas("directorio")
+        escribir("Diego", en: app.textFields["Nombre o @handle"])
+        bajarTeclado()
+        tocarTexto("Diego")
+        capturar("perfil", tema: tema, esperando: ["Conmuto"])
     }
 
-    private func abrir(_ enlace: String) {
-        guard let url = URL(string: enlace) else { return XCTFail("Enlace mal formado: \(enlace)") }
-        if #available(iOS 16.4, *) {
-            app.open(url)
-        } else {
-            XCTFail("Hace falta iOS 16.4 en el simulador para abrir enlaces")
+    /// Pestaña Más, de vuelta a su inicio, y la fila `mas.<ruta>`.
+    private func irAMas(_ ruta: String) {
+        tocar(app.buttons["tab.4"])
+        let fila = app.buttons["mas.\(ruta)"]
+        var intentos = 0
+        while !fila.waitForExistence(timeout: 2) && intentos < 6 {
+            let atras = app.navigationBars.buttons.element(boundBy: 0)
+            if atras.exists { atras.tap() }
+            intentos += 1
         }
-        cerrarAlertasDelSistema()
+        tocar(fila)
+    }
+
+    /// Toca el texto o, si SwiftUI lo fundió en la etiqueta de un botón, el botón.
+    private func tocarTexto(_ texto: String) {
+        let predicado = NSPredicate(format: "label CONTAINS %@", texto)
+        let suelto = app.staticTexts.matching(predicado).firstMatch
+        let boton = app.buttons.matching(predicado).firstMatch
+        let limite = Date().addingTimeInterval(20)
+        while Date() < limite {
+            if suelto.exists { return tocar(suelto) }
+            if boton.exists { return tocar(boton) }
+            usleep(500_000)
+        }
+        XCTFail("No apareció «\(texto)»")
     }
 
     /// Espera a que aparezca algo del seed, deja asentar las animaciones y
@@ -103,9 +128,9 @@ final class CapturasTiendaUITests: XCTestCase {
         let limite = Date().addingTimeInterval(timeout)
         repeat {
             for texto in textos {
+                // Cualquier elemento: dentro de un botón el texto vive en su etiqueta.
                 let predicado = NSPredicate(format: "label CONTAINS %@", texto)
-                if app.staticTexts.containing(predicado).firstMatch.exists
-                    || app.staticTexts.matching(predicado).firstMatch.exists {
+                if app.descendants(matching: .any).matching(predicado).firstMatch.exists {
                     return true
                 }
             }
@@ -171,10 +196,8 @@ final class CapturasTiendaUITests: XCTestCase {
 
     // MARK: Piezas
 
-    /// La barra de pestañas es propia: la etiqueta junta el ícono y el texto.
-    private var pestanaFeed: XCUIElement {
-        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Feed")).firstMatch
-    }
+    /// Pestaña Feed de la barra propia (`tab.<n>` en `MainTabView`).
+    private var pestanaFeed: XCUIElement { app.buttons["tab.0"] }
 
     private func entrarComoDemo() {
         let correo = app.textFields["login.correo"]
@@ -194,7 +217,13 @@ final class CapturasTiendaUITests: XCTestCase {
 
     /// Más → «Cerrar sesión», para que el registro empiece en la puerta.
     private func cerrarSesion() {
-        abrir("agora://mas")
+        tocar(app.buttons["tab.4"])
+        var intentos = 0
+        while !app.buttons["mas.ajustes"].waitForExistence(timeout: 2) && intentos < 6 {
+            let atras = app.navigationBars.buttons.element(boundBy: 0)
+            if atras.exists { atras.tap() }
+            intentos += 1
+        }
         let salir = app.buttons["Cerrar sesión"]
         hastaVer(salir)
         if salir.exists { salir.tap() }
