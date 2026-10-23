@@ -42,6 +42,18 @@ interface RespuestaVerificar {
 /** La API no deja pedir otro código antes de un minuto; la pantalla lo cuenta. */
 const ESPERA_REENVIO_S = 60;
 
+/**
+ * Errores de `/auth/otp/personal/solicitar` que son del correo UDLAP y no del
+ * personal: se muestran junto al renglón del UDLAP. Debajo del campo personal
+ * se leían como si rechazaran el Gmail (Adam, 23-10: escribió el UDLAP sin el
+ * punto). La API no manda código de error, así que se reconoce por el campo
+ * de validación o por el texto del «no existe».
+ */
+function esErrorDelCorreoUdlap(e: ErrorApi): boolean {
+  if (e.errores?.some((x) => x.campo === 'email')) return true;
+  return e.estado === 400 && /udlap/i.test(e.message) && /no existe/i.test(e.message);
+}
+
 const VENTAJAS = copy.login.ventajas.map((v, i) => ({
   ...v,
   icono: [GraduationCap, Lock, MessageSquare][i] ?? GraduationCap,
@@ -57,6 +69,8 @@ export default function Entrar() {
   const [recordarme, setRecordarme] = useState(true);
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState<string | null>(null);
+  /** Error del correo UDLAP visto desde el paso del correo personal. */
+  const [errorUdlap, setErrorUdlap] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   /** Id de seguimiento del ultimo codigo enviado (cabecera X-Envio-Id). */
   const [envioId, setEnvioId] = useState<string | null>(null);
@@ -95,6 +109,7 @@ export default function Entrar() {
     if (nuevoMotivo) setMotivo(nuevoMotivo);
     setPaso(destino);
     setError(null);
+    setErrorUdlap(null);
     setAviso(null);
   }
 
@@ -149,10 +164,12 @@ export default function Entrar() {
     }
   }
 
+  /** Al paso del correo UDLAP con lo que ya escribió, para corregirlo. */
   function volverAlCorreo() {
     setPaso('pedir');
     setCodigo('');
     setError(null);
+    setErrorUdlap(null);
     setAviso(null);
     setEnvioId(null);
   }
@@ -191,6 +208,7 @@ export default function Entrar() {
   async function pedirCodigoPersonal(evento?: React.FormEvent) {
     evento?.preventDefault();
     setError(null);
+    setErrorUdlap(null);
     setCargando(true);
     try {
       const { cabeceras } = await apiConCabeceras('/auth/otp/personal/solicitar', {
@@ -209,6 +227,11 @@ export default function Entrar() {
       if (e instanceof ErrorApi && e.estado === 429 && paso === 'codigoPersonal') {
         setAviso(e.message);
         setSegundos(ESPERA_REENVIO_S);
+      } else if (e instanceof ErrorApi && esErrorDelCorreoUdlap(e)) {
+        // Si llegó desde el paso del código, vuelve al formulario: ahí está
+        // el renglón del UDLAP con su «Cambiar».
+        setPaso('personal');
+        setErrorUdlap(e.message);
       } else {
         setError(e instanceof ErrorApi ? e.message : copy.login.errores.enviarCodigo);
       }
@@ -238,6 +261,7 @@ export default function Entrar() {
     setPaso('codigo');
     setCodigo('');
     setError(null);
+    setErrorUdlap(null);
     setAviso(envioId ? null : copy.login.codigo.avisoOutlook);
   }
 
@@ -401,6 +425,26 @@ export default function Entrar() {
         </div>
 
         <form className="landing-form" onSubmit={pedirCodigoPersonal}>
+          <div
+            className={errorUdlap ? 'correo-a-confirmar con-error' : 'correo-a-confirmar'}
+            aria-live="polite"
+          >
+            <div className="correo-a-confirmar-fila">
+              <span className="correo-a-confirmar-texto">
+                {textos.confirmaremos} <strong>{email}</strong>
+              </span>
+              <button
+                type="button"
+                className="fantasma"
+                aria-label={textos.cambiarUdlapEtiqueta(email)}
+                onClick={volverAlCorreo}
+              >
+                {textos.cambiarUdlap}
+              </button>
+            </div>
+            {errorUdlap && <p className="error">{errorUdlap}</p>}
+          </div>
+
           <label className="campo">
             <span>{textos.etiqueta}</span>
             <input

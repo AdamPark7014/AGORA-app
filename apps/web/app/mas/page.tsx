@@ -25,12 +25,11 @@ interface Comunidad {
 
 const SECCIONES: Array<{
   href: string;
-  icono?: 'aventones' | 'anonimo' | 'directorio' | 'ajustes';
+  icono: 'marketplace' | 'aventones' | 'anonimo' | 'directorio' | 'ajustes';
   texto: string;
   nota: string;
-  emoji?: string;
 }> = [
-  { href: '/marketplace', texto: 'Marketplace', nota: 'Compra y vende en campus', emoji: '🛍' },
+  { href: '/marketplace', icono: 'marketplace', texto: 'Marketplace', nota: 'Compra y vende en campus' },
   { href: '/aventones', icono: 'aventones', texto: 'Aventones', nota: 'Comparte coche a Cholula' },
   { href: '/anonimo', icono: 'anonimo', texto: 'Sin nombre', nota: 'Publicar sin firmar' },
   { href: '/directorio', icono: 'directorio', texto: 'Directorio', nota: 'Buscar gente' },
@@ -67,7 +66,9 @@ export default function Mas() {
         <ul className="menu">
           <li>
             <Link href="/buscar">
-              <span className="menu-icono" aria-hidden="true">🔍</span>
+              <span className="menu-icono" aria-hidden="true">
+                <IconoNav nombre="directorio" size={20} />
+              </span>
               <span>
                 Buscar
                 <br />
@@ -77,7 +78,9 @@ export default function Mas() {
           </li>
           <li>
             <Link href="/guardados">
-              <span className="menu-icono" aria-hidden="true">🔖</span>
+              <span className="menu-icono" aria-hidden="true">
+                <IconoNav nombre="guardados" size={20} />
+              </span>
               <span>
                 Guardados
                 <br />
@@ -87,7 +90,9 @@ export default function Mas() {
           </li>
           <li>
             <Link href="/notificaciones">
-              <span className="menu-icono" aria-hidden="true">🔔</span>
+              <span className="menu-icono" aria-hidden="true">
+                <IconoNav nombre="notificaciones" size={20} />
+              </span>
               <span>
                 Notificaciones
                 <br />
@@ -100,8 +105,14 @@ export default function Mas() {
         </ul>
       </div>
 
-      <div style={{ marginBottom: 14 }}>
-        <ToggleTema />
+      {/* El botón de tema solo, sin texto, parecía un control huérfano. */}
+      <div className="panel mas-apariencia">
+        <span>
+          <strong>Apariencia</strong>
+          <br />
+          <span className="tenue" style={{ fontSize: '0.8rem' }}>Modo claro u oscuro</span>
+        </span>
+        <ToggleTema conTexto />
       </div>
 
       {yo?.handle && (
@@ -143,7 +154,7 @@ export default function Mas() {
             <li key={s.href}>
               <Link href={s.href}>
                 <span className="menu-icono" aria-hidden="true">
-                  {s.icono ? <IconoNav nombre={s.icono} size={20} /> : s.emoji}
+                  <IconoNav nombre={s.icono} size={20} />
                 </span>
                 <span>
                   {s.texto}

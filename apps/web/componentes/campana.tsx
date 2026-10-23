@@ -41,7 +41,9 @@ export function Campana() {
   const publica = useSinNavegacion();
   const [abierta, setAbierta] = useState(false);
   const [sinLeer, setSinLeer] = useState(0);
-  const [lista, setLista] = useState<Notificacion[]>([]);
+  // `null` mientras carga: "Nada por ahora" solo si de verdad no hay nada.
+  const [lista, setLista] = useState<Notificacion[] | null>(null);
+  const [errorLista, setErrorLista] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
 
   // Una vez al montar, no en cada navegacion: el flujo SSE de abajo ya avisa
@@ -110,16 +112,26 @@ export function Campana() {
     const nueva = !abierta;
     setAbierta(nueva);
     if (!nueva) return;
+    await cargarLista();
+  }
 
+  async function cargarLista() {
+    setErrorLista(false);
+    let d: { notificaciones: Notificacion[] };
     try {
-      const d = await api<{ notificaciones: Notificacion[] }>('/notificaciones');
-      setLista(d.notificaciones);
-      if (sinLeer > 0) {
+      d = await api<{ notificaciones: Notificacion[] }>('/notificaciones');
+    } catch {
+      setErrorLista(true);
+      return;
+    }
+    setLista(d.notificaciones);
+    if (sinLeer > 0) {
+      try {
         await api('/notificaciones/leidas', { method: 'POST' });
         setSinLeer(0);
+      } catch {
+        // Silencioso: la cuenta se corrige en el siguiente sondeo.
       }
-    } catch {
-      // Silencioso.
     }
   }
 
@@ -146,7 +158,26 @@ export function Campana() {
             Notificaciones
           </p>
 
-          {lista.length === 0 ? (
+          {errorLista && lista === null ? (
+            <p className="tenue" style={{ margin: 0 }}>
+              No se pudieron cargar.{' '}
+              <button type="button" className="enlace-texto" onClick={() => void cargarLista()}>
+                Reintentar
+              </button>
+            </p>
+          ) : lista === null ? (
+            <div style={{ display: 'grid', gap: 10 }} aria-busy="true" aria-label="Cargando notificaciones">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="esqueleto-cabeza" aria-hidden="true">
+                  <div className="esqueleto esqueleto-avatar" style={{ width: 30, height: 30 }} />
+                  <div className="esqueleto-identidad">
+                    <div className="esqueleto" style={{ width: '80%', height: 12 }} />
+                    <div className="esqueleto" style={{ width: '35%', height: 10 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : lista.length === 0 ? (
             <p className="tenue" style={{ margin: 0 }}>
               Nada por ahora. Te avisamos cuando alguien te escriba o comente.
             </p>

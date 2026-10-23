@@ -21,6 +21,13 @@ Reparto: esta sesión lleva **web e iOS**; la sesión de móvil lleva **Android*
   pista de VoiceOver, plurales en el perfil (`cuenta()`), y en el registro con correo personal la tarjeta
   «Vamos a confirmar <correo UDLAP>» con «Cambiar» (id `personal.cambiarUdlap`), con el error de buzón
   inexistente ahí y no debajo del Gmail. Android ya lo tiene (`55fe226`).
+- **Web, 11 arreglos (agente, verificados con capturas antes/después):** chat con campo completo que crece;
+  «Cambiar portada»/«Cambiar foto»/«Agregar fotos» en vez de «Choose File»; avatar con anillo y
+  iniciales centradas; ruta Puebla–Cholula y asientos con ícono en Aventones; sin errores de hidratación
+  en oscuro (el botón de tema leía `document` al pintar); esqueleto / vacío / error con «Reintentar» en
+  todas las listas (ya no sale «Sin publicaciones» ni «Nada agendado» mientras carga); hashtags en línea;
+  «Sin nombre abre pronto»; retos con estado vacío; Más con íconos de línea y fila «Apariencia»; registro
+  con correo personal mostrando el UDLAP con «Cambiar». Seed: «Ximena creó un evento».
 
 ## Pasada grande del 22-10: fallos, funciones y fichas de tienda (cerrada por Claude; pendientes de Adam abajo)
 

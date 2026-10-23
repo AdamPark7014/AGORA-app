@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
+import { EstadoError } from '@/componentes/estado-error';
+import { EsqueletoFeed } from '@/componentes/esqueleto';
 import { TarjetaPost } from '@/componentes/tarjeta-post';
 import type { Publicacion } from '@/lib/publicaciones';
 import { Hash } from 'lucide-react';
@@ -15,6 +17,7 @@ export default function HashtagPage({ params }: { params: Promise<{ tag: string 
   const [cursor, setCursor] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [cargandoMas, setCargandoMas] = useState(false);
+  const [error, setError] = useState(false);
   const sentinel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,7 +28,10 @@ export default function HashtagPage({ params }: { params: Promise<{ tag: string 
     async (desde?: string) => {
       if (!tag) return;
       if (desde) setCargandoMas(true);
-      else setCargando(true);
+      else {
+        setCargando(true);
+        setError(false);
+      }
       try {
         const p = new URLSearchParams();
         if (desde) p.set('cursor', desde);
@@ -34,6 +40,9 @@ export default function HashtagPage({ params }: { params: Promise<{ tag: string 
         );
         setPublicaciones((prev) => (desde ? [...prev, ...datos.publicaciones] : datos.publicaciones));
         setCursor(datos.siguienteCursor);
+      } catch {
+        // Al paginar se deja lo que ya hay; solo la primera carga pide Reintentar.
+        if (!desde) setError(true);
       } finally {
         setCargando(false);
         setCargandoMas(false);
@@ -65,13 +74,15 @@ export default function HashtagPage({ params }: { params: Promise<{ tag: string 
         entradilla="Publicaciones recientes con este hashtag en el campus."
       />
 
-      {cargando && (
-        <div className="tarjeta" aria-hidden="true">
-          <div className="esqueleto" style={{ width: '70%' }} />
-        </div>
+      {cargando && <EsqueletoFeed cantidad={2} />}
+
+      {!cargando && error && (
+        <EstadoError onReintentar={() => void cargar()}>
+          No se pudieron cargar las publicaciones de #{tag}.
+        </EstadoError>
       )}
 
-      {!cargando && publicaciones.length === 0 && (
+      {!cargando && !error && publicaciones.length === 0 && (
         <EstadoVacio icono={Hash} titulo="Nadie ha usado este hashtag">
           Sé el primero en publicar con #{tag}.
         </EstadoVacio>

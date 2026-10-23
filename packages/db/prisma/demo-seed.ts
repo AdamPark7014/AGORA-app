@@ -829,7 +829,7 @@ const NOTIFICACIONES: readonly NotificacionDemo[] = [
     destinatario: 'renata.mv',
     actor: 'ximena.oc',
     tipo: 'EVENTO_NUEVO',
-    texto: 'Ximena creo un evento: Fiesta de fin de parciales',
+    texto: 'Ximena creó un evento: Fiesta de fin de parciales',
     url: '/eventos',
   },
   {

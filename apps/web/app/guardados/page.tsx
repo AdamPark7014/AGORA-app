@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
+import { EstadoError } from '@/componentes/estado-error';
+import { EsqueletoFeed } from '@/componentes/esqueleto';
 import { TarjetaPost } from '@/componentes/tarjeta-post';
 import type { Publicacion } from '@/lib/publicaciones';
 import { Bookmark } from 'lucide-react';
@@ -12,12 +14,18 @@ import { Bookmark } from 'lucide-react';
 export default function Guardados() {
   const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
   const [cargando, setCargando] = useState(true);
+  // Sin `catch`, un fallo dejaba la promesa rechazada y la pantalla decía
+  // "Nada guardado todavía", que es mentira.
+  const [error, setError] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
+    setError(false);
     try {
       const datos = await api<{ publicaciones: Publicacion[] }>('/guardados');
       setPublicaciones(datos.publicaciones);
+    } catch {
+      setError(true);
     } finally {
       setCargando(false);
     }
@@ -34,14 +42,13 @@ export default function Guardados() {
         entradilla="Publicaciones que marcaste para ver después."
       />
 
-      {cargando && (
-        <div className="tarjeta" aria-hidden="true">
-          <div className="esqueleto" style={{ width: '70%' }} />
-          <div className="esqueleto" style={{ width: '90%' }} />
-        </div>
+      {cargando && <EsqueletoFeed cantidad={2} />}
+
+      {!cargando && error && (
+        <EstadoError onReintentar={() => void cargar()}>No se pudieron cargar tus guardados.</EstadoError>
       )}
 
-      {!cargando && publicaciones.length === 0 && (
+      {!cargando && !error && publicaciones.length === 0 && (
         <EstadoVacio icono={Bookmark} titulo="Nada guardado todavía">
           Toca el icono de guardar en cualquier publicación del feed.
         </EstadoVacio>

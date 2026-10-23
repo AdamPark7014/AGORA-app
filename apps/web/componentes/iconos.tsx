@@ -20,6 +20,8 @@ import {
   Sun,
   LoaderCircle,
   BarChart3,
+  Bell,
+  Bookmark,
   Flag,
   GraduationCap,
   Lock,
@@ -38,6 +40,8 @@ export type IconoNav =
   | 'anonimo'
   | 'mensajes'
   | 'directorio'
+  | 'guardados'
+  | 'notificaciones'
   | 'ajustes'
   | 'mas'
   | 'publicar';
@@ -50,6 +54,8 @@ const MAPA: Record<IconoNav, LucideIcon> = {
   anonimo: EyeOff,
   mensajes: MessageCircle,
   directorio: Search,
+  guardados: Bookmark,
+  notificaciones: Bell,
   ajustes: Settings,
   mas: MoreHorizontal,
   publicar: Plus,

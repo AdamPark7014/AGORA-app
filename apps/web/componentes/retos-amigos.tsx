@@ -89,7 +89,10 @@ function RetoActivo({ reto, miHandle }: { reto: RetoAmigo; miHandle: string | nu
   );
 }
 
-export function RetosAmigos() {
+/** Para que la página de retos sepa si hay algo que mostrar o va un vacío. */
+export type EstadoCargaRetos = 'datos' | 'vacio' | 'error';
+
+export function RetosAmigos({ alCargar }: { alCargar?: (estado: EstadoCargaRetos) => void } = {}) {
   const [pendientes, setPendientes] = useState<RetoAmigo[]>([]);
   const [activos, setActivos] = useState<RetoAmigo[]>([]);
   const [miHandle, setMiHandle] = useState<string | null>(null);
@@ -100,9 +103,10 @@ export function RetosAmigos() {
       .then((r) => {
         setPendientes(r.pendientes);
         setActivos(r.activos);
+        alCargar?.(r.pendientes.length + r.activos.length > 0 ? 'datos' : 'vacio');
       })
-      .catch(() => undefined);
-  }, []);
+      .catch(() => alCargar?.('error'));
+  }, [alCargar]);
 
   useEffect(() => {
     sesion()

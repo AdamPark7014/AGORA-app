@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, ErrorApi } from '@/lib/api';
 import { Avatar } from '@/componentes/avatar';
@@ -11,6 +11,7 @@ import { EstadoVacio } from '@/componentes/estado-vacio';
 import { EstadoError } from '@/componentes/estado-error';
 import { EsqueletoLista } from '@/componentes/esqueleto';
 import { LayoutGrid, MessageCircle, Plus, X } from '@/componentes/iconos';
+import { ImagePlus } from 'lucide-react';
 
 interface Anuncio {
   id: string;
@@ -50,6 +51,8 @@ export default function Marketplace() {
   const [abierto, setAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
+  // Input oculto: el nativo sale en el idioma del navegador ("Choose File").
+  const selectorFotos = useRef<HTMLInputElement>(null);
 
   const [nuevo, setNuevo] = useState({
     titulo: '',
@@ -277,19 +280,37 @@ export default function Marketplace() {
             </label>
           </div>
 
-          <label className="campo">
+          <div className="campo">
             <span>Fotos (hasta 6)</span>
+            <div className="acciones">
+              <button
+                type="button"
+                className="secundario"
+                disabled={subiendo || imagenes.length >= 6}
+                onClick={() => selectorFotos.current?.click()}
+              >
+                <ImagePlus size={16} strokeWidth={1.75} aria-hidden="true" />
+                {subiendo
+                  ? 'Subiendo…'
+                  : imagenes.length >= 6
+                    ? 'Ya van 6 fotos'
+                    : imagenes.length > 0
+                      ? 'Agregar otra foto'
+                      : 'Agregar fotos'}
+              </button>
+            </div>
             <input
+              ref={selectorFotos}
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif"
-              disabled={subiendo || imagenes.length >= 6}
+              hidden
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) void subirImagen(f);
                 e.target.value = '';
               }}
             />
-          </label>
+          </div>
 
           {imagenes.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -310,8 +331,6 @@ export default function Marketplace() {
               ))}
             </div>
           )}
-
-          {subiendo && <p className="tenue">Subiendo imagen…</p>}
 
           <button type="submit" className="grande" disabled={enviando}>
             {enviando ? 'Publicando…' : 'Publicar anuncio'}

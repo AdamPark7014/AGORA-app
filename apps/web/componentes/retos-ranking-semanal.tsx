@@ -7,18 +7,24 @@ import type { RetosRankingSemanalEntrada } from '@agora/contracts';
 import { Avatar } from '@/componentes/avatar';
 import { EVENTO_REFRESH_RETOS, rankingSemanal } from '@/lib/retos';
 import { sesion } from '@/lib/sesion';
+import type { EstadoCargaRetos } from './retos-amigos';
 
 const MEDALLAS = ['🥇', '🥈', '🥉'] as const;
 
-export function RetosRankingSemanal() {
+export function RetosRankingSemanal({
+  alCargar,
+}: { alCargar?: (estado: EstadoCargaRetos) => void } = {}) {
   const [entradas, setEntradas] = useState<RetosRankingSemanalEntrada[]>([]);
   const [miHandle, setMiHandle] = useState<string | null>(null);
 
   const cargar = useCallback(() => {
     rankingSemanal(5)
-      .then((r) => setEntradas(r.entradas))
-      .catch(() => undefined);
-  }, []);
+      .then((r) => {
+        setEntradas(r.entradas);
+        alCargar?.(r.entradas.length > 0 ? 'datos' : 'vacio');
+      })
+      .catch(() => alCargar?.('error'));
+  }, [alCargar]);
 
   useEffect(() => {
     sesion()

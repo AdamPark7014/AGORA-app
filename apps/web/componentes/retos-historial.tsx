@@ -6,6 +6,7 @@ import type { RetoHistorial } from '@agora/contracts';
 
 import { Avatar } from '@/componentes/avatar';
 import { etiquetaTipoReto, obtenerRetosHistorial } from '@/lib/retos';
+import type { EstadoCargaRetos } from './retos-amigos';
 
 const ETIQUETA_RESULTADO: Record<NonNullable<RetoHistorial['resultado']>, string> = {
   ganaste: '🏆 Ganaste',
@@ -46,7 +47,9 @@ function RetoHistorialTarjeta({
   );
 }
 
-export function RetosHistorial() {
+export function RetosHistorial({
+  alCargar,
+}: { alCargar?: (estado: EstadoCargaRetos) => void } = {}) {
   const [items, setItems] = useState<RetoHistorial[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -75,9 +78,10 @@ export function RetosHistorial() {
       .then((r) => {
         setItems(r.items);
         setCursor(r.siguienteCursor);
+        alCargar?.(r.items.length > 0 ? 'datos' : 'vacio');
       })
-      .catch(() => undefined);
-  }, []);
+      .catch(() => alCargar?.('error'));
+  }, [alCargar]);
 
   if (items.length === 0 && !cargando) return null;
 

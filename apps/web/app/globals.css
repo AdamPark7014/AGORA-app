@@ -395,6 +395,9 @@ a:hover {
   padding: 0;
   margin: 0;
   display: grid;
+  /* minmax(0, ...) para que un nombre largo se corte con "…" en vez de
+     estirar la columna y salirse del panel. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1px;
 }
 
@@ -946,6 +949,32 @@ button.fantasma:hover:not(:disabled) {
   line-height: 1.55;
 }
 
+/* Renglon de metadatos con icono: el icono a la altura de la primera linea y
+   el texto corriendo junto, aunque ocupe dos. */
+.linea-icono {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+}
+
+.linea-icono > svg {
+  flex: none;
+  margin-top: 0.2em;
+}
+
+.linea-icono > span {
+  min-width: 0;
+}
+
+/* Menciones y hashtags dentro del texto: enlace en linea, sin cortar renglon. */
+.texto-enlace {
+  display: inline;
+  color: var(--naranja-hondo);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .pub-pie {
   display: flex;
   gap: 4px;
@@ -1161,6 +1190,31 @@ button.fantasma:hover:not(:disabled) {
   background-image: linear-gradient(115deg, var(--naranja) 0%, var(--naranja-hondo) 100%);
 }
 
+/* Ajustes: vista previa de portada y foto con sus botones de cambiar. */
+.ajustes-portada {
+  height: 110px;
+  margin: 0 0 10px;
+  border-radius: var(--radio-chico);
+  border: 1px solid var(--borde);
+}
+
+.ajustes-foto {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.ajustes-foto .campo {
+  min-width: 0;
+}
+
+.campo .acciones button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .perfil-cabeza {
   display: flex;
   gap: 14px;
@@ -1173,11 +1227,19 @@ button.fantasma:hover:not(:disabled) {
 .perfil-avatar {
   margin-top: -52px;
   flex: none;
+  display: grid;
+}
+
+/* Corte limpio sobre la portada: aro del color de la tarjeta alrededor de
+   todo (anillo incluido) y las iniciales centradas por la rejilla de
+   `.avatar`. El `display: block` de antes las mandaba a la esquina. */
+.perfil-avatar > * {
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px var(--superficie);
 }
 
 .perfil-avatar .avatar {
-  border: 4px solid var(--superficie);
-  display: block;
+  border: 3px solid var(--superficie);
 }
 
 .perfil-cifras {
@@ -1794,6 +1856,28 @@ button.peligro:disabled {
   transform: scale(0.97);
 }
 
+/* Boton que se lee como enlace, para acciones dentro de un renglon
+   ("Reintentar" en un panel lateral). */
+button.enlace-texto {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--naranja-hondo);
+  font-size: inherit;
+  font-weight: 600;
+}
+
+button.enlace-texto:hover:not(:disabled) {
+  background: none;
+  box-shadow: none;
+  transform: none;
+  text-decoration: underline;
+}
+
 .enlace-boton:focus-visible {
   outline: 2px solid var(--naranja);
   outline-offset: 2px;
@@ -1964,6 +2048,42 @@ button.peligro:disabled {
   display: grid;
   gap: 12px;
   margin-bottom: 28px;
+}
+
+/* Registro con correo personal: el UDLAP que se va a confirmar, a la vista y
+   con su «Cambiar». Si Microsoft dice que no existe, el error va aqui. */
+.correo-a-confirmar {
+  padding: 8px 8px 8px 13px;
+  border-radius: var(--radio-chico);
+  background: var(--superficie-2);
+  border: 1px solid var(--borde);
+  text-align: left;
+}
+
+.correo-a-confirmar.con-error {
+  border-color: var(--peligro);
+}
+
+.correo-a-confirmar-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.correo-a-confirmar-texto {
+  min-width: 0;
+  font-size: var(--t-sm);
+  color: var(--texto-medio);
+  overflow-wrap: anywhere;
+}
+
+.correo-a-confirmar-texto strong {
+  color: var(--texto);
+}
+
+.correo-a-confirmar .error {
+  margin: 8px 5px 5px 0;
 }
 
 .landing-faq {
@@ -2143,6 +2263,50 @@ button.peligro:disabled {
   color: var(--texto);
 }
 
+.mas-apariencia {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.toggle-tema-texto {
+  padding: 8px 14px;
+  font-weight: 500;
+}
+
+/*
+ * Icono del tema por CSS y no por React: el servidor no sabe si la pagina va
+ * en oscuro, y decidirlo en el render rompia la hidratacion. `data-theme` lo
+ * pone el script de layout.tsx antes del primer pintado.
+ */
+.solo-tema-claro,
+.solo-tema-oscuro {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.solo-tema-oscuro,
+:root[data-theme='dark'] .solo-tema-claro {
+  display: none;
+}
+
+:root[data-theme='dark'] .solo-tema-oscuro {
+  display: inline-flex;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .solo-tema-claro {
+    display: none;
+  }
+
+  :root:not([data-theme]) .solo-tema-oscuro {
+    display: inline-flex;
+  }
+}
+
 .destino-indicador {
   position: absolute;
   top: 0;
@@ -2189,13 +2353,18 @@ button.peligro:disabled {
   width: 22px;
 }
 
+/* Marco del avatar: envuelve al circulo y mide lo que el circulo mas el anillo. */
+.avatar-marco {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+}
+
 .avatar-anillo-naranja,
 .avatar-anillo-aqua,
 .avatar-anillo-oro,
 .avatar-anillo-verde {
-  display: inline-grid;
-  place-items: center;
-  border-radius: 50%;
   padding: 2px;
 }
 
@@ -3147,12 +3316,24 @@ button.peligro:disabled {
 
 .ruta-linea {
   flex: 1;
+  min-width: 24px;
   height: 2px;
   background: linear-gradient(90deg, var(--naranja), var(--aqua));
   border-radius: 1px;
 }
 
-.ruta-punto.destino {
+.ruta-extremo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--texto);
+}
+
+/* No `.destino`: esa clase es de la barra inferior (alto minimo de 52 px). */
+.ruta-punto-llegada {
   background: var(--aqua);
   box-shadow: 0 0 0 4px rgb(0 134 117 / 20%);
 }
@@ -3175,11 +3356,15 @@ button.peligro:disabled {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  border: 1px solid var(--borde);
-  background: var(--superficie-2);
+  border: 1px dashed var(--borde-fuerte);
+  background: transparent;
   display: grid;
   place-items: center;
   font-size: 0.75rem;
+}
+
+.asiento.ocupado {
+  border-style: solid;
 }
 
 .asiento.ocupado {
@@ -3315,17 +3500,36 @@ button.peligro:disabled {
   box-shadow: 0 2px 8px rgb(227 82 5 / 20%);
 }
 
+/*
+ * Campo y boton en la misma fila; el aviso de error baja a una fila propia.
+ * Sin `flex-wrap` el aviso (100 % de base) se comia el ancho y el campo
+ * quedaba en una columna de 20 px con las letras apiladas.
+ */
 .chat-composer {
   margin-top: 14px;
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 0 10px;
   align-items: flex-end;
 }
 
 .chat-composer textarea {
-  flex: 1;
-  min-height: 44px;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--tactil);
+  max-height: 160px;
+  padding: 10px 14px;
+  border-radius: 22px;
   resize: none;
+  overflow-y: auto;
+}
+
+.chat-composer button {
+  flex: none;
+}
+
+.chat-composer-aviso {
+  flex-basis: 100%;
 }
 
 .menu a[aria-current='page'] {

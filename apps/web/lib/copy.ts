@@ -90,6 +90,10 @@ export const copy = {
       boton: 'Mandar el código a mi correo personal',
       botonEnviando: 'Enviando…',
       volver: 'Volver al código UDLAP',
+      /** Qué correo UDLAP se va a confirmar, para que un error de dedo se vea antes. */
+      confirmaremos: 'Vamos a confirmar',
+      cambiarUdlap: 'Cambiar',
+      cambiarUdlapEtiqueta: (correo: string) => `Cambiar el correo UDLAP ${correo}`,
       entradilla: (correo: string) => `Te mandamos 6 dígitos a ${correo}.`,
       tarda: 'Si no lo ves en la bandeja principal, revisa Spam o Promociones.',
       /** Seguimiento de entrega al correo personal (ahí no hay Outlook de la UDLAP). */
@@ -278,6 +282,8 @@ export const copy = {
     },
     errores: {
       cargar: 'No se pudo cargar el perfil.',
+      publicaciones: 'No se pudieron cargar sus publicaciones.',
+      lista: 'No se pudo cargar la lista.',
     },
   },
 } as const;

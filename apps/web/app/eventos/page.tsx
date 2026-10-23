@@ -61,6 +61,9 @@ export default function Eventos() {
   const [filtroTipo, setFiltroTipo] = useState('');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Aparte de `error`: no poder cargar la lista se arregla con Reintentar;
+  // un fallo al crear o al responder, no.
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
@@ -77,13 +80,13 @@ export default function Eventos() {
 
   const cargar = useCallback(async (tipo: string) => {
     setCargando(true);
-    setError(null);
+    setErrorCarga(null);
     try {
       const q = tipo ? `?tipo=${tipo}` : '';
       const datos = await api<{ eventos: Evento[] }>(`/eventos${q}`);
       setEventos(datos.eventos);
     } catch (e) {
-      setError(
+      setErrorCarga(
         e instanceof ErrorApi && e.estado === 401
           ? 'Necesitas iniciar sesión.'
           : 'No se pudieron cargar los eventos.',
@@ -317,15 +320,17 @@ export default function Eventos() {
         </form>
       )}
 
-      {error && !abierto && (
+      {error && !abierto && <p className="error">{error}</p>}
+
+      {errorCarga && (
         <EstadoError onReintentar={() => void cargar(filtroTipo)}>
-          {error}
+          {errorCarga}
         </EstadoError>
       )}
 
-      {cargando && <EsqueletoLista cantidad={3} />}
+      {cargando && eventos.length === 0 && <EsqueletoLista cantidad={3} />}
 
-      {!cargando && eventos.length === 0 && !error && (
+      {!cargando && eventos.length === 0 && !errorCarga && (
         <EstadoVacio icono={CalendarDays} titulo="No hay nada agendado">
           Sé quien arma el plan. Alguien tiene que empezar.
         </EstadoVacio>
@@ -357,15 +362,19 @@ export default function Eventos() {
                   <Link href={`/eventos/${e.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                     <h2 style={{ margin: '8px 0 4px', fontSize: '1.15rem' }}>{e.titulo}</h2>
                   </Link>
-                  <p className="tenue" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                  {/* Icono + un solo bloque de texto: con cada pedazo como hijo
+                      del flex, el pin se quedaba solo en un renglón. */}
+                  <p className="tenue linea-icono">
                     <MapPin size={14} strokeWidth={1.75} aria-hidden="true" />
-                    {e.lugar} ·{' '}
-                    {fecha.toLocaleTimeString('es-MX', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                    {e.costoMxn !== null && ` · ${e.costoMxn === 0 ? 'Gratis' : `$${e.costoMxn}`}`}
-                    {e.cupo !== null && ` · cupo ${e.cupo}`}
+                    <span>
+                      {e.lugar} ·{' '}
+                      {fecha.toLocaleTimeString('es-MX', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                      {e.costoMxn !== null && ` · ${e.costoMxn === 0 ? 'Gratis' : `$${e.costoMxn}`}`}
+                      {e.cupo !== null && ` · cupo ${e.cupo}`}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -406,8 +415,10 @@ export default function Eventos() {
                     fotoUrl={e.autor.fotoUrl}
                     tamano="chico"
                   />
-                  Organiza <Link href={`/perfil/${e.autor.handle}`}>{e.autor.nombre}</Link>
-                  {e.comunidad && ` · ${e.comunidad.nombre}`}
+                  <span style={{ minWidth: 0 }}>
+                    Organiza <Link href={`/perfil/${e.autor.handle}`}>{e.autor.nombre}</Link>
+                    {e.comunidad && ` · ${e.comunidad.nombre}`}
+                  </span>
                 </p>
               )}
             </li>

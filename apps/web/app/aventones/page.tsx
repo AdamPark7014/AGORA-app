@@ -13,7 +13,7 @@ import { EstadoVacio } from '@/componentes/estado-vacio';
 import { EstadoError } from '@/componentes/estado-error';
 import { EsqueletoLista } from '@/componentes/esqueleto';
 import { Car, X, MessageCircle } from '@/componentes/iconos';
-import { Clock } from 'lucide-react';
+import { Check, Clock, UserRound } from 'lucide-react';
 
 interface Aventon {
   id: string;
@@ -168,15 +168,21 @@ export default function Aventones() {
         }
       />
 
+      {/* La ruta de siempre, dibujada: Puebla de un lado, Cholula del otro.
+          El punto de llegada usaba la clase `destino`, que es la de la barra
+          inferior, y salía como una barra alta en vez de un punto. */}
       <div className="ruta-visual" aria-hidden="true">
-        <span className="ruta-punto" />
+        <span className="ruta-extremo">
+          <span className="ruta-punto" />
+          Puebla
+        </span>
         <span className="ruta-linea" />
-        <span className="ruta-punto destino" />
+        <span className="ruta-extremo">
+          Cholula
+          <span className="ruta-punto ruta-punto-llegada" />
+        </span>
       </div>
-      <p className="tenue" style={{ textAlign: 'center', margin: '0 0 18px', fontSize: '0.85rem' }}>
-        Puebla ↔ Cholula · El bus no corre fines de semana
-      </p>
-      <p className="tenue" style={{ textAlign: 'center', margin: '-10px 0 18px', fontSize: '0.8rem' }}>
+      <p className="tenue" style={{ textAlign: 'center', margin: '10px 0 18px', fontSize: '0.8rem' }}>
         Antes de subirte, avísale a alguien a dónde vas y con quién.{' '}
         <Link href="/reglas">Consejos de seguridad</Link>
       </p>
@@ -312,26 +318,34 @@ export default function Aventones() {
                 </strong>
               </div>
 
-              <p className="tenue" style={{ margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <p className="tenue linea-icono" style={{ marginTop: 8 }}>
                 <Clock size={14} strokeWidth={1.75} aria-hidden="true" />
-                {salida.toLocaleDateString('es-MX', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'short',
-                })}{' '}
-                a las{' '}
-                {salida.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-                {' · '}
-                {a.cuotaMxn === 0 ? 'Gratis' : `$${a.cuotaMxn} c/u`}
-                {' · '}
-                <strong style={{ color: libres > 0 ? 'var(--aqua)' : 'var(--peligro)' }}>
-                  {libres > 0 ? `${libres} de ${a.lugares} libres` : 'Lleno'}
-                </strong>
+                <span>
+                  {salida.toLocaleDateString('es-MX', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'short',
+                  })}{' '}
+                  a las{' '}
+                  {salida.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                  {' · '}
+                  {a.cuotaMxn === 0 ? 'Gratis' : `$${a.cuotaMxn} c/u`}
+                  {' · '}
+                  <strong style={{ color: libres > 0 ? 'var(--aqua)' : 'var(--peligro)' }}>
+                    {libres > 0 ? `${libres} de ${a.lugares} libres` : 'Lleno'}
+                  </strong>
+                </span>
               </p>
 
               {a.nota && <p style={{ marginBottom: 0 }}>{a.nota}</p>}
 
-              <div className="asientos-visual" aria-label={`${libres} de ${a.lugares} lugares libres`}>
+              {/* Un cuadro por lugar: con persona si ya está apartado, palomita
+                  si es el tuyo y punteado si sigue libre. */}
+              <div
+                className="asientos-visual"
+                role="img"
+                aria-label={`${a.ocupados} de ${a.lugares} lugares apartados`}
+              >
                 {Array.from({ length: a.lugares }).map((_, i) => {
                   const ocupado = i < a.ocupados;
                   const mio = a.voyYo && i === a.ocupados - 1 && ocupado;
@@ -339,9 +353,12 @@ export default function Aventones() {
                     <span
                       key={i}
                       className={`asiento${ocupado ? ' ocupado' : ''}${mio ? ' mio' : ''}`}
-                      aria-hidden="true"
                     >
-                      {mio ? '✓' : ocupado ? '·' : ''}
+                      {mio ? (
+                        <Check size={14} strokeWidth={2.25} />
+                      ) : ocupado ? (
+                        <UserRound size={14} strokeWidth={2} />
+                      ) : null}
                     </span>
                   );
                 })}

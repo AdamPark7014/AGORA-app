@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { api, ErrorApi } from '@/lib/api';
 import { Avatar } from '@/componentes/avatar';
@@ -12,6 +12,7 @@ import { SeccionContrasena } from '@/componentes/seccion-contrasena';
 import { SeccionUdlap } from '@/componentes/seccion-udlap';
 import { EsqueletoPerfil } from '@/componentes/esqueleto';
 import { EstadoError } from '@/componentes/estado-error';
+import { Camera, ImagePlus } from 'lucide-react';
 
 interface MiPerfil {
   handle: string;
@@ -57,7 +58,11 @@ export default function Ajustes() {
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
-  const [subiendo, setSubiendo] = useState(false);
+  const [subiendo, setSubiendo] = useState<'foto' | 'portada' | null>(null);
+  // Los <input type="file"> van ocultos: el control nativo sale en el idioma
+  // del navegador ("Choose File") y no se puede estilizar. Los botones los abren.
+  const selectorPortada = useRef<HTMLInputElement>(null);
+  const selectorFoto = useRef<HTMLInputElement>(null);
   const [comunidades, setComunidades] = useState<
     Array<{ slug: string; nombre: string; silenciada: boolean }>
   >([]);
@@ -117,7 +122,7 @@ export default function Ajustes() {
 
   /** Una sola función para foto y portada: cambia solo dónde cae el resultado. */
   async function subirImagen(archivo: File, destino: 'foto' | 'portada') {
-    setSubiendo(true);
+    setSubiendo(destino);
     setError(null);
     try {
       const cuerpo = new FormData();
@@ -140,7 +145,7 @@ export default function Ajustes() {
     } catch (e) {
       setError(e instanceof ErrorApi ? e.message : 'No se pudo subir la imagen.');
     } finally {
-      setSubiendo(false);
+      setSubiendo(null);
     }
   }
 
@@ -215,42 +220,52 @@ export default function Ajustes() {
       <SeccionUdlap />
 
       <form className="tarjeta" onSubmit={guardar}>
-        <label className="campo">
+        <div className="campo">
           <span>Portada</span>
           <div
-            className="portada"
-            style={{
-              margin: '0 0 10px',
-              borderRadius: 'var(--radio-chico)',
-              height: 110,
-              ...(portadaUrl ? { backgroundImage: `url(${portadaUrl})` } : {}),
-            }}
+            className="portada ajustes-portada"
+            style={portadaUrl ? { backgroundImage: `url(${portadaUrl})` } : undefined}
+            role="img"
+            aria-label={portadaUrl ? 'Tu portada' : 'Sin portada: se usa el degradado de Ágora'}
           />
+          <div className="acciones">
+            <button
+              type="button"
+              className="secundario"
+              disabled={subiendo !== null}
+              onClick={() => selectorPortada.current?.click()}
+            >
+              <ImagePlus size={16} strokeWidth={1.75} aria-hidden="true" />
+              {subiendo === 'portada' ? 'Subiendo…' : 'Cambiar portada'}
+            </button>
+            {portadaUrl && (
+              <button
+                type="button"
+                className="fantasma"
+                disabled={subiendo !== null}
+                onClick={() => {
+                  setPortadaUrl(null);
+                  setPortadaMediaId(null);
+                }}
+              >
+                Quitar portada
+              </button>
+            )}
+          </div>
           <input
+            ref={selectorPortada}
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            disabled={subiendo}
+            hidden
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void subirImagen(f, 'portada');
               e.target.value = '';
             }}
           />
-          {portadaUrl && (
-            <button
-              type="button"
-              className="fantasma"
-              onClick={() => {
-                setPortadaUrl(null);
-                setPortadaMediaId(null);
-              }}
-            >
-              Quitar portada
-            </button>
-          )}
-        </label>
+        </div>
 
-        <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 20 }}>
+        <div className="ajustes-foto">
           <Avatar
             nombre={nombreCompleto}
             semilla={perfil.handle}
@@ -258,33 +273,43 @@ export default function Ajustes() {
             fotoUrl={fotoUrl}
           />
 
-          <div>
-            <label className="campo" style={{ marginBottom: 6 }}>
-              <span>Foto de perfil</span>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                disabled={subiendo}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void subirImagen(f, 'foto');
-                  e.target.value = '';
-                }}
-              />
-            </label>
-            {fotoUrl && (
+          <div className="campo" style={{ marginBottom: 0 }}>
+            <span>Foto de perfil</span>
+            <div className="acciones">
               <button
                 type="button"
-                className="fantasma"
-                onClick={() => {
-                  setFotoUrl(null);
-                  setFotoMediaId(null);
-                }}
+                className="secundario"
+                disabled={subiendo !== null}
+                onClick={() => selectorFoto.current?.click()}
               >
-                Quitar foto
+                <Camera size={16} strokeWidth={1.75} aria-hidden="true" />
+                {subiendo === 'foto' ? 'Subiendo…' : 'Cambiar foto'}
               </button>
-            )}
-            {subiendo && <p className="tenue">Subiendo…</p>}
+              {fotoUrl && (
+                <button
+                  type="button"
+                  className="fantasma"
+                  disabled={subiendo !== null}
+                  onClick={() => {
+                    setFotoUrl(null);
+                    setFotoMediaId(null);
+                  }}
+                >
+                  Quitar foto
+                </button>
+              )}
+            </div>
+            <input
+              ref={selectorFoto}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void subirImagen(f, 'foto');
+                e.target.value = '';
+              }}
+            />
           </div>
         </div>
 

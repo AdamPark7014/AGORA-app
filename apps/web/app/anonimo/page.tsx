@@ -9,7 +9,7 @@ import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
 import { EstadoError } from '@/componentes/estado-error';
 import { EsqueletoLista } from '@/componentes/esqueleto';
-import { EyeOff, Flag, Lock } from '@/componentes/iconos';
+import { EyeOff, Flag } from '@/componentes/iconos';
 
 interface Anonima {
   id: string;
@@ -47,6 +47,7 @@ export default function Anonimo() {
   const [texto, setTexto] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [errorCarga, setErrorCarga] = useState(false);
+  const [errorEstado, setErrorEstado] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [cargando, setCargando] = useState(true);
@@ -68,7 +69,9 @@ export default function Anonimo() {
     }
   }, []);
 
-  useEffect(() => {
+  const verificarZona = useCallback(() => {
+    setErrorEstado(false);
+    setHabilitada(null);
     // Se lee el estado antes que nada: si la zona está apagada, no se pide ni
     // el alias ni el feed.
     api<{ habilitada: boolean }>('/anonimo/estado')
@@ -83,12 +86,17 @@ export default function Anonimo() {
         setAlias(a.alias);
       })
       .catch(() => {
-        setHabilitada(false);
+        // Sin respuesta no se sabe si está abierta: decir "abre pronto" a
+        // quien solo perdió la red sería mentirle.
+        setErrorEstado(true);
         setCargando(false);
       });
-
-    setLeidoReglas(localStorage.getItem('agora:reglas-anonimo') === 'visto');
   }, [cargar]);
+
+  useEffect(() => {
+    verificarZona();
+    setLeidoReglas(localStorage.getItem('agora:reglas-anonimo') === 'visto');
+  }, [verificarZona]);
 
   async function publicar(evento: React.FormEvent) {
     evento.preventDefault();
@@ -151,12 +159,38 @@ export default function Anonimo() {
     }
   }
 
+  if (errorEstado) {
+    return (
+      <main>
+        <EncabezadoPagina titulo="Sin nombre" />
+        <EstadoError onReintentar={verificarZona}>No se pudo cargar la zona sin nombre.</EstadoError>
+      </main>
+    );
+  }
+
+  // Mientras no se sabe si la zona está abierta no se pinta ni el banner ni
+  // el formulario: aparecían un instante y luego cambiaban a "abre pronto".
+  if (habilitada === null) {
+    return (
+      <main>
+        <EncabezadoPagina titulo="Sin nombre" />
+        <EsqueletoLista cantidad={3} />
+      </main>
+    );
+  }
+
   if (habilitada === false) {
     return (
       <main>
         <EncabezadoPagina titulo="Sin nombre" />
-        <EstadoVacio icono={Lock} titulo="Esta zona está apagada">
-          Solo se enciende con moderación previa configurada. No se publica sin filtro aquí.
+        {/* Lo que ve quien entra, no cómo está configurado el servidor. */}
+        <EstadoVacio
+          icono={EyeOff}
+          titulo="Sin nombre abre pronto"
+          accion={{ etiqueta: 'Volver al feed', href: '/feed' }}
+        >
+          Va a ser el lugar para decir lo que piensas sin firmar, con un alias y reglas claras.
+          Te avisamos en cuanto abra.
         </EstadoVacio>
       </main>
     );

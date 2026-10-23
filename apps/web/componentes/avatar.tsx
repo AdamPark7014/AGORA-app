@@ -51,7 +51,10 @@ export function Avatar({
   verificado?: boolean;
 }) {
   const claseBase = tamano === 'normal' ? 'avatar' : `avatar ${tamano}`;
-  const clase = [claseBase, anillo ? `avatar-anillo-${anillo}` : '', verificado ? 'avatar-verificado' : '']
+  // El marco (anillo o palomita) no lleva la clase `avatar`: si la llevara
+  // tendria el mismo tamano que el circulo de adentro y, con el relleno del
+  // anillo, el circulo se salia por un lado y cortaba las iniciales.
+  const clase = ['avatar-marco', anillo ? `avatar-anillo-${anillo}` : '', verificado ? 'avatar-verificado' : '']
     .filter(Boolean)
     .join(' ');
   const px = tamano === 'grande' ? 88 : tamano === 'chico' ? 30 : 42;

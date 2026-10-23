@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { use, useCallback, useEffect, useRef, useState } from 'react';
+import { use, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { api, ErrorApi } from '@/lib/api';
 import { analytics } from '@/lib/analytics';
@@ -38,6 +38,9 @@ interface EventoChat {
 const CADA_MS = 4_000;
 const CADA_MS_MAXIMO = 60_000;
 
+/** Alto máximo del campo antes de que haga scroll por dentro (unas 6 líneas). */
+const ALTO_MAXIMO_COMPOSER = 160;
+
 export default function Conversacion({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
@@ -56,6 +59,7 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
   const [cargandoAntiguos, setCargandoAntiguos] = useState(false);
   const [enVivo, setEnVivo] = useState(false);
   const finRef = useRef<HTMLDivElement>(null);
+  const campoRef = useRef<HTMLTextAreaElement>(null);
   const cargaInicialHecha = useRef(false);
   const miHandle = useRef<string | null>(null);
   const marcarLeido = useRef<number | undefined>(undefined);
@@ -168,6 +172,15 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
     };
   }, [id, cargando, errorCarga, cargarRecientes]);
 
+  // El campo crece con el texto, como en cualquier chat, hasta el tope; al
+  // enviar (texto vacío) vuelve a una línea.
+  useLayoutEffect(() => {
+    const campo = campoRef.current;
+    if (!campo) return;
+    campo.style.height = 'auto';
+    campo.style.height = `${Math.min(campo.scrollHeight + 2, ALTO_MAXIMO_COMPOSER)}px`;
+  }, [texto]);
+
   const { reiniciar: reanudarSondeo } = usePolling(
     () => cargarRecientes(false),
     enVivo ? CADA_MS_MAXIMO : CADA_MS,
@@ -278,7 +291,8 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
 
           <form className="tarjeta chat-composer" onSubmit={enviar}>
             <textarea
-              rows={2}
+              ref={campoRef}
+              rows={1}
               maxLength={4000}
               required
               aria-label="Tu mensaje"
@@ -295,7 +309,7 @@ export default function Conversacion({ params }: { params: Promise<{ id: string 
             <button type="submit" disabled={enviando || !texto.trim()}>
               {enviando ? '…' : 'Enviar'}
             </button>
-            <div aria-live="polite" style={{ flexBasis: '100%' }}>
+            <div aria-live="polite" className="chat-composer-aviso">
               {error && <p className="error" style={{ margin: '8px 0 0' }}>{error}</p>}
             </div>
           </form>

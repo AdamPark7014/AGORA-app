@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { api } from '@/lib/api';
 import { sesion } from '@/lib/sesion';
@@ -34,7 +34,7 @@ const SECCIONES = [
   { href: '/marketplace', icono: 'marketplace' as const, texto: 'Marketplace' },
   { href: '/anonimo', icono: 'anonimo' as const, texto: 'Sin nombre' },
   { href: '/mensajes', icono: 'mensajes' as const, texto: 'Mensajes' },
-  { href: '/guardados', icono: 'feed' as const, texto: 'Guardados' },
+  { href: '/guardados', icono: 'guardados' as const, texto: 'Guardados' },
   { href: '/directorio', icono: 'directorio' as const, texto: 'Directorio' },
   { href: '/ajustes', icono: 'ajustes' as const, texto: 'Ajustes' },
 ] as const;
@@ -172,7 +172,9 @@ interface Cumple {
 
 export function CarrilDerecho() {
   const ruta = usePathname();
-  const [eventos, setEventos] = useState<EventoBreve[]>([]);
+  // `null` mientras carga: "Nada agendado" solo cuando de verdad no hay.
+  const [eventos, setEventos] = useState<EventoBreve[] | null>(null);
+  const [errorEventos, setErrorEventos] = useState(false);
   const [gente, setGente] = useState<Persona[]>([]);
   const [cumples, setCumples] = useState<Cumple[]>([]);
   const [trending, setTrending] = useState<Array<{ tag: string; usos: number }>>([]);
@@ -183,11 +185,19 @@ export function CarrilDerecho() {
       .catch(() => undefined);
   }, []);
 
-  useEffect(() => {
+  const cargarEventos = useCallback(() => {
+    setErrorEventos(false);
+    setEventos(null);
     api<{ eventos: EventoBreve[] }>('/eventos?limite=4')
       .then((d) => setEventos(d.eventos))
-      .catch(() => undefined);
+      .catch(() => setErrorEventos(true));
+  }, []);
 
+  useEffect(() => {
+    cargarEventos();
+  }, [cargarEventos]);
+
+  useEffect(() => {
     api<{ resultados: Persona[] }>('/directorio?limite=4')
       .then((d) => setGente(d.resultados))
       .catch(() => undefined);
@@ -256,7 +266,27 @@ export function CarrilDerecho() {
 
       <div className="panel">
         <p className="panel-titulo">Próximos eventos</p>
-        {eventos.length === 0 ? (
+        {errorEventos ? (
+          <p className="tenue" style={{ margin: 0 }}>
+            No se pudieron cargar.{' '}
+            <button type="button" className="enlace-texto" onClick={cargarEventos}>
+              Reintentar
+            </button>
+          </p>
+        ) : eventos === null ? (
+          <div className="esqueleto-lista" aria-busy="true" aria-label="Cargando eventos">
+            {[0, 1].map((i) => (
+              <div key={i} className="evento" aria-hidden="true">
+                <div className="esqueleto" style={{ width: 44, height: 44, borderRadius: 10 }} />
+                <div className="evento-cuerpo" style={{ display: 'grid', gap: 6 }}>
+                  <div className="esqueleto" style={{ width: '40%', height: 11 }} />
+                  <div className="esqueleto" style={{ width: '85%', height: 13 }} />
+                  <div className="esqueleto" style={{ width: '60%', height: 11 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : eventos.length === 0 ? (
           <p className="tenue" style={{ margin: 0 }}>
             Nada agendado.{' '}
             <Link href="/eventos">Organiza algo.</Link>

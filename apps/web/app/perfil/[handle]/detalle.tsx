@@ -11,7 +11,8 @@ import { Avatar } from '@/componentes/avatar';
 import { MessageCircle, Settings } from '@/componentes/iconos';
 import { TarjetaPost } from '@/componentes/tarjeta-post';
 import { EstadoVacio } from '@/componentes/estado-vacio';
-import { EsqueletoPerfil } from '@/componentes/esqueleto';
+import { EstadoError } from '@/componentes/estado-error';
+import { EsqueletoFeed, EsqueletoLista, EsqueletoPerfil } from '@/componentes/esqueleto';
 import { UserX, Inbox, Cake, Lock } from 'lucide-react';
 import { RachaBadges } from '@/componentes/racha-badges';
 import { TIPOS_RETO_AMIGO } from '@agora/contracts';
@@ -68,6 +69,14 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
   const [siguienteCursor, setSiguienteCursor] = useState<string | null>(null);
   const [cargandoMas, setCargandoMas] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Fallo al cargar el perfil, aparte de `error` (fallos de acciones): un 404
+  // es "no existe", cualquier otro se arregla con Reintentar.
+  const [errorCarga, setErrorCarga] = useState<'no-existe' | 'red' | null>(null);
+  // Sin esto, entre que llega el perfil y llegan sus publicaciones se veía
+  // "Sin publicaciones" aunque tuviera varias.
+  const [estadoPublicaciones, setEstadoPublicaciones] = useState<'cargando' | 'listo' | 'error'>(
+    'cargando',
+  );
   const [yo, setYo] = useState<string | null>(null);
   const [siguiendo, setSiguiendo] = useState(false);
   const [ocupado, setOcupado] = useState(false);
@@ -75,36 +84,48 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
   const [bloqueado, setBloqueado] = useState(false);
   const [silenciado, setSilenciado] = useState(false);
   const [listaSocial, setListaSocial] = useState<'seguidores' | 'siguiendo' | null>(null);
-  const [personasLista, setPersonasLista] = useState<Array<{ handle: string; nombre: string; fotoUrl: string | null; verificado?: boolean }>>([]);
+  // `null` mientras carga: la lista vacía es "nadie", no "todavía no llega".
+  const [personasLista, setPersonasLista] = useState<Array<{ handle: string; nombre: string; fotoUrl: string | null; verificado?: boolean }> | null>(null);
+  const [errorLista, setErrorLista] = useState(false);
   const [puedeRetarInfo, setPuedeRetarInfo] = useState<{ puedeRetar: boolean; motivo?: string } | null>(null);
   const [modalRetar, setModalRetar] = useState(false);
   const [tipoReto, setTipoReto] = useState<TipoRetoAmigo>('RACHA');
   const [enviandoReto, setEnviandoReto] = useState(false);
   const [avisoReto, setAvisoReto] = useState<string | null>(null);
 
-  const cargar = useCallback(async () => {
+  const cargarPublicaciones = useCallback(async () => {
+    setEstadoPublicaciones('cargando');
     try {
-      const datos = await api<Perfil>(`/perfil/${handle}`);
-      setPerfil(datos);
-      setSiguiendo(datos.yoLeSigo ?? false);
-      if (!datos.restringido) {
-        const p = await api<{ publicaciones: PublicacionApi[]; siguienteCursor: string | null }>(
-          `/perfil/${handle}/publicaciones`,
-        );
-        setPublicaciones(p.publicaciones.map(normalizarPublicacion));
-        setSiguienteCursor(p.siguienteCursor);
-      } else {
-        setPublicaciones([]);
-        setSiguienteCursor(null);
-      }
-    } catch (e) {
-      setError(
-        e instanceof ErrorApi && e.estado === 404
-          ? copy.perfil.noExiste.titulo
-          : copy.perfil.errores.cargar,
+      const p = await api<{ publicaciones: PublicacionApi[]; siguienteCursor: string | null }>(
+        `/perfil/${handle}/publicaciones`,
       );
+      setPublicaciones(p.publicaciones.map(normalizarPublicacion));
+      setSiguienteCursor(p.siguienteCursor);
+      setEstadoPublicaciones('listo');
+    } catch {
+      setEstadoPublicaciones('error');
     }
   }, [handle]);
+
+  const cargar = useCallback(async () => {
+    setErrorCarga(null);
+    let datos: Perfil;
+    try {
+      datos = await api<Perfil>(`/perfil/${handle}`);
+    } catch (e) {
+      setErrorCarga(e instanceof ErrorApi && e.estado === 404 ? 'no-existe' : 'red');
+      return;
+    }
+    setPerfil(datos);
+    setSiguiendo(datos.yoLeSigo ?? false);
+    if (!datos.restringido) {
+      await cargarPublicaciones();
+    } else {
+      setPublicaciones([]);
+      setSiguienteCursor(null);
+      setEstadoPublicaciones('listo');
+    }
+  }, [handle, cargarPublicaciones]);
 
   useEffect(() => {
     void cargar();
@@ -202,13 +223,15 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
 
   async function abrirLista(tipo: 'seguidores' | 'siguiendo') {
     setListaSocial(tipo);
+    setPersonasLista(null);
+    setErrorLista(false);
     try {
       const datos = await api<{ personas: Array<{ handle: string; nombre: string; fotoUrl: string | null; verificado?: boolean }> }>(
         `/perfil/${handle}/${tipo}`,
       );
       setPersonasLista(datos.personas);
     } catch {
-      setPersonasLista([]);
+      setErrorLista(true);
     }
   }
 
@@ -232,12 +255,20 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
     }
   }
 
-  if (error && !perfil) {
+  if (errorCarga === 'no-existe') {
     return (
       <main>
-        <EstadoVacio icono={UserX} titulo={error}>
+        <EstadoVacio icono={UserX} titulo={copy.perfil.noExiste.titulo}>
           {copy.perfil.noExiste.texto}
         </EstadoVacio>
+      </main>
+    );
+  }
+
+  if (errorCarga === 'red' && !perfil) {
+    return (
+      <main>
+        <EstadoError onReintentar={() => void cargar()}>{copy.perfil.errores.cargar}</EstadoError>
       </main>
     );
   }
@@ -404,6 +435,11 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
           )}
         </div>
         {avisoReto && <p className="nota" style={{ marginTop: 12, marginBottom: 0 }}>{avisoReto}</p>}
+        {/* Los fallos de seguir, escribir, bloquear o retar se guardaban y
+            nunca se mostraban. */}
+        <div aria-live="polite">
+          {error && <p className="error" style={{ marginTop: 12, marginBottom: 0 }}>{error}</p>}
+        </div>
       </div>
 
       <RachaBadges
@@ -460,6 +496,12 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
             </p>
           )}
         </div>
+      ) : estadoPublicaciones === 'cargando' ? (
+        <EsqueletoFeed cantidad={2} />
+      ) : estadoPublicaciones === 'error' ? (
+        <EstadoError onReintentar={() => void cargarPublicaciones()}>
+          {copy.perfil.errores.publicaciones}
+        </EstadoError>
       ) : publicaciones.length === 0 ? (
         <EstadoVacio
           icono={Inbox}
@@ -478,7 +520,7 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
         </ul>
       )}
 
-      {pestana === 'publicaciones' && siguienteCursor && (
+      {pestana === 'publicaciones' && estadoPublicaciones === 'listo' && siguienteCursor && (
         <div style={{ textAlign: 'center', marginTop: 12 }}>
           <button type="button" className="secundario" disabled={cargandoMas} onClick={cargarMasPublicaciones}>
             {cargandoMas ? copy.cargando.general : 'Cargar más publicaciones'}
@@ -492,7 +534,13 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
             <h2 style={{ marginTop: 0 }}>
               {listaSocial === 'seguidores' ? 'Seguidores' : 'Siguiendo'}
             </h2>
-            {personasLista.length === 0 ? (
+            {errorLista ? (
+              <EstadoError onReintentar={() => void abrirLista(listaSocial)}>
+                {copy.perfil.errores.lista}
+              </EstadoError>
+            ) : personasLista === null ? (
+              <EsqueletoLista cantidad={3} />
+            ) : personasLista.length === 0 ? (
               <p className="tenue">Nadie por aquí todavía.</p>
             ) : (
               <ul className="lista" style={{ margin: 0 }}>

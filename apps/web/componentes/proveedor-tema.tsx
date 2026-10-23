@@ -1,7 +1,7 @@
 'use client';
 
 import { Moon, Sun } from 'lucide-react';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
 
 type Tema = 'light' | 'dark' | 'system';
 
@@ -68,29 +68,61 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ToggleTema() {
+/**
+ * Lee el tema que de verdad pinta la página (`data-theme` en `<html>`, que pone
+ * el script anti-FOUC antes del primer pintado) sin romper la hidratación.
+ *
+ * El servidor no sabe el tema: renderizaba siempre la luna y el cliente, en
+ * oscuro, el sol, y React tiraba el árbol entero por el desajuste. Con
+ * `useSyncExternalStore` el servidor y la hidratación usan `null` y el valor
+ * real llega en el render siguiente.
+ */
+function suscribirTema(avisar: () => void) {
+  const observador = new MutationObserver(avisar);
+  observador.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  return () => observador.disconnect();
+}
+
+function useTemaOscuro(): boolean | null {
+  return useSyncExternalStore(
+    suscribirTema,
+    () => document.documentElement.dataset.theme === 'dark',
+    () => null,
+  );
+}
+
+export function ToggleTema({ conTexto = false }: { conTexto?: boolean }) {
   const { tema, setTema } = useTema();
+  const oscuro = useTemaOscuro();
 
   function alternar() {
-    const oscuro =
+    const esOscuro =
       tema === 'dark' ||
       (tema === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    setTema(oscuro ? 'light' : 'dark');
+    setTema(esOscuro ? 'light' : 'dark');
   }
 
-  const oscuro =
-    typeof document !== 'undefined' &&
-    document.documentElement.dataset.theme === 'dark';
+  // El icono se elige por CSS (`.solo-tema-*`), no aquí: así el HTML del
+  // servidor ya sale con el icono correcto y no parpadea al hidratar.
+  const etiqueta =
+    oscuro === null ? 'Cambiar tema' : oscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
 
   return (
     <button
       type="button"
-      className="toggle-tema"
+      className={conTexto ? 'toggle-tema toggle-tema-texto' : 'toggle-tema'}
       onClick={alternar}
-      aria-label={oscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-      title={oscuro ? 'Modo claro' : 'Modo oscuro'}
+      aria-label={etiqueta}
+      title={etiqueta}
     >
-      {oscuro ? <Sun size={18} strokeWidth={1.75} /> : <Moon size={18} strokeWidth={1.75} />}
+      <span className="solo-tema-oscuro">
+        <Sun size={18} strokeWidth={1.75} aria-hidden="true" />
+        {conTexto && 'Modo claro'}
+      </span>
+      <span className="solo-tema-claro">
+        <Moon size={18} strokeWidth={1.75} aria-hidden="true" />
+        {conTexto && 'Modo oscuro'}
+      </span>
     </button>
   );
 }

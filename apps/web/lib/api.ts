@@ -43,7 +43,7 @@ export async function apiConCabeceras<T>(
     // —la de ZodPipe y la de Nest— y aqui se probaban tres campos a ver cual
     // traia algo. Ahora se prefiere el detalle por campo cuando lo hay, porque
     // "Necesitas un correo @udlap.mx" dice mas que "Datos invalidos".
-    const mensaje = cuerpo?.errores?.[0]?.mensaje ?? cuerpo?.mensaje ?? 'Algo salio mal.';
+    const mensaje = cuerpo?.errores?.[0]?.mensaje ?? cuerpo?.mensaje ?? 'Algo salió mal.';
     throw new ErrorApi(respuesta.status, mensaje, cuerpo?.errores);
   }
 
