@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   ServiceUnavailableException,
   UnauthorizedException,
   type ExecutionContext,
@@ -227,6 +228,33 @@ test('el código va al correo personal, atado a él, y abre una cuenta pendiente
     assert.deepEqual(u.udlapPendienteDesde, AHORA);
     assert.equal(u.emailVerifiedAt, null, 'el correo personal no confirma la UDLAP');
     assert.equal(b.sesiones[0]?.viaCodigo, true);
+  });
+});
+
+test('pedir el código al correo personal justo después del UDLAP no espera el minuto', async () => {
+  await conSecreto(async () => {
+    const b = base();
+    await b.servicio.solicitarCodigo(UDLAP, AHORA);
+    // 24 s después (lo que tardó Adam el 23-10): antes daba 429 y no salía nada.
+    const despues = new Date(AHORA.getTime() + 24_000);
+    await b.servicio.solicitarCodigoPersonal(UDLAP, PERSONAL, despues);
+    assert.deepEqual(
+      b.enviados.map((e) => e.destino),
+      [UDLAP, PERSONAL],
+    );
+  });
+});
+
+test('dos códigos al correo personal seguidos sí esperan el minuto', async () => {
+  await conSecreto(async () => {
+    const b = base();
+    await b.servicio.solicitarCodigoPersonal(UDLAP, PERSONAL, AHORA);
+    const despues = new Date(AHORA.getTime() + 24_000);
+    await assert.rejects(
+      b.servicio.solicitarCodigoPersonal(UDLAP, PERSONAL, despues),
+      (e: unknown) => e instanceof HttpException && e.getStatus() === 429,
+    );
+    assert.equal(b.enviados.length, 1);
   });
 });
 

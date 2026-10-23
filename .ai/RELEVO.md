@@ -139,6 +139,14 @@ tolerancia). Solo `apps/mobile-native/ios/**` y `.github/`:
   /registro, moderación daba 403, el panel no mostraba «Resumen»). El seed de demo ahora la crea fuera de
   producción con un perfil mínimo («Equipo Ágora») y rol super_admin; una cuenta existente solo recibe el
   rol, como antes. `anonimo.spec.ts` crea su propia anónima (dependía de una que quedaba de corridas viejas).
+- **23-10 «no me llegó ni al UDLAP ni al personal» (Adam, registro nuevo en la app):** el UDLAP sí salió y
+  Brevo lo entregó en 5 s (luego lo abrieron los escáneres de Microsoft): está en no deseado/Otros/cuarentena.
+  El personal nunca salió: `otp/personal/solicitar` dio **429** porque el minuto de espera era por cuenta y
+  lo pidió 24 s después del UDLAP. Ahora el minuto es por buzón (`revisarCupo(…, destino)`); el tope de 10
+  al día sigue siendo de la cuenta. Además el disco del Hetzner estaba al 99 % (Redis sin poder guardar,
+  NEXARA en 503): se liberaron ~10 GB (caché de build de Docker, `.gradle-isolated` viejo dentro de
+  `/var/www/udlagora-app` y el respaldo `prev-20261022-1627` de Ágora); queda en 87 %. La API de Brevo
+  rechaza la IPv6 del servidor: consultar eventos con `curl -4`.
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: correo personal y fallos de iOS)
 

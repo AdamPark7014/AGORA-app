@@ -140,7 +140,7 @@ export class AuthService {
       create: { email, universityId: universidad.id },
     });
 
-    await this.revisarCupo(usuario.id, ahora);
+    await this.revisarCupo(usuario.id, ahora, 'udlap');
 
     const codigo = generarCodigo();
     await this.prisma.otpCode.create({
@@ -155,14 +155,16 @@ export class AuthService {
   }
 
   /**
-   * Uno por minuto y diez al día por cuenta, cuente el buzón al que se mande:
-   * pedir al correo personal no abre un segundo cupo.
+   * Uno por minuto por buzón y diez al día por cuenta. El minuto se cuenta por
+   * buzón: quien no ve el código UDLAP pide el personal enseguida, y hacerle
+   * esperar justo ahí dejaba el registro sin código (23-10). El tope diario sí
+   * es de la cuenta: el correo personal no abre un segundo cupo.
    */
-  private async revisarCupo(userId: string, ahora: Date): Promise<void> {
+  private async revisarCupo(userId: string, ahora: Date, destino: 'udlap' | 'personal'): Promise<void> {
     const hace24h = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
     const [ultimo, enviosUltimas24h] = await Promise.all([
       this.prisma.otpCode.findFirst({
-        where: { userId },
+        where: { userId, destino },
         orderBy: { createdAt: 'desc' },
         select: { createdAt: true },
       }),
@@ -353,7 +355,7 @@ export class AuthService {
         create: { email, universityId: universidad.id },
       }));
 
-    await this.revisarCupo(usuario.id, ahora);
+    await this.revisarCupo(usuario.id, ahora, 'personal');
 
     const codigo = generarCodigo();
     await this.prisma.otpCode.create({
