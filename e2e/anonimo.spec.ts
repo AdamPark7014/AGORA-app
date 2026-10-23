@@ -26,14 +26,27 @@ test('la respuesta anonima nunca incluye al autor', async ({ request }) => {
   const { habilitada } = await estado.json();
   test.skip(!habilitada, 'la zona esta apagada sin OPENAI_API_KEY');
 
-  const feed = await request.get(`${API}/anonimo`);
-  const crudo = await feed.text();
+  // Una propia: en una base nueva (CI) la zona anonima empieza vacia y el
+  // feed no tendria nada que revisar.
+  const creada = await request.post(`${API}/anonimo`, {
+    data: { texto: `prueba e2e del feed anonimo ${Date.now()}` },
+  });
+  expect(creada.status()).toBe(201);
+  const { id } = await creada.json();
 
-  // Ni el id del autor ni un objeto `autor`: el filtrado ocurre en el
-  // servidor, no escondiendo campos en la interfaz.
-  expect(crudo).not.toContain('authorId');
-  expect(crudo).not.toContain('"autor"');
-  expect(crudo).toContain('alias');
+  try {
+    const feed = await request.get(`${API}/anonimo`);
+    const crudo = await feed.text();
+
+    // Ni el id del autor ni un objeto `autor`: el filtrado ocurre en el
+    // servidor, no escondiendo campos en la interfaz.
+    expect(crudo).toContain(id);
+    expect(crudo).not.toContain('authorId');
+    expect(crudo).not.toContain('"autor"');
+    expect(crudo).toContain('alias');
+  } finally {
+    await request.delete(`${API}/anonimo/${id}`, { failOnStatusCode: false });
+  }
 });
 
 test('ninguna ruta de publicaciones revela al autor de una anonima', async ({ request }) => {

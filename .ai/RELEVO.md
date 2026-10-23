@@ -130,6 +130,12 @@ tolerancia). Solo `apps/mobile-native/ios/**` y `.github/`:
   Analíticas), interacción con Funcionalidad + Analíticas y «Otros tipos de datos» (cumpleaños, carrera,
   intereses…), que faltaba. Ajustes: etiqueta de `AVENTON_RECORDATORIO` («Tu aventón está por salir»); el
   push abre Aventones por su `url`.
+- **E2E (`ci`) — las 4 rojas no venían del correo personal:** fallaban igual desde el 21-10 (5a4c21a) y
+  `ci` nunca ha pasado en GitHub (76 fallidas, 10 canceladas). Causa: en la base nueva del CI la cuenta de
+  `BOOTSTRAP_SUPERADMIN_EMAIL` no existe al sembrar, así que nunca recibía rol ni perfil (navegación caía en
+  /registro, moderación daba 403, el panel no mostraba «Resumen»). El seed de demo ahora la crea fuera de
+  producción con un perfil mínimo («Equipo Ágora») y rol super_admin; una cuenta existente solo recibe el
+  rol, como antes. `anonimo.spec.ts` crea su propia anónima (dependía de una que quedaba de corridas viejas).
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: correo personal y fallos de iOS)
 

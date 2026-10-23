@@ -1350,5 +1350,65 @@ export async function sembrarDemo(
       data: { roles: ['super_admin'] },
     });
     console.log(`   super_admin: ${superadminEmail}`);
+    return;
   }
+  // En una base nueva (CI, una máquina recién instalada) la cuenta aún no
+  // existe y el rol no tenía a quién darse: las e2e de moderación y navegación
+  // entraban sin perfil ni rol. Fuera de producción se crea con un perfil
+  // mínimo; una cuenta que ya existe nunca se toca más allá del rol.
+  if (process.env.NODE_ENV === 'production') return;
+  await sembrarFundador(prisma, universityId, superadminEmail);
+  console.log(`   super_admin: ${superadminEmail} (cuenta nueva con perfil de demo)`);
+}
+
+async function sembrarFundador(
+  prisma: PrismaClient,
+  universityId: string,
+  email: string,
+): Promise<void> {
+  const carreraSlug = 'ing-sistemas-computacionales';
+  const generacion = 2022;
+  const carrera = await prisma.carrera.findFirst({ where: { slug: carreraSlug } });
+  if (!carrera) throw new Error(`Carrera no encontrada en BD: ${carreraSlug}`);
+
+  const usuario = await prisma.user.create({
+    data: {
+      email,
+      universityId,
+      estado: 'ACTIVO',
+      emailVerifiedAt: new Date(),
+      roles: ['super_admin'],
+    },
+  });
+  // El @ sale del correo, con las reglas de `handleSchema`: letras, números,
+  // punto y guion bajo, empieza con letra, máximo 20.
+  const local = (email.split('@')[0] ?? '').replace(/[^a-z0-9._]/g, '').slice(0, 20);
+  const handle = /^[a-z]/.test(local) && local.length >= 3 ? local : 'equipo.agora';
+  await prisma.profile.create({
+    data: {
+      userId: usuario.id,
+      handle,
+      nombre: 'Equipo',
+      apellidos: 'Ágora',
+      generacion,
+      carreraId: carrera.id,
+      departamentoId: carrera.departamentoId,
+    },
+  });
+
+  const meta = carreraMeta(carreraSlug);
+  const slugs = [
+    SLUG_COMUNIDAD_CAMPUS_UDLAP,
+    ...comunidadesDelPerfil({
+      escuela: meta.escuela,
+      departamento: meta.departamento,
+      carrera: meta.slug,
+      generacion,
+    }),
+  ];
+  const comunidades = await prisma.community.findMany({ where: { slug: { in: slugs } } });
+  await prisma.membership.createMany({
+    data: comunidades.map((c) => ({ userId: usuario.id, communityId: c.id, automatica: true })),
+    skipDuplicates: true,
+  });
 }
