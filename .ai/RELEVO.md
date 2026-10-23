@@ -92,7 +92,13 @@ tolerancia). Solo `apps/mobile-native/ios/**` y `.github/`:
   profundos feed, evento, aventones, mercado, mensajes y perfil (@diego.tr) en claro y oscuro y guarda
   `capturas-ios/{claro,oscuro}/<nombre>.png` a 1320×2868 (artefacto `ios-capturas-tienda`). La misma prueba
   registra una cuenta nueva y comprueba la casilla. En `pruebas-ui` se salta (sin `AGORA_CAPTURAS`).
-- Pendiente: el seed de demo va sin acentos («manana», «Calculo»); en las capturas se nota.
+- **Arreglo de la puerta de iOS (venía del 21-10):** al canjear el código, `AuthRepository` ponía la sesión
+  de inmediato y `RootView` dejaba la puerta, así que el paso «crea tu contraseña» no se veía nunca (cuentas
+  nuevas sin contraseña y «¿Olvidaste tu contraseña?» que no la cambiaba). Ahora `verificarOtp(guardar:
+  false)` y la sesión se guarda al terminar ese paso (`crearContrasena(_:token:)`). Confirmar la UDLAP sigue
+  guardando de inmediato. Revisar si Android tiene lo mismo.
+- `ios-capturas.yml` firma con «-» (sin firma el simulador no escribe en el Keychain y la sesión no se
+  guarda) y la prueba salta la bienvenida de tres pantallas.
 
 ## Hecho en este turno (22-10, sesión lateral de móvil: correo personal y fallos de iOS)
 

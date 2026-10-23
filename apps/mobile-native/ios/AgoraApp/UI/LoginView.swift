@@ -342,10 +342,15 @@ struct LoginView: View {
         FormularioContrasena(
             modo: .crear,
             enviar: { _, nueva in
-                try await AuthRepository.shared.crearContrasena(nueva)
+                try await AuthRepository.shared.crearContrasena(nueva, token: verificado?.token)
             },
             onListo: {
-                if let verificado { terminar(verificado) }
+                // La sesión se pone hasta aquí (ver `verificarCodigo`).
+                guard let verificado else { return }
+                Task {
+                    await AuthRepository.shared.guardarSesion(verificado)
+                    await MainActor.run { terminar(verificado) }
+                }
             }
         )
     }
@@ -542,13 +547,16 @@ struct LoginView: View {
         error = nil
         defer { cargando = false }
         do {
+            // Sin guardar la sesión todavía: en cuanto hay sesión, `RootView` deja
+            // la puerta y el paso de la contraseña no se vería.
             let entrada = codigoAlPersonal
                 ? try await AuthRepository.shared.verificarOtpPersonal(
                     email: email,
                     correoPersonal: correoPersonal,
-                    codigo: codigo
+                    codigo: codigo,
+                    guardar: false
                 )
-                : try await AuthRepository.shared.verificarOtp(email: email, codigo: codigo)
+                : try await AuthRepository.shared.verificarOtp(email: email, codigo: codigo, guardar: false)
             // Sin contraseña todavía (cuenta nueva o de antes), o vino a
             // cambiarla: se elige antes de entrar. Si ya tiene y solo prefirió
             // el código, pasa. Con una API anterior (`nil`) pasa.
@@ -558,6 +566,7 @@ struct LoginView: View {
                     irA(.contrasena)
                 }
             } else {
+                await AuthRepository.shared.guardarSesion(entrada.user)
                 await MainActor.run { terminar(entrada.user) }
             }
         } catch {

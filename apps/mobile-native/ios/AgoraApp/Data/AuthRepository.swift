@@ -41,8 +41,11 @@ final class AuthRepository {
         }
     }
 
-    /// Entra con el código del correo y guarda la sesión.
-    func verificarOtp(email: String, codigo: String) async throws -> EntradaPorCodigo {
+    /// Entra con el código del correo. Con `guardar: false` devuelve la sesión sin
+    /// ponerla: la puerta la guarda después de crear la contraseña. Si la pusiera
+    /// aquí, `RootView` dejaría la puerta en ese instante y el paso de la
+    /// contraseña (cuenta nueva u «olvidé») nunca se vería.
+    func verificarOtp(email: String, codigo: String, guardar: Bool = true) async throws -> EntradaPorCodigo {
         let normalizedEmail = normalizar(email)
         let normalizedCodigo = codigo.trimmingCharacters(in: .whitespacesAndNewlines)
         let data = try await ApiClient.shared.postJSON(
@@ -53,7 +56,7 @@ final class AuthRepository {
         guard let token = resp.token, !token.isEmpty else {
             throw ApiError.http(-1, "La API no devolvió token.")
         }
-        let user = await abrirSesion(token: token, email: normalizedEmail, tienePerfil: resp.tienePerfil)
+        let user = await abrirSesion(token: token, email: normalizedEmail, tienePerfil: resp.tienePerfil, guardar: guardar)
         return EntradaPorCodigo(
             user: user,
             tieneContrasena: resp.tieneContrasena,
@@ -76,9 +79,14 @@ final class AuthRepository {
         return envioId
     }
 
-    /// Canjea el código del correo personal y guarda la sesión. La cuenta queda
-    /// pendiente de confirmar su UDLAP (plazo de 30 días).
-    func verificarOtpPersonal(email: String, correoPersonal: String, codigo: String) async throws -> EntradaPorCodigo {
+    /// Canjea el código del correo personal (`guardar` como en `verificarOtp`). La
+    /// cuenta queda pendiente de confirmar su UDLAP (plazo de 30 días).
+    func verificarOtpPersonal(
+        email: String,
+        correoPersonal: String,
+        codigo: String,
+        guardar: Bool = true
+    ) async throws -> EntradaPorCodigo {
         let normalizedEmail = normalizar(email)
         let data = try await ApiClient.shared.postJSON(
             "auth/otp/personal/verificar",
@@ -93,7 +101,7 @@ final class AuthRepository {
         guard let token = resp.token, !token.isEmpty else {
             throw ApiError.http(-1, "La API no devolvió token.")
         }
-        let user = await abrirSesion(token: token, email: normalizedEmail, tienePerfil: resp.tienePerfil)
+        let user = await abrirSesion(token: token, email: normalizedEmail, tienePerfil: resp.tienePerfil, guardar: guardar)
         return EntradaPorCodigo(
             user: user,
             tieneContrasena: resp.tieneContrasena,
@@ -125,11 +133,20 @@ final class AuthRepository {
 
     /// Fija la contraseña sin pedir la actual. La API lo permite si la cuenta no
     /// tiene, o si la sesión se abrió por código hace menos de 30 min («olvidé»).
-    func crearContrasena(_ contrasena: String) async throws {
+    /// `token`: el de una sesión que aún no se guarda (la puerta); sin él, el actual.
+    func crearContrasena(_ contrasena: String, token: String? = nil) async throws {
         _ = try await ApiClient.shared.postJSON(
             "auth/contrasena",
-            body: CrearContrasenaRequest(contrasena: contrasena)
+            body: CrearContrasenaRequest(contrasena: contrasena),
+            token: token
         )
+    }
+
+    /// Pone la sesión que devolvió `verificarOtp(guardar: false)`.
+    func guardarSesion(_ user: SessionUser) async {
+        await MainActor.run {
+            SessionStore.shared.save(user)
+        }
     }
 
     /// Cambia la contraseña dando la actual. Las otras sesiones se cierran.
@@ -148,7 +165,7 @@ final class AuthRepository {
 
     /// Completa la sesión con `auth/yo` (handle, nombre y permisos; si falla se
     /// guarda sin ellos, como siempre) y la deja en el Keychain.
-    private func abrirSesion(token: String, email: String, tienePerfil: Bool) async -> SessionUser {
+    private func abrirSesion(token: String, email: String, tienePerfil: Bool, guardar: Bool = true) async -> SessionUser {
         var yo: YoResponse?
         do {
             let yoData = try await ApiClient.shared.get("auth/yo", token: token)
@@ -166,8 +183,8 @@ final class AuthRepository {
             puedeModerar: yo?.puedeModerar ?? false,
             puedeSuspender: yo?.puedeSuspender ?? false
         )
-        await MainActor.run {
-            SessionStore.shared.save(user)
+        if guardar {
+            await guardarSesion(user)
         }
         return user
     }

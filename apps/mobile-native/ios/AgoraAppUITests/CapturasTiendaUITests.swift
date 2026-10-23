@@ -29,6 +29,7 @@ final class CapturasTiendaUITests: XCTestCase {
 
     func test1_capturasDeLaTienda() throws {
         entrarComoDemo()
+        saltarBienvenida()
         cerrarAlertasDelSistema()
         XCTAssertTrue(pestanaFeed.waitForExistence(timeout: 30), "No llegó al feed después de entrar")
 
@@ -134,6 +135,7 @@ final class CapturasTiendaUITests: XCTestCase {
         escribir(clave, en: app.secureTextFields["Repítela"])
         bajarTeclado()
         tocar(app.buttons["Guardar contraseña"])
+        saltarBienvenida()
 
         // Perfil.
         escribir("registro_ui", en: app.textFields["usuario"])
@@ -181,6 +183,13 @@ final class CapturasTiendaUITests: XCTestCase {
         escribir(entorno["AGORA_DEMO_CONTRASENA"] ?? "", en: app.secureTextFields["login.contrasena"])
         bajarTeclado()
         tocar(app.buttons["login.entrar"])
+    }
+
+    /// La primera vez que se entra en el teléfono sale la bienvenida de tres
+    /// pantallas antes del feed (o del registro).
+    private func saltarBienvenida() {
+        let saltar = app.buttons["Saltar"]
+        if saltar.waitForExistence(timeout: 10) { saltar.tap() }
     }
 
     /// Más → «Cerrar sesión», para que el registro empiece en la puerta.
