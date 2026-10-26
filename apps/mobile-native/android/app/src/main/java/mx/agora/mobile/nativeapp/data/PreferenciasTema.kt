@@ -10,7 +10,12 @@ enum class ModoTema(val clave: String, val etiqueta: String) {
     ;
 
     companion object {
-        fun deClave(clave: String?): ModoTema = entries.firstOrNull { it.clave == clave } ?: SISTEMA
+        /**
+         * Sin elección guardada, claro aunque el teléfono esté en oscuro (regla de
+         * Adam, 26-10-2026, igual en web e iOS): el oscuro y «Sistema» solo si la
+         * persona los elige en Ajustes.
+         */
+        fun deClave(clave: String?): ModoTema = entries.firstOrNull { it.clave == clave } ?: CLARO
     }
 }
 

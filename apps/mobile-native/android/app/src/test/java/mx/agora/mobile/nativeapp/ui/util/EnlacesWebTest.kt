@@ -47,9 +47,11 @@ class EnlacesWebTest {
     }
 
     @Test
-    fun `modo de tema desconocido vuelve a sistema`() {
+    fun `sin tema elegido o desconocido es claro`() {
         assertEquals(ModoTema.OSCURO, ModoTema.deClave("oscuro"))
-        assertEquals(ModoTema.SISTEMA, ModoTema.deClave(null))
-        assertEquals(ModoTema.SISTEMA, ModoTema.deClave("morado"))
+        assertEquals(ModoTema.SISTEMA, ModoTema.deClave("sistema"))
+        // Regla de Adam (26-10-2026): claro por omisión aunque el teléfono esté en oscuro.
+        assertEquals(ModoTema.CLARO, ModoTema.deClave(null))
+        assertEquals(ModoTema.CLARO, ModoTema.deClave("morado"))
     }
 }

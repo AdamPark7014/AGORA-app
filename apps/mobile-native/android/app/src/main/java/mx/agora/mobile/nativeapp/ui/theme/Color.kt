@@ -4,7 +4,8 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * Tokens de color con variante clara y oscura (la oscura es la misma paleta
- * que la web). `AgoraTheme` fija [oscuro] según el sistema; cambiar el modo
+ * que la web). `AgoraTheme` fija [oscuro] según el tema elegido (claro si no
+ * hay elección); cambiar el modo
  * recrea la Activity, así que leer un flag simple basta y sirve también fuera
  * de funciones @Composable (lambdas de dibujo, valores por defecto).
  */

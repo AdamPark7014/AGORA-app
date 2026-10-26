@@ -13,6 +13,11 @@ contra la API local (claro y oscuro, alta de cuenta nueva incluida).
   nunca se subieron). El AAB de 12.4 MB pasaba el tope de 10 MB de la subida por navegador: se subió una
   copia sin el mapa de R8, vuelta a firmar con la llave de subida (5.7 MB). Por eso Play avisa «sin archivo
   de desofuscación» y «sin símbolos nativos» (no bloquean). El siguiente versionCode libre es **5**.
+- **Tema claro por omisión (26-10, pedido de Adam):** sin elección guardada la app arranca en claro aunque el
+  teléfono esté en oscuro; «Oscuro» y «Sistema» quedan como opciones de Ajustes. Se quitó
+  `res/values-night/themes.xml` (el arranque y el splash salían oscuros) y `MainActivity` pinta el fondo de la
+  ventana según el tema elegido. Capturas con sesión del emulador (inicio, evento, mercado, mensajes y perfil,
+  claro con el sistema en oscuro y oscuro elegido) revisadas antes de subir, como pide `AGENTS.md`.
 - **Base:** tokens D en `ui/theme` (colores claro/oscuro, radios, márgenes 18/14/12), Bricolage Grotesque
   700–800 y Outfit 400–700 empaquetadas en `res/font` (estáticas de Google Fonts, licencias OFL en
   `apps/mobile-native/android/licencias-fuentes/`), avatar cuadrado redondeado con tono por persona, piezas

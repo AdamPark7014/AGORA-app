@@ -1,6 +1,8 @@
 package mx.agora.mobile.nativeapp
 
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -8,6 +10,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineScope
@@ -48,6 +51,7 @@ class MainActivity : FragmentActivity() {
         val atenderIntent = savedInstanceState == null
         // Cambiar el tema en Ajustes guarda la preferencia y recrea la Activity.
         val modoTema = PreferenciasTema.leer(applicationContext)
+        pintarFondoDeArranque(modoTema)
 
         // La sesión vive en prefs cifradas: abrirlas la primera vez crea la llave en
         // el Keystore y tarda segundos en un teléfono lento. Hecho aquí, en el hilo
@@ -63,6 +67,23 @@ class MainActivity : FragmentActivity() {
             intentSinAtender = null
             arrancar(auth, modoTema)
         }
+    }
+
+    /**
+     * El tema de la ventana (`Theme.Agora`) es claro y no tiene variante nocturna:
+     * el tema por omisión es claro aunque el teléfono esté en oscuro. Quien eligió
+     * oscuro (o «Sistema» con el teléfono en oscuro) ve aquí ya el fondo oscuro,
+     * porque la ventana se queda a la vista mientras abren las prefs cifradas.
+     */
+    private fun pintarFondoDeArranque(modoTema: ModoTema) {
+        val oscuro = when (modoTema) {
+            ModoTema.SISTEMA ->
+                (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            ModoTema.CLARO -> false
+            ModoTema.OSCURO -> true
+        }
+        window.setBackgroundDrawable(ColorDrawable(if (oscuro) 0xFF0F0D0B.toInt() else 0xFFF4F2EF.toInt()))
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !oscuro
     }
 
     private fun arrancar(auth: AuthRepository, modoTema: ModoTema) {

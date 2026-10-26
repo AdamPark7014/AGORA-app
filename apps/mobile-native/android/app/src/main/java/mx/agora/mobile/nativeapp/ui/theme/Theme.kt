@@ -1,6 +1,5 @@
 package mx.agora.mobile.nativeapp.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -49,7 +48,7 @@ private fun esquema(oscuro: Boolean): ColorScheme {
 }
 
 @Composable
-fun AgoraTheme(oscuro: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun AgoraTheme(oscuro: Boolean = false, content: @Composable () -> Unit) {
     AgoraColors.oscuro = oscuro
     val view = LocalView.current
     if (!view.isInEditMode) {

@@ -2,7 +2,7 @@
 <resources>
     <style name="Theme.Agora" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">#E35205</item>
-        <item name="android:windowBackground">#F7F5F2</item>
+        <item name="android:windowBackground">#F4F2EF</item>
         <item name="android:statusBarColor">#FFFFFF</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
