@@ -7,7 +7,12 @@
 ## Android, diseño D (sesión de móvil, 26-10)
 
 Hecho según `docs/diseno-d.md`. Compila, `testDebugUnitTest` 44/44 y recorrido completo en el emulador
-contra la API local (claro y oscuro, alta de cuenta nueva incluida). No hay build de tienda nuevo todavía.
+contra la API local (claro y oscuro, alta de cuenta nueva incluida).
+- **Play, prueba interna (26-10 11:33 MX):** versión **4 (1.0.0)** publicada y «Disponible para testers
+  internos» (corrida «Android · Play» 40364738369 con `-f build=4`; en Play solo existía la 1, las 2 y 3
+  nunca se subieron). El AAB de 12.4 MB pasaba el tope de 10 MB de la subida por navegador: se subió una
+  copia sin el mapa de R8, vuelta a firmar con la llave de subida (5.7 MB). Por eso Play avisa «sin archivo
+  de desofuscación» y «sin símbolos nativos» (no bloquean). El siguiente versionCode libre es **5**.
 - **Base:** tokens D en `ui/theme` (colores claro/oscuro, radios, márgenes 18/14/12), Bricolage Grotesque
   700–800 y Outfit 400–700 empaquetadas en `res/font` (estáticas de Google Fonts, licencias OFL en
   `apps/mobile-native/android/licencias-fuentes/`), avatar cuadrado redondeado con tono por persona, piezas
