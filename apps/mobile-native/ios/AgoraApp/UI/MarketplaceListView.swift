@@ -4,17 +4,23 @@ private struct CategoriaAnuncio: Identifiable {
     var id: String { valor }
     let valor: String
     let etiqueta: String
+    /// Sin foto, el ícono de la categoría y no un gris vacío (docs/diseno-d.md §4).
+    let icono: String
 }
 
 private let categoriasAnuncio: [CategoriaAnuncio] = [
-    CategoriaAnuncio(valor: "", etiqueta: "Todas"),
-    CategoriaAnuncio(valor: "LIBROS", etiqueta: "Libros"),
-    CategoriaAnuncio(valor: "ELECTRONICA", etiqueta: "Electrónica"),
-    CategoriaAnuncio(valor: "ROPA", etiqueta: "Ropa"),
-    CategoriaAnuncio(valor: "OTRO", etiqueta: "Otro"),
+    CategoriaAnuncio(valor: "", etiqueta: "Todo", icono: "shippingbox"),
+    CategoriaAnuncio(valor: "LIBROS", etiqueta: "Libros", icono: "book"),
+    CategoriaAnuncio(valor: "ELECTRONICA", etiqueta: "Electrónica", icono: "laptopcomputer"),
+    CategoriaAnuncio(valor: "MUEBLES", etiqueta: "Muebles", icono: "sofa"),
+    CategoriaAnuncio(valor: "ROPA", etiqueta: "Ropa", icono: "tshirt"),
+    CategoriaAnuncio(valor: "CUARTO", etiqueta: "Cuarto", icono: "bed.double"),
+    CategoriaAnuncio(valor: "SERVICIOS", etiqueta: "Servicios", icono: "wrench.and.screwdriver"),
+    CategoriaAnuncio(valor: "OTRO", etiqueta: "Otro", icono: "shippingbox"),
 ]
 
-/// Lista de anuncios — paridad con `MarketplaceListScreen.kt`.
+/// Mercado del diseño D: buscador, chips de categoría y cuadrícula de 2 columnas con foto,
+/// precio sobre la foto y «Apartado» como etiqueta — paridad con `MarketplaceListScreen.kt`.
 struct MarketplaceListView: View {
     var onAnuncio: (String) -> Void = { _ in }
     var onCrear: () -> Void = {}
@@ -27,16 +33,40 @@ struct MarketplaceListView: View {
     @State private var error: String?
     @State private var busquedaTask: Task<Void, Never>?
 
+    private let columnas = [
+        GridItem(.flexible(), spacing: 10, alignment: .top),
+        GridItem(.flexible(), spacing: 10, alignment: .top),
+    ]
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: AgoraDesign.Spacing.xs) {
-                TextField("Buscar anuncios…", text: $busqueda)
-                    .textFieldStyle(.roundedBorder)
-                Button("+ Vender", action: onCrear)
-                    .buttonStyle(.borderedProminent)
-                    .tint(AgoraDesign.Colors.naranja)
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                        .accessibilityHidden(true)
+                    TextField("Libro de cálculo, monitor, bici…", text: $busqueda)
+                        .submitLabel(.search)
+                }
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
+                        .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+                }
+
+                Button(action: onCrear) {
+                    Label("Vender", systemImage: "plus")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .background(AgoraDesign.Colors.naranja, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+                }
+                .buttonStyle(.agoraPlain)
             }
-            .padding(.horizontal, AgoraDesign.Spacing.sm)
+            .padding(.horizontal, 14)
             .padding(.vertical, AgoraDesign.Spacing.xs)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -47,7 +77,7 @@ struct MarketplaceListView: View {
                         }
                     }
                 }
-                .padding(.horizontal, AgoraDesign.Spacing.sm)
+                .padding(.horizontal, 14)
                 .padding(.bottom, AgoraDesign.Spacing.xs)
             }
 
@@ -68,35 +98,32 @@ struct MarketplaceListView: View {
                         onAction: onCrear
                     )
                 } else {
-                    List {
-                        ForEach(anuncios) { anuncio in
-                            AnuncioCardView(anuncio: anuncio) {
-                                onAnuncio(anuncio.id)
+                    ScrollView {
+                        LazyVGrid(columns: columnas, spacing: 14) {
+                            ForEach(anuncios) { anuncio in
+                                AnuncioCardView(anuncio: anuncio) {
+                                    onAnuncio(anuncio.id)
+                                }
                             }
-                            .listRowInsets(EdgeInsets(
-                                top: AgoraDesign.Spacing.xxs,
-                                leading: AgoraDesign.Spacing.sm,
-                                bottom: AgoraDesign.Spacing.xxs,
-                                trailing: AgoraDesign.Spacing.sm
-                            ))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
                         }
+                        .padding(.horizontal, 14)
+                        .padding(.top, 4)
+
                         if cursor != nil {
                             Button("Cargar más") {
                                 Task { await cargar(desde: cursor) }
                             }
-                            .frame(maxWidth: .infinity)
-                            .listRowBackground(Color.clear)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .padding(.vertical, 8)
                         }
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
                 }
             }
         }
         .background(AgoraDesign.Colors.fondo)
-        .navigationTitle("Marketplace")
+        .navigationTitle("Mercado")
         .refreshable { await cargar(desde: nil) }
         .onChange(of: categoria) { _ in programarBusqueda() }
         .onChange(of: busqueda) { _ in programarBusqueda() }
@@ -107,17 +134,18 @@ struct MarketplaceListView: View {
         Button(action: action) {
             Text(label)
                 .font(.subheadline)
-                .padding(.horizontal, AgoraDesign.Spacing.sm)
-                .padding(.vertical, AgoraDesign.Spacing.xs)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 36)
                 .background(selected ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
-                .foregroundStyle(selected ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.texto)
-                .clipShape(Capsule())
+                .foregroundStyle(selected ? AgoraDesign.Colors.naranjaTinta : AgoraDesign.Colors.texto)
+                .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous))
                 .overlay {
-                    Capsule()
-                        .stroke(selected ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.borde, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous)
+                        .stroke(selected ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.borde, lineWidth: 1)
                 }
         }
         .buttonStyle(.agoraPlain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func programarBusqueda() {
@@ -155,48 +183,89 @@ private struct AnuncioCardView: View {
     let anuncio: AnuncioDto
     let onTap: () -> Void
 
+    private var iconoCategoria: String {
+        categoriasAnuncio.first { $0.valor == anuncio.categoria }?.icono ?? "shippingbox"
+    }
+
+    private var precio: String {
+        anuncio.precioMxn == 0 ? "Gratis" : "$\(FormatUtils.formatearPrecio(anuncio.precioMxn))"
+    }
+
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: AgoraDesign.Spacing.sm) {
-                if let url = ApiClient.shared.resolveUrl(anuncio.imagenes?.first) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            AgoraDesign.Colors.skeletonBase
-                        }
-                    }
-                    .frame(width: 72, height: 72)
-                    .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
+            VStack(alignment: .leading, spacing: 6) {
+                ZStack(alignment: .bottomLeading) {
+                    foto
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(1, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                    Text(precio)
+                        .font(.subheadline.weight(.heavy))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.black.opacity(0.78), in: Capsule())
+                        .padding(8)
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("$\(FormatUtils.formatearPrecio(anuncio.precioMxn))")
-                        .font(.headline)
-                        .foregroundStyle(AgoraDesign.Colors.naranja)
-                    Text(anuncio.titulo)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                    Text("\(anuncio.vendedor?.nombre ?? "Alguien") · \(FormatUtils.haceCuanto(anuncio.createdAt))")
-                        .font(.caption)
-                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                    if anuncio.estadoVenta != "DISPONIBLE" {
-                        Text("Vendido")
-                            .font(.caption.bold())
-                            .foregroundStyle(AgoraDesign.Colors.danger)
+                .overlay(alignment: .topLeading) {
+                    if let etiqueta = etiquetaEstado {
+                        Text(etiqueta.uppercased())
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color.black)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.white, in: Capsule())
+                            .padding(8)
                     }
                 }
-                Spacer(minLength: 0)
-            }
-            .padding(AgoraDesign.Spacing.sm)
-            .background(AgoraDesign.Colors.superficie)
-            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
-            .overlay {
-                RoundedRectangle(cornerRadius: AgoraDesign.Radii.card)
-                    .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
+
+                Text(anuncio.titulo)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AgoraDesign.Colors.texto)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(anuncio.vendedor?.nombre?.split(separator: " ").first.map(String.init) ?? "Alguien")
+                    .font(.caption)
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    .lineLimit(1)
             }
         }
         .buttonStyle(.agoraPlain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(anuncio.titulo), \(precio)\(etiquetaEstado.map { ", \($0)" } ?? "")")
+    }
+
+    private var etiquetaEstado: String? {
+        switch anuncio.estadoVenta {
+        case "APARTADO": return "Apartado"
+        case "VENDIDO": return "Vendido"
+        default: return nil
+        }
+    }
+
+    @ViewBuilder
+    private var foto: some View {
+        if let url = ApiClient.shared.resolveUrl(anuncio.imagenes?.first) {
+            Color.clear.overlay {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    default:
+                        AgoraDesign.Colors.skeletonBase
+                    }
+                }
+            }
+        } else {
+            ZStack {
+                AgoraDesign.Colors.superficie2
+                Image(systemName: iconoCategoria)
+                    .font(.system(size: 34, weight: .light))
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+            }
+        }
     }
 }

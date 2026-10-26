@@ -218,6 +218,10 @@ struct PerfilAjenoDto: Decodable {
     let yoLeSigo: Bool?
     let verificado: Bool?
     let portadaUrl: String?
+    let busco: String?
+    /// Gente que sigues y que sigue a este perfil (hasta 3) y cuántos son en total (diseño D).
+    let seguidoresEnComun: [PersonaListaDto]?
+    let numSeguidoresEnComun: Int?
 }
 
 /// Fila de `GET perfil/:handle/seguidores` y `/siguiendo`.
@@ -403,6 +407,8 @@ struct EventoDetalleDto: Decodable {
     let comunidad: ComunidadDto?
     let vanAIr: Int?
     let miRespuesta: String?
+    /// Hasta 5 que van, primero gente que sigues (diseño D).
+    let asistentes: [AutorDto]?
 }
 
 struct ResponderEventoRequest: Encodable {

@@ -43,7 +43,8 @@ struct PerfilAjenoView: View {
                             seccionPublicaciones
                         }
                     }
-                    .padding(AgoraDesign.Spacing.sm)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, AgoraDesign.Spacing.sm)
                 }
             }
         }
@@ -70,163 +71,75 @@ struct PerfilAjenoView: View {
         }
     }
 
+    /// Perfil del diseño D (docs/diseno-d.md §4): portada, avatar cuadrado que se monta sobre
+    /// ella, solo Seguir y Mensaje a la vista; Retar, Silenciar y Bloquear en «…».
     @ViewBuilder
     private func tarjetaPerfil(_ p: PerfilAjenoDto) -> some View {
         let nombreCompleto = "\(p.nombre) \(p.apellidos)".trimmingCharacters(in: .whitespaces)
+        let linea = ["@\(p.handle)", p.carrera, p.generacion.map { "Gen \($0)" }, p.ciudadOrigen]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
 
-        VStack(spacing: AgoraDesign.Spacing.xs) {
-            Group {
-                if let portada = ApiClient.shared.resolveUrl(p.portadaUrl) {
-                    AsyncImage(url: portada) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            AgoraDesign.Colors.naranjaSuave
-                        }
+        VStack(alignment: .leading, spacing: 12) {
+            ZStack(alignment: .bottomLeading) {
+                portada(p)
+                    .padding(.bottom, 42)
+                AvatarD(nombre: nombreCompleto, fotoUrl: p.fotoUrl, tamano: 88)
+                    .padding(4)
+                    .background(
+                        AgoraDesign.Colors.fondo,
+                        in: RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    )
+                    .padding(.leading, 10)
+            }
+            .overlay(alignment: .bottomTrailing) {
+                acciones(p)
+                    .padding(.bottom, 4)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(nombreCompleto)
+                        .font(.title2.weight(.heavy))
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                    if p.verificado == true {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(AgoraDesign.Colors.naranja)
+                            .accessibilityLabel("Verificado")
                     }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 110)
-                    .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
                 }
-                fotoPerfil(nombre: nombreCompleto, url: p.fotoUrl)
-
-                Text("\(nombreCompleto)\(p.verificado == true ? " ✓" : "")")
-                    .font(.title2.bold())
-                Text("@\(p.handle)")
+                .accessibilityAddTraits(.isHeader)
+                Text(linea)
                     .font(.subheadline)
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
-
-                if let bio = p.bio, !bio.isEmpty {
-                    Text(bio)
-                        .font(.body)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 4)
-                }
-
-                if let carrera = p.carrera, !carrera.isEmpty {
-                    Text("\(p.escuela ?? "") · \(carrera)".trimmingCharacters(in: CharacterSet(charactersIn: " ·")))
-                        .font(.caption)
-                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                }
-
-                if let ciudad = p.ciudadOrigen {
-                    Text("📍 \(ciudad)").font(.caption)
-                }
-                if let ig = p.instagram {
-                    Text("📷 @\(ig)").font(.caption)
-                }
             }
 
-            HStack(spacing: AgoraDesign.Spacing.md) {
-                Text(cuenta(p.publicaciones ?? 0, "publicación", "publicaciones")).font(.caption)
-                Button {
-                    onSeguidores(p.handle)
-                } label: {
-                    Text(cuenta(p.seguidores ?? 0, "seguidor", "seguidores")).font(.caption)
-                }
-                .buttonStyle(.agoraPlain)
-                .disabled(p.restringido == true)
-                Button {
-                    onSiguiendo(p.handle)
-                } label: {
-                    Text("\(p.siguiendo ?? 0) siguiendo").font(.caption)
-                }
-                .buttonStyle(.agoraPlain)
-                .disabled(p.restringido == true)
+            if let bio = p.bio, !bio.isEmpty {
+                Text(bio)
+                    .font(.body)
+                    .foregroundStyle(AgoraDesign.Colors.texto)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
-            GamificacionPublicSection(gamificacion: gamificacion)
-                .padding(.top, AgoraDesign.Spacing.xs)
+            chips(p)
+
+            cifras(p)
+
+            enComun(p)
 
             if p.restringido == true {
-                Text("Este perfil es privado o no compartís comunidades.")
+                Text("Este perfil es privado o no comparten comunidades.")
                     .font(.subheadline)
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, AgoraDesign.Spacing.xs)
-            } else if esMio {
-                Button("Editar perfil", action: onAjustes)
-                    .buttonStyle(.bordered)
-                    .padding(.top, AgoraDesign.Spacing.xs)
-            } else {
-                HStack(spacing: 10) {
-                    Button {
-                        Task { await alternarSeguir() }
-                    } label: {
-                        Text(siguiendo ? "✓ Siguiendo" : "＋ Seguir")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AgoraDesign.Colors.naranja)
-                    .disabled(ocupado || bloqueado)
-
-                    Button {
-                        Task { await escribir() }
-                    } label: {
-                        Text("Escribirle")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(ocupado || bloqueado)
-                }
-                .padding(.top, AgoraDesign.Spacing.xs)
-
-                if puedeRetar {
-                    Button {
-                        mostrarSheetRetar = true
-                    } label: {
-                        Text("Retar 🔥")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(ocupado || enviandoReto)
-                    .padding(.top, 4)
-                }
-
-                HStack(spacing: 10) {
-                    Button {
-                        Task { await alternarSilencio() }
-                    } label: {
-                        Text(silenciado ? "Dejar de silenciar" : "Silenciar")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(ocupado || bloqueado)
-
-                    Button {
-                        Task { await alternarBloqueo() }
-                    } label: {
-                        Text(bloqueado ? "Desbloquear" : "Bloquear")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(ocupado)
-                }
-                .padding(.top, 4)
-
-                if silenciado {
-                    Text("Silenciado: no verás sus publicaciones. No se le avisa.")
-                        .font(.caption)
-                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                        .multilineTextAlignment(.center)
-                }
+            } else if silenciado {
+                Text("Silenciado: no verás sus publicaciones. No se le avisa.")
+                    .font(.caption)
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
 
-            if let intereses = p.intereses, !intereses.isEmpty {
-                FlowWrapLayout(spacing: 8) {
-                    ForEach(intereses, id: \.self) { interes in
-                        Text(interes)
-                            .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(AgoraDesign.Colors.naranjaSuave)
-                            .clipShape(Capsule())
-                    }
-                }
-                .padding(.top, AgoraDesign.Spacing.xs)
-            }
+            GamificacionPublicSection(gamificacion: gamificacion)
 
             if let error {
                 Text(error)
@@ -234,10 +147,239 @@ struct PerfilAjenoView: View {
                     .foregroundStyle(AgoraDesign.Colors.danger)
             }
         }
-        .padding(AgoraDesign.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func portada(_ p: PerfilAjenoDto) -> some View {
+        RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous)
+            .fill(AgoraDesign.Colors.superficie2)
+            .frame(height: 150)
+            .overlay {
+                if let url = ApiClient.shared.resolveUrl(p.portadaUrl) {
+                    AsyncImage(url: url) { phase in
+                        if case .success(let image) = phase {
+                            image.resizable().scaledToFill()
+                        }
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func acciones(_ p: PerfilAjenoDto) -> some View {
+        if esMio {
+            Button(action: onAjustes) {
+                Text("Editar perfil")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(AgoraDesign.Colors.fondo)
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 44)
+                    .background(AgoraDesign.Colors.texto, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+            }
+            .buttonStyle(.agoraPlain)
+        } else if p.restringido != true {
+            HStack(spacing: 6) {
+                Button {
+                    Task { await alternarSeguir() }
+                } label: {
+                    Text(siguiendo ? "Siguiendo" : "Seguir")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(siguiendo ? AgoraDesign.Colors.texto : AgoraDesign.Colors.fondo)
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: 44)
+                        .background(
+                            siguiendo ? AgoraDesign.Colors.superficie : AgoraDesign.Colors.texto,
+                            in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
+                        )
+                        .overlay {
+                            if siguiendo {
+                                RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
+                                    .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+                            }
+                        }
+                }
+                .buttonStyle(.agoraPlain)
+                .disabled(ocupado || bloqueado)
+                .accessibilityAddTraits(siguiendo ? .isSelected : [])
+
+                Button {
+                    Task { await escribir() }
+                } label: {
+                    Text("Mensaje")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
+                                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+                        }
+                }
+                .buttonStyle(.agoraPlain)
+                .disabled(ocupado || bloqueado)
+
+                Menu {
+                    if puedeRetar {
+                        Button {
+                            mostrarSheetRetar = true
+                        } label: {
+                            Label("Retar", systemImage: "flame")
+                        }
+                    }
+                    Button {
+                        Task { await alternarSilencio() }
+                    } label: {
+                        Label(silenciado ? "Dejar de silenciar" : "Silenciar", systemImage: "bell.slash")
+                    }
+                    Button(role: .destructive) {
+                        Task { await alternarBloqueo() }
+                    } label: {
+                        Label(bloqueado ? "Desbloquear" : "Bloquear", systemImage: "hand.raised")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                        .frame(width: 44, height: 44)
+                        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
+                                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+                        }
+                }
+                .disabled(ocupado || enviandoReto)
+                .accessibilityLabel("Más opciones: retar, silenciar o bloquear")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func chips(_ p: PerfilAjenoDto) -> some View {
+        let intereses = p.intereses ?? []
+        if !intereses.isEmpty || p.busco?.isEmpty == false || p.instagram != nil {
+            FlowWrapLayout(spacing: 6) {
+                ForEach(intereses, id: \.self) { interes in
+                    chip(interes)
+                }
+                if let busco = p.busco, !busco.isEmpty {
+                    Text("Busca: \(busco)")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AgoraDesign.Colors.naranjaTinta)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(AgoraDesign.Colors.naranjaSuave, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                if let ig = p.instagram {
+                    chip("Instagram @\(ig)")
+                }
+            }
+        }
+    }
+
+    private func chip(_ texto: String) -> some View {
+        Text(texto)
+            .font(.footnote)
+            .foregroundStyle(AgoraDesign.Colors.texto)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+            }
+    }
+
+    private func cifras(_ p: PerfilAjenoDto) -> some View {
+        HStack(spacing: 0) {
+            cifra(p.publicaciones ?? 0, (p.publicaciones ?? 0) == 1 ? "publicación" : "publicaciones")
+            Button {
+                onSeguidores(p.handle)
+            } label: {
+                cifra(p.seguidores ?? 0, (p.seguidores ?? 0) == 1 ? "seguidor" : "seguidores")
+            }
+            .buttonStyle(.agoraPlain)
+            .disabled(p.restringido == true)
+            Button {
+                onSiguiendo(p.handle)
+            } label: {
+                cifra(p.siguiendo ?? 0, "siguiendo")
+            }
+            .buttonStyle(.agoraPlain)
+            .disabled(p.restringido == true)
+            if let racha = gamificacion?.rachaActual, racha > 0 {
+                cifra(racha, racha == 1 ? "día de racha" : "días de racha")
+            }
+        }
+        .padding(.vertical, 12)
+        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+        }
+    }
+
+    private func cifra(_ n: Int, _ etiqueta: String) -> some View {
+        VStack(spacing: 0) {
+            Text("\(n)")
+                .font(.title3.weight(.heavy))
+                .foregroundStyle(AgoraDesign.Colors.texto)
+                .monospacedDigit()
+            Text(etiqueta)
+                .font(.caption)
+                .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
         .frame(maxWidth: .infinity)
-        .background(AgoraDesign.Colors.superficie)
-        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
+        .accessibilityElement(children: .combine)
+    }
+
+    /// «Lo siguen Renata e Isabella»: gente que sigues y que sigue a este perfil.
+    @ViewBuilder
+    private func enComun(_ p: PerfilAjenoDto) -> some View {
+        let personas = p.seguidoresEnComun ?? []
+        if !esMio, !personas.isEmpty {
+            let primeros = personas.prefix(2).map { $0.nombre.split(separator: " ").first.map(String.init) ?? $0.nombre }
+            let otros = max(0, (p.numSeguidoresEnComun ?? personas.count) - primeros.count)
+            HStack(spacing: 8) {
+                HStack(spacing: -6) {
+                    ForEach(personas.prefix(3)) { persona in
+                        AvatarD(nombre: persona.nombre, fotoUrl: persona.fotoUrl, tamano: 24, conBorde: true)
+                    }
+                }
+                .accessibilityHidden(true)
+                Text(Self.textoEnComun(primeros, otros: otros))
+                    .font(.footnote)
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
+                    .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+            }
+        }
+    }
+
+    private static func textoEnComun(_ primeros: [String], otros: Int) -> String {
+        guard let primero = primeros.first else { return "" }
+        var texto = "Lo sigue\(primeros.count > 1 || otros > 0 ? "n" : "") \(primero)"
+        if primeros.count > 1 {
+            let segundo = primeros[1]
+            // «y» se vuelve «e» antes de un nombre que suena a i (Isabella, Hilda).
+            let conjuncion = segundo.lowercased().hasPrefix("i") || segundo.lowercased().hasPrefix("hi") ? "e" : "y"
+            texto += otros > 0 ? ", \(segundo)" : " \(conjuncion) \(segundo)"
+        }
+        if otros > 0 {
+            texto += " y \(otros) \(otros == 1 ? "persona más" : "personas más") que sigues"
+        }
+        return texto
     }
 
     private var sheetElegirTipoReto: some View {
@@ -251,7 +393,7 @@ struct PerfilAjenoView: View {
                     Task { await enviarReto(tipo: "RACHA") }
                 } label: {
                     VStack(spacing: 4) {
-                        Text("🔥 Racha diaria")
+                        Text("Racha diaria")
                             .font(.subheadline.bold())
                         Text("Quien mantenga más días seguidos gana.")
                             .font(.caption)
@@ -269,7 +411,7 @@ struct PerfilAjenoView: View {
                     Task { await enviarReto(tipo: "SEMANA_PREGUNTA") }
                 } label: {
                     VStack(spacing: 4) {
-                        Text("🧠 Semana de preguntas")
+                        Text("Semana de preguntas")
                             .font(.subheadline.bold())
                         Text("Quien responda más preguntas del día gana.")
                             .font(.caption)
@@ -332,35 +474,6 @@ struct PerfilAjenoView: View {
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
         }
-    }
-
-    @ViewBuilder
-    private func fotoPerfil(nombre: String, url: String?) -> some View {
-        if let imageUrl = ApiClient.shared.resolveUrl(url) {
-            AsyncImage(url: imageUrl) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    avatarPlaceholder(nombre: nombre)
-                }
-            }
-            .frame(width: 76, height: 76)
-            .clipShape(Circle())
-        } else {
-            avatarPlaceholder(nombre: nombre)
-                .frame(width: 76, height: 76)
-        }
-    }
-
-    private func avatarPlaceholder(nombre: String) -> some View {
-        Circle()
-            .fill(AgoraDesign.Colors.naranjaSuave)
-            .overlay {
-                Text(inicialesDe(nombre: nombre))
-                    .font(.title2.bold())
-                    .foregroundStyle(AgoraDesign.Colors.naranja)
-            }
     }
 
     private func cargar() async {
@@ -531,13 +644,6 @@ private struct PublicacionPerfilCard: View {
         .background(AgoraDesign.Colors.superficie)
         .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
     }
-}
-
-private func inicialesDe(nombre: String) -> String {
-    nombre.split(separator: " ")
-        .prefix(2)
-        .compactMap { $0.first.map { String($0).uppercased() } }
-        .joined()
 }
 
 /// Layout simple para chips de intereses.

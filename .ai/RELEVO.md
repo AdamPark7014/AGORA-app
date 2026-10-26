@@ -54,7 +54,13 @@ contrato). Reparto: API, web e iOS en esta sesión; Android en la sesión de mó
   Inicio: fecha, segmento Campus / Mi carrera / Siguiendo con las demás comunidades como chips, «Ahora en
   el campus» (`EventosEnVivoBanner`), pregunta relámpago oscura con barras y tu carrera contra el campus,
   y la gamificación (racha, retos, ranking, tips, pulso) plegada en «Tu día» (`@AppStorage`).
-  Faltan en iOS: clips, evento, perfil, mercado y registro.
+- **iOS D, paso 3 (26-10).** `AvatarD` (cuadrado redondeado, iniciales o foto). Evento: portada por tipo
+  con bloque de fecha, etiqueta tipo · comunidad, quién va con avatares (`EventoDetalleDto.asistentes`),
+  Cómo llegar (Mapas), organizador y barra oscura fija con Me interesa / Voy. Mercado: buscador, «Vender»,
+  chips de las 7 categorías y cuadrícula de 2 columnas con precio sobre la foto e ícono si no hay foto.
+  Perfil: portada con avatar 88 montado, Seguir y Mensaje a la vista, «…» con Retar/Silenciar/Bloquear,
+  línea @handle · carrera · Gen · ciudad, chips con «Busca:», cifras con racha y «Lo siguen X e Y»
+  (`PerfilAjenoDto.seguidoresEnComun`). Faltan en iOS: clips y registro con buscador de carrera.
 
 ## Pasada de profesionalismo del 23-10 (en curso)
 

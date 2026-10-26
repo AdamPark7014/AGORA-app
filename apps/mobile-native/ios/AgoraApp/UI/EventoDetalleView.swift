@@ -9,14 +9,17 @@ private let etiquetasTipoEvento: [String: String] = [
     "OTRO": "Otro",
 ]
 
-/// La API solo acepta VOY / ME_INTERESA (`RESPUESTAS_ASISTENCIA`); repetir la
-/// misma respuesta la retira, así que no hace falta un «No voy».
-private let respuestasEvento: [(String, String)] = [
-    ("VOY", "Voy"),
-    ("ME_INTERESA", "Me interesa"),
+/// La portada es del tipo de evento: la API no guarda imagen de portada.
+private let iconosTipoEvento: [String: String] = [
+    "FIESTA": "sparkles",
+    "ACADEMICO": "graduationcap",
+    "DEPORTIVO": "sportscourt",
+    "CULTURAL": "theatermasks",
+    "ORGANIZACION": "person.3",
 ]
 
-/// Detalle de evento — paridad con `EventoDetalleScreen.kt`.
+/// Detalle de evento del diseño D (docs/diseno-d.md §4) — paridad con `EventoDetalleScreen.kt`.
+/// La API solo acepta VOY / ME_INTERESA; repetir la misma respuesta la retira.
 struct EventoDetalleView: View {
     let eventoId: String
     var onPerfil: (String) -> Void = { _ in }
@@ -25,6 +28,7 @@ struct EventoDetalleView: View {
     @State private var evento: EventoDetalleDto?
     @State private var cargando = true
     @State private var error: String?
+    @State private var respondiendo = false
 
     var body: some View {
         Group {
@@ -37,66 +41,20 @@ struct EventoDetalleView: View {
                 }
             } else if let evento {
                 ScrollView {
-                    // Agrupado: en iOS 16 un ViewBuilder admite como máximo 10 hijos por bloque.
-                    VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
-                        Group {
-                            Text(etiquetasTipoEvento[evento.tipo] ?? evento.tipo)
-                                .font(.subheadline.bold())
-                                .foregroundStyle(AgoraDesign.Colors.naranja)
-
-                            Text(evento.titulo)
-                                .font(.title2.bold())
-
-                            Text(FormatUtils.formatearFecha(evento.inicioAt))
-                                .font(.subheadline)
-                                .foregroundStyle(AgoraDesign.Colors.textoMedio)
-
-                            if let lugar = evento.lugar, !lugar.isEmpty {
-                                Text("📍 \(lugar)")
-                                    .font(.subheadline)
-                                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                            }
-
-                            if let comunidad = evento.comunidad {
-                                Text(comunidad.nombre)
-                                    .font(.subheadline)
-                                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                            }
-
-                            if let costo = evento.costoMxn {
-                                Text("\(FormatUtils.formatearPrecio(costo)) MXN")
-                                    .font(.headline)
-                            }
-
-                            if let descripcion = evento.descripcion, !descripcion.isEmpty {
-                                Text(descripcion)
-                                    .font(.body)
-                                    .padding(.top, AgoraDesign.Spacing.xs)
-                            }
+                    VStack(alignment: .leading, spacing: 14) {
+                        portada(evento)
+                        encabezado(evento)
+                        quienVa(evento)
+                        if let lugar = evento.lugar, !lugar.isEmpty {
+                            comoLlegar(lugar)
                         }
-
-                        Text("\(evento.vanAIr ?? 0) personas van")
-                            .font(.caption)
-                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
-
-                        if let cupo = evento.cupo {
-                            let libres = max(0, cupo - (evento.vanAIr ?? 0))
-                            Text(libres == 0 ? "Cupo lleno (\(cupo) lugares)" : "Cupo: \(cupo) · quedan \(libres) lugares")
-                                .font(.caption.bold())
-                                .foregroundStyle(libres == 0 ? AgoraDesign.Colors.danger : AgoraDesign.Colors.naranja)
+                        if let descripcion = evento.descripcion, !descripcion.isEmpty {
+                            Text(descripcion)
+                                .font(.body)
+                                .foregroundStyle(AgoraDesign.Colors.texto)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-
-                        respuestasChips(evento: evento)
-
-                        if let autor = evento.autor, let handle = autor.handle {
-                            Button {
-                                onPerfil(handle)
-                            } label: {
-                                Text("Organiza \(autor.nombre ?? handle)")
-                                    .font(.subheadline)
-                            }
-                        }
-
+                        organiza(evento)
                         if evento.esMio == true {
                             Button(role: .destructive) {
                                 Task { await borrar() }
@@ -104,16 +62,19 @@ struct EventoDetalleView: View {
                                 Text("Eliminar evento")
                                     .font(.subheadline)
                             }
-                            .padding(.top, AgoraDesign.Spacing.xs)
                         }
-
                         if let error {
                             Text(error)
                                 .font(.footnote)
-                                .foregroundStyle(.red)
+                                .foregroundStyle(AgoraDesign.Colors.danger)
                         }
                     }
-                    .padding(AgoraDesign.Spacing.sm)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 8)
+                    .padding(.bottom, 16)
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    barraAcciones(evento)
                 }
             }
         }
@@ -133,35 +94,250 @@ struct EventoDetalleView: View {
         .task(id: eventoId) { await cargar() }
     }
 
-    @ViewBuilder
-    private func respuestasChips(evento: EventoDetalleDto) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(respuestasEvento, id: \.0) { valor, etiqueta in
-                    Button {
-                        Task { await responder(valor) }
-                    } label: {
-                        Text(etiqueta)
-                            .font(.subheadline)
-                            .padding(.horizontal, AgoraDesign.Spacing.sm)
-                            .padding(.vertical, AgoraDesign.Spacing.xs)
-                            .background(evento.miRespuesta == valor ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
-                            .foregroundStyle(evento.miRespuesta == valor ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.texto)
-                            .clipShape(Capsule())
-                            .overlay {
-                                Capsule()
-                                    .stroke(
-                                        evento.miRespuesta == valor ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.borde,
-                                        lineWidth: 1
-                                    )
-                            }
-                    }
-                    .buttonStyle(.agoraPlain)
+    // MARK: - Piezas
+
+    private func portada(_ evento: EventoDetalleDto) -> some View {
+        let inicio = Self.fecha(evento.inicioAt)
+        return ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(AgoraDesign.Colors.naranjaSuave)
+                .overlay {
+                    Image(systemName: iconosTipoEvento[evento.tipo] ?? "calendar")
+                        .font(.system(size: 84, weight: .light))
+                        .foregroundStyle(AgoraDesign.Colors.naranjaTinta.opacity(0.55))
                 }
+                .frame(height: 210)
+                .accessibilityHidden(true)
+
+            if let inicio {
+                VStack(spacing: 2) {
+                    Text(Self.formato(inicio, "EEE").uppercased())
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
+                    Text(Self.formato(inicio, "d"))
+                        .font(.title.weight(.heavy))
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                    Text(Self.formato(inicio, "MMM").uppercased())
+                        .font(.caption2)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                }
+                .frame(width: 60, height: 66)
+                .background(
+                    AgoraDesign.Colors.superficie,
+                    in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous)
+                )
+                .padding(12)
+                .accessibilityHidden(true)
             }
-            .padding(.vertical, AgoraDesign.Spacing.xs)
         }
     }
+
+    private func encabezado(_ evento: EventoDetalleDto) -> some View {
+        let etiqueta = [etiquetasTipoEvento[evento.tipo] ?? evento.tipo, evento.comunidad?.nombre]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(etiqueta.uppercased())
+                .font(.caption.weight(.bold))
+                .foregroundStyle(AgoraDesign.Colors.naranjaTinta)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(AgoraDesign.Colors.naranjaSuave, in: Capsule())
+            Text(evento.titulo)
+                .font(.title.weight(.heavy))
+                .foregroundStyle(AgoraDesign.Colors.texto)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            Text(Self.detalles(evento))
+                .font(.subheadline)
+                .foregroundStyle(AgoraDesign.Colors.textoMedio)
+        }
+    }
+
+    private func quienVa(_ evento: EventoDetalleDto) -> some View {
+        let van = evento.vanAIr ?? 0
+        let asistentes = evento.asistentes ?? []
+        let nombres = asistentes.prefix(2).compactMap { $0.nombre?.split(separator: " ").first.map(String.init) }
+        let resto = van - nombres.count
+        let texto: String
+        if van == 0 {
+            texto = "Nadie ha dicho que va todavía"
+        } else if !nombres.isEmpty {
+            let quienes = nombres.joined(separator: ", ")
+            texto = resto > 0 ? "\(quienes) y \(resto) más van" : (nombres.count == 1 ? "\(quienes) va" : "\(quienes) van")
+        } else {
+            texto = "\(van) van"
+        }
+
+        return HStack(spacing: 10) {
+            if !asistentes.isEmpty {
+                HStack(spacing: -8) {
+                    ForEach(Array(asistentes.prefix(3).enumerated()), id: \.offset) { _, persona in
+                        AvatarD(nombre: persona.nombre ?? persona.handle ?? "?", fotoUrl: persona.fotoUrl, tamano: 32, conBorde: true)
+                    }
+                }
+                .accessibilityHidden(true)
+            }
+            Text(texto)
+                .font(.subheadline)
+                .foregroundStyle(AgoraDesign.Colors.texto)
+            Spacer(minLength: 0)
+            if let cupo = evento.cupo {
+                let libres = max(0, cupo - van)
+                Text(libres == 0 ? "Lleno" : "\(libres) \(libres == 1 ? "lugar" : "lugares")")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(libres == 0 ? AgoraDesign.Colors.danger : AgoraDesign.Colors.success)
+            }
+        }
+        .padding(12)
+        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private func comoLlegar(_ lugar: String) -> some View {
+        let consulta = "\(lugar), San Andrés Cholula, Puebla"
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        if let url = URL(string: "https://maps.apple.com/?q=\(consulta)") {
+            Link(destination: url) {
+                HStack(spacing: 10) {
+                    Image(systemName: "mappin.and.ellipse")
+                        .font(.title3)
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(lugar)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AgoraDesign.Colors.texto)
+                            .lineLimit(1)
+                        Text("Cómo llegar")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.up.right")
+                        .font(.caption)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                }
+                .padding(12)
+                .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous)
+                        .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+                }
+            }
+            .accessibilityHint("Abre Mapas")
+        }
+    }
+
+    @ViewBuilder
+    private func organiza(_ evento: EventoDetalleDto) -> some View {
+        if let autor = evento.autor, let handle = autor.handle {
+            Button {
+                onPerfil(handle)
+            } label: {
+                HStack(spacing: 10) {
+                    AvatarD(nombre: autor.nombre ?? handle, fotoUrl: autor.fotoUrl, tamano: 38)
+                    (Text("Organiza ").foregroundColor(AgoraDesign.Colors.textoMedio)
+                        + Text(autor.nombre ?? handle).bold().foregroundColor(AgoraDesign.Colors.texto))
+                        .font(.subheadline)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                }
+            }
+            .buttonStyle(.agoraPlain)
+        }
+    }
+
+    /// Barra oscura fija: Me interesa y Voy (docs/diseno-d.md §4).
+    private func barraAcciones(_ evento: EventoDetalleDto) -> some View {
+        let voy = evento.miRespuesta == "VOY"
+        let meInteresa = evento.miRespuesta == "ME_INTERESA"
+        return HStack(spacing: 8) {
+            if evento.esMio == true {
+                Text("Tú organizas este evento")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.white.opacity(0.75))
+                    .frame(maxWidth: .infinity, minHeight: 50)
+            } else {
+                Button {
+                    Task { await responder("ME_INTERESA") }
+                } label: {
+                    Label("Me interesa", systemImage: meInteresa ? "checkmark" : "star")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: 50)
+                        .background(Color.white.opacity(meInteresa ? 0.2 : 0.12), in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
+                }
+                .buttonStyle(.agoraPlain)
+                .accessibilityAddTraits(meInteresa ? .isSelected : [])
+
+                Button {
+                    Task { await responder("VOY") }
+                } label: {
+                    HStack(spacing: 6) {
+                        if voy { Image(systemName: "checkmark") }
+                        Text(voy ? "Vas" : "Voy")
+                    }
+                    .font(.body.weight(.bold))
+                    .foregroundStyle(voy ? AgoraDesign.Colors.oscuro : .white)
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(voy ? Color.white : AgoraDesign.Colors.naranja, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
+                }
+                .buttonStyle(.agoraPlain)
+                .accessibilityLabel(voy ? "Vas a este evento. Toca para quitarlo" : "Voy")
+            }
+        }
+        .disabled(respondiendo)
+        .padding(8)
+        .background(AgoraDesign.Colors.oscuro, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
+        .padding(.horizontal, 14)
+        .padding(.bottom, 8)
+    }
+
+    // MARK: - Formatos
+
+    private static func fecha(_ iso: String) -> Date? {
+        let conFraccion = ISO8601DateFormatter()
+        conFraccion.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return conFraccion.date(from: iso) ?? ISO8601DateFormatter().date(from: iso)
+    }
+
+    private static func formato(_ fecha: Date, _ patron: String) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "es_MX")
+        f.timeZone = TimeZone(identifier: "America/Mexico_City")
+        f.dateFormat = patron
+        return f.string(from: fecha).replacingOccurrences(of: ".", with: "")
+    }
+
+    /// «Sábado 25 de octubre · 22:00 a 03:00 · $150 · cupo 40»: solo lo que la API manda.
+    private static func detalles(_ evento: EventoDetalleDto) -> String {
+        var partes: [String] = []
+        if let inicio = fecha(evento.inicioAt) {
+            let dia = formato(inicio, "EEEE d 'de' MMMM")
+            partes.append(dia.prefix(1).uppercased() + dia.dropFirst())
+            let hora = formato(inicio, "HH:mm")
+            if let finIso = evento.finAt, let fin = fecha(finIso) {
+                partes.append("\(hora) a \(formato(fin, "HH:mm"))")
+            } else {
+                partes.append(hora)
+            }
+        }
+        if let costo = evento.costoMxn {
+            partes.append(costo == 0 ? "Gratis" : "$" + FormatUtils.formatearPrecio(costo))
+        }
+        if let cupo = evento.cupo { partes.append("cupo \(cupo)") }
+        return partes.joined(separator: " · ")
+    }
+
+    // MARK: - Acciones
 
     private func cargar() async {
         cargando = true
@@ -176,9 +352,12 @@ struct EventoDetalleView: View {
 
     private func responder(_ valor: String) async {
         error = nil
+        respondiendo = true
+        defer { respondiendo = false }
         do {
             try await AgoraApi.responderEvento(id: eventoId, respuesta: valor)
             AgoraAnalytics.eventoAsistencia(["eventoId": eventoId, "respuesta": valor])
+            Haptics.success()
             await cargar()
         } catch {
             self.error = FormatUtils.mensajeDe(error)
