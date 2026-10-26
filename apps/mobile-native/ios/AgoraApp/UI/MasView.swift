@@ -80,6 +80,10 @@ struct MasView: View {
                     fila("Mensajes", ruta: "mensajes", cuenta: mensajesSinLeer)
                     Divider().overlay(AgoraDesign.Colors.borde)
                     fila("Ajustes", ruta: "ajustes")
+                    if session.currentUser?.puedeModerar == true {
+                        Divider().overlay(AgoraDesign.Colors.borde)
+                        fila("Moderación", ruta: "moderacion")
+                    }
                 }
                 .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
 

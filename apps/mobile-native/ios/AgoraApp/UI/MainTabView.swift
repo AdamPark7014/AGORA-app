@@ -39,7 +39,14 @@ struct MainTabView: View {
                         feedPath.append(AppRoute.notificaciones)
                     },
                     onMensajesTap: { feedPath.append(AppRoute.mensajes) },
-                    onPerfilTap: { feedPath.append(AppRoute.perfilYo) },
+                    // Tu perfil con el diseño D (portada, cifras, pestañas); sin handle, el menú propio.
+                    onPerfilTap: {
+                        if let handle = session.currentUser?.handle {
+                            feedPath.append(AppRoute.perfil(handle))
+                        } else {
+                            feedPath.append(AppRoute.perfilYo)
+                        }
+                    },
                     onPublicarTap: { tab = 2 },
                     onCrearEventoTap: {
                         tab = 3
@@ -179,7 +186,13 @@ struct MainTabView: View {
         case "anonimo":
             masPath.append(AppRoute.anonimo)
         case "perfil-yo":
-            masPath.append(AppRoute.perfilYo)
+            if let handle = session.currentUser?.handle {
+                masPath.append(AppRoute.perfil(handle))
+            } else {
+                masPath.append(AppRoute.perfilYo)
+            }
+        case "moderacion":
+            masPath.append(AppRoute.moderacion)
         default:
             if ruta.hasPrefix("perfil/") {
                 let handle = String(ruta.dropFirst("perfil/".count))

@@ -101,9 +101,11 @@ final class CapturasTiendaUITests: XCTestCase {
         tocar(app.buttons["tab.0"])
         let boton = app.buttons["inicio.mensajes"]
         var intentos = 0
-        while !boton.waitForExistence(timeout: 2) && intentos < 6 {
+        // El encabezado es la primera fila de la lista: si el inicio quedó desplazado, no existe
+        // en el árbol hasta volver arriba.
+        while !boton.waitForExistence(timeout: 2) && intentos < 8 {
             let atras = app.navigationBars.buttons.element(boundBy: 0)
-            if atras.exists { atras.tap() }
+            if atras.exists { atras.tap() } else { app.swipeDown() }
             intentos += 1
         }
         tocar(boton)

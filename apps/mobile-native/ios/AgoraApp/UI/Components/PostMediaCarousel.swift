@@ -139,29 +139,31 @@ struct PostMediaGrid: View {
         let lista = ElementoMedia.desde(media)
         let fotos = lista.filter { !$0.esVideo }.map(\.url)
 
+        // Cada celda con ancho y alto exactos: con un marco flexible la foto `scaledToFill`
+        // tomaba su alto natural y se salía por debajo, encima de las reacciones (CI 8c83f5d).
         GeometryReader { geo in
             let ancho = geo.size.width
+            let mitad = (ancho - separacion) / 2
+            let grande = (ancho - separacion) * 2 / 3
+            let chica = (ancho - separacion) / 3
+            let altoChica = (altura - separacion) / 2
             switch lista.count {
             case 0:
                 EmptyView()
             case 1:
-                celda(lista[0], fotos: fotos)
+                celda(lista[0], fotos: fotos, ancho: ancho, alto: altura)
             case 2:
                 HStack(spacing: separacion) {
-                    celda(lista[0], fotos: fotos)
-                        .frame(width: (ancho - separacion) / 2)
-                    celda(lista[1], fotos: fotos)
-                        .frame(width: (ancho - separacion) / 2)
+                    celda(lista[0], fotos: fotos, ancho: mitad, alto: altura)
+                    celda(lista[1], fotos: fotos, ancho: mitad, alto: altura)
                 }
             default:
                 HStack(spacing: separacion) {
-                    celda(lista[0], fotos: fotos)
-                        .frame(width: (ancho - separacion) * 2 / 3)
+                    celda(lista[0], fotos: fotos, ancho: grande, alto: altura)
                     VStack(spacing: separacion) {
-                        celda(lista[1], fotos: fotos)
-                        celda(lista[2], fotos: fotos, mas: lista.count - 3)
+                        celda(lista[1], fotos: fotos, ancho: chica, alto: altoChica)
+                        celda(lista[2], fotos: fotos, ancho: chica, alto: altoChica, mas: lista.count - 3)
                     }
-                    .frame(width: (ancho - separacion) / 3)
                 }
             }
         }
@@ -171,66 +173,68 @@ struct PostMediaGrid: View {
         }
     }
 
-    @ViewBuilder
-    private func celda(_ elemento: ElementoMedia, fotos: [URL], mas: Int = 0) -> some View {
-        ZStack(alignment: .bottomTrailing) {
-            if elemento.esVideo {
-                MiniaturaVideo(url: elemento.url)
-                    .overlay {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 34, height: 34)
-                            .background(Color.black.opacity(0.6), in: Circle())
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture { onAbrir?() }
-                    .accessibilityElement()
-                    .accessibilityLabel("Video")
-                    .accessibilityAddTraits(.isButton)
-            } else {
-                AsyncImage(url: elemento.url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    case .failure:
-                        AgoraDesign.Colors.skeletonBase
-                            .overlay {
-                                Image(systemName: "photo")
-                                    .foregroundStyle(AgoraDesign.Colors.textoMuted)
-                            }
-                    default:
-                        AgoraDesign.Colors.skeletonBase
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-                .contentShape(Rectangle())
-                .onTapGesture(count: 2) { onDobleToque?() }
-                .onTapGesture(count: 1) {
-                    if mas > 0 {
-                        onAbrir?()
-                    } else {
-                        let inicial = fotos.firstIndex(of: elemento.url) ?? 0
-                        visor = VisorImagenesItem(urls: fotos, inicial: inicial)
+    private func celda(
+        _ elemento: ElementoMedia,
+        fotos: [URL],
+        ancho: CGFloat,
+        alto: CGFloat,
+        mas: Int = 0
+    ) -> some View {
+        Color.clear
+            .frame(width: max(0, ancho), height: max(0, alto))
+            .overlay {
+                if elemento.esVideo {
+                    MiniaturaVideo(url: elemento.url)
+                        .overlay {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 34, height: 34)
+                                .background(Color.black.opacity(0.6), in: Circle())
+                        }
+                } else {
+                    AsyncImage(url: elemento.url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        case .failure:
+                            AgoraDesign.Colors.skeletonBase
+                                .overlay {
+                                    Image(systemName: "photo")
+                                        .foregroundStyle(AgoraDesign.Colors.textoMuted)
+                                }
+                        default:
+                            AgoraDesign.Colors.skeletonBase
+                        }
                     }
                 }
-                .accessibilityLabel("Foto")
-                .accessibilityAddTraits([.isImage, .isButton])
             }
-
-            if mas > 0 {
-                Text("+\(mas)")
-                    .font(.outfit(.caption, .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .allowsHitTesting(false)
-                    .accessibilityLabel("\(mas) más")
+            .overlay(alignment: .bottomTrailing) {
+                if mas > 0 {
+                    Text("+\(mas)")
+                        .font(.outfit(.caption, .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .accessibilityLabel("\(mas) más")
+                }
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) {
+                if !elemento.esVideo { onDobleToque?() }
+            }
+            .onTapGesture(count: 1) {
+                if elemento.esVideo || mas > 0 {
+                    onAbrir?()
+                } else {
+                    let inicial = fotos.firstIndex(of: elemento.url) ?? 0
+                    visor = VisorImagenesItem(urls: fotos, inicial: inicial)
+                }
+            }
+            .accessibilityElement()
+            .accessibilityLabel(elemento.esVideo ? "Video" : "Foto")
+            .accessibilityAddTraits(elemento.esVideo ? [.isButton] : [.isImage, .isButton])
     }
 }
 
@@ -243,17 +247,16 @@ struct MiniaturaVideo: View {
     private static let cache = NSCache<NSURL, UIImage>()
 
     var body: some View {
-        ZStack {
-            Color(red: 47 / 255, green: 42 / 255, blue: 38 / 255)
-            if let imagen {
-                Image(uiImage: imagen)
-                    .resizable()
-                    .scaledToFill()
+        Color(red: 47 / 255, green: 42 / 255, blue: 38 / 255)
+            .overlay {
+                if let imagen {
+                    Image(uiImage: imagen)
+                        .resizable()
+                        .scaledToFill()
+                }
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
-        .task(id: url) { await cargar() }
+            .clipped()
+            .task(id: url) { await cargar() }
     }
 
     private func cargar() async {

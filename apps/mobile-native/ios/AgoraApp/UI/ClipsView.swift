@@ -252,7 +252,8 @@ private struct ClipPagina: View {
                 .accessibilityHidden(true)
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 92)
+            // Por encima de la barra flotante (64 pt) y del indicador de inicio (34 pt).
+            .padding(.bottom, 112)
         }
         .onAppear {
             miReaccion = post.miReaccion
