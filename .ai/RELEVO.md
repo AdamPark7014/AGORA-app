@@ -95,6 +95,10 @@ contrato). Reparto: API, web e iOS en esta sesión; Android en la sesión de mó
   pestañas Mi carrera / Campus, Me late con número, comentarios y Enviar. En iOS 16 no hay paginado
   vertical nativo: se pasa de clip de lado (`TabView` .page). `FilaClips` en el inicio (se esconde sin
   videos) y `AgoraApi.feed(tipo:)`.
+- **iOS D verificado:** `ios.yml` en verde con los cinco pasos (run 40364073126 sobre `5b9f77f`:
+  simulador y pruebas-ui). No se ha subido a TestFlight. Sin probar a mano en un iPhone: ver las capturas
+  del artefacto del job «simulador». Pendiente de iOS: tipografía Bricolage/Outfit empaquetada (hoy usa la
+  del sistema, que la guía permite como respaldo).
 
 ## Pasada de profesionalismo del 23-10 (en curso)
 
