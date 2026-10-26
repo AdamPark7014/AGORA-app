@@ -96,9 +96,12 @@ contrato). Reparto: API, web e iOS en esta sesión; Android en la sesión de mó
   vertical nativo: se pasa de clip de lado (`TabView` .page). `FilaClips` en el inicio (se esconde sin
   videos) y `AgoraApi.feed(tipo:)`.
 - **iOS D verificado:** `ios.yml` en verde con los cinco pasos (run 40364073126 sobre `5b9f77f`:
-  simulador y pruebas-ui). No se ha subido a TestFlight. Sin probar a mano en un iPhone: ver las capturas
-  del artefacto del job «simulador». Pendiente de iOS: tipografía Bricolage/Outfit empaquetada (hoy usa la
-  del sistema, que la guía permite como respaldo).
+  simulador y pruebas-ui).
+- **TestFlight 1.0.0 (5) con la D (26-10, por orden de Adam):** `ios-testflight.yml` run 40368106784 sobre
+  `d987ae7`; Apple lo procesó (VALID, cifrado exento ya declarado) y lo ve el grupo interno «Equipo
+  Ágora» (acceso a todos los builds, 1 probador). Sin probar a mano todavía. Consulta de builds por API:
+  llave ASC de `secrets/arta-ios` (la de ARTA/NEXARA sirve para Ágora). Pendiente de iOS: tipografía
+  Bricolage/Outfit empaquetada (hoy usa la del sistema, que la guía permite como respaldo).
 
 ## Pasada de profesionalismo del 23-10 (en curso)
 
