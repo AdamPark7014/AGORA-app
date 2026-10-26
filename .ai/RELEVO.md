@@ -63,7 +63,12 @@ contrato). Reparto: API, web e iOS en esta sesión; Android en la sesión de mó
   (`PerfilAjenoDto.seguidoresEnComun`).
 - **iOS D, paso 4 (26-10).** Registro: buscador de carrera (`registro.buscarCarrera`, sin acentos, con la
   coincidencia resaltada) en vez de la lista de las 52, y generación con botones. `CapturasTiendaUITests`
-  escribe «Ingenier» en el buscador antes de tocar la carrera. Falta en iOS: la pantalla de clips.
+  escribe «Ingenier» en el buscador antes de tocar la carrera.
+- **iOS D, paso 5 (26-10).** `ClipsView` (`AppRoute.clips`): videos a pantalla completa sin controles y
+  en bucle (`AVQueuePlayer` + `AVPlayerLooper`), solo corre el visible, sonido apagado por omisión,
+  pestañas Mi carrera / Campus, Me late con número, comentarios y Enviar. En iOS 16 no hay paginado
+  vertical nativo: se pasa de clip de lado (`TabView` .page). `FilaClips` en el inicio (se esconde sin
+  videos) y `AgoraApi.feed(tipo:)`.
 
 ## Pasada de profesionalismo del 23-10 (en curso)
 

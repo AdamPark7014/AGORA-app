@@ -6,15 +6,18 @@ enum AgoraApi {
 
   // MARK: Feed
 
+  /// `tipo: "clips"` trae solo publicaciones con video (diseño D).
   static func feed(
     cursor: String? = nil,
     comunidadSlug: String? = nil,
-    siguiendo: Bool? = nil
+    siguiendo: Bool? = nil,
+    tipo: String? = nil
   ) async throws -> FeedResponse {
     var query: [String: String] = [:]
     if let cursor { query["cursor"] = cursor }
     if let comunidadSlug { query["comunidadSlug"] = comunidadSlug }
     if siguiendo == true { query["siguiendo"] = "true" }
+    if let tipo { query["tipo"] = tipo }
     let data = try await client.get("feed", query: query)
     return try ApiClient.decodeOne(data)
   }

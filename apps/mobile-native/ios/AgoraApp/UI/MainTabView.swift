@@ -35,7 +35,8 @@ struct MainTabView: View {
                     onPostTap: { postId in feedPath.append(AppRoute.postDetail(postId)) },
                     onAuthorTap: { handle in feedPath.append(AppRoute.perfil(handle)) },
                     onHashtagTap: { tag in feedPath.append(AppRoute.hashtag(tag)) },
-                    onEventoTap: { id in feedPath.append(AppRoute.eventoDetalle(id)) }
+                    onEventoTap: { id in feedPath.append(AppRoute.eventoDetalle(id)) },
+                    onClipsTap: { id in feedPath.append(AppRoute.clips(id)) }
                 )
                 // Registro con correo personal: recordatorio de confirmar la UDLAP.
                 .safeAreaInset(edge: .top) { AvisoUdlapView() }
@@ -453,6 +454,12 @@ struct MainTabView: View {
             AnonimoView()
         case .moderacion:
             ModeracionView()
+        case .clips(let desde):
+            ClipsView(
+                desde: desde,
+                onPostTap: { id in path.wrappedValue.append(AppRoute.postDetail(id)) },
+                onAuthorTap: { handle in path.wrappedValue.append(AppRoute.perfil(handle)) }
+            )
         }
     }
 
@@ -501,6 +508,8 @@ enum AppRoute: Hashable {
     case hashtag(String)
     case anonimo
     case moderacion
+    /// Visor de clips; con el id del clip con el que abre.
+    case clips(String?)
 }
 
 // MARK: - Tab bar animado (paridad con `MainShell.kt`)

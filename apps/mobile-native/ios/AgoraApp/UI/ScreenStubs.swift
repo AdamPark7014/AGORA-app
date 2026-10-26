@@ -10,6 +10,7 @@ struct FeedView: View {
     var onAuthorTap: (String) -> Void = { _ in }
     var onHashtagTap: (String) -> Void = { _ in }
     var onEventoTap: (String) -> Void = { _ in }
+    var onClipsTap: (String?) -> Void = { _ in }
 
     @State private var posts: [PostDto] = []
     @State private var cursor: String?
@@ -69,6 +70,9 @@ struct FeedView: View {
                         }
                         Section {
                             tuDia
+                        }
+                        Section {
+                            FilaClips(onClipTap: onClipsTap)
                         }
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 14))
