@@ -12,7 +12,10 @@ contra la API local (claro y oscuro, alta de cuenta nueva incluida).
   internos» (corrida «Android · Play» 40364738369 con `-f build=4`; en Play solo existía la 1, las 2 y 3
   nunca se subieron). El AAB de 12.4 MB pasaba el tope de 10 MB de la subida por navegador: se subió una
   copia sin el mapa de R8, vuelta a firmar con la llave de subida (5.7 MB). Por eso Play avisa «sin archivo
-  de desofuscación» y «sin símbolos nativos» (no bloquean). El siguiente versionCode libre es **5**.
+  de desofuscación» y «sin símbolos nativos» (no bloquean).
+- **Play, versión 5 (1.0.0) (26-10 ~12:30 MX):** publicada en la prueba interna y reemplaza a la 4; lleva además
+  el tema claro por omisión (`a7dd418`, corrida 40374438728). Mismo AAB adelgazado y las mismas dos
+  advertencias. El siguiente versionCode libre es **6**.
 - **Tema claro por omisión (26-10, pedido de Adam):** sin elección guardada la app arranca en claro aunque el
   teléfono esté en oscuro; «Oscuro» y «Sistema» quedan como opciones de Ajustes. Se quitó
   `res/values-night/themes.xml` (el arranque y el splash salían oscuros) y `MainActivity` pinta el fondo de la
