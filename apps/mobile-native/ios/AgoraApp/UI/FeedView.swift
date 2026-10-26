@@ -93,6 +93,7 @@ struct FeedView: View {
         .background(AgoraDesign.Colors.fondo)
         .animation(AgoraDesign.Animation.spring, value: posts.map(\.id))
         .toolbar(.hidden, for: .navigationBar)
+        .barraDeEstadoOpaca()
         .refreshable { await traer(desde: nil, reemplazar: true) }
         .task(id: feedTrigger) { await traer(desde: nil, reemplazar: true) }
         .task { await cargarComunidades() }

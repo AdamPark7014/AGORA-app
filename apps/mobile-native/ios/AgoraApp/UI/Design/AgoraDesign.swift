@@ -317,6 +317,17 @@ extension Font {
 // MARK: - View helpers
 
 extension View {
+    /// Pantallas sin barra de navegación (Inicio, Campus): una franja del fondo detrás de la hora
+    /// y la batería, para que lo que se desplaza no pase por debajo de ellas.
+    func barraDeEstadoOpaca() -> some View {
+        overlay(alignment: .top) {
+            AgoraDesign.Colors.fondo
+                .frame(height: 0)
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+        }
+    }
+
     func agoraScreenBackground() -> some View {
         background(AgoraDesign.Colors.fondo.ignoresSafeArea())
     }

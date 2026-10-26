@@ -128,6 +128,7 @@ struct MasView: View {
         }
         .background(AgoraDesign.Colors.fondo)
         .toolbar(.hidden, for: .navigationBar)
+        .barraDeEstadoOpaca()
     }
 
     private func titulo(_ texto: String) -> some View {
