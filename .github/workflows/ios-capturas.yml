@@ -134,13 +134,13 @@ jobs:
             DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
             2>&1 | tee xcodebuild-capturas.log | grep -E "Test Case .*(passed|failed|skipped)|error:|\*\* TEST (SUCCEEDED|FAILED)"
 
-      - name: Doce capturas de 1320x2868
+      - name: Catorce capturas de 1320x2868
         if: always()
         run: |
           cd "$GITHUB_WORKSPACE/capturas-ios" || { echo "::error::No hay capturas"; exit 1; }
           fallo=0
           for tema in claro oscuro; do
-            for nombre in feed evento aventones mercado mensajes perfil; do
+            for nombre in inicio feed evento aventones mercado mensajes perfil; do
               f="$tema/$nombre.png"
               if [ ! -f "$f" ]; then echo "::error::Falta $f"; fallo=1; continue; fi
               w=$(sips -g pixelWidth "$f" | awk '/pixelWidth/{print $2}')

@@ -57,6 +57,8 @@ final class CapturasTiendaUITests: XCTestCase {
         tocar(app.buttons["tab.0"])
         let autores = ["Renata", "Diego", "Sofía", "Ximena", "Paula"]
         _ = esperarAlguno(autores, timeout: 25)
+        // Lo primero que se ve al abrir: fecha, segmento, «Ahora en el campus» y la pregunta.
+        capturar("inicio", tema: tema, esperando: ["Mi carrera", "Siguiendo"])
         bajarALasPublicaciones()
         capturar("feed", tema: tema, esperando: autores)
 
