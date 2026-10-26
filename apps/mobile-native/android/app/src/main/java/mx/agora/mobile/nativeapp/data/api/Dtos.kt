@@ -138,6 +138,42 @@ data class ComunidadDto(
     val slug: String,
     val nombre: String,
     val silenciada: Boolean = false,
+    /** `UNIVERSIDAD`, `CARRERA`, `GENERACION`… (solo en `perfil/mis-comunidades`). */
+    val tipo: String? = null,
+)
+
+/** Conteo por tipo de reacción (diseño D). La API vieja no lo manda: null. */
+@JsonClass(generateAdapter = true)
+data class ReaccionesDto(
+    @Json(name = "ME_LATE") val meLate: Int = 0,
+    @Json(name = "ME_RIO") val meRio: Int = 0,
+    @Json(name = "APOYO") val apoyo: Int = 0,
+    @Json(name = "NO_MAMES") val noMames: Int = 0,
+) {
+    fun de(tipo: String): Int = when (tipo) {
+        "ME_LATE" -> meLate
+        "ME_RIO" -> meRio
+        "APOYO" -> apoyo
+        "NO_MAMES" -> noMames
+        else -> 0
+    }
+
+    /** Copia con [tipo] movido en [delta] (reacción optimista). */
+    fun mas(tipo: String, delta: Int): ReaccionesDto = when (tipo) {
+        "ME_LATE" -> copy(meLate = (meLate + delta).coerceAtLeast(0))
+        "ME_RIO" -> copy(meRio = (meRio + delta).coerceAtLeast(0))
+        "APOYO" -> copy(apoyo = (apoyo + delta).coerceAtLeast(0))
+        "NO_MAMES" -> copy(noMames = (noMames + delta).coerceAtLeast(0))
+        else -> this
+    }
+}
+
+/** Persona en corto: quién va a un evento, seguidores en común (diseño D). */
+@JsonClass(generateAdapter = true)
+data class PersonaResumenDto(
+    val handle: String,
+    val nombre: String,
+    val fotoUrl: String? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -152,6 +188,7 @@ data class PostDto(
     val encuesta: EncuestaDto? = null,
     val numComments: Int = 0,
     val numReactions: Int = 0,
+    val reacciones: ReaccionesDto? = null,
     val miReaccion: String? = null,
     val miGuardado: Boolean = false,
 )
@@ -176,6 +213,7 @@ data class PostDetalleDto(
     val encuesta: EncuestaDto? = null,
     val numComments: Int = 0,
     val numReactions: Int = 0,
+    val reacciones: ReaccionesDto? = null,
     val miReaccion: String? = null,
     val miGuardado: Boolean = false,
     val comentarios: List<ComentarioDto> = emptyList(),
@@ -374,6 +412,8 @@ data class EventoDto(
     val comunidad: ComunidadDto? = null,
     val cupo: Int? = null,
     val finAt: String? = null,
+    /** Hasta 5, primero gente que sigues (diseño D). */
+    val asistentes: List<PersonaResumenDto> = emptyList(),
 )
 
 @JsonClass(generateAdapter = true)
@@ -488,6 +528,8 @@ data class PerfilAjenoDto(
     val ciudadOrigen: String? = null,
     val instagram: String? = null,
     val intereses: List<String> = emptyList(),
+    /** «Busco…» del perfil (roomie, equipo, aventón…), texto libre. */
+    val busco: String? = null,
     val seguidores: Int? = null,
     val siguiendo: Int? = null,
     val publicaciones: Int? = null,
@@ -500,6 +542,9 @@ data class PerfilAjenoDto(
     val portadaUrl: String? = null,
     val colegio: String? = null,
     val suspendido: Boolean = false,
+    /** Hasta 3 de quienes sigues que también siguen a esta persona (diseño D). */
+    val seguidoresEnComun: List<PersonaResumenDto> = emptyList(),
+    val numSeguidoresEnComun: Int = 0,
 )
 
 /** Fila de `GET perfil/{handle}/seguidores` y `/siguiendo`. */
@@ -753,6 +798,8 @@ data class EventoDetalleDto(
     val comunidad: ComunidadDto? = null,
     val vanAIr: Int = 0,
     val miRespuesta: String? = null,
+    /** Hasta 5, primero gente que sigues (diseño D). La API vieja no lo manda. */
+    val asistentes: List<PersonaResumenDto> = emptyList(),
 )
 
 @JsonClass(generateAdapter = true)

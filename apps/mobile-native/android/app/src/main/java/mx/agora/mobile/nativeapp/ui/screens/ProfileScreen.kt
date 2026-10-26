@@ -1,25 +1,36 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.AdminPanelSettings
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.Gavel
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.PrivacyTip
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.TheaterComedy
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,11 +41,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -46,12 +58,16 @@ import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PerfilMioDto
 import mx.agora.mobile.nativeapp.data.api.PerfilPublicacionDto
 import mx.agora.mobile.nativeapp.data.local.OfflineCache
-import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
+import mx.agora.mobile.nativeapp.ui.components.BotonBorde
 import mx.agora.mobile.nativeapp.ui.components.GamificacionProfileSection
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.navigation.AgoraRoutes
 import mx.agora.mobile.nativeapp.ui.navigation.DeepLinkBus
+import mx.agora.mobile.nativeapp.ui.theme.AgoraCardShape
+import mx.agora.mobile.nativeapp.ui.theme.AgoraChipShape
+import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
 import mx.agora.mobile.nativeapp.ui.util.EnlacesWeb
 import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
@@ -118,7 +134,6 @@ fun ProfileScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProfileHome(
     auth: AuthRepository,
@@ -206,13 +221,13 @@ private fun ProfileHome(
 
     when {
         cargando -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            Box(modifier.fillMaxSize().background(AgoraColors.Fondo), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = AgoraColors.Naranja)
             }
         }
         error != null -> {
             // Sin red ni caché: lo primero es reintentar, no cerrar sesión.
-            Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(modifier.fillMaxSize().background(AgoraColors.Fondo), contentAlignment = Alignment.Center) {
                 AgoraEmptyState(
                     emoji = "😕",
                     title = "No pudimos cargar tu perfil",
@@ -226,149 +241,133 @@ private fun ProfileHome(
             }
         }
         else -> {
+            // Sin handle no se enseña nada (antes salía «@tu»).
+            val miHandle = perfil?.handle ?: session?.handle
+            val nombreCompleto = "${perfil?.nombre ?: ""} ${perfil?.apellidos ?: ""}".trim()
+            val p = publico
+
+            fun abrirLista(tipo: String): (() -> Unit)? =
+                miHandle?.let { h -> { onConexiones(h, tipo) } }
+
+            // Mismas cifras que ve cualquiera en mi perfil, y solo las que dio la API.
+            val cifras = buildList<CifraPerfil> {
+                p?.publicaciones?.let { add(cifraConteo(it, "publicación", "publicaciones")) }
+                p?.seguidores?.let {
+                    add(cifraConteo(it, "seguidor", "seguidores", onClick = abrirLista(TipoConexion.SEGUIDORES)))
+                }
+                p?.siguiendo?.let { add(cifraSiguiendo(it, onClick = abrirLista(TipoConexion.SIGUIENDO))) }
+                gamificacion?.rachaActual?.takeIf { it > 0 }?.let { add(cifraRacha(it)) }
+            }
+
             Column(
                 modifier = modifier
                     .fillMaxSize()
+                    .background(AgoraColors.Fondo)
                     .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                    .padding(bottom = AgoraSpacing.Lg),
+                verticalArrangement = Arrangement.spacedBy(AgoraSpacing.Sm),
             ) {
-                val foto = ApiClient.resolveUrl(perfil?.fotoUrl)
-                if (foto != null) {
-                    AsyncImage(
-                        model = foto,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(88.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop,
+                CabeceraPortadaPerfil(
+                    portadaUrl = perfil?.portadaUrl,
+                    nombre = nombreCompleto,
+                    fotoUrl = perfil?.fotoUrl,
+                ) {
+                    // Donde el perfil ajeno lleva Seguir y Mensaje; edita en Ajustes, como antes.
+                    BotonBorde("Editar perfil", onClick = onAjustes)
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AgoraSpacing.Pantalla),
+                    verticalArrangement = Arrangement.spacedBy(AgoraSpacing.Sm),
+                ) {
+                    DatosPerfilD(
+                        nombre = nombreCompleto,
+                        verificado = p?.verificado == true,
+                        linea = listOfNotNull(
+                            miHandle?.let { "@$it" },
+                            p?.carrera,
+                            p?.generacion?.let { "Gen $it" },
+                            perfil?.ciudadOrigen ?: p?.ciudadOrigen,
+                        ),
+                        lineaSecundaria = listOfNotNull(p?.escuela, p?.colegio?.let { "Colegio $it" }),
+                        bio = perfil?.bio,
+                        instagram = perfil?.instagram,
+                        intereses = perfil?.intereses.orEmpty(),
+                        busco = perfil?.busco,
+                        prefijoBusco = "Busco",
                     )
-                } else {
-                    // Mismo fondo e iniciales que el perfil ajeno.
-                    val iniciales = "${perfil?.nombre ?: ""} ${perfil?.apellidos ?: ""}".trim()
-                        .split(' ').take(2).mapNotNull { it.firstOrNull()?.uppercaseChar() }.joinToString("")
-                    Box(
-                        modifier = Modifier
-                            .size(88.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            iniciales.ifEmpty { "?" },
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
+
+                    CifrasPerfil(cifras)
+
+                    if (miHandle != null) {
+                        BotonBorde(
+                            "Compartir mi perfil",
+                            onClick = { compartirEnlace(context, EnlacesWeb.perfil(miHandle), "@$miHandle en Ágora") },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
-                }
 
-                // Sin handle no se enseña nada (antes salía «@tu»).
-                (perfil?.handle ?: session?.handle)?.let { h ->
-                    Text(
-                        "@$h",
-                        style = MaterialTheme.typography.headlineSmall,
+                    GamificacionProfileSection(gamificacion = gamificacion)
+
+                    if (miHandle != null) {
+                        MisPublicaciones(
+                            publicaciones = misPublicaciones,
+                            total = publico?.publicaciones,
+                            hayMas = hayMasPublicaciones,
+                            cargando = cargandoPublicaciones,
+                            error = errorPublicaciones,
+                            onReintentar = { intentoPublicaciones++ },
+                            onPublicacion = onPublicacion,
+                            onVerTodas = { onPerfilPublico(miHandle) },
+                        )
+                    }
+
+                    GrupoOpciones(
+                        titulo = "Tu cuenta",
+                        opciones = listOfNotNull(
+                            OpcionPerfil(Icons.Outlined.ChatBubbleOutline, "Mensajes", onClick = onMensajes),
+                            OpcionPerfil(Icons.Outlined.Settings, "Ajustes", onClick = onAjustes),
+                            onMas?.let { OpcionPerfil(Icons.Outlined.GridView, "Más opciones", onClick = it) },
+                        ),
                     )
-                }
-                Text(
-                    "${perfil?.nombre ?: ""} ${perfil?.apellidos ?: ""}".trim(),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                perfil?.bio?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium)
-                }
-
-                val miHandle = perfil?.handle ?: session?.handle
-                if (miHandle != null) {
-                    // FlowRow: con fuente grande los tres contadores no caben en una línea.
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        publico?.let { p ->
-                            Text(
-                                cuenta(p.publicaciones ?: 0, "publicación", "publicaciones"),
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.align(Alignment.CenterVertically),
-                            )
-                            ContadorConexion(
-                                texto = cuenta(p.seguidores ?: 0, "seguidor", "seguidores"),
-                                habilitado = true,
-                                onClick = { onConexiones(miHandle, TipoConexion.SEGUIDORES) },
-                            )
-                            ContadorConexion(
-                                texto = "${p.siguiendo ?: 0} siguiendo",
-                                habilitado = true,
-                                onClick = { onConexiones(miHandle, TipoConexion.SIGUIENDO) },
-                            )
-                        }
-                    }
-                    OutlinedButton(
-                        onClick = { compartirEnlace(context, EnlacesWeb.perfil(miHandle), "@$miHandle en Ágora") },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Compartir mi perfil")
-                    }
-                }
-
-                GamificacionProfileSection(
-                    gamificacion = gamificacion,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-
-                if (miHandle != null) {
-                    MisPublicaciones(
-                        publicaciones = misPublicaciones,
-                        total = publico?.publicaciones,
-                        hayMas = hayMasPublicaciones,
-                        cargando = cargandoPublicaciones,
-                        error = errorPublicaciones,
-                        onReintentar = { intentoPublicaciones++ },
-                        onPublicacion = onPublicacion,
-                        onVerTodas = { onPerfilPublico(miHandle) },
+                    GrupoOpciones(
+                        titulo = "Campus",
+                        opciones = listOfNotNull(
+                            OpcionPerfil(Icons.Outlined.Storefront, "Mercado", onClick = onMarketplace),
+                            OpcionPerfil(Icons.Outlined.DirectionsCar, "Aventones", onClick = onAventones),
+                            OpcionPerfil(Icons.Outlined.TheaterComedy, "Sin nombre", onClick = onAnonimo),
+                            if (puedeModerar) {
+                                OpcionPerfil(Icons.Outlined.AdminPanelSettings, "Moderación", onClick = onModeracion)
+                            } else {
+                                null
+                            },
+                        ),
                     )
-                }
+                    GrupoOpciones(
+                        titulo = "Legal",
+                        opciones = listOf(
+                            OpcionPerfil(Icons.Outlined.Description, "Términos de uso", onClick = onTerminos),
+                            OpcionPerfil(Icons.Outlined.PrivacyTip, "Aviso de privacidad", onClick = onPrivacidad),
+                            OpcionPerfil(Icons.Outlined.Gavel, "Reglas de la comunidad", onClick = onReglas),
+                        ),
+                    )
 
-                Text(
-                    session?.email ?: "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-
-                Button(onClick = onMensajes, modifier = Modifier.fillMaxWidth()) {
-                    Text("Mensajes")
-                }
-                Button(onClick = onAjustes, modifier = Modifier.fillMaxWidth()) {
-                    Text("Ajustes")
-                }
-                if (onMas != null) {
-                    OutlinedButton(onClick = onMas, modifier = Modifier.fillMaxWidth()) {
-                        Text("Más opciones")
+                    session?.email?.takeIf { it.isNotBlank() }?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AgoraColors.TextoMedio,
+                            modifier = Modifier.padding(start = 4.dp, top = AgoraSpacing.Xxs),
+                        )
                     }
-                }
-                OutlinedButton(onClick = onMarketplace, modifier = Modifier.fillMaxWidth()) {
-                    Text("Marketplace")
-                }
-                OutlinedButton(onClick = onAventones, modifier = Modifier.fillMaxWidth()) {
-                    Text("Aventones")
-                }
-                OutlinedButton(onClick = onAnonimo, modifier = Modifier.fillMaxWidth()) {
-                    Text("Sin nombre")
-                }
-                if (puedeModerar) {
-                    OutlinedButton(onClick = onModeracion, modifier = Modifier.fillMaxWidth()) {
-                        Text("Moderación")
-                    }
-                }
-                OutlinedButton(onClick = onTerminos, modifier = Modifier.fillMaxWidth()) {
-                    Text("Términos de uso")
-                }
-                OutlinedButton(onClick = onPrivacidad, modifier = Modifier.fillMaxWidth()) {
-                    Text("Aviso de privacidad")
-                }
-                OutlinedButton(onClick = onReglas, modifier = Modifier.fillMaxWidth()) {
-                    Text("Reglas de la comunidad")
-                }
-                OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
-                    Text("Cerrar sesión")
+                    GrupoOpciones(
+                        titulo = null,
+                        opciones = listOf(
+                            OpcionPerfil(Icons.AutoMirrored.Outlined.Logout, "Cerrar sesión", peligro = true, onClick = onLogout),
+                        ),
+                    )
                 }
             }
         }
@@ -389,16 +388,32 @@ private fun MisPublicaciones(
     onPublicacion: (String) -> Unit,
     onVerTodas: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            "Mis publicaciones",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(AgoraSpacing.Sm)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = AgoraSpacing.Xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Mis publicaciones",
+                style = MaterialTheme.typography.titleLarge,
+                color = AgoraColors.Texto,
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { heading() },
+            )
+            if (hayMas && publicaciones.isNotEmpty()) {
+                AccionTexto(
+                    if (total != null && total > 0) "Ver todas ($total)" else "Ver todas",
+                    onClick = onVerTodas,
+                )
+            }
+        }
         when {
             cargando && publicaciones.isEmpty() -> {
-                Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                Box(Modifier.fillMaxWidth().padding(vertical = AgoraSpacing.Sm), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = AgoraColors.Naranja, modifier = Modifier.size(28.dp))
                 }
             }
             error != null && publicaciones.isEmpty() -> {
@@ -409,29 +424,120 @@ private fun MisPublicaciones(
                     Text(
                         error,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        color = AgoraColors.Danger,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = onReintentar) { Text(AgoraCopy.cta.reintentar) }
+                    AccionTexto(AgoraCopy.cta.reintentar, onClick = onReintentar)
                 }
             }
             publicaciones.isEmpty() -> {
                 Text(
                     "Todavía no publicas nada. Lo que compartas aparecerá aquí.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                    color = AgoraColors.TextoMedio,
                 )
             }
             else -> {
                 publicaciones.forEach { pub ->
                     PublicacionPerfilCard(pub, onClick = { onPublicacion(pub.id) }, media = pub.media)
                 }
-                if (hayMas) {
-                    TextButton(onClick = onVerTodas, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (total != null && total > 0) "Ver todas ($total)" else "Ver todas")
-                    }
-                }
             }
+        }
+    }
+}
+
+/** Acción de texto en naranja-tinta («Ver todas», «Reintentar»), con área táctil de 44. */
+@Composable
+private fun AccionTexto(texto: String, onClick: () -> Unit) {
+    Text(
+        texto,
+        style = MaterialTheme.typography.labelLarge,
+        color = AgoraColors.NaranjaTinta,
+        modifier = Modifier
+            .heightIn(min = 44.dp)
+            .clip(AgoraChipShape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 12.dp),
+    )
+}
+
+private class OpcionPerfil(
+    val icono: ImageVector,
+    val texto: String,
+    val peligro: Boolean = false,
+    val onClick: () -> Unit,
+)
+
+/**
+ * Lo que antes era una columna de botones iguales, agrupado en tarjetas con
+ * filas: mismas opciones y mismos destinos.
+ */
+@Composable
+private fun GrupoOpciones(titulo: String?, opciones: List<OpcionPerfil>) {
+    if (opciones.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(AgoraSpacing.Xs)) {
+        titulo?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.labelLarge,
+                color = AgoraColors.TextoMedio,
+                modifier = Modifier
+                    .padding(start = 4.dp, top = AgoraSpacing.Xs)
+                    .semantics { heading() },
+            )
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(AgoraCardShape)
+                .background(AgoraColors.Superficie),
+        ) {
+            opciones.forEachIndexed { i, opcion ->
+                if (i > 0) {
+                    // Arranca donde empieza el texto, no bajo el ícono.
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 52.dp),
+                        thickness = 1.dp,
+                        color = AgoraColors.Borde,
+                    )
+                }
+                FilaOpcion(opcion)
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilaOpcion(opcion: OpcionPerfil) {
+    val tinta = if (opcion.peligro) AgoraColors.Danger else AgoraColors.Texto
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .clickable(role = Role.Button, onClick = opcion.onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Icon(
+            opcion.icono,
+            contentDescription = null,
+            tint = if (opcion.peligro) AgoraColors.Danger else AgoraColors.TextoMedio,
+            modifier = Modifier.size(22.dp),
+        )
+        Text(
+            opcion.texto,
+            style = MaterialTheme.typography.bodyLarge,
+            color = tinta,
+            modifier = Modifier.weight(1f),
+        )
+        if (!opcion.peligro) {
+            Icon(
+                Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = AgoraColors.TextoMedio,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }

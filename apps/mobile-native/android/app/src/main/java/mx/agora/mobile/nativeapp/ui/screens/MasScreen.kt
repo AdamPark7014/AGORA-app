@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,12 +15,22 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.Bookmarks
+import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.PersonSearch
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.TheaterComedy
 import androidx.compose.material3.Badge
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -34,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -45,13 +57,15 @@ import mx.agora.mobile.nativeapp.data.YoCache
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.MensajesApi
 import mx.agora.mobile.nativeapp.data.api.YoResponse
+import mx.agora.mobile.nativeapp.ui.components.AgoraAvatar
 import mx.agora.mobile.nativeapp.ui.components.AgoraPieLegal
+import mx.agora.mobile.nativeapp.ui.theme.AgoraCardShape
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.cuenta
 
 private data class EnlaceMas(
     val ruta: String,
-    val emoji: String,
+    val icono: ImageVector,
     val titulo: String,
     val nota: String,
 )
@@ -65,25 +79,25 @@ private val secciones = listOf(
     SeccionMas(
         titulo = "Descubre",
         enlaces = listOf(
-            EnlaceMas("buscar", "🔍", "Buscar", "Personas, publicaciones y más"),
-            EnlaceMas("directorio", "📇", "Directorio", "Buscar gente por carrera"),
-            EnlaceMas("guardados", "🔖", "Guardados", "Publicaciones para ver después"),
+            EnlaceMas("buscar", Icons.Outlined.Search, "Buscar", "Personas, publicaciones y más"),
+            EnlaceMas("directorio", Icons.Outlined.PersonSearch, "Directorio", "Buscar gente por carrera"),
+            EnlaceMas("guardados", Icons.Outlined.Bookmarks, "Guardados", "Publicaciones para ver después"),
         ),
     ),
     SeccionMas(
         titulo = "Campus",
         enlaces = listOf(
-            EnlaceMas("marketplace", "🛍️", "Marketplace", "Compra y vende en campus"),
-            EnlaceMas("aventones", "🚗", "Aventones", "Comparte coche a Cholula"),
-            EnlaceMas("anonimo", "🎭", "Sin nombre", "Publicar sin firmar"),
+            EnlaceMas("marketplace", Icons.Outlined.Storefront, "Mercado", "Compra y vende en el campus"),
+            EnlaceMas("aventones", Icons.Outlined.DirectionsCar, "Aventones", "Comparte coche a Cholula"),
+            EnlaceMas("anonimo", Icons.Outlined.TheaterComedy, "Sin nombre", "Publicar sin firmar"),
         ),
     ),
     SeccionMas(
         titulo = "Tu cuenta",
         enlaces = listOf(
-            EnlaceMas("notificaciones", "🔔", "Notificaciones", "Todo tu historial"),
-            EnlaceMas("mensajes", "✉️", "Mensajes", "Tus conversaciones"),
-            EnlaceMas("ajustes", "⚙️", "Ajustes", "Tu perfil y privacidad"),
+            EnlaceMas("notificaciones", Icons.Outlined.Notifications, "Avisos", "Todo tu historial"),
+            EnlaceMas("mensajes", Icons.AutoMirrored.Outlined.Send, "Mensajes", "Tus conversaciones"),
+            EnlaceMas("ajustes", Icons.Outlined.Settings, "Ajustes", "Tu perfil y privacidad"),
         ),
     ),
 )
@@ -122,7 +136,7 @@ fun MasScreen(
     val seccionesVisibles = if (yo?.puedeModerar == true) {
         secciones + SeccionMas(
             titulo = "Equipo",
-            enlaces = listOf(EnlaceMas("moderacion", "🛡️", "Moderación", "Cola de reportes")),
+            enlaces = listOf(EnlaceMas("moderacion", Icons.Outlined.Shield, "Moderación", "Cola de reportes")),
         )
     } else {
         secciones
@@ -132,56 +146,34 @@ fun MasScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("Más", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-
+        // El título «Más» ya va en la barra de arriba.
         yo?.handle?.let { handle ->
-            Card(
-                onClick = { onNavigate("perfil-yo") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = AgoraColors.SurfaceElevated),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(AgoraCardShape)
+                    .background(AgoraColors.Superficie)
+                    .border(1.dp, AgoraColors.Borde, AgoraCardShape)
+                    .clickable(role = Role.Button) { onNavigate("perfil-yo") }
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
+                AgoraAvatar(nombre = yo?.nombre ?: handle, fotoUrl = yo?.fotoUrl, size = 56.dp)
+                Column {
+                    Text(yo?.nombre ?: "Tu perfil", fontWeight = FontWeight.Bold)
+                    Text("@$handle", color = AgoraColors.TextoMedio)
+                    Text(
+                        "Ver mi perfil ›",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = AgoraColors.NaranjaTinta,
                         modifier = Modifier
-                            .size(56.dp)
-                            .border(2.5.dp, AgoraColors.Naranja, CircleShape)
-                            .padding(3.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                iniciales(yo?.nombre ?: handle),
-                                fontWeight = FontWeight.Bold,
-                                color = AgoraColors.Naranja,
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                        }
-                    }
-                    Column {
-                        Text(yo?.nombre ?: "Tu perfil", fontWeight = FontWeight.Bold)
-                        Text("@$handle", color = AgoraColors.TextoMedio)
-                        Text(
-                            "Ver mi perfil ›",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = AgoraColors.Naranja,
-                            modifier = Modifier
-                                .padding(top = 2.dp)
-                                .clearAndSetSemantics { contentDescription = "Ver mi perfil" },
-                        )
-                    }
+                            .padding(top = 2.dp)
+                            .clearAndSetSemantics { contentDescription = "Ver mi perfil" },
+                    )
                 }
             }
         }
@@ -194,11 +186,14 @@ fun MasScreen(
                 color = AgoraColors.TextoMedio,
                 modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
             )
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(AgoraCardShape)
+                    .background(AgoraColors.Superficie)
+                    .border(1.dp, AgoraColors.Borde, AgoraCardShape),
             ) {
-                Column {
+                run {
                     seccion.enlaces.forEachIndexed { index, item ->
                         Row(
                             modifier = Modifier
@@ -208,8 +203,16 @@ fun MasScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            // Emoji y «›» son decorativos: TalkBack no los lee.
-                            Text(item.emoji, modifier = Modifier.clearAndSetSemantics {})
+                            // Ícono y «›» son decorativos: TalkBack lee el título.
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(AgoraColors.NaranjaSuave),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(item.icono, contentDescription = null, tint = AgoraColors.NaranjaTinta, modifier = Modifier.size(20.dp))
+                            }
                             Column(Modifier.weight(1f)) {
                                 Text(item.titulo, fontWeight = FontWeight.SemiBold)
                                 Text(
@@ -247,7 +250,7 @@ fun MasScreen(
                 onClick = onTerminos,
                 modifier = Modifier.heightIn(min = 48.dp),
             ) {
-                Text("Términos de uso", color = AgoraColors.Naranja)
+                Text("Términos de uso", color = AgoraColors.NaranjaTinta)
             }
             Text(
                 "·",
@@ -258,7 +261,7 @@ fun MasScreen(
                 onClick = onPrivacidad,
                 modifier = Modifier.heightIn(min = 48.dp),
             ) {
-                Text("Aviso de privacidad", color = AgoraColors.Naranja)
+                Text("Aviso de privacidad", color = AgoraColors.NaranjaTinta)
             }
             Text(
                 "·",
@@ -269,7 +272,7 @@ fun MasScreen(
                 onClick = onReglas,
                 modifier = Modifier.heightIn(min = 48.dp),
             ) {
-                Text("Reglas de la comunidad", color = AgoraColors.Naranja)
+                Text("Reglas de la comunidad", color = AgoraColors.NaranjaTinta)
             }
         }
 
@@ -291,9 +294,3 @@ fun MasScreen(
         AgoraPieLegal(modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
     }
 }
-
-private fun iniciales(nombre: String): String =
-    nombre.split(' ')
-        .take(2)
-        .mapNotNull { it.firstOrNull()?.uppercaseChar()?.toString() }
-        .joinToString("")

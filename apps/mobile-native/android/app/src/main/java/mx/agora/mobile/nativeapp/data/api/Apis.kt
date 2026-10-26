@@ -62,6 +62,8 @@ interface FeedApi {
         @Query("cursor") cursor: String? = null,
         @Query("comunidadSlug") comunidadSlug: String? = null,
         @Query("siguiendo") siguiendo: String? = null,
+        /** `"clips"`: solo publicaciones con video (diseño D). */
+        @Query("tipo") tipo: String? = null,
     ): FeedResponse
 }
 

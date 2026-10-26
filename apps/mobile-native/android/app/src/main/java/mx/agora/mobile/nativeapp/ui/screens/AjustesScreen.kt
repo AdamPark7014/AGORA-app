@@ -1,9 +1,14 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -51,6 +56,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -72,6 +78,12 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -95,12 +107,14 @@ import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PreferenciaNotificacionDto
 import mx.agora.mobile.nativeapp.data.api.SilenciarComunidadRequest
 import mx.agora.mobile.nativeapp.data.api.YoResponse
+import mx.agora.mobile.nativeapp.push.PushRegistration
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.FormularioContrasena
 import mx.agora.mobile.nativeapp.ui.components.diasParaConfirmarUdlap
 import mx.agora.mobile.nativeapp.ui.components.ModoContrasena
 import mx.agora.mobile.nativeapp.ui.components.SubScreenScaffold
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.theme.AgoraButtonShape
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 import mx.agora.mobile.nativeapp.ui.util.mensajeLegibleDelServidor
@@ -130,6 +144,29 @@ private fun Context.buscarActivity(): Activity? {
         actual = actual.baseContext
     }
     return null
+}
+
+/**
+ * Si al teléfono le pueden llegar avisos de Ágora: permiso concedido (Android 13+)
+ * y avisos de la app encendidos en el sistema (en cualquier versión se apagan ahí).
+ */
+private fun avisosDelSistemaActivos(context: Context): Boolean {
+    val permiso = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+        PackageManager.PERMISSION_GRANTED
+    return permiso && NotificationManagerCompat.from(context).areNotificationsEnabled()
+}
+
+/** Abre los avisos de Ágora en los ajustes del sistema (antes de Android 8, la ficha de la app). */
+private fun abrirAjustesDeAvisos(context: Context) {
+    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+    } else {
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+    }
+    if (context.buscarActivity() == null) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
 }
 
 private val etiquetasPreferencia = mapOf(
@@ -840,6 +877,7 @@ private fun AjustesScreenContent(
                     }
 
                     Text("Notificaciones", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+                    AvisosDelTelefono()
                     if (extrasFallaron) {
                         AvisoReintentar(
                             texto = "No pudimos cargar tus avisos ni tus comunidades.",
@@ -859,7 +897,7 @@ private fun AjustesScreenContent(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("⚡ Avísame cuando caiga la pregunta", style = MaterialTheme.typography.bodyMedium)
+                            Text("Avísame cuando caiga la pregunta", style = MaterialTheme.typography.bodyMedium)
                             Text(
                                 "Sale a una hora sorpresa; tienes 2 minutos para contestar a tiempo.",
                                 style = MaterialTheme.typography.bodySmall,
@@ -961,6 +999,96 @@ private fun AjustesScreenContent(
                         onCuentaEliminada = onCuentaEliminada,
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * «Avisos en este teléfono»: el permiso del sistema, aparte de las preferencias
+ * por tipo (esas viven en la API). Junto con la bienvenida, el único lugar donde
+ * se pide (docs/diseno-d.md §6).
+ */
+@Composable
+private fun AvisosDelTelefono() {
+    val context = LocalContext.current
+    var activos by remember { mutableStateOf(avisosDelSistemaActivos(context)) }
+    /** Si el sistema ya iba a explicar el permiso antes de pedirlo: distingue «negó ahora» de «ya no deja pedirlo». */
+    var explicabaAntes by remember { mutableStateOf(false) }
+
+    // Se prenden y apagan fuera de la app: se vuelve a mirar al regresar.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observador = LifecycleEventObserver { _, evento ->
+            if (evento == Lifecycle.Event.ON_RESUME) activos = avisosDelSistemaActivos(context)
+        }
+        lifecycleOwner.lifecycle.addObserver(observador)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observador) }
+    }
+
+    val pedirPermiso = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { concedido ->
+        activos = avisosDelSistemaActivos(context)
+        if (concedido) {
+            PushRegistration.registerCurrentDeviceAsync(context.applicationContext)
+            return@rememberLauncherForActivityResult
+        }
+        // Negado sin diálogo: ni antes ni después había explicación, o sea que
+        // el sistema ya no deja pedirlo y solo queda su pantalla de ajustes. Si
+        // la persona acaba de decir que no en el diálogo, se le respeta.
+        val activity = context.buscarActivity()
+        val explicaAhora = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && activity != null &&
+            ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)
+        if (!explicabaAntes && !explicaAhora) abrirAjustesDeAvisos(context)
+    }
+
+    fun activar() {
+        val faltaPermiso = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        if (faltaPermiso) {
+            val activity = context.buscarActivity()
+            explicabaAntes = activity != null &&
+                ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)
+            pedirPermiso.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            // Antes de Android 13 (o con el permiso dado) se apagan en el sistema: solo ahí se prenden.
+            abrirAjustesDeAvisos(context)
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        ) {
+            Text("Avisos en este teléfono", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                if (activos) "Activados" else "Desactivados",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (activos) AgoraColors.Success else AgoraColors.TextoMedio,
+            )
+            if (!activos) {
+                Text(
+                    "Mientras estén apagados no te llega nada al celular, aunque lo actives abajo.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AgoraColors.TextoMedio,
+                )
+            }
+        }
+        if (!activos) {
+            OutlinedButton(
+                onClick = { activar() },
+                shape = AgoraButtonShape,
+                modifier = Modifier.semantics { contentDescription = "Activar avisos en este teléfono" },
+            ) {
+                Text("Activar")
             }
         }
     }

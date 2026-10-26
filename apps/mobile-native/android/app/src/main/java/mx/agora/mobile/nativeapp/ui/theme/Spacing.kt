@@ -14,4 +14,12 @@ object AgoraSpacing {
     val Lg: Dp = 24.dp
     val Xl: Dp = 32.dp
     val Xxl: Dp = 48.dp
+
+    // Diseño D (docs/diseno-d.md §2)
+    /** Margen lateral de pantalla (títulos, encabezado, segmento). */
+    val Pantalla: Dp = 18.dp
+    /** Margen lateral de las tarjetas. */
+    val Tarjeta: Dp = 14.dp
+    /** Separación entre tarjetas. */
+    val EntreTarjetas: Dp = 12.dp
 }

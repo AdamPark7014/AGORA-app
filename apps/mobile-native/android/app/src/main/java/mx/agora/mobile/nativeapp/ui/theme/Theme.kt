@@ -20,7 +20,7 @@ private fun esquema(oscuro: Boolean): ColorScheme {
         primary = AgoraColors.Naranja,
         onPrimary = sobreNaranja,
         primaryContainer = AgoraColors.NaranjaSuave,
-        onPrimaryContainer = AgoraColors.NaranjaOscuro,
+        onPrimaryContainer = AgoraColors.NaranjaTinta,
         secondary = AgoraColors.TextoMedio,
         onSecondary = if (oscuro) AgoraColors.Fondo else Color.White,
         // Sin estos, Material 3 rellena con su lila por omisión: los FilterChip

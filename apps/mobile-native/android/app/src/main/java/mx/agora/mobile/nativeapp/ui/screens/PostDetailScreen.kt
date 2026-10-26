@@ -76,6 +76,7 @@ import mx.agora.mobile.nativeapp.data.api.RetirarPostRequest
 import mx.agora.mobile.nativeapp.data.api.PostDetalleDto
 import mx.agora.mobile.nativeapp.data.api.PostsApi
 import mx.agora.mobile.nativeapp.data.api.ReaccionarRequest
+import mx.agora.mobile.nativeapp.data.api.ReaccionesDto
 import mx.agora.mobile.nativeapp.data.api.ReportesApi
 import mx.agora.mobile.nativeapp.data.api.VotarEncuestaRequest
 import mx.agora.mobile.nativeapp.ui.components.AgoraAvatar
@@ -124,6 +125,8 @@ fun PostDetailScreen(
     var errorEditar by remember { mutableStateOf<String?>(null) }
     var miReaccion by remember(postId) { mutableStateOf<String?>(null) }
     var totalReacciones by remember(postId) { mutableIntStateOf(0) }
+    // Conteo por tipo (diseño D). Null con una API anterior: los chips van sin número.
+    var reacciones by remember(postId) { mutableStateOf<ReaccionesDto?>(null) }
     var encuesta by remember(postId) { mutableStateOf<EncuestaDto?>(null) }
     var votando by remember(postId) { mutableStateOf(false) }
     // El detalle trae el voto propio (`encuesta.miVoto`); votar lo actualiza.
@@ -164,6 +167,7 @@ fun PostDetailScreen(
         post = detalle
         miReaccion = detalle.miReaccion
         totalReacciones = detalle.numReactions
+        reacciones = detalle.reacciones
         encuesta = detalle.encuesta
         // Un voto no se quita (solo se cambia): con una API sin `miVoto` se
         // conserva el que ya se marcó aquí.
@@ -216,26 +220,31 @@ fun PostDetailScreen(
         }
     }
 
-    fun reaccionar(tipo: String) {
-        val activa = miReaccion == tipo
-        val anterior = miReaccion
-        val totalAnterior = totalReacciones
-        miReaccion = if (activa) null else tipo
-        totalReacciones += when {
-            activa -> -1
-            anterior != null -> 0
-            else -> 1
+    /** Igual que en la tarjeta: total y conteo por tipo se mueven juntos para no contradecirse. */
+    fun moverReaccion(desde: String?, hacia: String?) {
+        if (desde == hacia) return
+        reacciones = reacciones?.let { r ->
+            val sinAnterior = if (desde != null) r.mas(desde, -1) else r
+            if (hacia != null) sinAnterior.mas(hacia, 1) else sinAnterior
         }
+        val delta = (if (hacia != null) 1 else 0) - (if (desde != null) 1 else 0)
+        totalReacciones = (totalReacciones + delta).coerceAtLeast(0)
+        miReaccion = hacia
+    }
+
+    fun reaccionar(tipo: String) {
+        val anterior = miReaccion
+        moverReaccion(anterior, if (anterior == tipo) null else tipo)
         haptics.perform(HapticType.Toggle)
         scope.launch {
             try {
                 val resp = ApiClient.api<PostsApi>(tokenProvider).reaccionar(postId, ReaccionarRequest(tipo))
-                miReaccion = resp.miReaccion
+                // Manda el servidor: si su estado no es el que supusimos, el conteo lo sigue.
+                moverReaccion(miReaccion, resp.miReaccion)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                miReaccion = anterior
-                totalReacciones = totalAnterior
+                moverReaccion(miReaccion, anterior)
                 snackbarHostState.showSnackbar(mensajeDe(e))
             }
         }
@@ -546,6 +555,7 @@ fun PostDetailScreen(
                                 numComments = actual.numComments,
                                 onReaccionar = ::reaccionar,
                                 modifier = Modifier.weight(1f),
+                                reacciones = reacciones,
                             )
                             GuardarButton(
                                 postId = postId,

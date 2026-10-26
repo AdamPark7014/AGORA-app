@@ -150,14 +150,8 @@ fun AgoraApp(
                     cerrandoSesion = cerrandoSesion,
                 )
             }
-            showWelcome -> {
-                WelcomeScreen(
-                    onFinished = {
-                        auth.markWelcomeSeen()
-                        showWelcome = false
-                    },
-                )
-            }
+            // Diseño D: primero el registro y al final la bienvenida, cuyo último
+            // paso pide el permiso de avisos (nunca antes).
             !session!!.tienePerfil -> {
                 RegistroScreen(
                     auth = auth,
@@ -165,6 +159,14 @@ fun AgoraApp(
                         session = user
                         onSessionReady()
                         PendingDeepLink.flush(context)
+                    },
+                )
+            }
+            showWelcome -> {
+                WelcomeScreen(
+                    onFinished = {
+                        auth.markWelcomeSeen()
+                        showWelcome = false
                     },
                 )
             }

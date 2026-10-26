@@ -1,22 +1,41 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -24,7 +43,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -32,28 +67,41 @@ import mx.agora.mobile.nativeapp.data.NetworkMonitor
 import mx.agora.mobile.nativeapp.data.YoCache
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.ComunidadDto
-import mx.agora.mobile.nativeapp.data.api.FeedApi
+import mx.agora.mobile.nativeapp.data.api.GamificacionApi
 import mx.agora.mobile.nativeapp.data.api.ModeracionApi
 import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.data.api.PostDto
 import mx.agora.mobile.nativeapp.data.api.RetirarPostRequest
+import mx.agora.mobile.nativeapp.data.api.YoResponse
 import mx.agora.mobile.nativeapp.data.local.OfflineCache
-import mx.agora.mobile.nativeapp.ui.components.AgoraChipItem
-import mx.agora.mobile.nativeapp.ui.components.AgoraChipRow
+import mx.agora.mobile.nativeapp.ui.components.AgoraAvatar
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
-import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
 import mx.agora.mobile.nativeapp.ui.components.AgoraFeedSkeleton
 import mx.agora.mobile.nativeapp.ui.components.AgoraPieErrorPagina
+import mx.agora.mobile.nativeapp.ui.components.AhoraEnCampus
 import mx.agora.mobile.nativeapp.ui.components.CarruselFeed
+import mx.agora.mobile.nativeapp.ui.components.ChipD
+import mx.agora.mobile.nativeapp.ui.components.FilaClips
+import mx.agora.mobile.nativeapp.ui.components.MiniEvento
 import mx.agora.mobile.nativeapp.ui.components.OfflineBanner
 import mx.agora.mobile.nativeapp.ui.components.PostCard
+import mx.agora.mobile.nativeapp.ui.components.PreguntaDelDiaBanner
 import mx.agora.mobile.nativeapp.ui.components.RetirarPostDialogo
+import mx.agora.mobile.nativeapp.ui.components.Segmento
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
 import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 import retrofit2.HttpException
+
+/** Plaza general del campus: en el segmento es «Campus», no un chip más. */
+private const val SLUG_CAMPUS = "universidad:udlap"
+
+/** Separación entre bloques del inicio (diseño D). */
+private val Hueco = AgoraSpacing.EntreTarjetas
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +112,13 @@ fun FeedScreen(
     onHashtagClick: (String) -> Unit = {},
     onAuthorClick: (String) -> Unit = {},
     onEventoClick: (String) -> Unit = {},
+    mensajesSinLeer: Int = 0,
+    avisosSinLeer: Int = 0,
+    onMensajes: () -> Unit = {},
+    onAvisos: () -> Unit = {},
+    onMiPerfil: () -> Unit = {},
+    onVerClips: () -> Unit = {},
+    onAventones: (() -> Unit)? = null,
 ) {
     var posts by remember { mutableStateOf<List<PostDto>>(emptyList()) }
     var cursor by remember { mutableStateOf<String?>(null) }
@@ -85,9 +140,18 @@ fun FeedScreen(
     var puedeModerar by remember { mutableStateOf(false) }
     var retirandoId by remember { mutableStateOf<String?>(null) }
     var enviandoRetiro by remember { mutableStateOf(false) }
+    var yo by remember { mutableStateOf<YoResponse?>(null) }
+    var racha by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
-        puedeModerar = YoCache.obtener(tokenProvider)?.puedeModerar == true
+        yo = YoCache.obtener(tokenProvider)
+        puedeModerar = yo?.puedeModerar == true
+    }
+
+    // La racha va en la insignia del avatar; si falla, el avatar sale sin ella.
+    LaunchedEffect(reloadKey) {
+        racha = runCatching { ApiClient.api<GamificacionApi>(tokenProvider).mio().rachaActual }
+            .getOrDefault(racha)
     }
 
     fun retirar(postId: String, motivo: String) {
@@ -222,7 +286,7 @@ fun FeedScreen(
                 val viewportStart = layoutInfo.viewportStartOffset
                 val viewportEnd = layoutInfo.viewportEndOffset
                 // Por key y no por índice: así no depende de cuántos items
-                // (carrusel, aviso sin conexión, filtros) van antes de los posts.
+                // (encabezado, pregunta, clips, mini evento) van antes o entre los posts.
                 val idsPosts = currentPosts.mapTo(HashSet()) { it.id }
 
                 val mostVisible = layoutInfo.visibleItemsInfo
@@ -249,6 +313,17 @@ fun FeedScreen(
             }
     }
 
+    val miCarrera = comunidades.firstOrNull { it.tipo == "CARRERA" && !it.silenciada }
+    // El segmento cubre Campus, Mi carrera y Siguiendo; las demás comunidades
+    // (generación, colegio…) quedan como chips debajo.
+    val otrasComunidades = comunidades.filter {
+        !it.silenciada && it.slug != SLUG_CAMPUS && it.slug != miCarrera?.slug
+    }
+    // Clips y mini evento se intercalan entre publicaciones (docs/diseno-d.md §4).
+    val clipsTras = minOf(2, posts.lastIndex)
+    val eventoTras = minOf(6, posts.lastIndex)
+    val margenTarjeta = Modifier.padding(start = AgoraSpacing.Tarjeta, end = AgoraSpacing.Tarjeta, bottom = Hueco)
+
     AgoraPullToRefreshBox(
         isRefreshing = refrescando,
         onRefresh = {
@@ -257,112 +332,203 @@ fun FeedScreen(
         },
         modifier = Modifier.fillMaxSize(),
     ) {
-        when {
-            cargando && posts.isEmpty() -> {
-                AgoraFeedSkeleton(modifier = Modifier.fillMaxSize())
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = AgoraSpacing.Lg),
+        ) {
+            item(key = "cabeza") {
+                EncabezadoInicio(
+                    nombre = yo?.nombre ?: yo?.handle,
+                    fotoUrl = yo?.fotoUrl,
+                    racha = racha,
+                    mensajesSinLeer = mensajesSinLeer,
+                    avisosSinLeer = avisosSinLeer,
+                    onMensajes = onMensajes,
+                    onAvisos = onAvisos,
+                    onMiPerfil = onMiPerfil,
+                )
             }
-            error != null && posts.isEmpty() -> {
-                // Desplazable: así también se puede jalar para refrescar.
-                AgoraEstadoDesplazable {
+
+            item(key = "segmento") {
+                val opciones = buildList {
+                    add("Campus")
+                    if (miCarrera != null) add("Mi carrera")
+                    add("Siguiendo")
+                }
+                val seleccion = when {
+                    siguiendo -> opciones.lastIndex
+                    comunidadSlug == null -> 0
+                    miCarrera != null && comunidadSlug == miCarrera.slug -> 1
+                    // Una comunidad de los chips: ninguna opción del segmento activa.
+                    else -> -1
+                }
+                Segmento(
+                    opciones = opciones,
+                    seleccion = seleccion,
+                    onSeleccion = { i ->
+                        when (opciones[i]) {
+                            "Siguiendo" -> {
+                                siguiendo = true
+                                comunidadSlug = null
+                            }
+                            "Mi carrera" -> {
+                                siguiendo = false
+                                comunidadSlug = miCarrera?.slug
+                            }
+                            else -> {
+                                siguiendo = false
+                                comunidadSlug = null
+                            }
+                        }
+                    },
+                    descripcion = "Qué ver",
+                    modifier = Modifier.padding(bottom = Hueco),
+                )
+            }
+
+            if (otrasComunidades.isNotEmpty()) {
+                item(key = "comunidades") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = AgoraSpacing.Pantalla)
+                            .padding(bottom = Hueco - 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(AgoraSpacing.Xs),
+                    ) {
+                        otrasComunidades.forEach { c ->
+                            val activa = !siguiendo && comunidadSlug == c.slug
+                            ChipD(
+                                texto = c.nombre,
+                                activo = activa,
+                                onClick = {
+                                    siguiendo = false
+                                    // Tocar la activa regresa a todo el campus.
+                                    comunidadSlug = if (activa) null else c.slug
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (sinConexion) {
+                item(key = "offline") {
+                    OfflineBanner(modifier = margenTarjeta)
+                }
+            }
+
+            item(key = "ahora") {
+                AhoraEnCampus(
+                    tokenProvider = tokenProvider,
+                    onEventoClick = onEventoClick,
+                    modifier = Modifier.padding(bottom = Hueco),
+                    onAventonesClick = onAventones,
+                )
+            }
+
+            item(key = "pregunta") {
+                PreguntaDelDiaBanner(tokenProvider = tokenProvider, modifier = margenTarjeta)
+            }
+
+            // «Tu día»: pulso, racha, retos y ranking en un carrusel que no estorba.
+            item(key = "tu-dia") {
+                CarruselFeed(
+                    tokenProvider = tokenProvider,
+                    onHashtagClick = onHashtagClick,
+                    onPerfilClick = onAuthorClick,
+                    modifier = Modifier.padding(bottom = Hueco - AgoraSpacing.Xxs),
+                )
+            }
+
+            when {
+                cargando && posts.isEmpty() -> item(key = "cargando") {
+                    AgoraFeedSkeleton()
+                }
+                error != null && posts.isEmpty() -> item(key = "error") {
                     AgoraErrorState(
                         message = error!!,
                         onRetry = { traer(null, reemplazar = true) },
+                        modifier = Modifier.padding(top = AgoraSpacing.Lg),
+                    )
+                }
+                posts.isEmpty() -> item(key = "vacio") {
+                    AgoraEmptyState(
+                        state = AgoraCopy.emptyFeed,
+                        modifier = Modifier.padding(top = AgoraSpacing.Lg, bottom = AgoraSpacing.Md),
                     )
                 }
             }
-            else -> {
-                LazyColumn(
-                    state = listState,
-                    contentPadding = PaddingValues(AgoraSpacing.Sm),
-                    verticalArrangement = Arrangement.spacedBy(AgoraSpacing.Xs),
-                ) {
-                    // Pregunta del día, pulso, eventos en vivo, racha, retos y tip:
-                    // un solo item horizontal que no se recrea al hacer scroll.
-                    item(key = "carrusel") {
-                        CarruselFeed(
+
+            posts.forEachIndexed { i, post ->
+                item(key = post.id) {
+                    PostCard(
+                        post = post,
+                        tokenProvider = tokenProvider,
+                        onPostClick = { onPostClick(post.id) },
+                        onHashtagClick = onHashtagClick,
+                        onAuthorClick = post.autor?.handle?.let { handle ->
+                            { onAuthorClick(handle) }
+                        },
+                        isActive = post.id == activePostId,
+                        onMentionClick = onAuthorClick,
+                        onRetirar = if (puedeModerar) {
+                            { retirandoId = post.id }
+                        } else {
+                            null
+                        },
+                        modifier = margenTarjeta,
+                    )
+                }
+                if (i == clipsTras) {
+                    item(key = "clips") {
+                        FilaClips(
                             tokenProvider = tokenProvider,
-                            onHashtagClick = onHashtagClick,
-                            onPerfilClick = onAuthorClick,
-                            onEventoClick = onEventoClick,
+                            onVerTodos = onVerClips,
+                            onClipClick = { onVerClips() },
+                            modifier = Modifier.padding(bottom = Hueco),
                         )
-                    }
-
-                    if (sinConexion) {
-                        item(key = "offline") {
-                            OfflineBanner(
-                                modifier = Modifier.padding(bottom = AgoraSpacing.Xxs),
-                            )
-                        }
-                    }
-
-                    item(key = "filtros") {
-                        FiltrosFeed(
-                            siguiendo = siguiendo,
-                            comunidadSlug = comunidadSlug,
-                            comunidades = comunidades,
-                            onSiguiendo = { siguiendo = !siguiendo },
-                            onTodas = { comunidadSlug = null; siguiendo = false },
-                            onComunidad = { slug -> comunidadSlug = slug; siguiendo = false },
-                        )
-                    }
-
-                    if (posts.isEmpty() && !cargando) {
-                        item(key = "vacio") {
-                            AgoraEmptyState(
-                                state = AgoraCopy.emptyFeed,
-                                modifier = Modifier.padding(top = AgoraSpacing.Lg, bottom = AgoraSpacing.Md),
-                            )
-                        }
-                    }
-
-                    items(posts, key = { it.id }) { post ->
-                        PostCard(
-                            post = post,
-                            tokenProvider = tokenProvider,
-                            onPostClick = { onPostClick(post.id) },
-                            onHashtagClick = onHashtagClick,
-                            onAuthorClick = post.autor?.handle?.let { handle ->
-                                { onAuthorClick(handle) }
-                            },
-                            isActive = post.id == activePostId,
-                            onMentionClick = onAuthorClick,
-                            onRetirar = if (puedeModerar) {
-                                { retirandoId = post.id }
-                            } else {
-                                null
-                            },
-                        )
-                    }
-
-                    if (cargandoMas) {
-                        item(key = "pie") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = AgoraSpacing.Md),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        }
-                    } else if (errorMas != null && cursor != null) {
-                        item(key = "pie_error") {
-                            AgoraPieErrorPagina(
-                                mensaje = errorMas!!,
-                                onReintentar = { traer(desde = cursor, reemplazar = false) },
-                            )
-                        }
                     }
                 }
-                // Al cambiar de filtro la lista anterior sigue: que se note que carga.
-                if (cargando && posts.isNotEmpty()) {
-                    LinearProgressIndicator(
+                if (i == eventoTras) {
+                    item(key = "mini-evento") {
+                        MiniEvento(
+                            tokenProvider = tokenProvider,
+                            onEventoClick = onEventoClick,
+                            modifier = margenTarjeta,
+                        )
+                    }
+                }
+            }
+
+            if (cargandoMas) {
+                item(key = "pie") {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .align(Alignment.TopCenter),
+                            .padding(vertical = AgoraSpacing.Md),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            } else if (errorMas != null && cursor != null) {
+                item(key = "pie_error") {
+                    AgoraPieErrorPagina(
+                        mensaje = errorMas!!,
+                        onReintentar = { traer(desde = cursor, reemplazar = false) },
                     )
                 }
             }
+        }
+        // Al cambiar de filtro la lista anterior sigue: que se note que carga.
+        if (cargando && posts.isNotEmpty()) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter),
+            )
         }
     }
 
@@ -375,38 +541,168 @@ fun FeedScreen(
     }
 }
 
+private val zonaMx = ZoneId.of("America/Mexico_City")
+private val formatoHoy = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale("es", "MX"))
+
+/**
+ * «Lunes 26 de octubre». La guía pide también la semana del semestre, pero no hay
+ * fecha oficial de inicio de clases en la API: sin ella no se inventa (igual que la web).
+ */
+private fun textoDeHoy(): String {
+    val texto = formatoHoy.format(ZonedDateTime.now(zonaMx))
+    return texto.replaceFirstChar { it.titlecase(Locale("es", "MX")) }
+}
+
+/** Encabezado del inicio (diseño D): marca y fecha; a la derecha mensajes, avisos y tu avatar con la racha. */
 @Composable
-private fun FiltrosFeed(
-    siguiendo: Boolean,
-    comunidadSlug: String?,
-    comunidades: List<ComunidadDto>,
-    onSiguiendo: () -> Unit,
-    onTodas: () -> Unit,
-    onComunidad: (String) -> Unit,
+private fun EncabezadoInicio(
+    nombre: String?,
+    fotoUrl: String?,
+    racha: Int,
+    mensajesSinLeer: Int,
+    avisosSinLeer: Int,
+    onMensajes: () -> Unit,
+    onAvisos: () -> Unit,
+    onMiPerfil: () -> Unit,
 ) {
-    val chips = buildList {
-        add(AgoraChipItem("siguiendo", "Siguiendo"))
-        add(AgoraChipItem("todas", "Todas"))
-        comunidades.forEach { c ->
-            add(AgoraChipItem(c.slug, c.nombre))
+    val hoy = remember { textoDeHoy() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = AgoraSpacing.Pantalla, end = AgoraSpacing.Pantalla, top = 16.dp, bottom = Hueco),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                "Ágora",
+                style = MaterialTheme.typography.headlineLarge,
+                color = AgoraColors.Texto,
+                modifier = Modifier.semantics { heading() },
+            )
+            Text(hoy, style = MaterialTheme.typography.bodySmall, color = AgoraColors.TextoMedio)
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BotonEncabezado(
+                icono = Icons.AutoMirrored.Outlined.Send,
+                nombre = "Mensajes",
+                sinLeer = mensajesSinLeer,
+                onClick = onMensajes,
+            )
+            BotonEncabezado(
+                icono = Icons.Outlined.Notifications,
+                nombre = "Avisos",
+                sinLeer = avisosSinLeer,
+                onClick = onAvisos,
+            )
+            AvatarConRacha(nombre = nombre, fotoUrl = fotoUrl, racha = racha, onClick = onMiPerfil)
         }
     }
+}
 
-    val selectedId = when {
-        siguiendo -> "siguiendo"
-        comunidadSlug != null -> comunidadSlug
-        else -> "todas"
-    }
-
-    AgoraChipRow(
-        chips = chips,
-        selectedId = selectedId,
-        onChipSelected = { id ->
-            when (id) {
-                "siguiendo" -> onSiguiendo()
-                "todas" -> onTodas()
-                else -> onComunidad(id)
-            }
+/** Botón cuadrado de 44 con borde y contador naranja encimado en la esquina. */
+@Composable
+private fun BotonEncabezado(
+    icono: ImageVector,
+    nombre: String,
+    sinLeer: Int,
+    onClick: () -> Unit,
+) {
+    val descripcion = if (sinLeer > 0) "$nombre, $sinLeer sin leer" else nombre
+    Box(
+        modifier = Modifier.semantics(mergeDescendants = true) {
+            contentDescription = descripcion
+            role = Role.Button
         },
-    )
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(AgoraColors.Superficie)
+                .border(1.dp, AgoraColors.Borde, RoundedCornerShape(14.dp))
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icono, contentDescription = null, tint = AgoraColors.Texto, modifier = Modifier.size(20.dp))
+        }
+        if (sinLeer > 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 4.dp, y = (-4).dp)
+                    .heightIn(min = 18.dp)
+                    .widthIn(min = 18.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(AgoraColors.Naranja)
+                    .border(2.dp, AgoraColors.Fondo, RoundedCornerShape(9.dp))
+                    .padding(horizontal = 4.dp)
+                    .clearAndSetSemantics {},
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    if (sinLeer > 9) "9+" else sinLeer.toString(),
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+    }
+}
+
+/** Tu avatar (abre tu perfil) con la insignia de racha: llama + días, solo si hay racha. */
+@Composable
+private fun AvatarConRacha(
+    nombre: String?,
+    fotoUrl: String?,
+    racha: Int,
+    onClick: () -> Unit,
+) {
+    val descripcion = if (racha > 0) {
+        "Tu perfil, racha de ${cuenta(racha, "día", "días")}"
+    } else {
+        "Tu perfil"
+    }
+    Box(
+        modifier = Modifier.semantics(mergeDescendants = true) {
+            contentDescription = descripcion
+            role = Role.Button
+        },
+    ) {
+        AgoraAvatar(
+            nombre = nombre,
+            fotoUrl = fotoUrl,
+            size = 44.dp,
+            modifier = Modifier
+                .clearAndSetSemantics {}
+                .clickable(onClick = onClick),
+        )
+        if (racha > 0) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 6.dp, y = 6.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(AgoraColors.Oscuro)
+                    .border(2.dp, AgoraColors.Fondo, RoundedCornerShape(50))
+                    .padding(start = 3.dp, end = 5.dp, top = 1.dp, bottom = 1.dp)
+                    .clearAndSetSemantics {},
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Rounded.LocalFireDepartment,
+                    contentDescription = null,
+                    tint = Color(0xFFFF8A4C),
+                    modifier = Modifier.size(11.dp),
+                )
+                Text(racha.toString(), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
 }

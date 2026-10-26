@@ -53,17 +53,18 @@ import mx.agora.mobile.nativeapp.ui.components.ReportarDialogo
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
 /** Tope de texto de una publicación anónima. */
 private const val LIMITE_ANONIMO = 600
 
-/** Las mismas tres que la web (`apps/web/app/anonimo`): tipo, emoji y etiqueta. */
+/** Las mismas tres que la web (`apps/web/app/anonimo`): tipo y etiqueta. Diseño D: texto, sin emojis. */
 private val reacciones = listOf(
-    Triple("ME_LATE", "🔥", "Me late"),
-    Triple("ME_RIO", "😂", "Me río"),
-    Triple("APOYO", "🤝", "Apoyo"),
+    "ME_LATE" to "Me late",
+    "ME_RIO" to "Me río",
+    "APOYO" to "Apoyo",
 )
 
 @Composable
@@ -396,16 +397,15 @@ private fun AnonimoPostCard(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // El API solo da el total (numReactions), no el conteo por tipo: los emojis
+                // El API solo da el total (numReactions), no el conteo por tipo: los chips
                 // van sin número y el total se muestra una sola vez, como en la web.
-                reacciones.forEach { (tipo, emoji, etiqueta) ->
+                reacciones.forEach { (tipo, etiqueta) ->
                     val mia = post.miReaccion == tipo
-                    // El color no pinta un emoji: la reacción propia se marca con el chip seleccionado.
                     FilterChip(
                         selected = mia,
                         onClick = { onReaccionar(tipo) },
                         enabled = !reaccionando,
-                        label = { Text(emoji, style = MaterialTheme.typography.bodyLarge) },
+                        label = { Text(etiqueta, style = MaterialTheme.typography.labelLarge) },
                         modifier = Modifier.semantics {
                             contentDescription = if (mia) "$etiqueta (tu reacción, toca para quitarla)" else etiqueta
                         },
@@ -413,7 +413,7 @@ private fun AnonimoPostCard(
                 }
                 if (post.numReactions > 0) {
                     Text(
-                        if (post.numReactions == 1) "1 reacción" else "${post.numReactions} reacciones",
+                        cuenta(post.numReactions, "reacción", "reacciones"),
                         style = MaterialTheme.typography.labelMedium,
                         color = AgoraColors.TextoMedio,
                         modifier = Modifier.padding(start = 4.dp),

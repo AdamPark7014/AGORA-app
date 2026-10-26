@@ -1,8 +1,34 @@
 # RELEVO
 
-- **Último turno:** claude-code (sesión lateral de Ágora, en la compu de Adam)
+- **Último turno:** claude-code (sesión de móvil, en la compu de Adam)
 - **Fecha:** 2026-10-26
 - **Rama:** main
+
+## Android, diseño D (sesión de móvil, 26-10)
+
+Hecho según `docs/diseno-d.md`. Compila, `testDebugUnitTest` 44/44 y recorrido completo en el emulador
+contra la API local (claro y oscuro, alta de cuenta nueva incluida). No hay build de tienda nuevo todavía.
+- **Base:** tokens D en `ui/theme` (colores claro/oscuro, radios, márgenes 18/14/12), Bricolage Grotesque
+  700–800 y Outfit 400–700 empaquetadas en `res/font` (estáticas de Google Fonts, licencias OFL en
+  `apps/mobile-native/android/licencias-fuentes/`), avatar cuadrado redondeado con tono por persona, piezas
+  compartidas en `ui/components/DisenoD.kt`. Desugaring activado (`java.time` con minSdk 24 tronaba en Android 7).
+- **Navegación:** barra oscura flotante (Inicio, Clips, Publicar naranja, Eventos, Campus); `PestanaBus` ahora
+  0..4. Avisos y mensajes pasaron al encabezado de Inicio; la pestaña Campus abre Mercado, Aventones,
+  Directorio, Sin nombre y Más. En Clips la barra se aclara y la hora va en claro sobre el negro.
+- **Pantallas:** Inicio (encabezado con racha, segmento Campus/Mi carrera/Siguiendo, «Ahora en el campus» con
+  eventos y aventones, pregunta relámpago oscura, «Tu día» sin la pregunta ni lo en vivo, clips tras la 3.ª
+  publicación y mini evento tras la 7.ª), tarjeta de publicación con banda de comunidad y reacciones por tipo
+  (también en el detalle), Clips a pantalla completa (media3), evento con portada, «quién va», Cómo
+  llegar/Aventones y barra fija, lista de eventos, perfil ajeno y propio (racha solo en las cifras), mercado en
+  cuadrícula, Más con íconos de línea, estados vacíos y «Sin nombre» sin emojis, registro en 4 pasos con
+  buscador de carrera.
+- **Permiso de avisos:** ya no se pide al arrancar; solo en el último paso de la bienvenida y en Ajustes
+  («Avisos en este teléfono»). El orden de alta ahora es registro → bienvenida. Verificado en el emulador.
+- **Sin datos en la API (no se inventan):** semana del semestre, generación del autor en la tarjeta, duración
+  y vistas de clips, evento ligado a un clip, «Seguir» en clips (falta `yoLeSigo` en el autor del feed),
+  comunidades en común, pestañas Eventos/Aventones del perfil, conteo «N de tu generación» del registro.
+- **Pendiente:** el seed de demo sigue sin videos (la fila de clips y Clips salen vacíos en local); iOS dice
+  «Bienvenido de vuelta» en `AgoraDesign.swift` (género fijo; es de la sesión de iOS).
 
 ## Rediseño D (aprobado por Adam el 23-10, «si confirmado», relayado por la sesión principal)
 
@@ -121,9 +147,11 @@ arreglos en 68 archivos sin cambiar el diseño aprobado. Compila y `testDebugUni
 - **Decisiones de Adam que quedan fuera:** el naranja como texto da 3.5–3.8:1 (AA pide 4.5:1; `NaranjaOscuro`
   daría ~5.5:1), texto blanco sobre el botón naranja, bordes de campos casi invisibles (1.16:1), etiquetas de
   reacción a 9 sp, «Developed by», «Tip:»/«Trending»/«Feed».
-- **Siguiente (Android):** el rediseño D según `docs/diseno-d.md`, y el permiso de avisos en el último paso de
-  la bienvenida (hoy salta al entrar). Para probar en local sin Docker: Postgres 17 nativo con `initdb` en el
-  scratchpad y la API en el 4210 (`-PDEBUG_API_BASE_URL=http://10.0.2.2:4210/api`); el 4200 suele estar ocupado.
+- **Siguiente (Android):** hecho el 26-10 (sección de arriba). Para probar en local sin Docker: Postgres 17
+  nativo con `initdb` en el scratchpad y la API en el 4210 (`-PDEBUG_API_BASE_URL=http://10.0.2.2:4210/api`);
+  el 4200 suele estar ocupado. Con el emulador abierto, compilar con
+  `-Pkotlin.compiler.execution.strategy=in-process` y `-Xmx3g`: con la configuración por omisión (dos JVM de
+  4 GB) más el emulador, el equipo se quedó sin memoria y se reinició.
 
 ## Pasada grande del 22-10: fallos, funciones y fichas de tienda (cerrada por Claude; pendientes de Adam abajo)
 

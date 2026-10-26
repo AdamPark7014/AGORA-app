@@ -11,11 +11,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -166,28 +169,26 @@ fun GamificacionProfileSection(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ColumnSection {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                if (data.rachaActual > 0) {
-                    RachaChip(dias = data.rachaActual)
-                }
-                if (data.rachaActual >= 2) {
-                    IconButton(
-                        onClick = { compartirRacha(context, data.rachaActual) },
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Compartir racha",
-                            tint = AgoraColors.Naranja,
-                        )
-                    }
+            // La racha ya sale en las cifras de la cabecera (diseño D): aquí solo
+            // compartirla y la mejor marca.
+            if (data.rachaActual >= 2) {
+                TextButton(onClick = { compartirRacha(context, data.rachaActual) }) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        contentDescription = null,
+                        tint = AgoraColors.NaranjaTinta,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        "Compartir racha",
+                        color = AgoraColors.NaranjaTinta,
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
                 }
             }
             if (data.rachaActual > 0 && data.rachaMaxima > data.rachaActual) {
                 Text(
-                    "Mejor: ${data.rachaMaxima} días",
+                    "Mejor: ${cuenta(data.rachaMaxima, "día", "días")}",
                     style = MaterialTheme.typography.labelSmall,
                     color = AgoraColors.TextoMedio,
                     modifier = Modifier.padding(top = 4.dp),
@@ -224,7 +225,8 @@ fun GamificacionPublicSection(
     modifier: Modifier = Modifier,
 ) {
     val data = gamificacion ?: return
-    if (data.rachaActual <= 0 && data.badges.isEmpty() && (data.duelosGanados ?: 0) <= 0) return
+    // La racha ya va en las cifras de la cabecera del perfil (diseño D): aquí solo logros.
+    if (data.badges.isEmpty() && (data.duelosGanados ?: 0) <= 0) return
 
     Column(
         modifier = modifier
@@ -235,20 +237,16 @@ fun GamificacionPublicSection(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            "Racha",
+            "Logros",
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            color = AgoraColors.Naranja,
+            color = AgoraColors.NaranjaTinta,
         )
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (data.rachaActual > 0) {
-                RachaChip(dias = data.rachaActual)
-            }
-
             if (data.badges.isNotEmpty()) {
                 Row(
                     modifier = Modifier
@@ -265,12 +263,21 @@ fun GamificacionPublicSection(
         }
 
         (data.duelosGanados ?: 0).takeIf { it > 0 }?.let { ganados ->
-            Text(
-                "🏆 ${cuenta(ganados, "duelo ganado", "duelos ganados")}",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = AgoraColors.Naranja,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Outlined.EmojiEvents,
+                    contentDescription = null,
+                    tint = AgoraColors.NaranjaTinta,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    cuenta(ganados, "duelo ganado", "duelos ganados"),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = AgoraColors.NaranjaTinta,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
         }
     }
 }
@@ -286,7 +293,7 @@ private fun ColumnSection(
 @Composable
 private fun ComparacionRachaChip(comparacion: ComparacionCampusDto) {
     Text(
-        "Tu racha vs campus: 🔥 ${comparacion.tuRacha} vs promedio ${comparacion.promedioRacha}",
+        "Tu racha: ${cuenta(comparacion.tuRacha, "día", "días")} · promedio del campus: ${comparacion.promedioRacha}",
         style = MaterialTheme.typography.labelSmall,
         fontWeight = if (comparacion.porEncimaDelPromedio) FontWeight.Bold else FontWeight.Normal,
         color = if (comparacion.porEncimaDelPromedio) AgoraColors.Naranja else AgoraColors.TextoMedio,
@@ -300,16 +307,27 @@ private fun ComparacionRachaChip(comparacion: ComparacionCampusDto) {
 
 @Composable
 private fun RachaChip(dias: Int) {
-    Text(
-        "🔥 $dias ${if (dias == 1) "día" else "días"}",
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-        color = AgoraColors.Naranja,
+    Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
             .background(AgoraColors.NaranjaSuave)
             .padding(horizontal = 12.dp, vertical = 6.dp),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Rounded.LocalFireDepartment,
+            contentDescription = null,
+            tint = AgoraColors.Naranja,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            cuenta(dias, "día", "días"),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = AgoraColors.NaranjaTinta,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+    }
 }
 
 @Composable

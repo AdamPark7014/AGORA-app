@@ -1,18 +1,13 @@
 package mx.agora.mobile.nativeapp
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineScope
@@ -41,11 +36,8 @@ class MainActivity : FragmentActivity() {
     /** Deep link que llegó por onNewIntent antes de tener la sesión lista. */
     private var intentSinAtender: Intent? = null
 
-    private val pedirNotificaciones = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { _ ->
-        PushRegistration.registerCurrentDeviceAsync(applicationContext)
-    }
+    // El permiso de avisos del sistema no se pide aquí (regla de Adam, docs/diseno-d.md §6):
+    // solo en el último paso de la bienvenida (WelcomeScreen) y desde Ajustes.
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,7 +67,6 @@ class MainActivity : FragmentActivity() {
 
     private fun arrancar(auth: AuthRepository, modoTema: ModoTema) {
         if (auth.token() != null) {
-            solicitarPermisoNotificacionesSiFalta()
             PushRegistration.registerCurrentDeviceAsync(applicationContext)
             PendingPostSync.start(applicationContext) { auth.token() }
             AgoraCrashReporting.install { auth.token() }
@@ -93,7 +84,6 @@ class MainActivity : FragmentActivity() {
                     AgoraApp(
                         auth = auth,
                         onSessionReady = {
-                            solicitarPermisoNotificacionesSiFalta()
                             PushRegistration.registerCurrentDeviceAsync(applicationContext)
                             PendingPostSync.start(applicationContext) { auth.token() }
                             AgoraCrashReporting.install { auth.token() }
@@ -115,16 +105,6 @@ class MainActivity : FragmentActivity() {
         val auth = auth ?: return
         val route = DeepLinkParser.parseIntent(intent) ?: return
         PendingDeepLink.enqueue(applicationContext, route, auth.token() != null)
-    }
-
-    private fun solicitarPermisoNotificacionesSiFalta() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
-        pedirNotificaciones.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     private fun registrarActividadGamificacion(auth: AuthRepository) {

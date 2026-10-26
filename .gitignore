@@ -29,6 +29,8 @@ coverage/
 apps/mobile-native/android/local.properties
 apps/mobile-native/android/.gradle/
 apps/mobile-native/android/.gradle-isolated/
+# Sesiones y errores del compilador de Kotlin 2.x (se crean al compilar).
+apps/mobile-native/android/.kotlin/
 apps/mobile-native/android/**/build/
 Thumbs.db
 *.log

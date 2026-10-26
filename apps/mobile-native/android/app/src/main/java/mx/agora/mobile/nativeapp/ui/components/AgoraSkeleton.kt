@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -29,6 +28,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import mx.agora.mobile.nativeapp.ui.theme.AgoraAvatarShape
 import mx.agora.mobile.nativeapp.ui.theme.AgoraCardShape
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
@@ -75,9 +75,9 @@ fun AgoraFeedSkeleton(
     Column(
         // Sin esto TalkBack no dice nada mientras carga.
         modifier = modifier
-            .padding(AgoraSpacing.Sm)
+            .padding(horizontal = AgoraSpacing.Tarjeta)
             .clearAndSetSemantics { contentDescription = "Cargando publicaciones" },
-        verticalArrangement = Arrangement.spacedBy(AgoraSpacing.Xs),
+        verticalArrangement = Arrangement.spacedBy(AgoraSpacing.EntreTarjetas),
     ) {
         repeat(itemCount) {
             AgoraPostCardSkeleton()
@@ -101,7 +101,7 @@ fun AgoraPostCardSkeleton(
             AgoraSkeletonBox(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(CircleShape),
+                    .clip(AgoraAvatarShape),
                 height = 40.dp,
             )
             Spacer(Modifier.width(AgoraSpacing.Sm))

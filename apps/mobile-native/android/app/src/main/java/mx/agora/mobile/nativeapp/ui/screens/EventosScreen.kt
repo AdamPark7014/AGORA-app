@@ -1,30 +1,29 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,22 +33,40 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.util.Calendar
+import java.util.TimeZone
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.EventoDto
 import mx.agora.mobile.nativeapp.data.api.EventosApi
+import mx.agora.mobile.nativeapp.data.api.PersonaResumenDto
 import mx.agora.mobile.nativeapp.data.api.ResponderEventoRequest
 import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
+import mx.agora.mobile.nativeapp.ui.components.AvataresApilados
+import mx.agora.mobile.nativeapp.ui.components.BloqueFecha
+import mx.agora.mobile.nativeapp.ui.components.BotonTinta
+import mx.agora.mobile.nativeapp.ui.components.ChipD
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.theme.AgoraButtonShape
+import mx.agora.mobile.nativeapp.ui.theme.AgoraCardShape
+import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
+import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.util.formatearFecha
+import mx.agora.mobile.nativeapp.ui.util.formatearHora
 import mx.agora.mobile.nativeapp.ui.util.formatearPrecio
+import mx.agora.mobile.nativeapp.ui.util.isoAMilis
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
 /** Mismo orden y etiquetas que el filtro de la web (`apps/web/app/eventos`). */
@@ -78,22 +95,51 @@ internal fun textoCupo(cupo: Int?, vanAIr: Int): String? {
  * Costo como lo define el contrato: 0 es gratis; null es «no especificado» y no se
  * muestra (no hay que prometer «Gratis» si el organizador no lo dijo).
  */
-private fun textoCosto(costoMxn: Int?): String? = when (costoMxn) {
+internal fun textoCosto(costoMxn: Int?): String? = when (costoMxn) {
     null -> null
     0 -> "Gratis"
     else -> "${formatearPrecio(costoMxn)} MXN"
 }
 
-private val iconoTipo = mapOf(
-    "FIESTA" to "🎉",
-    "ACADEMICO" to "📚",
-    "DEPORTIVO" to "⚽",
-    "CULTURAL" to "🎭",
-    "ORGANIZACION" to "🏛️",
-    "OTRO" to "📌",
-)
+/**
+ * «Van Diego y 21 más», «Vas tú y Diego», «Van 3 personas». La API no se incluye
+ * a sí misma en [asistentes] (te saca a ti), pero sí te cuenta en [vanAIr]: por eso
+ * se descuenta uno cuando [yoVoy]. Sin nadie, una invitación en vez de un cero.
+ */
+internal fun textoQuienVa(vanAIr: Int, asistentes: List<PersonaResumenDto>, yoVoy: Boolean): String {
+    if (vanAIr <= 0 && !yoVoy) return "Sé el primero en decir que vas"
+    val otros = (vanAIr - if (yoVoy) 1 else 0).coerceAtLeast(0)
+    val primero = asistentes.firstOrNull()?.nombre?.trim()?.substringBefore(' ')?.takeIf { it.isNotBlank() }
+    return when {
+        otros == 0 -> "Por ahora solo vas tú"
+        primero == null && yoVoy -> "Vas tú y ${cuenta(otros, "persona más", "personas más")}"
+        primero == null -> (if (otros == 1) "Va " else "Van ") + cuenta(otros, "persona", "personas")
+        otros == 1 && yoVoy -> "Vas tú y $primero"
+        otros == 1 -> "Va $primero"
+        yoVoy -> "Vas tú, $primero y ${otros - 1} más"
+        else -> "Van $primero y ${otros - 1} más"
+    }
+}
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * El bloque de fecha no lleva mes: si el evento cae en otro mes se escribe la
+ * fecha completa en la línea de la hora para que «SÁB 22» no engañe. Con
+ * java.util, como Calendario.kt: minSdk 24 sin desugaring.
+ */
+private fun cuandoCorto(iso: String): String {
+    val inicio = isoAMilis(iso) ?: return formatearFecha(iso)
+    val zona = TimeZone.getTimeZone("America/Mexico_City")
+    val evento = Calendar.getInstance(zona).apply { timeInMillis = inicio }
+    val hoy = Calendar.getInstance(zona)
+    val mismoMes = evento.get(Calendar.YEAR) == hoy.get(Calendar.YEAR) &&
+        evento.get(Calendar.MONTH) == hoy.get(Calendar.MONTH)
+    return if (mismoMes) formatearHora(iso) else formatearFecha(iso)
+}
+
+/**
+ * Pestaña Eventos. Vive dentro de MainShell, que ya pinta «Eventos» arriba y la
+ * barra flotante abajo: aquí no hay título propio ni botón flotante.
+ */
 @Composable
 fun EventosScreen(
     tokenProvider: () -> String?,
@@ -164,31 +210,15 @@ fun EventosScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    Button(
-                        onClick = onCrearClick,
-                        // Sin el «+» en la lectura.
-                        modifier = Modifier.semantics { contentDescription = "Crear evento" },
-                    ) {
-                        Text("+ Crear evento")
-                    }
-                }
-
                 LazyRow(
-                    modifier = Modifier.padding(bottom = 4.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    contentPadding = PaddingValues(horizontal = AgoraSpacing.Pantalla),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(filtrosTipo, key = { it.first ?: "todos" }) { (valor, etiqueta) ->
-                        FilterChip(
-                            selected = tipo == valor,
+                        ChipD(
+                            texto = etiqueta,
+                            activo = tipo == valor,
                             onClick = { tipo = valor },
-                            label = { Text(etiqueta) },
                         )
                     }
                 }
@@ -196,7 +226,10 @@ fun EventosScreen(
                 Box(modifier = Modifier.weight(1f)) {
                     when {
                         cargando && eventos.isEmpty() -> {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                            CircularProgressIndicator(
+                                color = AgoraColors.Naranja,
+                                modifier = Modifier.align(Alignment.Center),
+                            )
                         }
                         // Vacío y error van en algo desplazable para que el jalón de refrescar funcione.
                         error != null && eventos.isEmpty() -> {
@@ -211,7 +244,7 @@ fun EventosScreen(
                             AgoraEstadoDesplazable {
                                 AgoraEmptyState(
                                     state = AgoraCopy.emptyEventos,
-                                    ctaLabel = "Crear evento",
+                                    ctaLabel = "Crea el primero",
                                     onCta = onCrearClick,
                                     secondaryCtaLabel = AgoraCopy.cta.reintentar,
                                     onSecondaryCta = { cargar() },
@@ -221,8 +254,13 @@ fun EventosScreen(
                         else -> {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(
+                                    start = AgoraSpacing.Tarjeta,
+                                    end = AgoraSpacing.Tarjeta,
+                                    top = 6.dp,
+                                    bottom = AgoraSpacing.Lg,
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(AgoraSpacing.EntreTarjetas),
                             ) {
                                 items(eventos, key = { it.id }) { evento ->
                                     EventoCard(
@@ -236,6 +274,8 @@ fun EventosScreen(
                             // Al cambiar de filtro la lista anterior sigue: que se note que carga.
                             if (cargando) {
                                 LinearProgressIndicator(
+                                    color = AgoraColors.Naranja,
+                                    trackColor = AgoraColors.Superficie2,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .align(Alignment.TopCenter),
@@ -256,6 +296,10 @@ fun EventosScreen(
     }
 }
 
+/**
+ * Tarjeta de evento de la D: bloque de fecha naranja a la izquierda, título,
+ * «hora · lugar», quién va y mi respuesta con el «Voy» rápido.
+ */
 @Composable
 private fun EventoCard(
     evento: EventoDto,
@@ -263,66 +307,114 @@ private fun EventoCard(
     onVoy: () -> Unit,
     ocupado: Boolean = false,
 ) {
-    val icono = iconoTipo[evento.tipo] ?: "📌"
     val yaVoy = evento.miRespuesta == "VOY"
+    val meInteresa = evento.miRespuesta == "ME_INTERESA"
+    val lleno = evento.cupo != null && evento.vanAIr >= evento.cupo
+    val tipoTexto = filtrosTipo.firstOrNull { it.first == evento.tipo }?.second ?: evento.tipo
 
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClickLabel = "Ver evento", role = Role.Button, onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            .clip(AgoraCardShape)
+            .background(AgoraColors.Superficie)
+            .clickable(onClickLabel = "Ver evento", role = Role.Button, onClick = onClick)
+            .padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            // El lector dice el tipo con palabras en vez de leer el emoji.
-            val tipoLeido = filtrosTipo.firstOrNull { it.first == evento.tipo }?.second
+        BloqueFecha(inicioIso = evento.inicioAt, ancho = 56.dp, alto = 64.dp)
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             Text(
-                "$icono ${evento.titulo}",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.semantics {
-                    contentDescription = listOfNotNull(tipoLeido, evento.titulo).joinToString(": ")
-                },
+                listOfNotNull(tipoTexto, evento.comunidad?.nombre).joinToString(" · "),
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = AgoraColors.NaranjaTinta,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            Text(formatearFecha(evento.inicioAt), style = MaterialTheme.typography.labelMedium)
-            evento.lugar?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall)
-            }
-            evento.descripcion?.takeIf { it.isNotBlank() }?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium)
-            }
             Text(
-                listOfNotNull(
-                    if (evento.vanAIr == 1) "1 persona va" else "${evento.vanAIr} van",
-                    textoCupo(evento.cupo, evento.vanAIr),
-                    textoCosto(evento.costoMxn),
-                ).joinToString(" · "),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
+                evento.titulo,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = AgoraColors.Texto,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
-            if (yaVoy) {
-                // El texto corto se lee mejor en la lista; TalkBack sí dice que tocar quita la respuesta.
-                OutlinedButton(
-                    onClick = onVoy,
-                    enabled = !ocupado,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics { contentDescription = "Vas a ir. Toca para quitar tu respuesta." },
-                ) {
-                    Text(if (ocupado) "Un momento…" else "✓ Vas a ir")
-                }
-            } else {
-                val lleno = evento.cupo != null && evento.vanAIr >= evento.cupo
-                Button(
-                    onClick = onVoy,
-                    enabled = !lleno && !ocupado,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
+            Text(
+                listOfNotNull(cuandoCorto(evento.inicioAt), evento.lugar?.takeIf { it.isNotBlank() }).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = AgoraColors.TextoMedio,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // Cupo y costo siguen a la vista: deciden si vale la pena abrir el evento.
+            listOfNotNull(textoCupo(evento.cupo, evento.vanAIr), textoCosto(evento.costoMxn))
+                .takeIf { it.isNotEmpty() }
+                ?.let {
                     Text(
-                        when {
+                        it.joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AgoraColors.TextoMedio,
+                    )
+                }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (evento.asistentes.isNotEmpty()) {
+                    AvataresApilados(evento.asistentes.map { it.nombre to it.fotoUrl }, tamano = 26.dp)
+                }
+                Text(
+                    if (meInteresa) {
+                        "Te interesa · " + textoQuienVa(evento.vanAIr, evento.asistentes, yoVoy = false)
+                    } else {
+                        textoQuienVa(evento.vanAIr, evento.asistentes, yoVoy = yaVoy)
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = AgoraColors.TextoMedio,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (yaVoy) {
+                    // Tocar quita la respuesta (el API la alterna); el lector lo dice.
+                    Row(
+                        modifier = Modifier
+                            .heightIn(min = 44.dp)
+                            .clip(AgoraButtonShape)
+                            .background(AgoraColors.NaranjaSuave)
+                            .clickable(enabled = !ocupado, role = Role.Button, onClick = onVoy)
+                            .semantics { contentDescription = "Vas a ir. Toca para quitar tu respuesta." }
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.Check,
+                            contentDescription = null,
+                            tint = AgoraColors.NaranjaTinta,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            if (ocupado) "Un momento…" else "Vas",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = AgoraColors.NaranjaTinta,
+                        )
+                    }
+                } else {
+                    BotonTinta(
+                        texto = when {
                             lleno -> "Sin lugares"
                             ocupado -> "Apuntándote…"
                             else -> "Voy"
                         },
+                        onClick = onVoy,
+                        enabled = !lleno && !ocupado,
                     )
                 }
             }

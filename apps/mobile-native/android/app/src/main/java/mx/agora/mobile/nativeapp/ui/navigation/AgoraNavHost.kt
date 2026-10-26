@@ -6,9 +6,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -57,6 +59,7 @@ import mx.agora.mobile.nativeapp.ui.screens.PrivacidadScreen
 import mx.agora.mobile.nativeapp.ui.screens.ReglasScreen
 import mx.agora.mobile.nativeapp.ui.screens.TerminosScreen
 import mx.agora.mobile.nativeapp.ui.screens.TipoConexion
+import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 
 object AgoraRoutes {
     const val MAIN = "main"
@@ -150,10 +153,16 @@ fun AgoraNavHost(
                 onNavigateToPost = { id -> navController.navigate(AgoraRoutes.post(id)) },
                 onNavigateToMensajes = { navController.navigate(AgoraRoutes.MENSAJES) },
                 onNavigateToPerfil = { handle -> navController.navigate(AgoraRoutes.perfil(handle)) },
+                onNavigateToMiPerfil = { navController.navigate(AgoraRoutes.PERFIL_YO) },
+                onNavigateToAvisos = { navController.navigate(AgoraRoutes.NOTIFICACIONES) },
                 onNavigateToMas = { navController.navigate(AgoraRoutes.MAS) },
                 onNavigateToHashtag = { tag -> navController.navigate(AgoraRoutes.hashtag(tag)) },
                 onNavigateToEvento = { id -> navController.navigate(AgoraRoutes.evento(id)) },
                 onNavigateToCreateEvento = { navController.navigate(AgoraRoutes.EVENTOS_CREAR) },
+                onNavigateToMarketplace = { navController.navigate(AgoraRoutes.MARKETPLACE) },
+                onNavigateToAventones = { navController.navigate(AgoraRoutes.AVENTONES) },
+                onNavigateToDirectorio = { navController.navigate(AgoraRoutes.DIRECTORIO) },
+                onNavigateToAnonimo = { navController.navigate(AgoraRoutes.ANONIMO) },
                 onNavigateUrl = { url ->
                     DeepLinkParser.parse(url)?.let { navigateToDeepLinkRoute(navController, it) }
                 },
@@ -239,7 +248,7 @@ fun AgoraNavHost(
         }
 
         composable(AgoraRoutes.PERFIL_YO) {
-            SecondaryScaffold(title = "Yo", onBack = { navController.popBackStack() }) { padding ->
+            SecondaryScaffold(title = "Tu perfil", onBack = { navController.popBackStack() }) { padding ->
                 ProfileScreen(
                     auth = auth,
                     onLogout = ::cerrarSesion,
@@ -339,7 +348,7 @@ fun AgoraNavHost(
         }
 
         composable(AgoraRoutes.NOTIFICACIONES) {
-            SecondaryScaffold(title = "Notificaciones", onBack = { navController.popBackStack() }) { padding ->
+            SecondaryScaffold(title = "Avisos", onBack = { navController.popBackStack() }) { padding ->
                 NotificacionesScreen(
                     tokenProvider = { auth.token() },
                     onNavigateUrl = { url ->
@@ -351,12 +360,13 @@ fun AgoraNavHost(
         }
 
         composable(AgoraRoutes.MARKETPLACE) {
-            SecondaryScaffold(title = "Marketplace", onBack = { navController.popBackStack() }) { padding ->
+            SecondaryScaffold(title = "Mercado", onBack = { navController.popBackStack() }) { padding ->
                 MarketplaceListScreen(
                     tokenProvider = { auth.token() },
                     onAnuncioClick = { id -> navController.navigate(AgoraRoutes.marketplaceDetalle(id)) },
                     onCrearClick = { navController.navigate(AgoraRoutes.MARKETPLACE_CREAR) },
                     modifier = Modifier.padding(padding),
+                    onConsejosClick = { navController.navigate(AgoraRoutes.REGLAS) },
                 )
             }
         }
@@ -480,15 +490,17 @@ fun AgoraNavHost(
             arguments = listOf(navArgument("id") { type = NavType.StringType }),
         ) { entry ->
             val id = entry.arguments?.getString("id") ?: return@composable
-            SecondaryScaffold(title = "Evento", onBack = { navController.popBackStack() }) { padding ->
-                EventoDetalleScreen(
-                    eventoId = id,
-                    tokenProvider = { auth.token() },
-                    onPerfilClick = { handle -> navController.navigate(AgoraRoutes.perfil(handle)) },
-                    onBorrado = { navController.popBackStack() },
-                    modifier = Modifier.padding(padding),
-                )
-            }
+            // Diseño D: la portada llega hasta arriba con su propio «Volver»; la
+            // pantalla se encarga de las barras de estado y de navegación.
+            EventoDetalleScreen(
+                eventoId = id,
+                tokenProvider = { auth.token() },
+                onPerfilClick = { handle -> navController.navigate(AgoraRoutes.perfil(handle)) },
+                onBorrado = { navController.popBackStack() },
+                onVolver = { navController.popBackStack() },
+                onAventones = { navController.navigate(AgoraRoutes.AVENTONES) },
+                onMensaje = { conversacionId -> navController.navigate(AgoraRoutes.mensaje(conversacionId)) },
+            )
         }
     }
 }
@@ -500,15 +512,24 @@ private fun SecondaryScaffold(
     onBack: () -> Unit,
     content: @Composable (padding: androidx.compose.foundation.layout.PaddingValues) -> Unit,
 ) {
+    // Diseño D: la barra se funde con el fondo cálido; el título va en la letra de títulos.
     Scaffold(
+        containerColor = AgoraColors.Fondo,
         topBar = {
             TopAppBar(
-                title = { Text(title) },
+                title = { Text(title, style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AgoraColors.Fondo,
+                    scrolledContainerColor = AgoraColors.Fondo,
+                    titleContentColor = AgoraColors.Texto,
+                    navigationIconContentColor = AgoraColors.Texto,
+                    actionIconContentColor = AgoraColors.Texto,
+                ),
             )
         },
         content = content,

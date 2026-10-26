@@ -18,8 +18,9 @@ import androidx.compose.ui.unit.dp
 import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
 
 /**
- * Las tarjetas de arriba del feed (pregunta del día, pulso del campus, eventos
- * en vivo, racha, retos, ranking, tip) en un solo carrusel horizontal.
+ * «Tu día»: pulso del campus, racha, retos, ranking y tip en un solo carrusel
+ * horizontal. Con el diseño D, «Ahora en el campus» y la pregunta relámpago van
+ * aparte, arriba de este carrusel, así que aquí ya no entran.
  *
  * Antes eran hasta 10 items sueltos de la `LazyColumn` antes del primer post:
  * cada uno trae sus datos por su cuenta, así que al bajar se desechaban y al
@@ -40,7 +41,6 @@ fun CarruselFeed(
     tokenProvider: () -> String?,
     onHashtagClick: (String) -> Unit,
     onPerfilClick: (String) -> Unit,
-    onEventoClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val anclable = LocalPinnableContainer.current
@@ -51,26 +51,23 @@ fun CarruselFeed(
 
     val anchoPantalla = LocalConfiguration.current.screenWidthDp.dp
     // Deja asomar la siguiente tarjeta para que se note que se desliza.
-    val ancho = (anchoPantalla - AgoraSpacing.Sm * 2) * 0.88f
+    val ancho = (anchoPantalla - AgoraSpacing.Tarjeta * 2) * 0.88f
     val separacion = AgoraSpacing.Xs
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(bottom = AgoraSpacing.Xxs),
+            // La ranura ya suma la separación a su derecha: el margen final la descuenta.
+            .padding(start = AgoraSpacing.Tarjeta, end = AgoraSpacing.Tarjeta - separacion, bottom = AgoraSpacing.Xxs),
         verticalAlignment = Alignment.Top,
     ) {
-        RanuraCarrusel(ancho, separacion) { PreguntaDelDiaBanner(tokenProvider = tokenProvider) }
         RanuraCarrusel(ancho, separacion) {
             CampusPulseBanner(
                 tokenProvider = tokenProvider,
                 onHashtagClick = onHashtagClick,
                 onPerfilClick = onPerfilClick,
             )
-        }
-        RanuraCarrusel(ancho, separacion) {
-            EventosEnVivoBanner(tokenProvider = tokenProvider, onEventoClick = onEventoClick)
         }
         RanuraCarrusel(ancho, separacion) { RachaBadgeRow(tokenProvider = tokenProvider) }
         RanuraCarrusel(ancho, separacion) { RetoSemanalBanner(tokenProvider = tokenProvider) }

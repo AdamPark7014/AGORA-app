@@ -1,27 +1,27 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,6 +36,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
@@ -47,9 +49,16 @@ import mx.agora.mobile.nativeapp.data.api.MarketplaceApi
 import mx.agora.mobile.nativeapp.data.api.MensajesApi
 import mx.agora.mobile.nativeapp.data.api.AbrirConversacionRequest
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.BotonBorde
+import mx.agora.mobile.nativeapp.ui.components.BotonTinta
 import mx.agora.mobile.nativeapp.ui.components.VisorImagenes
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.theme.AgoraButtonShape
+import mx.agora.mobile.nativeapp.ui.theme.AgoraChipShape
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFonts
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFotoShape
+import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
 import mx.agora.mobile.nativeapp.ui.util.EnlacesWeb
 import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
 import mx.agora.mobile.nativeapp.ui.util.formatearPrecio
@@ -115,14 +124,15 @@ fun MarketplaceDetailScreen(
 
     when {
         cargando && anuncio == null -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            // Con el modifier de la ruta: si no, el indicador ignoraba la barra superior.
+            Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = AgoraColors.Naranja)
             }
         }
         error != null && anuncio == null -> {
             AgoraErrorState(
                 message = error!!,
-                modifier = Modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize(),
                 onRetry = { cargar() },
             )
         }
@@ -132,7 +142,7 @@ fun MarketplaceDetailScreen(
                 modifier = modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
+                    .padding(horizontal = AgoraSpacing.Pantalla, vertical = AgoraSpacing.Md),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 val urls = item.imagenes.mapNotNull { ApiClient.resolveUrl(it.url) }
@@ -142,8 +152,9 @@ fun MarketplaceDetailScreen(
                         contentDescription = "Foto 1 de ${urls.size}",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(220.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .aspectRatio(4f / 3f)
+                            .clip(AgoraFotoShape)
+                            .background(AgoraColors.Superficie2)
                             .clickable(onClickLabel = "Ampliar", role = Role.Button) { visor = 0 },
                         contentScale = ContentScale.Crop,
                     )
@@ -156,7 +167,8 @@ fun MarketplaceDetailScreen(
                                 contentDescription = "Foto ${indice + 1} de ${urls.size}",
                                 modifier = Modifier
                                     .size(72.dp)
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(AgoraChipShape)
+                                    .background(AgoraColors.Superficie2)
                                     .clickable(onClickLabel = "Ampliar", role = Role.Button) { visor = indice },
                                 contentScale = ContentScale.Crop,
                             )
@@ -171,20 +183,26 @@ fun MarketplaceDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    // Cifra en la tipografía de títulos y en tinta: el naranja queda para las acciones.
                     Text(
-                        "${formatearPrecio(item.precioMxn)} MXN",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = AgoraColors.Naranja,
+                        if (item.precioMxn <= 0) "Gratis" else "${formatearPrecio(item.precioMxn)} MXN",
+                        style = MaterialTheme.typography.headlineMedium.copy(fontFamily = AgoraFonts.titulo),
+                        color = AgoraColors.Texto,
                     )
                     EtiquetaEstadoAnuncio(item.estadoVenta)
                 }
-                Text(item.titulo, style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    item.titulo,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = AgoraColors.Texto,
+                    modifier = Modifier.semantics { heading() },
+                )
                 Text(
                     "${item.vendedor?.nombre ?: "Alguien"} · ${haceCuanto(item.createdAt)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = AgoraColors.TextoMedio,
                 )
-                Text(item.descripcion, style = MaterialTheme.typography.bodyLarge)
+                Text(item.descripcion, style = MaterialTheme.typography.bodyLarge, color = AgoraColors.Texto)
 
                 when (item.estadoVenta) {
                     ESTADO_APARTADO -> Text(
@@ -208,15 +226,15 @@ fun MarketplaceDetailScreen(
                         // Como en la web: Apartar/Liberar y Vendido; si ya se vendió,
                         // se puede volver a poner a la venta.
                         when (item.estadoVenta) {
-                            ESTADO_VENDIDO -> OutlinedButton(
+                            ESTADO_VENDIDO -> BotonBorde(
+                                texto = "Volver a ponerlo a la venta",
                                 onClick = { cambiarEstado(ESTADO_DISPONIBLE) },
                                 enabled = !cambiandoEstado,
                                 modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text("Volver a ponerlo a la venta")
-                            }
+                            )
                             else -> {
-                                OutlinedButton(
+                                BotonBorde(
+                                    texto = if (item.estadoVenta == ESTADO_APARTADO) "Liberar" else "Apartar",
                                     onClick = {
                                         cambiarEstado(
                                             if (item.estadoVenta == ESTADO_APARTADO) ESTADO_DISPONIBLE else ESTADO_APARTADO,
@@ -224,22 +242,20 @@ fun MarketplaceDetailScreen(
                                     },
                                     enabled = !cambiandoEstado,
                                     modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(if (item.estadoVenta == ESTADO_APARTADO) "Liberar" else "Apartar")
-                                }
-                                Button(
+                                )
+                                BotonTinta(
+                                    texto = "Marcar como vendido",
                                     onClick = { cambiarEstado(ESTADO_VENDIDO) },
                                     enabled = !cambiandoEstado,
                                     modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text("Marcar como vendido")
-                                }
+                                )
                             }
                         }
-                        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        error?.let { Text(it, color = AgoraColors.Danger, style = MaterialTheme.typography.bodyMedium) }
                     }
                     item.estadoVenta != ESTADO_VENDIDO && item.vendedor != null -> {
-                        Button(
+                        BotonTinta(
+                            texto = if (abriendo) "Abriendo chat…" else "Escribir al vendedor",
                             onClick = {
                                 scope.launch {
                                     // Sin handle no hay con quién abrir el chat (antes tronaba con !!).
@@ -262,38 +278,55 @@ fun MarketplaceDetailScreen(
                             },
                             enabled = !abriendo,
                             modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(if (abriendo) "Abriendo chat…" else "Escribir al vendedor")
-                        }
-                        OutlinedButton(
+                        )
+                        BotonBorde(
+                            texto = "Ver perfil del vendedor",
                             onClick = { item.vendedor?.handle?.let(onPerfilClick) },
                             modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Ver perfil del vendedor")
-                        }
+                        )
                     }
                     item.vendedor != null -> {
-                        OutlinedButton(
+                        BotonBorde(
+                            texto = "Ver perfil del vendedor",
                             onClick = { item.vendedor?.handle?.let(onPerfilClick) },
                             modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Ver perfil del vendedor")
-                        }
+                        )
                     }
                 }
 
-                OutlinedButton(
+                BotonCompartir(
                     onClick = { compartirEnlace(context, EnlacesWeb.anuncio(anuncioId), item.titulo) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text(AgoraCopy.compartir.accion, modifier = Modifier.padding(start = 8.dp))
-                }
+                )
 
                 if (!item.esMio) {
-                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    error?.let { Text(it, color = AgoraColors.Danger, style = MaterialTheme.typography.bodyMedium) }
                 }
             }
         }
+    }
+}
+
+/** Como `BotonBorde`, con el ícono de compartir delante. */
+@Composable
+private fun BotonCompartir(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
+            .clip(AgoraButtonShape)
+            .background(AgoraColors.Superficie)
+            .border(1.dp, AgoraColors.Borde, AgoraButtonShape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.Share, contentDescription = null, tint = AgoraColors.Texto, modifier = Modifier.size(18.dp))
+        Text(
+            AgoraCopy.compartir.accion,
+            color = AgoraColors.Texto,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(start = 8.dp),
+        )
     }
 }

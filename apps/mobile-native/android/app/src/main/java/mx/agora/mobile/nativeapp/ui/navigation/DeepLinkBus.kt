@@ -23,9 +23,12 @@ object DeepLinkBus {
  * aplica y llama a [consumir]; si MainShell aún no existe, la toma al aparecer.
  */
 object PestanaBus {
-    /** Índices de las pestañas de MainShell. */
+    /** Índices de las pestañas de MainShell (barra del diseño D). */
     const val FEED = 0
-    const val EVENTOS = 1
+    const val CLIPS = 1
+    const val PUBLICAR = 2
+    const val EVENTOS = 3
+    const val CAMPUS = 4
 
     private val _solicitada = MutableStateFlow<Int?>(null)
     val solicitada: StateFlow<Int?> = _solicitada.asStateFlow()
