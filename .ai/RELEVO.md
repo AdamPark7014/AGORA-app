@@ -60,7 +60,10 @@ contrato). Reparto: API, web e iOS en esta sesión; Android en la sesión de mó
   chips de las 7 categorías y cuadrícula de 2 columnas con precio sobre la foto e ícono si no hay foto.
   Perfil: portada con avatar 88 montado, Seguir y Mensaje a la vista, «…» con Retar/Silenciar/Bloquear,
   línea @handle · carrera · Gen · ciudad, chips con «Busca:», cifras con racha y «Lo siguen X e Y»
-  (`PerfilAjenoDto.seguidoresEnComun`). Faltan en iOS: clips y registro con buscador de carrera.
+  (`PerfilAjenoDto.seguidoresEnComun`).
+- **iOS D, paso 4 (26-10).** Registro: buscador de carrera (`registro.buscarCarrera`, sin acentos, con la
+  coincidencia resaltada) en vez de la lista de las 52, y generación con botones. `CapturasTiendaUITests`
+  escribe «Ingenier» en el buscador antes de tocar la carrera. Falta en iOS: la pantalla de clips.
 
 ## Pasada de profesionalismo del 23-10 (en curso)
 

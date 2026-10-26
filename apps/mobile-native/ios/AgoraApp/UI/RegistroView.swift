@@ -10,6 +10,8 @@ struct RegistroView: View {
     @State private var nombre = ""
     @State private var apellidos = ""
     @State private var carreraSlug: String?
+    /// Buscador sobre las 52 carreras en vez de la lista larga (docs/diseno-d.md §4).
+    @State private var busquedaCarrera = ""
     @State private var colegioSlug: String?
     @State private var generacion = Calendar.current.component(.year, from: Date())
     @State private var aceptaTerminos = false
@@ -36,6 +38,43 @@ struct RegistroView: View {
 
     private var carreras: [CarreraDto] {
         catalogo?.escuelas?.flatMap { $0.carreras ?? [] } ?? []
+    }
+
+    private var consultaCarrera: String {
+        Self.normalizar(busquedaCarrera.trimmingCharacters(in: .whitespaces))
+    }
+
+    /// Con 2 letras o más, las que coinciden; sin búsqueda, solo la elegida.
+    private var carrerasVisibles: [CarreraDto] {
+        if consultaCarrera.count >= 2 {
+            return carreras.filter { Self.normalizar($0.nombre).contains(consultaCarrera) }
+        }
+        if let carreraSlug {
+            return carreras.filter { $0.slug == carreraSlug }
+        }
+        return []
+    }
+
+    /// Sin acentos ni mayúsculas: «ingenieria» encuentra «Ingeniería».
+    private static func normalizar(_ texto: String) -> String {
+        texto.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "es_MX"))
+    }
+
+    /// El nombre con la parte que coincide en negritas y naranja.
+    private func resaltado(_ nombre: String) -> Text {
+        let normal = Self.normalizar(nombre)
+        guard consultaCarrera.count >= 2, let rango = normal.range(of: consultaCarrera) else {
+            return Text(nombre)
+        }
+        let inicio = normal.distance(from: normal.startIndex, to: rango.lowerBound)
+        let largo = normal.distance(from: rango.lowerBound, to: rango.upperBound)
+        let letras = Array(nombre)
+        guard inicio + largo <= letras.count else { return Text(nombre) }
+        return Text(String(letras[..<inicio]))
+            + Text(String(letras[inicio..<(inicio + largo)]))
+                .bold()
+                .foregroundColor(AgoraDesign.Colors.naranjaTinta)
+            + Text(String(letras[(inicio + largo)...]))
     }
 
     private var datosCompletos: Bool {
@@ -141,12 +180,39 @@ struct RegistroView: View {
                         .font(.caption)
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 }
-                ForEach(carreras) { carrera in
-                    seleccionChip(
-                        carrera.nombre,
-                        selected: carreraSlug == carrera.slug
-                    ) {
-                        carreraSlug = carrera.slug
+                Group {
+                    TextField("Busca tu carrera, p. ej. Sistemas", text: $busquedaCarrera)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .padding(.horizontal, AgoraDesign.Spacing.sm)
+                        .frame(minHeight: 44)
+                        .background(AgoraDesign.Colors.superficie)
+                        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.button))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: AgoraDesign.Radii.button)
+                                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+                        }
+                        .accessibilityLabel("Busca tu carrera")
+                        .accessibilityIdentifier("registro.buscarCarrera")
+
+                    ForEach(carrerasVisibles) { carrera in
+                        seleccionChip(
+                            resaltado(carrera.nombre),
+                            selected: carreraSlug == carrera.slug
+                        ) {
+                            carreraSlug = carrera.slug
+                            busquedaCarrera = ""
+                        }
+                    }
+
+                    if consultaCarrera.count >= 2, carrerasVisibles.isEmpty {
+                        Text("Ninguna carrera se llama así. Prueba con otra palabra.")
+                            .font(.caption)
+                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    } else if consultaCarrera.count < 2, carreraSlug == nil {
+                        Text("Escribe al menos 2 letras: Sistemas, Derecho, Arquitectura…")
+                            .font(.caption)
+                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     }
                 }
 
@@ -155,7 +221,7 @@ struct RegistroView: View {
                     .padding(.top, AgoraDesign.Spacing.xxs)
                 ForEach(catalogo?.colegios ?? []) { colegio in
                     seleccionChip(
-                        colegio.nombre,
+                        Text(colegio.nombre),
                         selected: colegioSlug == colegio.slug
                     ) {
                         colegioSlug = colegioSlug == colegio.slug ? nil : colegio.slug
@@ -247,40 +313,41 @@ struct RegistroView: View {
     private static let textoTerminos: AttributedString =
         (try? AttributedString(markdown: AgoraCopy.registroTerminos)) ?? AttributedString(AgoraCopy.registroTerminos)
 
-    /// Año de ingreso. `String(ano)` evita que salga «2,026» con separador de miles.
+    /// Año de ingreso con botones (diseño D). `String(ano)` evita «2,026» con separador de miles.
     private var selectorGeneracion: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs + 2) {
             Text("Generación (año en que entraste)")
                 .font(.caption.bold())
-            HStack {
-                Text("Generación")
-                    .font(.subheadline)
-                    .foregroundStyle(AgoraDesign.Colors.texto)
-                Spacer()
-                Picker("Generación", selection: $generacion) {
-                    ForEach(Self.generaciones, id: \.self) { ano in
-                        Text(String(ano)).tag(ano)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 5), spacing: 6) {
+                ForEach(Self.generaciones, id: \.self) { ano in
+                    let elegida = generacion == ano
+                    Button {
+                        generacion = ano
+                    } label: {
+                        Text(String(ano))
+                            .font(.subheadline.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(elegida ? AgoraDesign.Colors.fondo : AgoraDesign.Colors.texto)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(elegida ? AgoraDesign.Colors.texto : AgoraDesign.Colors.superficie)
+                            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: AgoraDesign.Radii.small)
+                                    .stroke(elegida ? AgoraDesign.Colors.texto : AgoraDesign.Colors.borde, lineWidth: 1)
+                            }
                     }
+                    .buttonStyle(.agoraPlain)
+                    .accessibilityLabel("Generación \(String(ano))")
+                    .accessibilityAddTraits(elegida ? .isSelected : [])
                 }
-                .pickerStyle(.menu)
-                .tint(AgoraDesign.Colors.naranja)
-                .labelsHidden()
-            }
-            .padding(.horizontal, AgoraDesign.Spacing.sm)
-            .padding(.vertical, AgoraDesign.Spacing.xxs)
-            .background(AgoraDesign.Colors.superficie)
-            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.button))
-            .overlay {
-                RoundedRectangle(cornerRadius: AgoraDesign.Radii.button)
-                    .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
             }
         }
     }
 
-    private func seleccionChip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+    private func seleccionChip(_ label: Text, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
-                Text(label)
+                label
                     .font(.subheadline)
                     .multilineTextAlignment(.leading)
                 Spacer()

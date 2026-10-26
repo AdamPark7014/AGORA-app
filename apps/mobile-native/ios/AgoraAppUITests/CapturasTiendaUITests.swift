@@ -183,6 +183,9 @@ final class CapturasTiendaUITests: XCTestCase {
         escribir("Prueba", en: app.textFields["Nombre"])
         escribir("Registro", en: app.textFields["Apellidos"])
         bajarTeclado()
+        // La carrera se busca (diseño D): sin escribir no aparece la lista de las 52.
+        escribir("Ingenier", en: app.textFields["registro.buscarCarrera"])
+        bajarTeclado()
         let carrera = app.buttons.containing(NSPredicate(format: "label CONTAINS[c] %@", "Ingenier")).firstMatch
         XCTAssertTrue(carrera.waitForExistence(timeout: 10), "No aparecieron las carreras")
         tocar(carrera)
