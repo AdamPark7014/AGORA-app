@@ -48,9 +48,13 @@ contrato). Reparto: API, web e iOS en esta sesión; Android en la sesión de mó
   la D (fondo cálido, `naranjaTinta`, `superficie2`, `oscuro`, `vivo`; radios tarjeta 22, foto 16, botón 14,
   chip 12, avatar 14). `PostDto`/`PostDetalleDto.reacciones`; `ReaccionesRow` son chips con nombre y número
   (sin emojis; sin conteos por tipo dice el total); `PostCardView` con banda de comunidad, avatar cuadrado,
-  fotos con esquinas y pie Comentar/Compartir/Guardar; corazón del doble toque como ícono. Faltan el
-  inicio (encabezado, segmento, ahora en el campus, pregunta oscura), la barra flotante, clips, evento,
-  perfil, mercado y registro.
+  fotos con esquinas y pie Comentar/Compartir/Guardar; corazón del doble toque como ícono.
+- **iOS D, paso 2 (26-10).** Barra de pestañas como píldora oscura flotante con Publicar en naranja
+  (mismos 5 destinos e identificadores `tab.0…4`: las pruebas de UI los usan; «Feed» se llama «Inicio»).
+  Inicio: fecha, segmento Campus / Mi carrera / Siguiendo con las demás comunidades como chips, «Ahora en
+  el campus» (`EventosEnVivoBanner`), pregunta relámpago oscura con barras y tu carrera contra el campus,
+  y la gamificación (racha, retos, ranking, tips, pulso) plegada en «Tu día» (`@AppStorage`).
+  Faltan en iOS: clips, evento, perfil, mercado y registro.
 
 ## Pasada de profesionalismo del 23-10 (en curso)
 

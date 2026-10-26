@@ -20,6 +20,8 @@ struct FeedView: View {
     @State private var cargandoMas = false
     @State private var error: String?
     @ObservedObject private var network = NetworkMonitor.shared
+    /// «Tu día» plegado o abierto, como lo dejó la persona (igual que la tira de la web).
+    @AppStorage("agora.tuDiaAbierto") private var tuDiaAbierto = false
 
     private var feedTrigger: String {
         "\(reloadKey)|\(comunidadSlug ?? "")|\(siguiendo)"
@@ -49,129 +51,27 @@ struct FeedView: View {
                         }
                     }
 
+                    Section {
+                        cabeceraInicio
+                    }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 6, trailing: 18))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
+                    // Diseño D (docs/diseno-d.md §4): lo del campus arriba y la gamificación
+                    // plegada en «Tu día», para que la primera publicación se vea sin bajar tanto.
                     Group {
                         Section {
-                            PreguntaDelDiaBanner()
-                                .listRowInsets(EdgeInsets(
-                                    top: AgoraDesign.Spacing.xs,
-                                    leading: AgoraDesign.Spacing.sm,
-                                    bottom: AgoraDesign.Spacing.xxs,
-                                    trailing: AgoraDesign.Spacing.sm
-                                ))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                        }
-
-                        Section {
-                            CampusPulseBanner(
-                                onHashtagTap: onHashtagTap,
-                                onPerfilTap: onAuthorTap
-                            )
-                            .listRowInsets(EdgeInsets(
-                                top: AgoraDesign.Spacing.xxs,
-                                leading: AgoraDesign.Spacing.sm,
-                                bottom: AgoraDesign.Spacing.xxs,
-                                trailing: AgoraDesign.Spacing.sm
-                            ))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                        }
-
-                        Section {
                             EventosEnVivoBanner(onEventoTap: onEventoTap)
-                                .listRowInsets(EdgeInsets(
-                                    top: AgoraDesign.Spacing.xxs,
-                                    leading: AgoraDesign.Spacing.sm,
-                                    bottom: AgoraDesign.Spacing.xxs,
-                                    trailing: AgoraDesign.Spacing.sm
-                                ))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
                         }
-
                         Section {
-                            RachaBadgeRow()
-                                .listRowInsets(EdgeInsets(
-                                    top: AgoraDesign.Spacing.xxs,
-                                    leading: AgoraDesign.Spacing.sm,
-                                    bottom: AgoraDesign.Spacing.xxs,
-                                    trailing: AgoraDesign.Spacing.sm
-                                ))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
+                            PreguntaDelDiaBanner()
                         }
-
                         Section {
-                            RetoSemanalBanner()
-                                .listRowInsets(EdgeInsets(
-                                    top: AgoraDesign.Spacing.xxs,
-                                    leading: AgoraDesign.Spacing.sm,
-                                    bottom: AgoraDesign.Spacing.xxs,
-                                    trailing: AgoraDesign.Spacing.sm
-                                ))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                        }
-
-                        Section {
-                            RetosAmigosRow()
-                                .listRowInsets(EdgeInsets(
-                                    top: AgoraDesign.Spacing.xxs,
-                                    leading: AgoraDesign.Spacing.sm,
-                                    bottom: AgoraDesign.Spacing.xxs,
-                                    trailing: AgoraDesign.Spacing.sm
-                                ))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                        }
-
-                        Section {
-                            RetosRankingSemanalRow(onPerfilTap: onAuthorTap)
-                            RetosHistorialRow(onPerfilTap: onAuthorTap)
-                                .listRowInsets(EdgeInsets(
-                                    top: AgoraDesign.Spacing.xxs,
-                                    leading: AgoraDesign.Spacing.sm,
-                                    bottom: AgoraDesign.Spacing.xxs,
-                                    trailing: AgoraDesign.Spacing.sm
-                                ))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                        }
-
-                        Section {
-                            LeaderboardRachasRow(onPerfilTap: onAuthorTap)
-                                .listRowInsets(EdgeInsets(
-                                    top: AgoraDesign.Spacing.xxs,
-                                    leading: AgoraDesign.Spacing.sm,
-                                    bottom: AgoraDesign.Spacing.xxs,
-                                    trailing: AgoraDesign.Spacing.sm
-                                ))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                        }
-
-                        Section {
-                            CampusTipBanner()
-                                .listRowInsets(EdgeInsets(
-                                    top: AgoraDesign.Spacing.xxs,
-                                    leading: AgoraDesign.Spacing.sm,
-                                    bottom: AgoraDesign.Spacing.xxs,
-                                    trailing: AgoraDesign.Spacing.sm
-                                ))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
+                            tuDia
                         }
                     }
-
-                    Section {
-                        filtrosFeed
-                    }
-                    .listRowInsets(EdgeInsets(
-                        top: AgoraDesign.Spacing.xs,
-                        leading: AgoraDesign.Spacing.sm,
-                        bottom: AgoraDesign.Spacing.xxs,
-                        trailing: AgoraDesign.Spacing.sm
-                    ))
+                    .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 14))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
 
@@ -230,31 +130,129 @@ struct FeedView: View {
                 .animation(AgoraDesign.Animation.spring, value: posts.map(\.id))
             }
         }
-        .navigationTitle("Feed")
+        .navigationTitle("Inicio")
         .refreshable { await traer(desde: nil, reemplazar: true) }
         .task(id: feedTrigger) { await traer(desde: nil, reemplazar: true) }
         .task { await cargarComunidades() }
     }
 
-    private var filtrosFeed: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                filtroChip("Siguiendo", selected: siguiendo) {
-                    siguiendo.toggle()
-                    if siguiendo { comunidadSlug = nil }
-                }
-                filtroChip("Todas", selected: comunidadSlug == nil && !siguiendo) {
+    private var miCarrera: ComunidadDto? {
+        comunidades.first { $0.slug.hasPrefix("carrera:") && !$0.estaSilenciada }
+    }
+
+    /// Las que no cubre el segmento (generación, colegio, escuela…) van como chips.
+    private var otrasComunidades: [ComunidadDto] {
+        comunidades.filter {
+            !$0.estaSilenciada && $0.slug != "universidad:udlap" && $0.slug != miCarrera?.slug
+        }
+    }
+
+    private var cabeceraInicio: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(Self.fechaDeHoy())
+                .font(.footnote)
+                .foregroundStyle(AgoraDesign.Colors.textoMedio)
+
+            HStack(spacing: 0) {
+                opcionSegmento("Campus", activo: !siguiendo && comunidadSlug == nil) {
                     siguiendo = false
                     comunidadSlug = nil
                 }
-                ForEach(comunidades, id: \.slug) { c in
-                    filtroChip(c.nombre, selected: comunidadSlug == c.slug) {
+                if let carrera = miCarrera {
+                    opcionSegmento("Mi carrera", activo: !siguiendo && comunidadSlug == carrera.slug) {
                         siguiendo = false
-                        comunidadSlug = c.slug
+                        comunidadSlug = carrera.slug
                     }
                 }
+                opcionSegmento("Siguiendo", activo: siguiendo) {
+                    siguiendo = true
+                    comunidadSlug = nil
+                }
             }
-            .padding(.vertical, 4)
+            .padding(4)
+            .background(
+                AgoraDesign.Colors.superficie2,
+                in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
+            )
+
+            if !otrasComunidades.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(otrasComunidades, id: \.slug) { c in
+                            filtroChip(c.nombre, selected: !siguiendo && comunidadSlug == c.slug) {
+                                siguiendo = false
+                                comunidadSlug = c.slug
+                            }
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+    }
+
+    private func opcionSegmento(_ texto: String, activo: Bool, accion: @escaping () -> Void) -> some View {
+        Button(action: accion) {
+            Text(texto)
+                .font(.subheadline.weight(activo ? .bold : .medium))
+                .foregroundStyle(activo ? AgoraDesign.Colors.texto : AgoraDesign.Colors.textoMedio)
+                .frame(maxWidth: .infinity, minHeight: 38)
+                .background {
+                    if activo {
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(AgoraDesign.Colors.superficie)
+                            .shadow(color: .black.opacity(0.12), radius: 1, y: 1)
+                    }
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.agoraPlain)
+        .accessibilityAddTraits(activo ? .isSelected : [])
+    }
+
+    /// «Lunes 26 de octubre», con la hora del campus.
+    static func fechaDeHoy(_ ahora: Date = Date()) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "es_MX")
+        f.timeZone = TimeZone(identifier: "America/Mexico_City")
+        f.dateFormat = "EEEE d 'de' MMMM"
+        let texto = f.string(from: ahora)
+        return texto.prefix(1).uppercased() + texto.dropFirst()
+    }
+
+    /// Racha, retos, ranking y tips: a un toque, sin empujar las publicaciones hacia abajo.
+    private var tuDia: some View {
+        DisclosureGroup(isExpanded: $tuDiaAbierto) {
+            VStack(spacing: 8) {
+                RachaBadgeRow()
+                RetoSemanalBanner()
+                RetosAmigosRow()
+                RetosRankingSemanalRow(onPerfilTap: onAuthorTap)
+                RetosHistorialRow(onPerfilTap: onAuthorTap)
+                LeaderboardRachasRow(onPerfilTap: onAuthorTap)
+                CampusPulseBanner(onHashtagTap: onHashtagTap, onPerfilTap: onAuthorTap)
+                CampusTipBanner()
+            }
+            .padding(.top, 10)
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Tu día")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(AgoraDesign.Colors.texto)
+                Text("Racha, retos y lo que se mueve en el campus")
+                    .font(.caption)
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+            }
+        }
+        .tint(AgoraDesign.Colors.textoMedio)
+        .padding(14)
+        .background(
+            AgoraDesign.Colors.superficie,
+            in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous)
+                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
         }
     }
 
@@ -263,14 +261,14 @@ struct FeedView: View {
             Text(label)
                 .font(.subheadline)
                 .lineLimit(1)
-                .padding(.horizontal, AgoraDesign.Spacing.sm)
-                .padding(.vertical, AgoraDesign.Spacing.xs)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 36)
                 .background(selected ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
-                .foregroundStyle(selected ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.texto)
-                .clipShape(Capsule())
+                .foregroundStyle(selected ? AgoraDesign.Colors.naranjaTinta : AgoraDesign.Colors.texto)
+                .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous))
                 .overlay {
-                    Capsule()
-                        .stroke(selected ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.borde, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous)
+                        .stroke(selected ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.borde, lineWidth: 1)
                 }
         }
         .buttonStyle(.agoraPlain)

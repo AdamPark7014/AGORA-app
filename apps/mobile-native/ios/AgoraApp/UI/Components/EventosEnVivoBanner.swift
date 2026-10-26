@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Eventos en curso o que empiezan pronto — paridad con `EventosEnVivoBanner.kt`.
+/// «Ahora en el campus» del diseño D (docs/diseno-d.md §3): eventos en curso o que empiezan
+/// pronto, como tarjetas chicas desplazables con un punto verde de «en vivo».
 struct EventosEnVivoBanner: View {
     var onEventoTap: (String) -> Void = { _ in }
 
@@ -12,25 +13,35 @@ struct EventosEnVivoBanner: View {
         VStack(spacing: 0) {
             if !eventos.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("🔴 En vivo / pronto")
-                        .font(.caption.bold())
-                        .foregroundStyle(AgoraDesign.Colors.naranja)
-
-                    Text("Pasa por el campus antes de que se acabe el hype.")
-                        .font(.caption2)
-                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(AgoraDesign.Colors.vivo)
+                            .frame(width: 8, height: 8)
+                            .background(
+                                Circle()
+                                    .fill(AgoraDesign.Colors.vivo.opacity(0.2))
+                                    .frame(width: 16, height: 16)
+                            )
+                            .accessibilityHidden(true)
+                        Text("AHORA EN EL CAMPUS")
+                            .font(.footnote.weight(.bold))
+                            .tracking(0.5)
+                            .foregroundStyle(AgoraDesign.Colors.texto)
+                    }
+                    .padding(.leading, 4)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityLabel("Ahora en el campus")
 
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
+                        HStack(spacing: 8) {
                             ForEach(eventos) { evento in
                                 eventoCard(evento)
                             }
                         }
                     }
                 }
-                .padding(AgoraDesign.Spacing.sm + 2)
-                .background(AgoraDesign.Colors.superficie)
-                .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
+                .padding(.vertical, 4)
             }
         }
         .task { await cargar() }
@@ -40,46 +51,45 @@ struct EventosEnVivoBanner: View {
         Button {
             onEventoTap(evento.id)
         } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(badgeText(for: evento))
-                    .font(.caption2.bold())
-                    .foregroundStyle(evento.enCurso ? AgoraDesign.Colors.danger : AgoraDesign.Colors.naranja)
-
+            VStack(alignment: .leading, spacing: 2) {
                 Text(evento.titulo)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AgoraDesign.Colors.texto)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-
-                HStack(spacing: 8) {
-                    if let lugar = evento.lugar, !lugar.isEmpty {
-                        Text("📍 \(lugar)")
-                            .font(.caption2)
-                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                            .lineLimit(1)
-                    }
-                    if (evento.vanAIr ?? 0) > 0 {
-                        Text("👋 \(evento.vanAIr ?? 0)")
-                            .font(.caption2.bold())
-                            .foregroundStyle(AgoraDesign.Colors.naranja)
-                    }
-                }
+                    .lineLimit(1)
+                Text(detalle(evento))
+                    .font(.caption)
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    .lineLimit(1)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(AgoraDesign.Colors.fondo)
-            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
+            .frame(minWidth: 150, maxWidth: 240, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(AgoraDesign.Colors.superficie)
+            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
+                    .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+            }
         }
         .buttonStyle(.agoraPlain)
     }
 
-    private func badgeText(for evento: EventoEnVivoDto) -> String {
-        if evento.enCurso { return "🔴 En vivo" }
-        guard let min = evento.empiezaEnMinutos else { return "⏳ Pronto" }
+    /// «Biblioteca · en curso · 12 van»: solo lo que la API manda.
+    private func detalle(_ evento: EventoEnVivoDto) -> String {
+        var partes: [String] = []
+        if let lugar = evento.lugar, !lugar.isEmpty { partes.append(lugar) }
+        partes.append(cuando(evento))
+        if let van = evento.vanAIr, van > 0 { partes.append("\(van) \(van == 1 ? "va" : "van")") }
+        return partes.joined(separator: " · ")
+    }
+
+    private func cuando(_ evento: EventoEnVivoDto) -> String {
+        if evento.enCurso { return "en curso" }
+        guard let min = evento.empiezaEnMinutos else { return "pronto" }
         switch min {
-        case ...0: return "⚡ Ahorita"
-        case ..<60: return "⏱ En \(min) min"
-        default: return "📅 En \(min / 60)h"
+        case ...0: return "ya empieza"
+        case ..<60: return "en \(min) min"
+        default: return "en \(min / 60) h"
         }
     }
 

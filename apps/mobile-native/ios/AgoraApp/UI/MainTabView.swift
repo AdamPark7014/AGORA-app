@@ -43,7 +43,7 @@ struct MainTabView: View {
                     hubDestination(route, path: $feedPath)
                 }
             }
-            .tabItem { Label("Feed", systemImage: "house.fill") }
+            .tabItem { Label("Inicio", systemImage: "house.fill") }
             .tag(0)
 
             NavigationStack(path: $eventosPath) {
@@ -521,29 +521,32 @@ private struct AgoraAnimatedTabBar: View {
     @State private var badgeScale: CGFloat = 1
 
     private let tabs: [AgoraTabItem] = [
-        AgoraTabItem(id: 0, label: "Feed", icon: "house.fill"),
+        AgoraTabItem(id: 0, label: "Inicio", icon: "house.fill"),
         AgoraTabItem(id: 1, label: "Eventos", icon: "calendar"),
-        AgoraTabItem(id: 2, label: "Publicar", icon: "plus.circle.fill"),
+        AgoraTabItem(id: 2, label: "Publicar", icon: "plus"),
         AgoraTabItem(id: 3, label: "Avisos", icon: "bell.fill"),
-        AgoraTabItem(id: 4, label: "Más", icon: "line.3.horizontal"),
+        AgoraTabItem(id: 4, label: "Más", icon: "square.grid.2x2"),
     ]
 
-    var body: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(AgoraDesign.Colors.bordeSutil)
-                .frame(height: 1)
+    /// Íconos inactivos sobre la píldora oscura (mismo tono en claro y oscuro).
+    private let tonoInactivo = Color(red: 189 / 255, green: 182 / 255, blue: 173 / 255)
 
-            HStack(spacing: 0) {
-                ForEach(tabs) { item in
-                    tabButton(item)
-                }
+    /// Píldora oscura flotante con Publicar en naranja (docs/diseno-d.md §3). Los
+    /// identificadores `tab.<n>` y el orden se quedan: las pruebas de UI los usan.
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(tabs) { item in
+                tabButton(item)
             }
-            .padding(.horizontal, AgoraDesign.Spacing.xxs)
-            .padding(.top, AgoraDesign.Spacing.xs)
-            .padding(.bottom, AgoraDesign.Spacing.xxs)
         }
-        .background(AgoraDesign.Colors.superficie)
+        .padding(6)
+        .background(
+            AgoraDesign.Colors.oscuro,
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+        )
+        .shadow(color: .black.opacity(0.22), radius: 14, y: 8)
+        .padding(.horizontal, 14)
+        .padding(.bottom, 4)
         .onChange(of: selection) { newTab in
             bounceIcon(for: newTab)
         }
@@ -561,27 +564,25 @@ private struct AgoraAnimatedTabBar: View {
             Haptics.light()
             selection = item.id
         } label: {
-            VStack(spacing: 4) {
-                ZStack {
-                    if selected {
-                        Capsule()
-                            .fill(AgoraDesign.Colors.naranjaSuave)
-                            .frame(width: 56, height: 32)
-                            .transition(.scale.combined(with: .opacity))
-                    }
-
-                    tabIcon(item, scale: scale)
+            ZStack {
+                if item.id == 2 {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(AgoraDesign.Colors.naranja)
+                        .frame(width: 52, height: 48)
+                } else if selected {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.white.opacity(0.12))
+                        .transition(.scale.combined(with: .opacity))
                 }
-                .frame(height: 32)
 
-                Text(item.label)
-                    .font(.caption2)
-                    .fontWeight(selected ? .semibold : .regular)
-                    .foregroundStyle(selected ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.textoMedio)
+                tabIcon(item, scale: scale)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.agoraPlain)
+        .accessibilityLabel(item.label)
+        .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityIdentifier("tab.\(item.id)")
         .animation(AgoraDesign.Animation.spring, value: selected)
     }
@@ -591,8 +592,8 @@ private struct AgoraAnimatedTabBar: View {
         if item.id == 4, mensajesSinLeer > 0 {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: item.icon)
-                    .font(.body)
-                    .foregroundStyle(selection == item.id ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.textoMedio)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(colorIcono(item))
                     .scaleEffect(scale)
 
                 Text(mensajesSinLeer > 9 ? "9+" : "\(mensajesSinLeer)")
@@ -608,8 +609,8 @@ private struct AgoraAnimatedTabBar: View {
         } else if item.id == 3, avisosSinLeer > 0 {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: item.icon)
-                    .font(.body)
-                    .foregroundStyle(selection == item.id ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.textoMedio)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(colorIcono(item))
                     .scaleEffect(scale)
 
                 Text(avisosSinLeer > 9 ? "9+" : "\(avisosSinLeer)")
@@ -624,10 +625,14 @@ private struct AgoraAnimatedTabBar: View {
             }
         } else {
             Image(systemName: item.icon)
-                .font(.body)
-                .foregroundStyle(selection == item.id ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.textoMedio)
+                .font(item.id == 2 ? .title3.weight(.bold) : .body.weight(.semibold))
+                .foregroundStyle(colorIcono(item))
                 .scaleEffect(scale)
         }
+    }
+
+    private func colorIcono(_ item: AgoraTabItem) -> Color {
+        item.id == 2 || selection == item.id ? .white : tonoInactivo
     }
 
     private func bounceIcon(for tab: Int) {
