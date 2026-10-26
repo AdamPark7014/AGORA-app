@@ -85,13 +85,18 @@ struct MainTabView: View {
             .tag(4)
         }
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        // Encima del contenido y no en `safeAreaInset` del `TabView`: con el SDK de iOS 26 ese
+        // espacio no llega al contenido de cada pestaña y la barra tapaba lo último de las listas y
+        // la barra de acciones del evento. Cada pantalla reserva su alto con `sinBarraNativa()`.
+        .overlay(alignment: .bottom) {
             AgoraAnimatedTabBar(
                 selection: $tab,
                 avisosSinLeer: avisosSinLeer,
                 mensajesSinLeer: mensajesSinLeer,
                 badgePulseToken: badgePulseToken
             )
+            // Con el teclado abierto se queda abajo, detrás de él, en vez de subir con el campo.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .tint(AgoraDesign.Colors.naranja)
         .agoraScreenBackground()
@@ -667,8 +672,33 @@ private struct AgoraAnimatedTabBar: View {
 }
 
 private extension View {
-    /// Oculta la barra nativa de pestañas: la app usa su barra flotante propia.
+    /// Oculta la barra nativa de pestañas (la app usa su barra flotante propia) y reserva abajo el
+    /// alto de la flotante, para que lo último de cada lista y las barras de acción queden por encima.
     func sinBarraNativa() -> some View {
-        toolbar(.hidden, for: .tabBar)
+        modifier(EspacioBarraFlotante())
+    }
+}
+
+private struct EspacioBarraFlotante: ViewModifier {
+    /// Alto de la barra flotante (48 de botones + 12 de relleno + 4 de margen) y un respiro.
+    static let alto: CGFloat = 72
+
+    @State private var tecladoVisible = false
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar(.hidden, for: .tabBar)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                // Con el teclado abierto la barra queda detrás de él: no hace falta el hueco.
+                Color.clear
+                    .frame(height: tecladoVisible ? 0 : Self.alto)
+                    .allowsHitTesting(false)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                tecladoVisible = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                tecladoVisible = false
+            }
     }
 }

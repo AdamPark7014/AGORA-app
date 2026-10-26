@@ -274,10 +274,18 @@ final class CapturasTiendaUITests: XCTestCase {
 
     private func hastaVer(_ elemento: XCUIElement) {
         var intentos = 0
-        while !elemento.isHittable && intentos < 15 {
+        while (!elemento.isHittable || tapadoPorLaBarra(elemento)) && intentos < 15 {
             app.swipeUp()
             intentos += 1
         }
+    }
+
+    /// La barra de pestañas flota encima del contenido: `isHittable` no sabe que una fila queda
+    /// debajo de ella y el toque le caía a la barra.
+    private func tapadoPorLaBarra(_ elemento: XCUIElement) -> Bool {
+        let barra = app.buttons["tab.0"]
+        guard barra.exists, !elemento.identifier.hasPrefix("tab.") else { return false }
+        return elemento.frame.maxY > barra.frame.minY - 8
     }
 
     private func tocar(_ elemento: XCUIElement, archivo: StaticString = #filePath, linea: UInt = #line) {

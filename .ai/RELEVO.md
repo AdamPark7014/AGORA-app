@@ -54,7 +54,10 @@ rojo con capturas que mostraban el fallo y no se revisó: ese fue el error de pr
   con `sinBarraNativa()` en la raíz de cada pestaña y en cada pantalla empujada (no solo en el `TabView`).
   Se probó antes un contenedor propio con `ZStack` (532f423): las pestañas ocultas seguían en el árbol de
   accesibilidad (VoiceOver las leía y la prueba tocó «Diego» de Eventos sin verse), así que se volvió a
-  `TabView`.
+  `TabView`. Con iOS 26 el `safeAreaInset` del `TabView` no llega al contenido de cada pestaña: la barra
+  tapaba la fila de Mensajes en Más y la barra Me interesa/Voy del evento (capturas de 1893d37). Ahora la
+  barra va en `.overlay` (fija bajo el teclado) y `sinBarraNativa()` reserva 72 pt abajo en cada pantalla
+  (0 con el teclado abierto). La prueba de capturas desplaza lo que la barra tape antes de tocarlo.
 - **Otro fallo de la 1.0.0 (5):** cada publicación decía `@Optional("sofia.mtz")` (handle opcional
   interpolado). Corregido, y `ios.yml` ahora falla si el compilador avisa «debug description for an
   optional value».
