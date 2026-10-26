@@ -17,76 +17,74 @@ struct MainTabView: View {
     @State private var feedPath = NavigationPath()
     @State private var eventosPath = NavigationPath()
     @State private var masPath = NavigationPath()
-    /// Pestañas ya abiertas: se montan la primera vez que se visitan y luego se quedan vivas
-    /// (conservan su navegación y su scroll).
-    @State private var visitadas: Set<Int> = [0]
-
-    /// Contenedor propio en vez de `TabView`: con el SDK de iOS 26 la barra nativa de `TabView`
-    /// ya no se oculta con `.toolbar(.hidden, for: .tabBar)` y se asomaba bajo la barra flotante
-    /// (TestFlight 1.0.0 (5), 26-10-2026). Sin `TabView` no hay barra nativa que ocultar.
+    /// `TabView` y no un contenedor propio: con `ZStack` las pestañas ocultas seguían en el árbol de
+    /// accesibilidad (VoiceOver las leía y las pruebas tocaban lo que no se veía). La barra nativa se
+    /// oculta en cada pestaña y en cada pantalla empujada (`sinBarraNativa`): con el SDK de iOS 26
+    /// ponerlo solo sobre el `TabView` ya no basta y se asomaba bajo la barra flotante (1.0.0 (5)).
     var body: some View {
-        ZStack {
-            pestana(0) {
-                NavigationStack(path: $feedPath) {
-                    FeedView(
-                        reloadKey: feedReloadKey,
-                        onPostTap: { postId in feedPath.append(AppRoute.postDetail(postId)) },
-                        onAuthorTap: { handle in feedPath.append(AppRoute.perfil(handle)) },
-                        onHashtagTap: { tag in feedPath.append(AppRoute.hashtag(tag)) },
-                        onEventoTap: { id in feedPath.append(AppRoute.eventoDetalle(id)) },
-                        onClipsTap: { id in feedPath.append(AppRoute.clips(id)) }
-                    )
-                    // Registro con correo personal: recordatorio de confirmar la UDLAP.
-                    .safeAreaInset(edge: .top) { AvisoUdlapView() }
-                    .navigationDestination(for: AppRoute.self) { route in
-                        hubDestination(route, path: $feedPath)
-                    }
+        TabView(selection: $tab) {
+            NavigationStack(path: $feedPath) {
+                FeedView(
+                    reloadKey: feedReloadKey,
+                    onPostTap: { postId in feedPath.append(AppRoute.postDetail(postId)) },
+                    onAuthorTap: { handle in feedPath.append(AppRoute.perfil(handle)) },
+                    onHashtagTap: { tag in feedPath.append(AppRoute.hashtag(tag)) },
+                    onEventoTap: { id in feedPath.append(AppRoute.eventoDetalle(id)) },
+                    onClipsTap: { id in feedPath.append(AppRoute.clips(id)) }
+                )
+                // Registro con correo personal: recordatorio de confirmar la UDLAP.
+                .safeAreaInset(edge: .top) { AvisoUdlapView() }
+                .sinBarraNativa()
+                .navigationDestination(for: AppRoute.self) { route in
+                    hubDestination(route, path: $feedPath).sinBarraNativa()
                 }
             }
+            .tag(0)
 
-            pestana(1) {
-                NavigationStack(path: $eventosPath) {
-                    EventosView(
-                        onEventoTap: { id in eventosPath.append(AppRoute.eventoDetalle(id)) },
-                        onCreateTap: { eventosPath.append(AppRoute.createEvento) }
-                    )
-                    .navigationDestination(for: AppRoute.self) { route in
-                        hubDestination(route, path: $eventosPath)
-                    }
+            NavigationStack(path: $eventosPath) {
+                EventosView(
+                    onEventoTap: { id in eventosPath.append(AppRoute.eventoDetalle(id)) },
+                    onCreateTap: { eventosPath.append(AppRoute.createEvento) }
+                )
+                .sinBarraNativa()
+                .navigationDestination(for: AppRoute.self) { route in
+                    hubDestination(route, path: $eventosPath).sinBarraNativa()
                 }
             }
+            .tag(1)
 
-            pestana(2) {
-                NavigationStack {
-                    PublicarView(onPublicado: {
-                        feedReloadKey += 1
-                        tab = 0
-                    })
-                }
+            NavigationStack {
+                PublicarView(onPublicado: {
+                    feedReloadKey += 1
+                    tab = 0
+                })
+                .sinBarraNativa()
             }
+            .tag(2)
 
-            pestana(3) {
-                NavigationStack {
-                    NotificacionesView()
-                }
+            NavigationStack {
+                NotificacionesView()
+                    .sinBarraNativa()
             }
+            .tag(3)
 
-            pestana(4) {
-                NavigationStack(path: $masPath) {
-                    MasView(
-                        onNavigate: { ruta in navegarDesdeMas(ruta) },
-                        onTerminos: { masPath.append(AppRoute.terminos) },
-                        onReglas: { masPath.append(AppRoute.reglas) },
-                        onPrivacidad: { masPath.append(AppRoute.privacidad) },
-                        onLogout: { AuthRepository.shared.logout() },
-                        mensajesSinLeer: mensajesSinLeer
-                    )
-                    .navigationDestination(for: AppRoute.self) { route in
-                        hubDestination(route, path: $masPath)
-                    }
+            NavigationStack(path: $masPath) {
+                MasView(
+                    onNavigate: { ruta in navegarDesdeMas(ruta) },
+                    onTerminos: { masPath.append(AppRoute.terminos) },
+                    onReglas: { masPath.append(AppRoute.reglas) },
+                    onPrivacidad: { masPath.append(AppRoute.privacidad) },
+                    onLogout: { AuthRepository.shared.logout() },
+                    mensajesSinLeer: mensajesSinLeer
+                )
+                .sinBarraNativa()
+                .navigationDestination(for: AppRoute.self) { route in
+                    hubDestination(route, path: $masPath).sinBarraNativa()
                 }
             }
+            .tag(4)
         }
+        .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             AgoraAnimatedTabBar(
                 selection: $tab,
@@ -99,7 +97,6 @@ struct MainTabView: View {
         .agoraScreenBackground()
         .animation(AgoraDesign.Animation.spring, value: tab)
         .onChange(of: tab) { newTab in
-            visitadas.insert(newTab)
             if newTab == 3 {
                 avisosSinLeer = 0
                 prevAvisosSinLeer = 0
@@ -139,20 +136,6 @@ struct MainTabView: View {
                 aplicarDeepLink(route)
                 deepLinkBus.consume()
             }
-        }
-    }
-
-    /// Una pestaña del contenedor: visible y tocable solo si es la elegida; las demás quedan
-    /// montadas pero fuera de la vista y de VoiceOver.
-    @ViewBuilder
-    private func pestana<Contenido: View>(_ indice: Int, @ViewBuilder contenido: () -> Contenido) -> some View {
-        if visitadas.contains(indice) || tab == indice {
-            let activa = tab == indice
-            contenido()
-                .opacity(activa ? 1 : 0)
-                .allowsHitTesting(activa)
-                .accessibilityHidden(!activa)
-                .zIndex(activa ? 1 : 0)
         }
     }
 
@@ -680,5 +663,12 @@ private struct AgoraAnimatedTabBar: View {
                 badgeScale = 1.0
             }
         }
+    }
+}
+
+private extension View {
+    /// Oculta la barra nativa de pestañas: la app usa su barra flotante propia.
+    func sinBarraNativa() -> some View {
+        toolbar(.hidden, for: .tabBar)
     }
 }

@@ -39,6 +39,15 @@ jobs:
             CODE_SIGNING_ALLOWED=NO build | tee xcodebuild.log | grep -E "error:|warning: unused|BUILD" || true
           test -d build/Release-iphonesimulator/AgoraApp.app
 
+      # Un opcional interpolado en un texto sale en pantalla como «Optional("…")» (la 1.0.0 (5)
+      # mostraba «@Optional("sofia.mtz")» en cada publicación). Ese aviso del compilador es error.
+      - name: Sin opcionales pintados en textos
+        run: |
+          if grep -n "debug description for an optional value" xcodebuild.log; then
+            echo "::error::Hay un opcional interpolado en un texto: saldría como Optional(...) en pantalla."
+            exit 1
+          fi
+
       - name: Correr en el simulador y capturar
         run: |
           DEV=$(xcrun simctl list devices available | grep -m1 -E 'iPhone 1[5-7]( Pro)? \(' | sed -E 's/.*\(([A-F0-9-]{36})\).*/\1/')

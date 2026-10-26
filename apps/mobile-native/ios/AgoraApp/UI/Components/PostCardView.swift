@@ -97,7 +97,7 @@ struct PostCardView: View {
                                     }
                                 }
                                 Text(
-                                    [post.autor.map { "@\($0.handle)" }, FormatUtils.haceCuanto(post.createdAt)]
+                                    [post.autor?.handle.map { "@\($0)" }, FormatUtils.haceCuanto(post.createdAt)]
                                         .compactMap { $0 }
                                         .joined(separator: " · ")
                                 )

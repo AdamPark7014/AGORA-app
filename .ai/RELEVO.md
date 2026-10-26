@@ -50,9 +50,14 @@ nativa. Dos causas: (1) la barra va en `safeAreaInset` y sus figuras no tenían 
 (`minHeight: 48`), así que crecían hasta llenar el espacio; (2) con el SDK de iOS 26 (TestFlight) la barra
 nativa de `TabView` ya no se oculta con `.toolbar(.hidden, for: .tabBar)`. `ios-capturas.yml` ya estaba en
 rojo con capturas que mostraban el fallo y no se revisó: ese fue el error de proceso.
-- **Arreglo:** `MainTabView` deja `TabView` por un contenedor propio (`pestana(n)`: monta cada pestaña al
-  visitarla y la deja viva, oculta y fuera de VoiceOver si no es la activa); botones de la barra con
-  `frame(height: 48)` y `fixedSize` vertical.
+- **Arreglo:** botones de la barra con `frame(height: 48)` y `fixedSize` vertical; la barra nativa se oculta
+  con `sinBarraNativa()` en la raíz de cada pestaña y en cada pantalla empujada (no solo en el `TabView`).
+  Se probó antes un contenedor propio con `ZStack` (532f423): las pestañas ocultas seguían en el árbol de
+  accesibilidad (VoiceOver las leía y la prueba tocó «Diego» de Eventos sin verse), así que se volvió a
+  `TabView`.
+- **Otro fallo de la 1.0.0 (5):** cada publicación decía `@Optional("sofia.mtz")` (handle opcional
+  interpolado). Corregido, y `ios.yml` ahora falla si el compilador avisa «debug description for an
+  optional value».
 - **Para no repetirlo:** `ios-testflight.yml` se niega a subir si la última corrida de `ios-capturas.yml` en
   main no está en verde o si el código de iOS cambió desde ella (`sin_capturas` solo con orden de Adam);
   `ios-capturas.yml` usa el Xcode más reciente (el SDK de TestFlight). Regla en `AGENTS.md`: mirar las
