@@ -62,7 +62,11 @@ final class CapturasTiendaUITests: XCTestCase {
         bajarALasPublicaciones()
         capturar("feed", tema: tema, esperando: autores)
 
+        // Clips: segunda pestaña del diseño D, con los videos del seed.
         tocar(app.buttons["tab.1"])
+        capturar("clips", tema: tema, esperando: ["Recta", "cascarita", "brazo robótico"])
+
+        tocar(app.buttons["tab.3"])
         tocarTexto("Fiesta de fin de parciales")
         capturar("evento", tema: tema, esperando: ["quedar a dormir", "bocinas y alberca"])
 
@@ -72,7 +76,7 @@ final class CapturasTiendaUITests: XCTestCase {
         irAMas("marketplace")
         capturar("mercado", tema: tema, esperando: ["Laptop", "Stewart", "Escritorio"])
 
-        irAMas("mensajes")
+        irAMensajes()
         tocarTexto("Diego")
         capturar("mensajes", tema: tema, esperando: ["biblio", "Arquitecturas"])
 
@@ -92,7 +96,20 @@ final class CapturasTiendaUITests: XCTestCase {
         inicio.press(forDuration: 0.1, thenDragTo: fin, withVelocity: .default, thenHoldForDuration: 0.4)
     }
 
-    /// Pestaña Más, de vuelta a su inicio, y la fila `mas.<ruta>`.
+    /// Mensajes cuelga del encabezado del inicio (diseño D): Inicio, de vuelta a su raíz, y el botón.
+    private func irAMensajes() {
+        tocar(app.buttons["tab.0"])
+        let boton = app.buttons["inicio.mensajes"]
+        var intentos = 0
+        while !boton.waitForExistence(timeout: 2) && intentos < 6 {
+            let atras = app.navigationBars.buttons.element(boundBy: 0)
+            if atras.exists { atras.tap() }
+            intentos += 1
+        }
+        tocar(boton)
+    }
+
+    /// Pestaña Campus, de vuelta a su inicio, y la fila `mas.<ruta>`.
     private func irAMas(_ ruta: String) {
         tocar(app.buttons["tab.4"])
         let fila = app.buttons["mas.\(ruta)"]
@@ -213,6 +230,27 @@ final class CapturasTiendaUITests: XCTestCase {
         tocar(crear)
         cerrarAlertasDelSistema()
         XCTAssertTrue(pestanaFeed.waitForExistence(timeout: 30), "El perfil no se creó")
+    }
+
+    // MARK: Inicio sin contenido
+
+    /// Lo que ve cualquiera en un campus sin publicaciones (como producción el 26-10). Corre en una
+    /// segunda pasada de ios-capturas.yml, después de vaciar publicaciones, eventos y anuncios.
+    func test3_inicioVacio() throws {
+        try XCTSkipIf(entorno["AGORA_INICIO_VACIO"] != "1", "Solo en la segunda pasada, con la base vacía.")
+        entrarComoDemo()
+        saltarBienvenida()
+        cerrarAlertasDelSistema()
+        XCTAssertTrue(pestanaFeed.waitForExistence(timeout: 30), "No llegó al inicio")
+        tocar(app.buttons["tab.0"])
+        capturar("inicio-vacio", tema: "claro", esperando: ["Tu campus apenas empieza"])
+
+        app.terminate()
+        app.launchArguments += ["-agora.apariencia", "oscuro"]
+        app.launch()
+        XCTAssertTrue(pestanaFeed.waitForExistence(timeout: 30), "No volvió al inicio en oscuro")
+        capturar("inicio-vacio", tema: "oscuro", esperando: ["Tu campus apenas empieza"])
+        XCTAssertTrue(faltantes.isEmpty, "Sin el estado vacío: \(faltantes.joined(separator: ", "))")
     }
 
     // MARK: Piezas

@@ -20,7 +20,7 @@ struct TextoConHashtags: View {
 
     var body: some View {
         Text(attributed)
-            .font(.body)
+            .font(.outfit(.body))
             .foregroundStyle(AgoraDesign.Colors.texto)
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)

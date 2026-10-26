@@ -17,7 +17,7 @@ struct CampusPulseBanner: View {
                     if !trending.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("🔥 Trending hoy")
-                                .font(.caption.bold())
+                                .font(.outfit(.caption, .bold))
                                 .foregroundStyle(AgoraDesign.Colors.naranja)
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
@@ -26,7 +26,7 @@ struct CampusPulseBanner: View {
                                             onHashtagTap(item.tag)
                                         } label: {
                                             Text("#\(item.tag)")
-                                                .font(.caption.weight(.semibold))
+                                                .font(.outfit(.caption, .semibold))
                                                 .padding(.horizontal, 12)
                                                 .padding(.vertical, 8)
                                                 .background(AgoraDesign.Colors.naranjaSuave)
@@ -43,7 +43,7 @@ struct CampusPulseBanner: View {
                     if !cumples.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("🎂 Cumplen hoy")
-                                .font(.caption.bold())
+                                .font(.outfit(.caption, .bold))
                                 .foregroundStyle(AgoraDesign.Colors.naranja)
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 10) {
@@ -54,7 +54,7 @@ struct CampusPulseBanner: View {
                                             VStack(spacing: 4) {
                                                 cumpleAvatar(persona)
                                                 Text(primerNombre(persona.nombre))
-                                                    .font(.caption2)
+                                                    .font(.outfit(.caption2))
                                                     .lineLimit(1)
                                                     .foregroundStyle(AgoraDesign.Colors.texto)
                                             }
@@ -65,7 +65,7 @@ struct CampusPulseBanner: View {
                                 }
                             }
                             Text("Mándale un mensaje, cuesta nada.")
-                                .font(.caption2)
+                                .font(.outfit(.caption2))
                                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         }
                     }
@@ -109,7 +109,7 @@ struct CampusPulseBanner: View {
             .frame(width: 44, height: 44)
             .overlay {
                 Text(String(persona.nombre.prefix(1)).uppercased())
-                    .font(.subheadline.bold())
+                    .font(.outfit(.subheadline, .bold))
                     .foregroundStyle(AgoraDesign.Colors.naranja)
             }
     }

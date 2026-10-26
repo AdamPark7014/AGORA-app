@@ -1,20 +1,21 @@
 import SwiftUI
 import UIKit
 
-/// Tabs principales — espejo de `MainShell.kt` en Android.
+/// Tabs principales del diseño D (docs/diseno-d.md §3): Inicio, Clips, Publicar, Eventos y Campus,
+/// como `MainShell.kt` en Android. Avisos, Mensajes y tu perfil se abren desde el encabezado del inicio.
 struct MainTabView: View {
     @EnvironmentObject var session: SessionStore
     @ObservedObject private var deepLinkBus = DeepLinkBus.shared
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var tab = 0
+    /// Avisos sin leer (`GET notificaciones/sin-leer`): globo en el encabezado del inicio.
     @State private var avisosSinLeer = 0
-    /// Mensajes directos sin leer (`GET mensajes/no-leidos`): globo en «Más».
+    /// Mensajes directos sin leer (`GET mensajes/no-leidos`): globo en el encabezado del inicio.
     @State private var mensajesSinLeer = 0
-    @State private var prevAvisosSinLeer = 0
-    @State private var badgePulseToken = 0
     @State private var feedReloadKey = 0
     @State private var feedPath = NavigationPath()
+    @State private var clipsPath = NavigationPath()
     @State private var eventosPath = NavigationPath()
     @State private var masPath = NavigationPath()
     /// `TabView` y no un contenedor propio: con `ZStack` las pestañas ocultas seguían en el árbol de
@@ -26,14 +27,27 @@ struct MainTabView: View {
             NavigationStack(path: $feedPath) {
                 FeedView(
                     reloadKey: feedReloadKey,
+                    avisosSinLeer: avisosSinLeer,
+                    mensajesSinLeer: mensajesSinLeer,
                     onPostTap: { postId in feedPath.append(AppRoute.postDetail(postId)) },
                     onAuthorTap: { handle in feedPath.append(AppRoute.perfil(handle)) },
                     onHashtagTap: { tag in feedPath.append(AppRoute.hashtag(tag)) },
                     onEventoTap: { id in feedPath.append(AppRoute.eventoDetalle(id)) },
-                    onClipsTap: { id in feedPath.append(AppRoute.clips(id)) }
+                    onClipsTap: { id in feedPath.append(AppRoute.clips(id)) },
+                    onAvisosTap: {
+                        avisosSinLeer = 0
+                        feedPath.append(AppRoute.notificaciones)
+                    },
+                    onMensajesTap: { feedPath.append(AppRoute.mensajes) },
+                    onPerfilTap: { feedPath.append(AppRoute.perfilYo) },
+                    onPublicarTap: { tab = 2 },
+                    onCrearEventoTap: {
+                        tab = 3
+                        eventosPath = NavigationPath()
+                        eventosPath.append(AppRoute.createEvento)
+                    },
+                    onAventonesTap: { feedPath.append(AppRoute.aventones) }
                 )
-                // Registro con correo personal: recordatorio de confirmar la UDLAP.
-                .safeAreaInset(edge: .top) { AvisoUdlapView() }
                 .sinBarraNativa()
                 .navigationDestination(for: AppRoute.self) { route in
                     hubDestination(route, path: $feedPath).sinBarraNativa()
@@ -41,14 +55,17 @@ struct MainTabView: View {
             }
             .tag(0)
 
-            NavigationStack(path: $eventosPath) {
-                EventosView(
-                    onEventoTap: { id in eventosPath.append(AppRoute.eventoDetalle(id)) },
-                    onCreateTap: { eventosPath.append(AppRoute.createEvento) }
+            NavigationStack(path: $clipsPath) {
+                ClipsView(
+                    enPestana: true,
+                    visible: tab == 1 && clipsPath.isEmpty,
+                    onPostTap: { id in clipsPath.append(AppRoute.postDetail(id)) },
+                    onAuthorTap: { handle in clipsPath.append(AppRoute.perfil(handle)) },
+                    onGrabar: { tab = 2 }
                 )
                 .sinBarraNativa()
                 .navigationDestination(for: AppRoute.self) { route in
-                    hubDestination(route, path: $eventosPath).sinBarraNativa()
+                    hubDestination(route, path: $clipsPath).sinBarraNativa()
                 }
             }
             .tag(1)
@@ -62,9 +79,15 @@ struct MainTabView: View {
             }
             .tag(2)
 
-            NavigationStack {
-                NotificacionesView()
-                    .sinBarraNativa()
+            NavigationStack(path: $eventosPath) {
+                EventosView(
+                    onEventoTap: { id in eventosPath.append(AppRoute.eventoDetalle(id)) },
+                    onCreateTap: { eventosPath.append(AppRoute.createEvento) }
+                )
+                .sinBarraNativa()
+                .navigationDestination(for: AppRoute.self) { route in
+                    hubDestination(route, path: $eventosPath).sinBarraNativa()
+                }
             }
             .tag(3)
 
@@ -89,30 +112,25 @@ struct MainTabView: View {
         // espacio no llega al contenido de cada pestaña y la barra tapaba lo último de las listas y
         // la barra de acciones del evento. Cada pantalla reserva su alto con `sinBarraNativa()`.
         .overlay(alignment: .bottom) {
-            AgoraAnimatedTabBar(
-                selection: $tab,
-                avisosSinLeer: avisosSinLeer,
-                mensajesSinLeer: mensajesSinLeer,
-                badgePulseToken: badgePulseToken
-            )
-            // Con el teclado abierto se queda abajo, detrás de él, en vez de subir con el campo.
-            .ignoresSafeArea(.keyboard, edges: .bottom)
+            AgoraAnimatedTabBar(selection: $tab)
+                // Con el teclado abierto se queda abajo, detrás de él, en vez de subir con el campo.
+                .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .tint(AgoraDesign.Colors.naranja)
         .agoraScreenBackground()
         .animation(AgoraDesign.Animation.spring, value: tab)
-        .onChange(of: tab) { newTab in
-            if newTab == 3 {
-                avisosSinLeer = 0
-                prevAvisosSinLeer = 0
-            } else {
-                Task { await actualizarBadge() }
+        .onChange(of: tab) { _ in
+            Task {
+                await actualizarBadge()
+                await actualizarMensajesSinLeer()
             }
-            Task { await actualizarMensajesSinLeer() }
         }
-        .onChange(of: masPath.count) { _ in
-            // Al volver de una conversación el globo debe bajar.
-            Task { await actualizarMensajesSinLeer() }
+        .onChange(of: feedPath.count) { _ in
+            // Al volver de Avisos o de una conversación los globos deben bajar.
+            Task {
+                await actualizarBadge()
+                await actualizarMensajesSinLeer()
+            }
         }
         .onChange(of: scenePhase) { fase in
             guard fase == .active else { return }
@@ -120,12 +138,6 @@ struct MainTabView: View {
                 await actualizarBadge()
                 await actualizarMensajesSinLeer()
             }
-        }
-        .onChange(of: avisosSinLeer) { newValue in
-            if newValue > prevAvisosSinLeer && tab != 3 {
-                badgePulseToken += 1
-            }
-            prevAvisosSinLeer = newValue
         }
         .onChange(of: deepLinkBus.pendingRoute) { route in
             guard let route else { return }
@@ -153,7 +165,9 @@ struct MainTabView: View {
         case "guardados":
             masPath.append(AppRoute.guardados)
         case "notificaciones":
-            tab = 3
+            tab = 0
+            feedPath = NavigationPath()
+            feedPath.append(AppRoute.notificaciones)
         case "mensajes":
             masPath.append(AppRoute.mensajes)
         case "ajustes":
@@ -170,6 +184,8 @@ struct MainTabView: View {
             if ruta.hasPrefix("perfil/") {
                 let handle = String(ruta.dropFirst("perfil/".count))
                 masPath.append(AppRoute.perfil(handle))
+            } else if ruta.hasPrefix("hashtag/") {
+                masPath.append(AppRoute.hashtag(String(ruta.dropFirst("hashtag/".count))))
             }
         }
     }
@@ -191,21 +207,23 @@ struct MainTabView: View {
 
         if route.hasPrefix("evento/") {
             let id = String(route.dropFirst("evento/".count))
-            tab = 1
+            tab = 3
             eventosPath = NavigationPath()
             eventosPath.append(AppRoute.eventoDetalle(id))
             return
         }
 
         if route == "eventos/crear" {
-            tab = 1
+            tab = 3
             eventosPath = NavigationPath()
             eventosPath.append(AppRoute.createEvento)
             return
         }
 
         if route == "notificaciones" {
-            tab = 3
+            tab = 0
+            feedPath = NavigationPath()
+            feedPath.append(AppRoute.notificaciones)
             return
         }
 
@@ -215,19 +233,20 @@ struct MainTabView: View {
             return
         }
 
+        // Mensajes cuelga del encabezado del inicio (diseño D).
         if route.hasPrefix("mensaje/") {
             let id = String(route.dropFirst("mensaje/".count))
-            tab = 4
-            masPath = NavigationPath()
-            masPath.append(AppRoute.mensajes)
-            masPath.append(AppRoute.mensajeDetalle(id))
+            tab = 0
+            feedPath = NavigationPath()
+            feedPath.append(AppRoute.mensajes)
+            feedPath.append(AppRoute.mensajeDetalle(id))
             return
         }
 
         if route == "mensajes" {
-            tab = 4
-            masPath = NavigationPath()
-            masPath.append(AppRoute.mensajes)
+            tab = 0
+            feedPath = NavigationPath()
+            feedPath.append(AppRoute.mensajes)
             return
         }
 
@@ -322,7 +341,8 @@ struct MainTabView: View {
             EventoDetalleView(
                 eventoId: id,
                 onPerfil: { handle in path.wrappedValue.append(AppRoute.perfil(handle)) },
-                onBorrado: { path.wrappedValue = NavigationPath() }
+                onBorrado: { path.wrappedValue = NavigationPath() },
+                onAventones: { path.wrappedValue.append(AppRoute.aventones) }
             )
         case .createEvento:
             CreateEventoView(
@@ -347,7 +367,7 @@ struct MainTabView: View {
                 onPerfil: { handle in path.wrappedValue.append(AppRoute.perfil(handle)) },
                 onPublicacion: { id in path.wrappedValue.append(AppRoute.postDetail(id)) },
                 onEvento: { id in
-                    tab = 1
+                    tab = 3
                     eventosPath = NavigationPath()
                     eventosPath.append(AppRoute.eventoDetalle(id))
                 },
@@ -373,7 +393,9 @@ struct MainTabView: View {
                 onAjustes: { path.wrappedValue.append(AppRoute.ajustes) },
                 onPostTap: { id in path.wrappedValue.append(AppRoute.postDetail(id)) },
                 onSeguidores: { h in path.wrappedValue.append(AppRoute.seguidores(h)) },
-                onSiguiendo: { h in path.wrappedValue.append(AppRoute.siguiendo(h)) }
+                onSiguiendo: { h in path.wrappedValue.append(AppRoute.siguiendo(h)) },
+                onEventoTap: { id in path.wrappedValue.append(AppRoute.eventoDetalle(id)) },
+                onAventonesTap: { path.wrappedValue.append(AppRoute.aventones) }
             )
         case .seguidores(let handle):
             SeguidoresView(handle: handle, modo: .seguidores) { h in
@@ -457,13 +479,15 @@ struct MainTabView: View {
             ClipsView(
                 desde: desde,
                 onPostTap: { id in path.wrappedValue.append(AppRoute.postDetail(id)) },
-                onAuthorTap: { handle in path.wrappedValue.append(AppRoute.perfil(handle)) }
+                onAuthorTap: { handle in path.wrappedValue.append(AppRoute.perfil(handle)) },
+                onGrabar: { tab = 2 }
             )
+        case .notificaciones:
+            NotificacionesView()
         }
     }
 
     private func actualizarBadge() async {
-        guard tab != 3 else { return }
         do {
             let resp = try await AgoraApi.sinLeer()
             avisosSinLeer = resp.total
@@ -509,6 +533,8 @@ enum AppRoute: Hashable {
     case moderacion
     /// Visor de clips; con el id del clip con el que abre.
     case clips(String?)
+    /// Avisos: desde el encabezado del inicio.
+    case notificaciones
 }
 
 // MARK: - Tab bar animado (paridad con `MainShell.kt`)
@@ -517,30 +543,28 @@ private struct AgoraTabItem: Identifiable {
     let id: Int
     let label: String
     let icon: String
+    /// Ícono cuando está activa (relleno donde SF Symbols lo tiene).
+    let iconActivo: String
 }
 
 private struct AgoraAnimatedTabBar: View {
     @Binding var selection: Int
-    let avisosSinLeer: Int
-    var mensajesSinLeer: Int = 0
-    let badgePulseToken: Int
 
     @State private var iconScales: [Int: CGFloat] = [0: 1, 1: 1, 2: 1, 3: 1, 4: 1]
-    @State private var badgeScale: CGFloat = 1
 
+    /// Los cinco destinos del diseño D. Los identificadores `tab.<n>` se quedan: las pruebas de UI los usan.
     private let tabs: [AgoraTabItem] = [
-        AgoraTabItem(id: 0, label: "Inicio", icon: "house.fill"),
-        AgoraTabItem(id: 1, label: "Eventos", icon: "calendar"),
-        AgoraTabItem(id: 2, label: "Publicar", icon: "plus"),
-        AgoraTabItem(id: 3, label: "Avisos", icon: "bell.fill"),
-        AgoraTabItem(id: 4, label: "Más", icon: "square.grid.2x2"),
+        AgoraTabItem(id: 0, label: "Inicio", icon: "house", iconActivo: "house.fill"),
+        AgoraTabItem(id: 1, label: "Clips", icon: "play.rectangle", iconActivo: "play.rectangle.fill"),
+        AgoraTabItem(id: 2, label: "Publicar", icon: "plus", iconActivo: "plus"),
+        AgoraTabItem(id: 3, label: "Eventos", icon: "calendar", iconActivo: "calendar"),
+        AgoraTabItem(id: 4, label: "Campus", icon: "square.grid.2x2", iconActivo: "square.grid.2x2.fill"),
     ]
 
     /// Íconos inactivos sobre la píldora oscura (mismo tono en claro y oscuro).
     private let tonoInactivo = Color(red: 189 / 255, green: 182 / 255, blue: 173 / 255)
 
-    /// Píldora oscura flotante con Publicar en naranja (docs/diseno-d.md §3). Los
-    /// identificadores `tab.<n>` y el orden se quedan: las pruebas de UI los usan.
+    /// Píldora oscura flotante con Publicar en naranja (docs/diseno-d.md §3).
     var body: some View {
         HStack(spacing: 0) {
             ForEach(tabs) { item in
@@ -558,9 +582,6 @@ private struct AgoraAnimatedTabBar: View {
         .padding(.bottom, 4)
         .onChange(of: selection) { newTab in
             bounceIcon(for: newTab)
-        }
-        .onChange(of: badgePulseToken) { _ in
-            pulseBadge()
         }
     }
 
@@ -585,7 +606,11 @@ private struct AgoraAnimatedTabBar: View {
                         .transition(.scale.combined(with: .opacity))
                 }
 
-                tabIcon(item, scale: scale)
+                // Activo relleno, inactivo de línea (artboard FeedD).
+                Image(systemName: selected ? item.iconActivo : item.icon)
+                    .font(.system(size: item.id == 2 ? 20 : 19, weight: item.id == 2 ? .bold : .semibold))
+                    .foregroundStyle(item.id == 2 || selected ? .white : tonoInactivo)
+                    .scaleEffect(scale)
             }
             // Alto fijo, no mínimo: dentro de `safeAreaInset` las figuras sin alto crecen hasta
             // llenar la pantalla (TestFlight 1.0.0 (5) salió con la barra estirada).
@@ -600,54 +625,6 @@ private struct AgoraAnimatedTabBar: View {
         .animation(AgoraDesign.Animation.spring, value: selected)
     }
 
-    @ViewBuilder
-    private func tabIcon(_ item: AgoraTabItem, scale: CGFloat) -> some View {
-        if item.id == 4, mensajesSinLeer > 0 {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: item.icon)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(colorIcono(item))
-                    .scaleEffect(scale)
-
-                Text(mensajesSinLeer > 9 ? "9+" : "\(mensajesSinLeer)")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(AgoraDesign.Colors.naranja)
-                    .clipShape(Capsule())
-                    .offset(x: 10, y: -8)
-                    .accessibilityLabel("\(mensajesSinLeer) mensajes sin leer")
-            }
-        } else if item.id == 3, avisosSinLeer > 0 {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: item.icon)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(colorIcono(item))
-                    .scaleEffect(scale)
-
-                Text(avisosSinLeer > 9 ? "9+" : "\(avisosSinLeer)")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(AgoraDesign.Colors.danger)
-                    .clipShape(Capsule())
-                    .scaleEffect(badgeScale)
-                    .offset(x: 10, y: -8)
-            }
-        } else {
-            Image(systemName: item.icon)
-                .font(item.id == 2 ? .title3.weight(.bold) : .body.weight(.semibold))
-                .foregroundStyle(colorIcono(item))
-                .scaleEffect(scale)
-        }
-    }
-
-    private func colorIcono(_ item: AgoraTabItem) -> Color {
-        item.id == 2 || selection == item.id ? .white : tonoInactivo
-    }
-
     private func bounceIcon(for tab: Int) {
         withAnimation(.spring(response: 0.25, dampingFraction: 0.45)) {
             iconScales[tab] = 1.15
@@ -655,17 +632,6 @@ private struct AgoraAnimatedTabBar: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
             withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
                 iconScales[tab] = 1.0
-            }
-        }
-    }
-
-    private func pulseBadge() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.45)) {
-            badgeScale = 1.25
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
-                badgeScale = 1.0
             }
         }
     }

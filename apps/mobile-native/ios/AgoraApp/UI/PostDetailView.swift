@@ -129,13 +129,13 @@ struct PostDetailView: View {
                         if let handle = post.autor?.handle { onAuthorTap?(handle) }
                     } label: {
                         Text(esAnonimo ? (post.alias ?? "Sin nombre") : (post.autor?.nombre ?? "Alguien"))
-                            .font(.headline)
+                            .font(.outfit(.headline))
                             .foregroundStyle(AgoraDesign.Colors.texto)
                     }
                     .buttonStyle(.agoraPlain)
                     .disabled(onAuthorTap == nil || post.autor?.handle == nil)
                     Text("· \(post.comunidad.nombre) · \(FormatUtils.haceCuanto(post.createdAt))")
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 }
 
@@ -148,7 +148,7 @@ struct PostDetailView: View {
                         )
                     } else {
                         Text(texto)
-                            .font(.body)
+                            .font(.outfit(.body))
                             .foregroundStyle(AgoraDesign.Colors.texto)
                     }
                 }
@@ -198,7 +198,7 @@ struct PostDetailView: View {
                 // Agrupado: en iOS 16 un ViewBuilder admite como máximo 10 hijos por bloque.
                 Group {
                     Text("Comentarios")
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                         .foregroundStyle(AgoraDesign.Colors.texto)
                         .padding(.top, AgoraDesign.Spacing.xs)
 
@@ -211,7 +211,7 @@ struct PostDetailView: View {
                                     ProgressView()
                                 }
                                 Text(cargandoAnteriores ? "Cargando…" : "Ver comentarios anteriores")
-                                    .font(.subheadline)
+                                    .font(.outfit(.subheadline))
                             }
                             .foregroundStyle(AgoraDesign.Colors.naranja)
                             .frame(maxWidth: .infinity)
@@ -243,7 +243,7 @@ struct PostDetailView: View {
 
                 if let error {
                     Text(error)
-                        .font(.footnote)
+                        .font(.outfit(.footnote))
                         .foregroundStyle(AgoraDesign.Colors.danger)
                 }
             }
@@ -443,13 +443,13 @@ private struct ComentarioRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(comentario.autor?.nombre ?? "Alguien")
-                .font(.caption.bold())
+                .font(.outfit(.caption, .bold))
                 .foregroundStyle(AgoraDesign.Colors.texto)
             Text(comentario.texto)
-                .font(.subheadline)
+                .font(.outfit(.subheadline))
                 .foregroundStyle(AgoraDesign.Colors.texto)
             Text(FormatUtils.haceCuanto(comentario.createdAt))
-                .font(.caption2)
+                .font(.outfit(.caption2))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
         }
         .padding(10)

@@ -85,12 +85,12 @@ struct LoginView: View {
                         .padding(.bottom, AgoraDesign.Spacing.lg)
 
                     Text(titulo)
-                        .font(.title2.bold())
+                        .font(.bricolage(.title2, extra: false))
                         .foregroundStyle(AgoraDesign.Colors.texto)
                         .accessibilityIdentifier("login.titulo")
 
                     Text(entradilla)
-                        .font(.subheadline)
+                        .font(.outfit(.subheadline))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, AgoraDesign.Spacing.xxs)
@@ -115,7 +115,7 @@ struct LoginView: View {
 
                     if let error {
                         Text(error)
-                            .font(.footnote)
+                            .font(.outfit(.footnote))
                             .foregroundStyle(AgoraDesign.Colors.danger)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.top, AgoraDesign.Spacing.sm)
@@ -169,7 +169,7 @@ struct LoginView: View {
 
             Toggle(isOn: $recordarme) {
                 Text(AgoraCopy.loginRecordarme)
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
                     .foregroundStyle(AgoraDesign.Colors.texto)
             }
             .tint(AgoraDesign.Colors.naranja)
@@ -202,7 +202,7 @@ struct LoginView: View {
                 .buttonStyle(.agoraPlain)
                 .accessibilityIdentifier("login.crearCuenta")
             }
-            .font(.footnote)
+            .font(.outfit(.footnote))
             .frame(maxWidth: .infinity)
             .padding(.top, AgoraDesign.Spacing.xxs)
             .disabled(cargando)
@@ -226,7 +226,7 @@ struct LoginView: View {
             enlace(AgoraCopy.loginPedirVolver, id: "pedir.volver") {
                 irA(.entrar)
             }
-            .font(.footnote)
+            .font(.outfit(.footnote))
             .padding(.top, AgoraDesign.Spacing.xxs)
             .disabled(cargando)
         }
@@ -256,7 +256,7 @@ struct LoginView: View {
             enlace(AgoraCopy.personalVolver, id: "personal.volver") {
                 irA(.codigo)
             }
-            .font(.footnote)
+            .font(.outfit(.footnote))
             .padding(.top, AgoraDesign.Spacing.xxs)
             .disabled(cargando)
         }
@@ -270,22 +270,22 @@ struct LoginView: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(AgoraCopy.personalConfirmaremos)
-                        .font(.footnote)
+                        .font(.outfit(.footnote))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     Text(emailNormalizado)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.outfit(.subheadline, .semibold))
                         .foregroundStyle(AgoraDesign.Colors.texto)
                 }
                 Spacer(minLength: AgoraDesign.Spacing.xs)
                 enlace(AgoraCopy.personalCambiar, id: "personal.cambiarUdlap") {
                     volverAlCorreo()
                 }
-                .font(.subheadline.weight(.semibold))
+                .font(.outfit(.subheadline, .semibold))
                 .disabled(cargando)
             }
             if let errorUdlap {
                 Text(errorUdlap)
-                    .font(.footnote)
+                    .font(.outfit(.footnote))
                     .foregroundStyle(AgoraDesign.Colors.danger)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -316,13 +316,13 @@ struct LoginView: View {
 
             if let aviso {
                 Text(aviso)
-                    .font(.footnote)
+                    .font(.outfit(.footnote))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Text(AgoraCopy.loginCodeLabel)
-                .font(.caption.bold())
+                .font(.outfit(.caption, .bold))
                 .foregroundStyle(AgoraDesign.Colors.texto)
             TextField("123456", text: $codigo)
                 .keyboardType(.numberPad)
@@ -357,7 +357,7 @@ struct LoginView: View {
                 }
                 .disabled(cargando)
             }
-            .font(.footnote)
+            .font(.outfit(.footnote))
             .frame(maxWidth: .infinity)
             .padding(.top, AgoraDesign.Spacing.xxs)
 
@@ -367,12 +367,12 @@ struct LoginView: View {
                     envioId = nil
                     irA(.personal)
                 }
-                .font(.footnote.bold())
+                .font(.outfit(.footnote, .bold))
                 .disabled(cargando)
             }
 
             Text(AgoraCopy.loginPie)
-                .font(.caption)
+                .font(.outfit(.caption))
                 .foregroundStyle(AgoraDesign.Colors.textoMuted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -407,7 +407,7 @@ struct LoginView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs) {
             Text(AgoraCopy.loginEmailLabel)
-                .font(.caption.bold())
+                .font(.outfit(.caption, .bold))
                 .foregroundStyle(AgoraDesign.Colors.texto)
             TextField(AgoraCopy.loginEmailPlaceholder, text: $email)
                 .textInputAutocapitalization(.never)
@@ -437,7 +437,7 @@ struct LoginView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs) {
             Text(etiqueta)
-                .font(.caption.bold())
+                .font(.outfit(.caption, .bold))
                 .foregroundStyle(AgoraDesign.Colors.texto)
             TextField(placeholder, text: texto)
                 .textInputAutocapitalization(.never)

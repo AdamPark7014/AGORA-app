@@ -2,341 +2,6 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
-// MARK: - Feed
-
-struct FeedView: View {
-    var reloadKey: Int = 0
-    var onPostTap: (String) -> Void = { _ in }
-    var onAuthorTap: (String) -> Void = { _ in }
-    var onHashtagTap: (String) -> Void = { _ in }
-    var onEventoTap: (String) -> Void = { _ in }
-    var onClipsTap: (String?) -> Void = { _ in }
-
-    @State private var posts: [PostDto] = []
-    @State private var cursor: String?
-    @State private var comunidades: [ComunidadDto] = []
-    @State private var comunidadSlug: String?
-    @State private var siguiendo = false
-    @State private var cargando = true
-    @State private var cargandoMas = false
-    @State private var error: String?
-    @ObservedObject private var network = NetworkMonitor.shared
-    /// «Tu día» plegado o abierto, como lo dejó la persona (igual que la tira de la web).
-    @AppStorage("agora.tuDiaAbierto") private var tuDiaAbierto = false
-
-    private var feedTrigger: String {
-        "\(reloadKey)|\(comunidadSlug ?? "")|\(siguiendo)"
-    }
-
-    var body: some View {
-        Group {
-            if cargando && posts.isEmpty {
-                AgoraFeedSkeleton()
-            } else if let error, posts.isEmpty {
-                AgoraErrorState(message: error) {
-                    Task { await traer(desde: nil, reemplazar: true) }
-                }
-            } else {
-                List {
-                    if !network.isOnline {
-                        Section {
-                            OfflineBanner()
-                                .listRowInsets(EdgeInsets(
-                                    top: AgoraDesign.Spacing.xs,
-                                    leading: AgoraDesign.Spacing.sm,
-                                    bottom: AgoraDesign.Spacing.xxs,
-                                    trailing: AgoraDesign.Spacing.sm
-                                ))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                        }
-                    }
-
-                    Section {
-                        cabeceraInicio
-                    }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 6, trailing: 18))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-
-                    // Diseño D (docs/diseno-d.md §4): lo del campus arriba y la gamificación
-                    // plegada en «Tu día», para que la primera publicación se vea sin bajar tanto.
-                    Group {
-                        Section {
-                            EventosEnVivoBanner(onEventoTap: onEventoTap)
-                        }
-                        Section {
-                            PreguntaDelDiaBanner()
-                        }
-                        Section {
-                            tuDia
-                        }
-                        Section {
-                            FilaClips(onClipTap: onClipsTap)
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 14))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-
-                    if posts.isEmpty {
-                        AgoraEmptyState(
-                            emoji: "🌱",
-                            title: AgoraCopy.feedEmptyTitle,
-                            subtitle: error ?? AgoraCopy.feedEmptySubtitle
-                        )
-                        .listRowBackground(Color.clear)
-                    } else {
-                        ForEach(posts) { post in
-                            PostCardView(
-                                post: post,
-                                onTap: { onPostTap(post.id) },
-                                onAuthorTap: post.autor?.handle.map { handle in
-                                    { onAuthorTap(handle) }
-                                },
-                                onHashtagTap: onHashtagTap,
-                                onMencionTap: onAuthorTap,
-                                onEliminado: { id in
-                                    posts.removeAll { $0.id == id }
-                                }
-                            )
-                            .listRowInsets(EdgeInsets(
-                                top: AgoraDesign.Spacing.xxs,
-                                leading: AgoraDesign.Spacing.sm,
-                                bottom: AgoraDesign.Spacing.xxs,
-                                trailing: AgoraDesign.Spacing.sm
-                            ))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                            .onAppear {
-                                if post.id == posts.last?.id {
-                                    Task { await cargarMas() }
-                                }
-                            }
-                        }
-                        if cargandoMas {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                    .tint(AgoraDesign.Colors.naranja)
-                                Spacer()
-                            }
-                            .listRowBackground(Color.clear)
-                        }
-                    }
-                }
-                .listStyle(.plain)
-                // Banners sin datos quedan en 0 pt en vez del alto mínimo de fila.
-                .environment(\.defaultMinListRowHeight, 0)
-                .scrollContentBackground(.hidden)
-                .background(AgoraDesign.Colors.fondo)
-                .animation(AgoraDesign.Animation.spring, value: posts.map(\.id))
-            }
-        }
-        .navigationTitle("Inicio")
-        .refreshable { await traer(desde: nil, reemplazar: true) }
-        .task(id: feedTrigger) { await traer(desde: nil, reemplazar: true) }
-        .task { await cargarComunidades() }
-    }
-
-    private var miCarrera: ComunidadDto? {
-        comunidades.first { $0.slug.hasPrefix("carrera:") && !$0.estaSilenciada }
-    }
-
-    /// Las que no cubre el segmento (generación, colegio, escuela…) van como chips.
-    private var otrasComunidades: [ComunidadDto] {
-        comunidades.filter {
-            !$0.estaSilenciada && $0.slug != "universidad:udlap" && $0.slug != miCarrera?.slug
-        }
-    }
-
-    private var cabeceraInicio: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(Self.fechaDeHoy())
-                .font(.footnote)
-                .foregroundStyle(AgoraDesign.Colors.textoMedio)
-
-            HStack(spacing: 0) {
-                opcionSegmento("Campus", activo: !siguiendo && comunidadSlug == nil) {
-                    siguiendo = false
-                    comunidadSlug = nil
-                }
-                if let carrera = miCarrera {
-                    opcionSegmento("Mi carrera", activo: !siguiendo && comunidadSlug == carrera.slug) {
-                        siguiendo = false
-                        comunidadSlug = carrera.slug
-                    }
-                }
-                opcionSegmento("Siguiendo", activo: siguiendo) {
-                    siguiendo = true
-                    comunidadSlug = nil
-                }
-            }
-            .padding(4)
-            .background(
-                AgoraDesign.Colors.superficie2,
-                in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
-            )
-
-            if !otrasComunidades.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(otrasComunidades, id: \.slug) { c in
-                            filtroChip(c.nombre, selected: !siguiendo && comunidadSlug == c.slug) {
-                                siguiendo = false
-                                comunidadSlug = c.slug
-                            }
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
-        }
-    }
-
-    private func opcionSegmento(_ texto: String, activo: Bool, accion: @escaping () -> Void) -> some View {
-        Button(action: accion) {
-            Text(texto)
-                .font(.subheadline.weight(activo ? .bold : .medium))
-                .foregroundStyle(activo ? AgoraDesign.Colors.texto : AgoraDesign.Colors.textoMedio)
-                .frame(maxWidth: .infinity, minHeight: 38)
-                .background {
-                    if activo {
-                        RoundedRectangle(cornerRadius: 11, style: .continuous)
-                            .fill(AgoraDesign.Colors.superficie)
-                            .shadow(color: .black.opacity(0.12), radius: 1, y: 1)
-                    }
-                }
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.agoraPlain)
-        .accessibilityAddTraits(activo ? .isSelected : [])
-    }
-
-    /// «Lunes 26 de octubre», con la hora del campus.
-    static func fechaDeHoy(_ ahora: Date = Date()) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "es_MX")
-        f.timeZone = TimeZone(identifier: "America/Mexico_City")
-        f.dateFormat = "EEEE d 'de' MMMM"
-        let texto = f.string(from: ahora)
-        return texto.prefix(1).uppercased() + texto.dropFirst()
-    }
-
-    /// Racha, retos, ranking y tips: a un toque, sin empujar las publicaciones hacia abajo.
-    private var tuDia: some View {
-        DisclosureGroup(isExpanded: $tuDiaAbierto) {
-            VStack(spacing: 8) {
-                RachaBadgeRow()
-                RetoSemanalBanner()
-                RetosAmigosRow()
-                RetosRankingSemanalRow(onPerfilTap: onAuthorTap)
-                RetosHistorialRow(onPerfilTap: onAuthorTap)
-                LeaderboardRachasRow(onPerfilTap: onAuthorTap)
-                CampusPulseBanner(onHashtagTap: onHashtagTap, onPerfilTap: onAuthorTap)
-                CampusTipBanner()
-            }
-            .padding(.top, 10)
-        } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Tu día")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(AgoraDesign.Colors.texto)
-                Text("Racha, retos y lo que se mueve en el campus")
-                    .font(.caption)
-                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
-            }
-        }
-        .tint(AgoraDesign.Colors.textoMedio)
-        .padding(14)
-        .background(
-            AgoraDesign.Colors.superficie,
-            in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous)
-                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
-        }
-    }
-
-    private func filtroChip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.subheadline)
-                .lineLimit(1)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 36)
-                .background(selected ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
-                .foregroundStyle(selected ? AgoraDesign.Colors.naranjaTinta : AgoraDesign.Colors.texto)
-                .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous)
-                        .stroke(selected ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.borde, lineWidth: 1)
-                }
-        }
-        .buttonStyle(.agoraPlain)
-    }
-
-    private func cargarComunidades() async {
-        do {
-            comunidades = try await AgoraApi.misComunidades()
-        } catch {
-            // Filtros opcionales; el feed sigue funcionando sin comunidades.
-        }
-    }
-
-    private func traer(desde: String?, reemplazar: Bool) async {
-        if reemplazar {
-            cargando = true
-        } else {
-            guard cursor != nil, !cargandoMas else { return }
-            cargandoMas = true
-        }
-        error = nil
-        defer {
-            cargando = false
-            cargandoMas = false
-        }
-
-        if reemplazar && !network.isOnline {
-            if let cached = OfflineCache.loadFeed() {
-                posts = cached.publicaciones ?? []
-                cursor = cached.siguienteCursor
-            }
-            return
-        }
-
-        do {
-            let resp = try await AgoraApi.feed(
-                cursor: desde,
-                comunidadSlug: comunidadSlug,
-                siguiendo: siguiendo ? true : nil
-            )
-            let nuevos = resp.publicaciones ?? []
-            posts = reemplazar ? nuevos : posts + nuevos
-            cursor = resp.siguienteCursor
-            if reemplazar && desde == nil {
-                OfflineCache.saveFeed(resp)
-            }
-        } catch {
-            if reemplazar {
-                if let cached = OfflineCache.loadFeed() {
-                    posts = cached.publicaciones ?? []
-                    cursor = cached.siguienteCursor
-                } else {
-                    self.error = FormatUtils.mensajeDe(error)
-                }
-            }
-        }
-    }
-
-    private func cargarMas() async {
-        guard let cursor, !cargando, !cargandoMas else { return }
-        await traer(desde: cursor, reemplazar: false)
-    }
-}
-
 // MARK: - Eventos
 
 private let iconoTipoEvento: [String: String] = [
@@ -374,7 +39,7 @@ struct EventosView: View {
                 Spacer()
                 Button(action: onCreateTap) {
                     Text("+ Crear evento")
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(AgoraTheme.accent)
@@ -389,7 +54,7 @@ struct EventosView: View {
                             tipo = filtro.valor
                         } label: {
                             Text(filtro.etiqueta)
-                                .font(.subheadline)
+                                .font(.outfit(.subheadline))
                                 .lineLimit(1)
                                 .padding(.horizontal, AgoraDesign.Spacing.sm)
                                 .padding(.vertical, AgoraDesign.Spacing.xs)
@@ -507,31 +172,31 @@ private struct EventoCardView: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("\(icono) \(evento.titulo)")
-                    .font(.headline)
+                    .font(.outfit(.headline))
                     .foregroundStyle(.primary)
                 Text(FormatUtils.formatearFecha(evento.inicioAt))
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
                     .foregroundStyle(.secondary)
                 if let lugar = evento.lugar, !lugar.isEmpty {
                     Text(lugar)
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(.secondary)
                 }
                 if let descripcion = evento.descripcion, !descripcion.isEmpty {
                     Text(descripcion)
-                        .font(.subheadline)
+                        .font(.outfit(.subheadline))
                         .foregroundStyle(.primary)
                         .lineLimit(3)
                 }
                 Text(resumenAsistencia)
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(AgoraTheme.accent)
 
                 Button {
                     onAsistencia(true)
                 } label: {
                     Text(yaVoy ? "✓ Vas a ir" : "Voy")
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                 }
@@ -625,10 +290,10 @@ private struct NotificacionCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(notificacion.texto)
-                .font(.body)
+                .font(.outfit(.body))
                 .fontWeight(notificacion.leida ? .regular : .semibold)
             Text(FormatUtils.formatearFecha(notificacion.createdAt))
-                .font(.caption)
+                .font(.outfit(.caption))
                 .foregroundStyle(.secondary)
         }
         .padding(14)
@@ -683,12 +348,12 @@ struct ProfileView: View {
                             fotoPerfil
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("@\(perfil?.handle ?? session.currentUser?.handle ?? "tu")")
-                                    .font(.title2.bold())
+                                    .font(.bricolage(.title2, extra: false))
                                 Text(nombreCompleto)
-                                    .font(.headline)
+                                    .font(.outfit(.headline))
                                 if let bio = perfil?.bio, !bio.isEmpty {
                                     Text(bio)
-                                        .font(.subheadline)
+                                        .font(.outfit(.subheadline))
                                         .foregroundStyle(.secondary)
                                 }
 
@@ -698,11 +363,11 @@ struct ProfileView: View {
                                     HStack(spacing: AgoraDesign.Spacing.md) {
                                         if let onSeguidoresTap {
                                             Button("Seguidores") { onSeguidoresTap(miHandle) }
-                                                .font(.caption.bold())
+                                                .font(.outfit(.caption, .bold))
                                         }
                                         if let onSiguiendoTap {
                                             Button("Siguiendo") { onSiguiendoTap(miHandle) }
-                                                .font(.caption.bold())
+                                                .font(.outfit(.caption, .bold))
                                         }
                                     }
                                     .foregroundStyle(AgoraDesign.Colors.naranja)
@@ -710,7 +375,7 @@ struct ProfileView: View {
 
                                 if let email = session.currentUser?.email {
                                     Text(email)
-                                        .font(.caption)
+                                        .font(.outfit(.caption))
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -793,7 +458,7 @@ struct ProfileView: View {
             .frame(width: 72, height: 72)
             .overlay {
                 Text(String(nombreCompleto.prefix(1)).uppercased())
-                    .font(.title.bold())
+                    .font(.bricolage(.title, extra: false))
                     .foregroundStyle(AgoraTheme.accent)
             }
     }
@@ -825,7 +490,7 @@ struct ProfileView: View {
                 Text(titulo)
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(.secondary)
             }
             .padding(AgoraDesign.Spacing.sm)

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @main
 struct AgoraApp: App {
@@ -7,6 +8,17 @@ struct AgoraApp: App {
     /// Ajustes → Apariencia (Sistema / Claro / Oscuro). Claro por omisión (Adam, 26-10-2026):
     /// quien no ha elegido ve la app en claro aunque su teléfono esté en oscuro.
     @AppStorage(AgoraTema.claveAlmacen) private var apariencia = AgoraTema.porOmision.rawValue
+
+    init() {
+        // Títulos de las barras de navegación con la tipografía D (Bricolage grande, Outfit en línea).
+        let barra = UINavigationBar.appearance()
+        if let grande = UIFont(name: "BricolageGrotesque-ExtraBold", size: 32) {
+            barra.largeTitleTextAttributes = [.font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: grande)]
+        }
+        if let chica = UIFont(name: "Outfit-SemiBold", size: 17) {
+            barra.titleTextAttributes = [.font: UIFontMetrics(forTextStyle: .headline).scaledFont(for: chica)]
+        }
+    }
 
     var body: some Scene {
         WindowGroup {

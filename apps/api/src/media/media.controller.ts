@@ -1,4 +1,3 @@
-import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 
@@ -156,7 +155,8 @@ export class MediaController {
       throw new NotFoundException('No existe.');
     }
 
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    createReadStream(ruta).pipe(res);
+    // `sendFile` y no un stream a pelo: responde Range con 206 y pone Content-Type. Sin eso el
+    // reproductor de iOS no abre un MP4 por HTTP (los videos del seed salían negros en CI).
+    res.sendFile(ruta, { maxAge: '365d', immutable: true });
   }
 }

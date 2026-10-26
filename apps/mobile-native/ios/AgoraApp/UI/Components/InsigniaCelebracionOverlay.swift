@@ -10,7 +10,7 @@ struct InsigniaCelebracionOverlay: ViewModifier {
             .overlay(alignment: .top) {
                 if let mensaje {
                     Text(mensaje)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.outfit(.subheadline, .semibold))
                         .multilineTextAlignment(.center)
                         .foregroundStyle(AgoraDesign.Colors.texto)
                         .padding(.horizontal, AgoraDesign.Spacing.md)

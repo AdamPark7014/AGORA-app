@@ -37,6 +37,8 @@
     </array>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Ágora accede a fotos para publicar en el feed.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Ágora agrega a tu calendario los eventos que tú eliges.</string>
     <key>NSCameraUsageDescription</key>
     <string>Ágora usa la cámara para tomar fotos en publicaciones.</string>
     <key>NSAppTransportSecurity</key>
@@ -50,6 +52,15 @@
     </array>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <key>UIAppFonts</key>
+    <array>
+        <string>bricolage_bold.ttf</string>
+        <string>bricolage_extrabold.ttf</string>
+        <string>outfit_regular.ttf</string>
+        <string>outfit_medium.ttf</string>
+        <string>outfit_semibold.ttf</string>
+        <string>outfit_bold.ttf</string>
+    </array>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>

@@ -44,7 +44,7 @@ struct PostCardView: View {
         Group {
             if eliminado {
                 Text("Publicación eliminada.")
-                    .font(.footnote)
+                    .font(.outfit(.footnote))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(AgoraDesign.Spacing.sm + 2)
@@ -86,12 +86,12 @@ struct PostCardView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 4) {
                                     Text(nombreVisible)
-                                        .font(.subheadline.bold())
+                                        .font(.outfit(.subheadline, .bold))
                                         .foregroundStyle(AgoraDesign.Colors.texto)
                                         .lineLimit(1)
                                     if post.autor?.verificado == true {
                                         Image(systemName: "checkmark.seal.fill")
-                                            .font(.caption2)
+                                            .font(.outfit(.caption2))
                                             .foregroundStyle(AgoraDesign.Colors.naranja)
                                             .accessibilityLabel("Verificado")
                                     }
@@ -101,7 +101,7 @@ struct PostCardView: View {
                                         .compactMap { $0 }
                                         .joined(separator: " · ")
                                 )
-                                .font(.caption)
+                                .font(.outfit(.caption))
                                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
                                 .lineLimit(1)
                             }
@@ -127,7 +127,7 @@ struct PostCardView: View {
                             onTap?()
                         } label: {
                             Text(texto)
-                                .font(.body)
+                                .font(.outfit(.body))
                                 .foregroundStyle(AgoraDesign.Colors.texto)
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -138,16 +138,15 @@ struct PostCardView: View {
 
                 if let media = post.media, !media.isEmpty {
                     ZStack {
-                        PostMediaCarousel(
+                        PostMediaGrid(
                             media: media,
                             altura: 230,
-                            onToque: onTap,
+                            onAbrir: onTap,
                             onDobleToque: {
                                 heartTrigger += 1
                                 Task { await reaccionar("ME_LATE") }
                             }
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto))
 
                         if heartTrigger > 0 {
                             FloatingHeartOverlay()
@@ -239,10 +238,10 @@ struct PostCardView: View {
     private var bandaComunidad: some View {
         HStack(spacing: 8) {
             Image(systemName: iconoComunidad)
-                .font(.caption.weight(.semibold))
+                .font(.outfit(.caption, .semibold))
                 .accessibilityHidden(true)
             Text(post.comunidad.nombre.uppercased())
-                .font(.caption.weight(.bold))
+                .font(.outfit(.caption, .bold))
                 .tracking(0.6)
                 .lineLimit(1)
             Spacer(minLength: 0)
@@ -275,7 +274,7 @@ struct PostCardView: View {
                     onTap?()
                 } label: {
                     Text("\(comentarios) \(comentarios == 1 ? "comentario" : "comentarios")")
-                        .font(.footnote)
+                        .font(.outfit(.footnote))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 }
                 .buttonStyle(.agoraPlain)
@@ -287,7 +286,7 @@ struct PostCardView: View {
                     onTap?()
                 } label: {
                     Image(systemName: "bubble.left")
-                        .font(.body)
+                        .font(.outfit(.body))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
@@ -298,7 +297,7 @@ struct PostCardView: View {
             if let url = EnlacesWeb.publicacion(post.id) {
                 ShareLink(item: url) {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.body)
+                        .font(.outfit(.body))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
@@ -340,7 +339,7 @@ struct PostCardView: View {
             }
         } label: {
             Image(systemName: "ellipsis")
-                .font(.subheadline)
+                .font(.outfit(.subheadline))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
@@ -373,11 +372,11 @@ struct PostCardView: View {
             .overlay {
                 if esAnonimo {
                     Image(systemName: "theatermasks")
-                        .font(.subheadline)
+                        .font(.outfit(.subheadline))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 } else {
                     Text(String((post.autor?.nombre ?? "?").prefix(1)).uppercased())
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                         .foregroundStyle(AgoraDesign.Colors.naranja)
                 }
             }

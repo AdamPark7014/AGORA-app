@@ -20,7 +20,7 @@ struct HashtagView: View {
                 List {
                     Section {
                         Text("#\(tag)")
-                            .font(.title2.bold())
+                            .font(.bricolage(.title2, extra: false))
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }

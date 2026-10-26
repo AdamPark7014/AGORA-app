@@ -111,12 +111,12 @@ struct EstadoEntregaOtpView: View {
 
             VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs) {
                 Text(texto)
-                    .font(.footnote)
+                    .font(.outfit(.footnote))
                     .foregroundStyle(AgoraDesign.Colors.texto)
                     .fixedSize(horizontal: false, vertical: true)
                 if let accion, let onAccion {
                     Button(accion, action: onAccion)
-                        .font(.footnote.bold())
+                        .font(.outfit(.footnote, .bold))
                         .foregroundStyle(AgoraDesign.Colors.naranja)
                         .buttonStyle(.agoraPlain)
                 }

@@ -47,7 +47,7 @@ struct ReaccionesRow: View {
             }
             if conteos.isEmpty, totalReacciones > 0 {
                 Text("\(totalReacciones) \(totalReacciones == 1 ? "reacción" : "reacciones")")
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
         }
@@ -73,7 +73,7 @@ private struct ReaccionButton: View {
                         .fontWeight(.semibold)
                 }
             }
-            .font(.footnote.weight(selected ? .semibold : .medium))
+            .font(.outfit(.footnote, selected ? .semibold : .medium))
             .foregroundStyle(selected ? AgoraDesign.Colors.naranjaTinta : AgoraDesign.Colors.texto)
             .padding(.horizontal, 12)
             .frame(minHeight: 36)
@@ -115,7 +115,7 @@ struct GuardarButton: View {
             Task { await alternar() }
         } label: {
             Image(systemName: estado ? "bookmark.fill" : "bookmark")
-                .font(.title3)
+                .font(.outfit(.title3))
                 .foregroundStyle(estado ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.textoMedio)
         }
         .buttonStyle(.agoraPlain)

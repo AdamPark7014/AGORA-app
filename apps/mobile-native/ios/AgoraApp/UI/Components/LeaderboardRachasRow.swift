@@ -18,11 +18,11 @@ struct LeaderboardRachasRow: View {
             if !entradas.isEmpty || miPosicion != nil {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("🔥 Top rachas del campus")
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                         .foregroundStyle(AgoraDesign.Colors.naranja)
 
                     Text("Los más constantes del momento — ¿te sumas mañana?")
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
                     if let posicion = miPosicion {
@@ -53,7 +53,7 @@ struct LeaderboardRachasRow: View {
 
     private func miPosicionChip(_ posicion: Int) -> some View {
         Text("Tu posición: #\(posicion) en el campus")
-            .font(.caption.bold())
+            .font(.outfit(.caption, .bold))
             .foregroundStyle(AgoraDesign.Colors.naranja)
             .padding(.horizontal, AgoraDesign.Spacing.sm)
             .padding(.vertical, 6)
@@ -75,16 +75,16 @@ struct LeaderboardRachasRow: View {
         } label: {
             VStack(spacing: 6) {
                 Text(medalla)
-                    .font(.caption)
+                    .font(.outfit(.caption))
 
                 leaderboardAvatar(nombre: entrada.nombre)
 
                 Text(entrada.nombre.split(separator: " ").first.map(String.init) ?? entrada.nombre)
-                    .font(.caption.bold())
+                    .font(.outfit(.caption, .bold))
                     .lineLimit(1)
 
                 Text("🔥 \(entrada.rachaActual) \(entrada.rachaActual == 1 ? "día" : "días")")
-                    .font(.caption.bold())
+                    .font(.outfit(.caption, .bold))
                     .foregroundStyle(AgoraDesign.Colors.naranja)
             }
             .padding(.horizontal, 12)
@@ -98,7 +98,7 @@ struct LeaderboardRachasRow: View {
     private func leaderboardAvatar(nombre: String) -> some View {
         let inicial = nombre.first.map { String($0).uppercased() } ?? "?"
         return Text(inicial)
-            .font(.subheadline.bold())
+            .font(.outfit(.subheadline, .bold))
             .foregroundStyle(AgoraDesign.Colors.naranja)
             .frame(width: 40, height: 40)
             .background(AgoraDesign.Colors.naranjaSuave)

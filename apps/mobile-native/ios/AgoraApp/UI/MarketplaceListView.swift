@@ -58,7 +58,7 @@ struct MarketplaceListView: View {
 
                 Button(action: onCrear) {
                     Label("Vender", systemImage: "plus")
-                        .font(.subheadline.weight(.bold))
+                        .font(.outfit(.subheadline, .bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 14)
                         .frame(minHeight: 44)
@@ -113,7 +113,7 @@ struct MarketplaceListView: View {
                             Button("Cargar más") {
                                 Task { await cargar(desde: cursor) }
                             }
-                            .font(.subheadline.weight(.semibold))
+                            .font(.outfit(.subheadline, .semibold))
                             .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
                             .frame(maxWidth: .infinity, minHeight: 44)
                             .padding(.vertical, 8)
@@ -133,7 +133,7 @@ struct MarketplaceListView: View {
     private func filtroChip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.subheadline)
+                .font(.outfit(.subheadline))
                 .padding(.horizontal, 14)
                 .frame(minHeight: 36)
                 .background(selected ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
@@ -201,7 +201,7 @@ private struct AnuncioCardView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
                     Text(precio)
-                        .font(.subheadline.weight(.heavy))
+                        .font(.bricolage(.subheadline))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
@@ -211,7 +211,7 @@ private struct AnuncioCardView: View {
                 .overlay(alignment: .topLeading) {
                     if let etiqueta = etiquetaEstado {
                         Text(etiqueta.uppercased())
-                            .font(.caption2.weight(.bold))
+                            .font(.outfit(.caption2, .bold))
                             .foregroundStyle(Color.black)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
@@ -221,14 +221,14 @@ private struct AnuncioCardView: View {
                 }
 
                 Text(anuncio.titulo)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.outfit(.subheadline, .semibold))
                     .foregroundStyle(AgoraDesign.Colors.texto)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Text(anuncio.vendedor?.nombre?.split(separator: " ").first.map(String.init) ?? "Alguien")
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     .lineLimit(1)
             }

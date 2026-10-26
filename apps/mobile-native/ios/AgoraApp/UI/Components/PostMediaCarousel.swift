@@ -1,5 +1,7 @@
+import AVFoundation
 import AVKit
 import SwiftUI
+import UIKit
 
 /// Foto o video ya resuelto a URL absoluta.
 struct ElementoMedia: Hashable {
@@ -54,7 +56,7 @@ struct PostMediaCarousel: View {
                 .indexViewStyle(.page(backgroundDisplayMode: .always))
                 .overlay(alignment: .topTrailing) {
                     Text("\(min(pagina + 1, lista.count))/\(lista.count)")
-                        .font(.caption2.bold())
+                        .font(.outfit(.caption2, .bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -118,6 +120,159 @@ struct PostMediaCarousel: View {
     }
 }
 
+/// Fotos y videos de una publicación en el feed, en cuadrícula (docs/diseno-d.md §3): una ocupa
+/// todo; dos van a mitades; tres o más, una grande y dos chicas con «+N» en la última. Las fotos
+/// abren el visor; un video lleva ▶ y abre la publicación, donde se reproduce.
+struct PostMediaGrid: View {
+    let media: [MediaDto]
+    var altura: CGFloat = 230
+    /// Toque en un video o en «+N»: abre la publicación.
+    var onAbrir: (() -> Void)?
+    /// Doble toque en una foto (reaccionar con «Me late»).
+    var onDobleToque: (() -> Void)?
+
+    @State private var visor: VisorImagenesItem?
+
+    private let separacion: CGFloat = 6
+
+    var body: some View {
+        let lista = ElementoMedia.desde(media)
+        let fotos = lista.filter { !$0.esVideo }.map(\.url)
+
+        GeometryReader { geo in
+            let ancho = geo.size.width
+            switch lista.count {
+            case 0:
+                EmptyView()
+            case 1:
+                celda(lista[0], fotos: fotos)
+            case 2:
+                HStack(spacing: separacion) {
+                    celda(lista[0], fotos: fotos)
+                        .frame(width: (ancho - separacion) / 2)
+                    celda(lista[1], fotos: fotos)
+                        .frame(width: (ancho - separacion) / 2)
+                }
+            default:
+                HStack(spacing: separacion) {
+                    celda(lista[0], fotos: fotos)
+                        .frame(width: (ancho - separacion) * 2 / 3)
+                    VStack(spacing: separacion) {
+                        celda(lista[1], fotos: fotos)
+                        celda(lista[2], fotos: fotos, mas: lista.count - 3)
+                    }
+                    .frame(width: (ancho - separacion) / 3)
+                }
+            }
+        }
+        .frame(height: lista.isEmpty ? 0 : altura)
+        .fullScreenCover(item: $visor) { item in
+            VisorImagenes(urls: item.urls, inicial: item.inicial)
+        }
+    }
+
+    @ViewBuilder
+    private func celda(_ elemento: ElementoMedia, fotos: [URL], mas: Int = 0) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            if elemento.esVideo {
+                MiniaturaVideo(url: elemento.url)
+                    .overlay {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 34, height: 34)
+                            .background(Color.black.opacity(0.6), in: Circle())
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { onAbrir?() }
+                    .accessibilityElement()
+                    .accessibilityLabel("Video")
+                    .accessibilityAddTraits(.isButton)
+            } else {
+                AsyncImage(url: elemento.url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    case .failure:
+                        AgoraDesign.Colors.skeletonBase
+                            .overlay {
+                                Image(systemName: "photo")
+                                    .foregroundStyle(AgoraDesign.Colors.textoMuted)
+                            }
+                    default:
+                        AgoraDesign.Colors.skeletonBase
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) { onDobleToque?() }
+                .onTapGesture(count: 1) {
+                    if mas > 0 {
+                        onAbrir?()
+                    } else {
+                        let inicial = fotos.firstIndex(of: elemento.url) ?? 0
+                        visor = VisorImagenesItem(urls: fotos, inicial: inicial)
+                    }
+                }
+                .accessibilityLabel("Foto")
+                .accessibilityAddTraits([.isImage, .isButton])
+            }
+
+            if mas > 0 {
+                Text("+\(mas)")
+                    .font(.outfit(.caption, .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .allowsHitTesting(false)
+                    .accessibilityLabel("\(mas) más")
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
+    }
+}
+
+/// Primer cuadro de un video remoto como portada (la API no da miniatura). Se guarda en memoria.
+struct MiniaturaVideo: View {
+    let url: URL
+
+    @State private var imagen: UIImage?
+
+    private static let cache = NSCache<NSURL, UIImage>()
+
+    var body: some View {
+        ZStack {
+            Color(red: 47 / 255, green: 42 / 255, blue: 38 / 255)
+            if let imagen {
+                Image(uiImage: imagen)
+                    .resizable()
+                    .scaledToFill()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        .task(id: url) { await cargar() }
+    }
+
+    private func cargar() async {
+        if let guardada = Self.cache.object(forKey: url as NSURL) {
+            imagen = guardada
+            return
+        }
+        let generador = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generador.appliesPreferredTrackTransform = true
+        generador.maximumSize = CGSize(width: 480, height: 480)
+        guard let cuadro = try? await generador.image(at: CMTime(seconds: 0.5, preferredTimescale: 600)).image else {
+            return
+        }
+        let nueva = UIImage(cgImage: cuadro)
+        Self.cache.setObject(nueva, forKey: url as NSURL)
+        imagen = nueva
+    }
+}
+
 /// Video en línea: el `AVPlayer` se crea al aparecer y se pausa al salir de pantalla.
 private struct VideoCelda: View {
     let url: URL
@@ -177,7 +332,7 @@ struct VisorImagenes: View {
                 dismiss()
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.title)
+                    .font(.outfit(.title))
                     .foregroundStyle(.white, Color.black.opacity(0.5))
             }
             .padding(AgoraDesign.Spacing.md)
@@ -219,7 +374,7 @@ private struct ImagenConZoom: View {
                     }
             case .failure:
                 Image(systemName: "photo")
-                    .font(.largeTitle)
+                    .font(.outfit(.largeTitle))
                     .foregroundStyle(Color.white.opacity(0.6))
             default:
                 ProgressView()

@@ -15,11 +15,11 @@ struct RetosRankingSemanalRow: View {
             if !entradas.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("🏆 Duelos de la semana")
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                         .foregroundStyle(AgoraDesign.Colors.naranja)
 
                     Text("Los que van ganando sus duelos esta semana.")
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -51,16 +51,16 @@ struct RetosRankingSemanalRow: View {
         } label: {
             VStack(spacing: 6) {
                 Text(medalla)
-                    .font(.caption)
+                    .font(.outfit(.caption))
 
                 rankingAvatar(nombre: entrada.nombre, url: entrada.fotoUrl)
 
                 Text(entrada.nombre.split(separator: " ").first.map(String.init) ?? entrada.nombre)
-                    .font(.caption.bold())
+                    .font(.outfit(.caption, .bold))
                     .lineLimit(1)
 
                 Text("🏆 \(entrada.victorias) \(entrada.victorias == 1 ? "victoria" : "victorias")")
-                    .font(.caption.bold())
+                    .font(.outfit(.caption, .bold))
                     .foregroundStyle(AgoraDesign.Colors.naranja)
             }
             .padding(.horizontal, 12)
@@ -92,7 +92,7 @@ struct RetosRankingSemanalRow: View {
     private func avatarPlaceholder(nombre: String) -> some View {
         let inicial = nombre.first.map { String($0).uppercased() } ?? "?"
         return Text(inicial)
-            .font(.subheadline.bold())
+            .font(.outfit(.subheadline, .bold))
             .foregroundStyle(AgoraDesign.Colors.naranja)
             .frame(width: 40, height: 40)
             .background(AgoraDesign.Colors.naranjaSuave)

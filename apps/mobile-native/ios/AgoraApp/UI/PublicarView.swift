@@ -77,17 +77,17 @@ struct PublicarView: View {
                     }
                     if let mensajeCola {
                         Text(mensajeCola)
-                            .font(.caption)
+                            .font(.outfit(.caption))
                             .foregroundStyle(AgoraDesign.Colors.naranja)
                     }
 
-                    Text("Publicar en").font(.subheadline.bold())
+                    Text("Publicar en").font(.outfit(.subheadline, .bold))
 
                     if cargandoComunidades {
                         ProgressView()
                     } else if comunidades.isEmpty {
                         Text("No tienes comunidades asignadas.")
-                            .font(.subheadline)
+                            .font(.outfit(.subheadline))
                             .foregroundStyle(.secondary)
                     } else {
                         comunidadPicker
@@ -175,13 +175,13 @@ struct PublicarView: View {
                         Button("+ Opción") {
                             opcionesEncuesta.append("")
                         }
-                        .font(.caption)
+                        .font(.outfit(.caption))
                     }
                 }
 
                 if restantes < 200 {
                     Text("\(restantes)")
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(restantes < 0 ? .red : .secondary)
                 }
 
@@ -201,7 +201,7 @@ struct PublicarView: View {
                 .disabled(!puedePublicar)
 
                 if let error {
-                    Text(error).font(.footnote).foregroundStyle(.red)
+                    Text(error).font(.outfit(.footnote)).foregroundStyle(.red)
                 }
             }
             .padding(16)
@@ -255,7 +255,7 @@ struct PublicarView: View {
             ForEach(comunidades, id: \.slug) { c in
                 Button { slug = c.slug } label: {
                     Text(c.nombre)
-                        .font(.subheadline)
+                        .font(.outfit(.subheadline))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(slug == c.slug ? AgoraDesign.Colors.naranjaSuave : Color(.secondarySystemGroupedBackground))

@@ -79,15 +79,15 @@ struct DirectorioView: View {
                                         .frame(width: 44, height: 44)
                                         .overlay {
                                             Text(inicialesDe(persona))
-                                                .font(.subheadline.bold())
+                                                .font(.outfit(.subheadline, .bold))
                                                 .foregroundStyle(AgoraDesign.Colors.naranja)
                                         }
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("\(persona.nombre) \(persona.apellidos)")
-                                            .font(.subheadline.bold())
+                                            .font(.outfit(.subheadline, .bold))
                                             .foregroundStyle(.primary)
                                         Text(subtitulo(persona))
-                                            .font(.caption)
+                                            .font(.outfit(.caption))
                                             .foregroundStyle(.secondary)
                                     }
                                 }
@@ -167,7 +167,7 @@ struct DirectorioView: View {
                         carrera = ""
                         colegio = ""
                     }
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
                     .foregroundStyle(AgoraDesign.Colors.naranja)
                 }
             }
@@ -189,9 +189,9 @@ struct DirectorioView: View {
                 Text(titulo)
                     .lineLimit(1)
                 Image(systemName: "chevron.down")
-                    .font(.caption2)
+                    .font(.outfit(.caption2))
             }
-            .font(.subheadline)
+            .font(.outfit(.subheadline))
             .padding(.horizontal, AgoraDesign.Spacing.sm)
             .padding(.vertical, AgoraDesign.Spacing.xs)
             .background(activo ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
@@ -219,7 +219,7 @@ struct DirectorioView: View {
     private func filtroChip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.subheadline)
+                .font(.outfit(.subheadline))
                 .padding(.horizontal, AgoraDesign.Spacing.sm)
                 .padding(.vertical, AgoraDesign.Spacing.xs)
                 .background(selected ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)

@@ -21,7 +21,7 @@ struct CampoContrasena: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs) {
             Text(etiqueta)
-                .font(.caption.bold())
+                .font(.outfit(.caption, .bold))
                 .foregroundStyle(AgoraDesign.Colors.texto)
             HStack(spacing: AgoraDesign.Spacing.xs) {
                 Group {
@@ -104,7 +104,7 @@ struct FormularioContrasena: View {
             }
             CampoContrasena(etiqueta: AgoraCopy.contrasenaNueva, valor: $nueva, visible: $visible, nueva: true)
             Text(AgoraCopy.contrasenaAyuda)
-                .font(.caption)
+                .font(.outfit(.caption))
                 .foregroundStyle(AgoraDesign.Colors.textoMuted)
                 .fixedSize(horizontal: false, vertical: true)
             CampoContrasena(
@@ -122,7 +122,7 @@ struct FormularioContrasena: View {
             )
             if let error {
                 Text(error)
-                    .font(.footnote)
+                    .font(.outfit(.footnote))
                     .foregroundStyle(AgoraDesign.Colors.danger)
                     .fixedSize(horizontal: false, vertical: true)
             }

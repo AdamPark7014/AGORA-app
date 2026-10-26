@@ -131,17 +131,17 @@ struct RegistroView: View {
             VStack(alignment: .leading, spacing: AgoraDesign.Spacing.md) {
                 VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs) {
                     Text(AgoraCopy.registroTitle)
-                        .font(.title.bold())
+                        .font(.bricolage(.title, extra: false))
                         .foregroundStyle(AgoraDesign.Colors.texto)
                     Text(AgoraCopy.registroSubtitle)
-                        .font(.subheadline)
+                        .font(.outfit(.subheadline))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 }
                 .padding(.bottom, AgoraDesign.Spacing.xxs)
 
                 VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs + 2) {
                     Text(AgoraCopy.registroHandleLabel)
-                        .font(.caption.bold())
+                        .font(.outfit(.caption, .bold))
                     HStack(spacing: 0) {
                         Text("@")
                             .foregroundStyle(AgoraDesign.Colors.naranja)
@@ -162,7 +162,7 @@ struct RegistroView: View {
                             .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
                     }
                     Text(AgoraCopy.registroHandleHint)
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 }
 
@@ -175,9 +175,9 @@ struct RegistroView: View {
 
                 VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs) {
                     Text("Carrera")
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                     Text(AgoraCopy.registroCarreraHint)
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 }
                 Group {
@@ -207,17 +207,17 @@ struct RegistroView: View {
 
                     if consultaCarrera.count >= 2, carrerasVisibles.isEmpty {
                         Text("Ninguna carrera se llama así. Prueba con otra palabra.")
-                            .font(.caption)
+                            .font(.outfit(.caption))
                             .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     } else if consultaCarrera.count < 2, carreraSlug == nil {
                         Text("Escribe al menos 2 letras: Sistemas, Derecho, Arquitectura…")
-                            .font(.caption)
+                            .font(.outfit(.caption))
                             .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     }
                 }
 
                 Text("Colegio (opcional)")
-                    .font(.subheadline.bold())
+                    .font(.outfit(.subheadline, .bold))
                     .padding(.top, AgoraDesign.Spacing.xxs)
                 ForEach(catalogo?.colegios ?? []) { colegio in
                     seleccionChip(
@@ -243,13 +243,13 @@ struct RegistroView: View {
 
                     if datosCompletos && !aceptaTerminos {
                         Text(AgoraCopy.registroTerminosFalta)
-                            .font(.caption)
+                            .font(.outfit(.caption))
                             .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     }
 
                     if let error {
                         Text(error)
-                            .font(.footnote)
+                            .font(.outfit(.footnote))
                             .foregroundStyle(AgoraDesign.Colors.danger)
                     }
                 }
@@ -265,7 +265,7 @@ struct RegistroView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs + 2) {
             Text(label)
-                .font(.caption.bold())
+                .font(.outfit(.caption, .bold))
             TextField(label, text: text)
                 .textInputAutocapitalization(autocap ? .words : .never)
                 .autocorrectionDisabled()
@@ -287,7 +287,7 @@ struct RegistroView: View {
                 aceptaTerminos.toggle()
             } label: {
                 Image(systemName: aceptaTerminos ? "checkmark.square.fill" : "square")
-                    .font(.title2)
+                    .font(.outfit(.title2))
                     .foregroundStyle(aceptaTerminos ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.textoMedio)
                     .frame(width: 44, height: 44)
             }
@@ -298,7 +298,7 @@ struct RegistroView: View {
             .accessibilityAddTraits(aceptaTerminos ? .isSelected : [])
 
             Text(Self.textoTerminos)
-                .font(.footnote)
+                .font(.outfit(.footnote))
                 .foregroundStyle(AgoraDesign.Colors.texto)
                 .tint(AgoraDesign.Colors.naranja)
                 .fixedSize(horizontal: false, vertical: true)
@@ -317,7 +317,7 @@ struct RegistroView: View {
     private var selectorGeneracion: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xxs + 2) {
             Text("Generación (año en que entraste)")
-                .font(.caption.bold())
+                .font(.outfit(.caption, .bold))
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 5), spacing: 6) {
                 ForEach(Self.generaciones, id: \.self) { ano in
                     let elegida = generacion == ano
@@ -325,7 +325,7 @@ struct RegistroView: View {
                         generacion = ano
                     } label: {
                         Text(String(ano))
-                            .font(.subheadline.weight(.semibold))
+                            .font(.outfit(.subheadline, .semibold))
                             .monospacedDigit()
                             .foregroundStyle(elegida ? AgoraDesign.Colors.fondo : AgoraDesign.Colors.texto)
                             .frame(maxWidth: .infinity, minHeight: 44)
@@ -348,7 +348,7 @@ struct RegistroView: View {
         Button(action: action) {
             HStack {
                 label
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
                     .multilineTextAlignment(.leading)
                 Spacer()
                 if selected {

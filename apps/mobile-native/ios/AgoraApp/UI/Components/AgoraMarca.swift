@@ -12,12 +12,12 @@ struct AgoraMarca: View {
             AgoraIsotipo(tamano: tamano)
             if conNombre {
                 Text(AgoraCopy.appName)
-                    .font(.largeTitle.bold())
+                    .font(.bricolage(.largeTitle, extra: false))
                     .foregroundStyle(AgoraDesign.Colors.texto)
             }
             if conLema {
                 Text(AgoraCopy.appTagline)
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     .multilineTextAlignment(.center)
             }
@@ -45,7 +45,7 @@ struct AgoraCreditoLegal: View {
     var body: some View {
         VStack(spacing: AgoraDesign.Spacing.xxs) {
             Text(AgoraCopy.legalNoAfiliada)
-                .font(.caption2)
+                .font(.outfit(.caption2))
                 .foregroundStyle(AgoraDesign.Colors.textoMuted)
                 .multilineTextAlignment(.center)
             HStack(spacing: 4) {
@@ -59,7 +59,7 @@ struct AgoraCreditoLegal: View {
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 }
             }
-            .font(.caption2)
+            .font(.outfit(.caption2))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, AgoraDesign.Spacing.xs)

@@ -25,9 +25,9 @@ struct AnonimoView: View {
             } else if habilitada != true {
                 VStack(spacing: AgoraDesign.Spacing.xs) {
                     Text("Zona sin nombre apagada")
-                        .font(.title3.bold())
+                        .font(.outfit(.title3, .bold))
                     Text("El equipo la tiene desactivada por ahora.")
-                        .font(.subheadline)
+                        .font(.outfit(.subheadline))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         .multilineTextAlignment(.center)
                 }
@@ -77,7 +77,7 @@ struct AnonimoView: View {
     private var tarjetaPublicar: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
             Text("Publicas como \(alias ?? "…")")
-                .font(.caption)
+                .font(.outfit(.caption))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
             TextEditor(text: $texto)
@@ -102,7 +102,7 @@ struct AnonimoView: View {
 
             if let error {
                 Text(error)
-                    .font(.footnote)
+                    .font(.outfit(.footnote))
                     .foregroundStyle(AgoraDesign.Colors.danger)
             }
 
@@ -110,7 +110,7 @@ struct AnonimoView: View {
                 Task { await publicar() }
             } label: {
                 Text(enviando ? "…" : "Publicar")
-                    .font(.subheadline.bold())
+                    .font(.outfit(.subheadline, .bold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
             }
@@ -207,11 +207,11 @@ private struct AnonimoPostCard: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(post.alias)
-                    .font(.subheadline.bold())
+                    .font(.outfit(.subheadline, .bold))
                 Spacer()
                 if post.esMio == true {
                     Button("Borrar", action: onBorrar)
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(AgoraDesign.Colors.danger)
                 } else {
                     Menu {
@@ -222,7 +222,7 @@ private struct AnonimoPostCard: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis")
-                            .font(.subheadline)
+                            .font(.outfit(.subheadline))
                             .foregroundStyle(AgoraDesign.Colors.textoMedio)
                             .frame(width: 32, height: 28)
                             .contentShape(Rectangle())
@@ -232,11 +232,11 @@ private struct AnonimoPostCard: View {
             }
 
             Text(FormatUtils.haceCuanto(post.createdAt))
-                .font(.caption)
+                .font(.outfit(.caption))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
             Text(post.texto)
-                .font(.body)
+                .font(.outfit(.body))
 
             HStack(spacing: AgoraDesign.Spacing.md) {
                 ForEach(reaccionesAnonimo, id: \.tipo) { reaccion in
@@ -244,7 +244,7 @@ private struct AnonimoPostCard: View {
                         onReaccionar(reaccion.tipo)
                     } label: {
                         Text("\(reaccion.emoji) \(post.numReactions ?? 0)")
-                            .font(.subheadline)
+                            .font(.outfit(.subheadline))
                             .foregroundStyle(
                                 post.miReaccion == reaccion.tipo
                                     ? AgoraDesign.Colors.naranja

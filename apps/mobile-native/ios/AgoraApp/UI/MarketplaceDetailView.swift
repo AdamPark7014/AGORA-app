@@ -29,19 +29,19 @@ struct MarketplaceDetailView: View {
                         }
 
                         Text("$\(FormatUtils.formatearPrecio(item.precioMxn)) MXN")
-                            .font(.title.bold())
+                            .font(.bricolage(.title, extra: false))
                             .foregroundStyle(AgoraDesign.Colors.naranja)
                         Text(item.titulo)
-                            .font(.title2.bold())
+                            .font(.bricolage(.title2, extra: false))
                         Text("\(item.vendedor?.nombre ?? "Alguien") · \(FormatUtils.haceCuanto(item.createdAt))")
-                            .font(.subheadline)
+                            .font(.outfit(.subheadline))
                             .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         Text(item.descripcion)
-                            .font(.body)
+                            .font(.outfit(.body))
 
                         if item.estadoVenta != "DISPONIBLE" {
                             Text("Este artículo ya no está disponible.")
-                                .font(.subheadline)
+                                .font(.outfit(.subheadline))
                                 .foregroundStyle(AgoraDesign.Colors.danger)
                         }
 
@@ -49,7 +49,7 @@ struct MarketplaceDetailView: View {
 
                         if let error {
                             Text(error)
-                                .font(.footnote)
+                                .font(.outfit(.footnote))
                                 .foregroundStyle(AgoraDesign.Colors.danger)
                         }
                     }

@@ -42,13 +42,13 @@ struct CreateEventoView: View {
             VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
                 Group {
                     Text("Nuevo evento")
-                        .font(.title3.bold())
+                        .font(.outfit(.title3, .bold))
 
                     campo("Título", text: $titulo)
                     campo("Lugar", text: $lugar)
 
                     Text("Descripción")
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                     TextEditor(text: $descripcion)
                         .frame(minHeight: 100)
                         .padding(8)
@@ -61,7 +61,7 @@ struct CreateEventoView: View {
                 }
 
                 Text("Tipo")
-                    .font(.subheadline.bold())
+                    .font(.outfit(.subheadline, .bold))
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(tiposEventoCrear, id: \.0) { valor, etiqueta in
@@ -69,7 +69,7 @@ struct CreateEventoView: View {
                                 tipo = valor
                             } label: {
                                 Text(etiqueta)
-                                    .font(.subheadline)
+                                    .font(.outfit(.subheadline))
                                     .padding(.horizontal, AgoraDesign.Spacing.sm)
                                     .padding(.vertical, AgoraDesign.Spacing.xs)
                                     .background(tipo == valor ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
@@ -87,7 +87,7 @@ struct CreateEventoView: View {
 
                 if !comunidades.isEmpty {
                     Text("Comunidad (opcional)")
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                     Picker("Comunidad", selection: Binding(
                         get: { comunidadSlug ?? "" },
                         set: { comunidadSlug = $0.isEmpty ? nil : $0 }
@@ -121,7 +121,7 @@ struct CreateEventoView: View {
 
                 if let error {
                     Text(error)
-                        .font(.footnote)
+                        .font(.outfit(.footnote))
                         .foregroundStyle(.red)
                 }
             }
@@ -154,7 +154,7 @@ struct CreateEventoView: View {
                 )
             }
         }
-        .font(.subheadline)
+        .font(.outfit(.subheadline))
         .tint(AgoraDesign.Colors.naranja)
         .onChange(of: inicioAt) { nuevo in
             // El evento no puede terminar antes de empezar (la API lo rechaza).
@@ -167,7 +167,7 @@ struct CreateEventoView: View {
     private func campo(_ label: String, text: Binding<String>, digitsOnly: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
-                .font(.caption)
+                .font(.outfit(.caption))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
             TextField(label, text: text)
                 .textFieldStyle(.roundedBorder)

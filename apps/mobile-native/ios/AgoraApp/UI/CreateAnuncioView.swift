@@ -47,7 +47,7 @@ struct CreateAnuncioView: View {
             VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
                 Group {
                     Text("Nuevo anuncio")
-                        .font(.title2.bold())
+                        .font(.bricolage(.title2, extra: false))
 
                     TextField("Título", text: $titulo)
                         .textFieldStyle(.roundedBorder)
@@ -76,7 +76,7 @@ struct CreateAnuncioView: View {
                     }
 
                 Text("Categoría")
-                    .font(.subheadline.bold())
+                    .font(.outfit(.subheadline, .bold))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
                 MarketplaceFlowLayout(spacing: 8) {
@@ -85,7 +85,7 @@ struct CreateAnuncioView: View {
                             categoria = cat.valor
                         } label: {
                             Text(cat.etiqueta)
-                                .font(.subheadline)
+                                .font(.outfit(.subheadline))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
                                 .background(categoria == cat.valor ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
@@ -144,7 +144,7 @@ struct CreateAnuncioView: View {
 
                 if let error {
                     Text(error)
-                        .font(.footnote)
+                        .font(.outfit(.footnote))
                         .foregroundStyle(AgoraDesign.Colors.danger)
                 }
             }

@@ -45,11 +45,11 @@ struct PreguntaDelDiaBanner: View {
         HStack {
             Label {
                 Text("PREGUNTA RELÁMPAGO")
-                    .font(.caption.weight(.bold))
+                    .font(.outfit(.caption, .bold))
                     .tracking(0.7)
             } icon: {
                 Image(systemName: "bolt.fill")
-                    .font(.caption)
+                    .font(.outfit(.caption))
             }
             .foregroundStyle(Self.naranjaClaro)
             .accessibilityAddTraits(.isHeader)
@@ -60,7 +60,7 @@ struct PreguntaDelDiaBanner: View {
 
     private func pildora(_ texto: String, resaltada: Bool = false) -> some View {
         Text(texto)
-            .font(.caption.monospacedDigit())
+            .font(.outfit(.caption).monospacedDigit())
             .foregroundStyle(resaltada ? Self.naranjaClaro : .white)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -71,10 +71,10 @@ struct PreguntaDelDiaBanner: View {
         VStack(alignment: .leading, spacing: 10) {
             cabeza { EmptyView() }
             Text("Hoy cae a una hora sorpresa.")
-                .font(.title3.weight(.bold))
+                .font(.outfit(.title3, .bold))
                 .foregroundStyle(.white)
             Text("Te avisamos en cuanto salga. Contesta en los primeros 2 minutos y sales a tiempo; antes de contestar no ves lo que dijeron los demás.")
-                .font(.footnote)
+                .font(.outfit(.footnote))
                 .foregroundStyle(Color.white.opacity(0.75))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -102,7 +102,7 @@ struct PreguntaDelDiaBanner: View {
             }
 
             Text(actual.texto)
-                .font(.title3.weight(.bold))
+                .font(.outfit(.title3, .bold))
                 .foregroundStyle(.white)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -114,13 +114,13 @@ struct PreguntaDelDiaBanner: View {
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(actual.yaRespondi ? (Self.comparacion(actual) ?? "") : "Contesta para ver qué dijeron los demás.")
-                    .font(.footnote)
+                    .font(.outfit(.footnote))
                     .foregroundStyle(Color.white.opacity(0.75))
                 Spacer(minLength: 0)
                 if actual.yaRespondi {
                     let total = actual.total ?? 0
                     Text("\(total) \(total == 1 ? "respuesta" : "respuestas")")
-                        .font(.footnote.weight(.semibold))
+                        .font(.outfit(.footnote, .semibold))
                         .foregroundStyle(Self.naranjaClaro)
                 }
             }
@@ -148,7 +148,7 @@ struct PreguntaDelDiaBanner: View {
                         .monospacedDigit()
                 }
             }
-            .font(.subheadline)
+            .font(.outfit(.subheadline))
             .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .frame(maxWidth: .infinity, minHeight: 44)

@@ -1,7 +1,9 @@
 name: ios-capturas
 
 # Capturas de iOS para App Store (6.9", 1320x2868), en claro y en oscuro, con el
-# seed de demo: feed, evento, aventones, mercado, mensajes y perfil. Postgres y
+# seed de demo (fotos y clips de packages/db/prisma/demo-media): inicio, feed, clips,
+# evento, aventones, mercado, mensajes y perfil. Una segunda pasada vacía la base y
+# captura el inicio sin contenido, que es lo que se ve en un campus nuevo. Postgres y
 # la API corren en el mismo Mac del CI, en modo desarrollo; nada toca
 # produccion. La misma prueba recorre el registro de una cuenta nueva y comprueba
 # la casilla de terminos (Apple 1.2). Las capturas salen en el artefacto
@@ -15,6 +17,8 @@ on:
       - '.github/workflows/ios-capturas.yml'
       - '.github/scripts/capturas-preparar.py'
       - 'packages/db/prisma/demo-seed.ts'
+      - 'packages/db/prisma/demo-media/**'
+      - 'apps/api/src/media/**'
 
 concurrency:
   group: ios-capturas-${{ github.ref }}
@@ -134,13 +138,36 @@ jobs:
             DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
             2>&1 | tee xcodebuild-capturas.log | grep -E "Test Case .*(passed|failed|skipped)|error:|\*\* TEST (SUCCEEDED|FAILED)"
 
-      - name: Catorce capturas de 1320x2868
+      # Lo que ve quien entra a un campus sin publicaciones (producción el 26-10-2026): se borran
+      # publicaciones, eventos, anuncios y aventones (todo en cascada) y se captura el inicio.
+      - name: Inicio sin contenido (segunda pasada, base vacía)
+        working-directory: apps/mobile-native/ios
+        env:
+          TEST_RUNNER_AGORA_CAPTURAS: ${{ github.workspace }}/capturas-ios
+          TEST_RUNNER_AGORA_API_URL: http://127.0.0.1:4200/api
+          TEST_RUNNER_AGORA_INICIO_VACIO: '1'
+        run: |
+          set -o pipefail
+          # Sin la URL de Prisma: libpq rechaza su parámetro `?schema=`.
+          PGPASSWORD=agora_ci psql -h 127.0.0.1 -U agora -d agora -v ON_ERROR_STOP=1 \
+            -c "DELETE FROM posts;" -c "DELETE FROM eventos;" -c "DELETE FROM anuncios;" -c "DELETE FROM aventones;"
+          xcodebuild test \
+            -project AgoraApp.xcodeproj \
+            -scheme AgoraApp \
+            -destination "id=$DEV" \
+            -only-testing:AgoraAppUITests/CapturasTiendaUITests/test3_inicioVacio \
+            -resultBundlePath "$RUNNER_TEMP/capturas-vacio.xcresult" \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- AGORA_CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
+            2>&1 | tee xcodebuild-capturas-vacio.log | grep -E "Test Case .*(passed|failed|skipped)|error:|\*\* TEST (SUCCEEDED|FAILED)"
+
+      - name: Dieciocho capturas de 1320x2868
         if: always()
         run: |
           cd "$GITHUB_WORKSPACE/capturas-ios" || { echo "::error::No hay capturas"; exit 1; }
           fallo=0
           for tema in claro oscuro; do
-            for nombre in inicio feed evento aventones mercado mensajes perfil; do
+            for nombre in inicio feed clips evento aventones mercado mensajes perfil inicio-vacio; do
               f="$tema/$nombre.png"
               if [ ! -f "$f" ]; then echo "::error::Falta $f"; fallo=1; continue; fi
               w=$(sips -g pixelWidth "$f" | awk '/pixelWidth/{print $2}')
@@ -159,6 +186,7 @@ jobs:
           path: |
             capturas-ios
             apps/mobile-native/ios/xcodebuild-capturas.log
+            apps/mobile-native/ios/xcodebuild-capturas-vacio.log
             ${{ runner.temp }}/api.log
           if-no-files-found: warn
 
@@ -166,5 +194,7 @@ jobs:
         if: failure()
         with:
           name: ios-capturas-xcresult
-          path: ${{ runner.temp }}/capturas.xcresult
+          path: |
+            ${{ runner.temp }}/capturas.xcresult
+            ${{ runner.temp }}/capturas-vacio.xcresult
           if-no-files-found: ignore

@@ -82,10 +82,10 @@ private struct ConversacionRowView: View {
                 avatar
                 VStack(alignment: .leading, spacing: 4) {
                     Text(conversacion.con?.nombre ?? "Alguien")
-                        .font(.subheadline.weight(nueva ? .bold : .semibold))
+                        .font(.outfit(.subheadline, nueva ? .bold : .semibold))
                         .foregroundStyle(AgoraDesign.Colors.texto)
                     Text(ultimoTexto)
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .fontWeight(nueva ? .semibold : .regular)
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         .lineLimit(1)
@@ -93,11 +93,11 @@ private struct ConversacionRowView: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 6) {
                     Text(FormatUtils.haceCuanto(conversacion.ultimoAt))
-                        .font(.caption2)
+                        .font(.outfit(.caption2))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     if let noLeidos = conversacion.noLeidos, noLeidos > 0 {
                         Text(noLeidos > 9 ? "9+" : "\(noLeidos)")
-                            .font(.caption2.bold())
+                            .font(.outfit(.caption2, .bold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -146,7 +146,7 @@ private struct ConversacionRowView: View {
             .frame(width: 44, height: 44)
             .overlay {
                 Text(iniciales(conversacion.con?.nombre))
-                    .font(.subheadline.bold())
+                    .font(.outfit(.subheadline, .bold))
                     .foregroundStyle(AgoraDesign.Colors.naranja)
             }
     }

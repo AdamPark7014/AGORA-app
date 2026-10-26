@@ -27,7 +27,7 @@ struct MensajeDetalleView: View {
                                     Task { await cargarAntiguos() }
                                 } label: {
                                     Text(cargandoAntiguos ? "Cargando…" : "Cargar mensajes anteriores")
-                                        .font(.caption)
+                                        .font(.outfit(.caption))
                                 }
                                 .disabled(cargandoAntiguos)
                                 .frame(maxWidth: .infinity)
@@ -61,7 +61,7 @@ struct MensajeDetalleView: View {
 
             if let error {
                 Text(error)
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(AgoraDesign.Colors.danger)
                     .padding(.horizontal, AgoraDesign.Spacing.sm)
             }
@@ -178,7 +178,7 @@ private struct BurbujaMensajeView: View {
         HStack {
             if mensaje.mio { Spacer(minLength: 48) }
             Text(mensaje.texto)
-                .font(.body)
+                .font(.outfit(.body))
                 .foregroundStyle(mensaje.mio ? .white : AgoraDesign.Colors.texto)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)

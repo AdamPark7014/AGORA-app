@@ -17,11 +17,11 @@ struct RetosAmigosRow: View {
             if !pendientes.isEmpty || !activos.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("⚔️ Retos con amigos")
-                        .font(.caption.bold())
+                        .font(.outfit(.caption, .bold))
                         .foregroundStyle(AgoraDesign.Colors.naranja)
 
                     Text("Acepta el reto o quédate viendo cómo te ganan.")
-                        .font(.caption2)
+                        .font(.outfit(.caption2))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -51,11 +51,11 @@ struct RetosAmigosRow: View {
 
         return VStack(alignment: .leading, spacing: 8) {
             Text("Te retaron")
-                .font(.caption2.bold())
+                .font(.outfit(.caption2, .bold))
                 .foregroundStyle(AgoraDesign.Colors.naranja)
 
             Text("@\(reto.retador.handle) te desafía a \(tipoLabelLargo(reto.tipo))")
-                .font(.subheadline.weight(.semibold))
+                .font(.outfit(.subheadline, .semibold))
                 .foregroundStyle(AgoraDesign.Colors.texto)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
@@ -65,7 +65,7 @@ struct RetosAmigosRow: View {
                     Task { await responder(reto: reto, aceptar: true) }
                 } label: {
                     Text("¡Va!")
-                        .font(.caption.bold())
+                        .font(.outfit(.caption, .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                 }
@@ -77,7 +77,7 @@ struct RetosAmigosRow: View {
                     Task { await responder(reto: reto, aceptar: false) }
                 } label: {
                     Text("Nel")
-                        .font(.caption.bold())
+                        .font(.outfit(.caption, .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                 }
@@ -98,16 +98,16 @@ struct RetosAmigosRow: View {
 
         return VStack(spacing: 6) {
             Text("\(tipoLabelCorto(reto.tipo)) \(estadoEmoji(reto: reto, soyRetador: soyRetador))")
-                .font(.caption2.bold())
+                .font(.outfit(.caption2, .bold))
                 .foregroundStyle(AgoraDesign.Colors.naranja)
 
             Text("Tú \(miPuntaje) vs @\(rival.handle) \(suPuntaje)")
-                .font(.subheadline.bold())
+                .font(.outfit(.subheadline, .bold))
                 .foregroundStyle(AgoraDesign.Colors.texto)
                 .lineLimit(1)
 
             Text(estadoCopy(reto: reto, soyRetador: soyRetador))
-                .font(.caption2)
+                .font(.outfit(.caption2))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 .multilineTextAlignment(.center)
         }

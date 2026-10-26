@@ -120,7 +120,7 @@ struct AventonesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
                 Text("Nuevo aventón")
-                    .font(.title2.bold())
+                    .font(.bricolage(.title2, extra: false))
 
                 // Agrupado: en iOS 16 un ViewBuilder admite como máximo 10 hijos por bloque.
                 Group {
@@ -166,7 +166,7 @@ struct AventonesView: View {
 
                 if let error {
                     Text(error)
-                        .font(.footnote)
+                        .font(.outfit(.footnote))
                         .foregroundStyle(AgoraDesign.Colors.danger)
                 }
 
@@ -202,7 +202,7 @@ struct AventonesView: View {
     private func filtroChip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.subheadline)
+                .font(.outfit(.subheadline))
                 .padding(.horizontal, AgoraDesign.Spacing.sm)
                 .padding(.vertical, AgoraDesign.Spacing.xs)
                 .background(selected ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
@@ -308,19 +308,19 @@ private struct AventonCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("\(aventon.origen) → \(aventon.destino)")
-                .font(.headline)
+                .font(.outfit(.headline))
             Text("\(FormatUtils.formatearFecha(aventon.salidaAt)) · $\(aventon.cuotaMxn) · \(aventon.ocupados)/\(aventon.lugares) lugares")
-                .font(.caption)
+                .font(.outfit(.caption))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
             if let nota = aventon.nota, !nota.isEmpty {
                 Text(nota)
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
             }
             if let conductor = aventon.conductor {
                 Button(conductor.nombre ?? conductor.handle ?? "Conductor") {
                     if let handle = conductor.handle { onPerfil(handle) }
                 }
-                .font(.subheadline)
+                .font(.outfit(.subheadline))
                 .foregroundStyle(AgoraDesign.Colors.naranja)
             }
             if aventon.esMio != true, let handle = aventon.conductor?.handle {

@@ -73,12 +73,12 @@ struct EditarPublicacionSheet: View {
                     }
 
                 Text("\(texto.count)/\(limiteTextoPublicacion)")
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
                 if let error {
                     Text(error)
-                        .font(.footnote)
+                        .font(.outfit(.footnote))
                         .foregroundStyle(AgoraDesign.Colors.danger)
                 }
 

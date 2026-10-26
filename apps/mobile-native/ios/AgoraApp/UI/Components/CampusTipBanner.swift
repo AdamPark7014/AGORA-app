@@ -11,10 +11,10 @@ struct CampusTipBanner: View {
         if !dismissed {
             HStack(alignment: .top, spacing: AgoraDesign.Spacing.xs) {
                 Text("💡")
-                    .font(.title3)
+                    .font(.outfit(.title3))
 
                 Text(CampusTips.tips[tipIndex])
-                    .font(.caption.weight(.medium))
+                    .font(.outfit(.caption, .medium))
                     .foregroundStyle(AgoraDesign.Colors.texto)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -22,7 +22,7 @@ struct CampusTipBanner: View {
                     dismissed = true
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.caption.weight(.semibold))
+                        .font(.outfit(.caption, .semibold))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         .padding(6)
                 }

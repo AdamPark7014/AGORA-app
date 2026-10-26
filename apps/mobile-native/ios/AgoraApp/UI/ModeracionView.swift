@@ -29,22 +29,22 @@ struct ModeracionView: View {
                 List {
                     if let error {
                         Text(error)
-                            .font(.caption)
+                            .font(.outfit(.caption))
                             .foregroundStyle(AgoraDesign.Colors.danger)
                     }
                     ForEach(items) { item in
                         VStack(alignment: .leading, spacing: 8) {
                             Text(item.tipo)
-                                .font(.caption.bold())
+                                .font(.outfit(.caption, .bold))
                                 .foregroundStyle(AgoraDesign.Colors.naranja)
                             Text(item.texto)
-                                .font(.body)
+                                .font(.outfit(.body))
                             Text("\(item.numReportes) reporte(s) · \(item.motivos.joined(separator: ", "))")
-                                .font(.caption)
+                                .font(.outfit(.caption))
                                 .foregroundStyle(.secondary)
                             if let autor = item.autor {
                                 Text("Autor: \(autor.nombre ?? autor.handle ?? "—")")
-                                    .font(.caption)
+                                    .font(.outfit(.caption))
                             }
                             HStack {
                                 Button("Retirar") {

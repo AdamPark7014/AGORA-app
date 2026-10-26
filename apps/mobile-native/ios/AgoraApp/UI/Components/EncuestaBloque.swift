@@ -13,7 +13,7 @@ struct EncuestaBloque: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(encuesta.pregunta)
-                .font(.subheadline.weight(.semibold))
+                .font(.outfit(.subheadline, .semibold))
 
             ForEach(encuesta.opciones ?? [], id: \.id) { opcion in
                 let pct = votosTotales > 0 ? (opcion.votos ?? 0) * 100 / votosTotales : 0
@@ -31,7 +31,7 @@ struct EncuestaBloque: View {
                             }
                         }
                         Text("\(opcion.texto) · \(pct)%")
-                            .font(.caption)
+                            .font(.outfit(.caption))
                             .foregroundStyle(AgoraDesign.Colors.texto)
                             .padding(.horizontal, 10)
                             .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)

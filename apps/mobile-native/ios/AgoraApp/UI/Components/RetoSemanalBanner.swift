@@ -32,18 +32,18 @@ struct RetoSemanalBanner: View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
             HStack {
                 Text(actual.titulo)
-                    .font(.caption.bold())
+                    .font(.outfit(.caption, .bold))
                     .foregroundStyle(AgoraDesign.Colors.naranja)
                 Spacer()
                 if actual.completado {
-                    Text("⭐").font(.title3)
+                    Text("⭐").font(.outfit(.title3))
                 }
             }
 
             Text(actual.completado
                 ? "¡Semana perfecta! Respondiste las 7 preguntas."
                 : "Responde la pregunta del día cada día esta semana.")
-                .font(.subheadline.weight(.semibold))
+                .font(.outfit(.subheadline, .semibold))
                 .foregroundStyle(AgoraDesign.Colors.texto)
 
             progresoBar(progreso: actual.progreso, meta: actual.meta, completado: actual.completado)
@@ -70,7 +70,7 @@ struct RetoSemanalBanner: View {
 
         VStack(alignment: .leading, spacing: 4) {
             Text("\(progreso)/\(metaSegura) preguntas")
-                .font(.caption2)
+                .font(.outfit(.caption2))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
             GeometryReader { geo in

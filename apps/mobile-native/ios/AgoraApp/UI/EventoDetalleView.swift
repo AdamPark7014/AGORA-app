@@ -1,3 +1,5 @@
+import EventKit
+import EventKitUI
 import SwiftUI
 
 private let etiquetasTipoEvento: [String: String] = [
@@ -24,11 +26,14 @@ struct EventoDetalleView: View {
     let eventoId: String
     var onPerfil: (String) -> Void = { _ in }
     var onBorrado: () -> Void = {}
+    /// Tarjeta «Aventones»: la lista general (la API no liga aventones con eventos).
+    var onAventones: () -> Void = {}
 
     @State private var evento: EventoDetalleDto?
     @State private var cargando = true
     @State private var error: String?
     @State private var respondiendo = false
+    @State private var agregandoCalendario = false
 
     var body: some View {
         Group {
@@ -45,12 +50,15 @@ struct EventoDetalleView: View {
                         portada(evento)
                         encabezado(evento)
                         quienVa(evento)
-                        if let lugar = evento.lugar, !lugar.isEmpty {
-                            comoLlegar(lugar)
+                        HStack(alignment: .top, spacing: 8) {
+                            if let lugar = evento.lugar, !lugar.isEmpty {
+                                comoLlegar(lugar)
+                            }
+                            tarjetaAventones
                         }
                         if let descripcion = evento.descripcion, !descripcion.isEmpty {
                             Text(descripcion)
-                                .font(.body)
+                                .font(.outfit(.body))
                                 .foregroundStyle(AgoraDesign.Colors.texto)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -60,12 +68,12 @@ struct EventoDetalleView: View {
                                 Task { await borrar() }
                             } label: {
                                 Text("Eliminar evento")
-                                    .font(.subheadline)
+                                    .font(.outfit(.subheadline))
                             }
                         }
                         if let error {
                             Text(error)
-                                .font(.footnote)
+                                .font(.outfit(.footnote))
                                 .foregroundStyle(AgoraDesign.Colors.danger)
                         }
                     }
@@ -92,6 +100,21 @@ struct EventoDetalleView: View {
             }
         }
         .task(id: eventoId) { await cargar() }
+        .sheet(isPresented: $agregandoCalendario) {
+            if let evento, let inicio = Self.fecha(evento.inicioAt) {
+                EditorCalendario(
+                    titulo: evento.titulo,
+                    inicio: inicio,
+                    fin: evento.finAt.flatMap(Self.fecha),
+                    lugar: evento.lugar,
+                    notas: evento.descripcion,
+                    url: EnlacesWeb.evento(evento.id)
+                ) {
+                    agregandoCalendario = false
+                }
+                .ignoresSafeArea()
+            }
+        }
     }
 
     // MARK: - Piezas
@@ -112,13 +135,13 @@ struct EventoDetalleView: View {
             if let inicio {
                 VStack(spacing: 2) {
                     Text(Self.formato(inicio, "EEE").uppercased())
-                        .font(.caption2.weight(.bold))
+                        .font(.outfit(.caption2, .bold))
                         .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
                     Text(Self.formato(inicio, "d"))
-                        .font(.title.weight(.heavy))
+                        .font(.bricolage(.title))
                         .foregroundStyle(AgoraDesign.Colors.texto)
                     Text(Self.formato(inicio, "MMM").uppercased())
-                        .font(.caption2)
+                        .font(.outfit(.caption2))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 }
                 .frame(width: 60, height: 66)
@@ -138,18 +161,18 @@ struct EventoDetalleView: View {
             .joined(separator: " · ")
         return VStack(alignment: .leading, spacing: 6) {
             Text(etiqueta.uppercased())
-                .font(.caption.weight(.bold))
+                .font(.outfit(.caption, .bold))
                 .foregroundStyle(AgoraDesign.Colors.naranjaTinta)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background(AgoraDesign.Colors.naranjaSuave, in: Capsule())
             Text(evento.titulo)
-                .font(.title.weight(.heavy))
+                .font(.bricolage(.title))
                 .foregroundStyle(AgoraDesign.Colors.texto)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             Text(Self.detalles(evento))
-                .font(.subheadline)
+                .font(.outfit(.subheadline))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
         }
     }
@@ -179,13 +202,13 @@ struct EventoDetalleView: View {
                 .accessibilityHidden(true)
             }
             Text(texto)
-                .font(.subheadline)
+                .font(.outfit(.subheadline))
                 .foregroundStyle(AgoraDesign.Colors.texto)
             Spacer(minLength: 0)
             if let cupo = evento.cupo {
                 let libres = max(0, cupo - van)
                 Text(libres == 0 ? "Lleno" : "\(libres) \(libres == 1 ? "lugar" : "lugares")")
-                    .font(.caption.weight(.bold))
+                    .font(.outfit(.caption, .bold))
                     .foregroundStyle(libres == 0 ? AgoraDesign.Colors.danger : AgoraDesign.Colors.success)
             }
         }
@@ -204,32 +227,43 @@ struct EventoDetalleView: View {
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         if let url = URL(string: "https://maps.apple.com/?q=\(consulta)") {
             Link(destination: url) {
-                HStack(spacing: 10) {
-                    Image(systemName: "mappin.and.ellipse")
-                        .font(.title3)
-                        .foregroundStyle(AgoraDesign.Colors.texto)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(lugar)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AgoraDesign.Colors.texto)
-                            .lineLimit(1)
-                        Text("Cómo llegar")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
-                    }
-                    Spacer(minLength: 0)
-                    Image(systemName: "arrow.up.right")
-                        .font(.caption)
-                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                }
-                .padding(12)
-                .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous)
-                        .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
-                }
+                tarjetaAccion(icono: "mappin.and.ellipse", titulo: lugar, accion: "Cómo llegar")
             }
             .accessibilityHint("Abre Mapas")
+        }
+    }
+
+    /// Sin número: la API del evento no dice cuántos aventones hay (igual que Android).
+    private var tarjetaAventones: some View {
+        Button(action: onAventones) {
+            tarjetaAccion(icono: "car", titulo: "Aventones", accion: "Busca o comparte uno")
+        }
+        .buttonStyle(.agoraPlain)
+    }
+
+    /// Tarjeta de la cuadrícula del evento (artboard Evento): ícono, título y acción en naranja.
+    private func tarjetaAccion(icono: String, titulo: String, accion: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Image(systemName: icono)
+                .font(.system(size: 18, weight: .regular))
+                .foregroundStyle(AgoraDesign.Colors.texto)
+                .accessibilityHidden(true)
+            Text(titulo)
+                .font(.outfit(.subheadline, .semibold))
+                .foregroundStyle(AgoraDesign.Colors.texto)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+            Text(accion)
+                .font(.outfit(.caption, .semibold))
+                .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous)
+                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
         }
     }
 
@@ -243,10 +277,10 @@ struct EventoDetalleView: View {
                     AvatarD(nombre: autor.nombre ?? handle, fotoUrl: autor.fotoUrl, tamano: 38)
                     (Text("Organiza ").foregroundColor(AgoraDesign.Colors.textoMedio)
                         + Text(autor.nombre ?? handle).bold().foregroundColor(AgoraDesign.Colors.texto))
-                        .font(.subheadline)
+                        .font(.outfit(.subheadline))
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 }
             }
@@ -254,14 +288,25 @@ struct EventoDetalleView: View {
         }
     }
 
-    /// Barra oscura fija: Me interesa y Voy (docs/diseno-d.md §4).
+    /// Barra oscura fija: Calendario, Me interesa y Voy (docs/diseno-d.md §4).
     private func barraAcciones(_ evento: EventoDetalleDto) -> some View {
         let voy = evento.miRespuesta == "VOY"
         let meInteresa = evento.miRespuesta == "ME_INTERESA"
         return HStack(spacing: 8) {
+            Button {
+                Task { await abrirCalendario() }
+            } label: {
+                Image(systemName: "calendar.badge.plus")
+                    .font(.system(size: 20, weight: .regular))
+                    .foregroundStyle(.white)
+                    .frame(width: 50, height: 50)
+                    .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
+            }
+            .buttonStyle(.agoraPlain)
+            .accessibilityLabel("Agregar a mi calendario")
             if evento.esMio == true {
                 Text("Tú organizas este evento")
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
                     .foregroundStyle(Color.white.opacity(0.75))
                     .frame(maxWidth: .infinity, minHeight: 50)
             } else {
@@ -269,7 +314,7 @@ struct EventoDetalleView: View {
                     Task { await responder("ME_INTERESA") }
                 } label: {
                     Label("Me interesa", systemImage: meInteresa ? "checkmark" : "star")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.outfit(.subheadline, .semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
                         .frame(minHeight: 50)
@@ -285,7 +330,7 @@ struct EventoDetalleView: View {
                         if voy { Image(systemName: "checkmark") }
                         Text(voy ? "Vas" : "Voy")
                     }
-                    .font(.body.weight(.bold))
+                    .font(.outfit(.body, .bold))
                     .foregroundStyle(voy ? AgoraDesign.Colors.oscuro : .white)
                     .frame(maxWidth: .infinity, minHeight: 50)
                     .background(voy ? Color.white : AgoraDesign.Colors.naranja, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
@@ -299,6 +344,20 @@ struct EventoDetalleView: View {
         .background(AgoraDesign.Colors.oscuro, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
         .padding(.horizontal, 14)
         .padding(.bottom, 8)
+    }
+
+    /// En iOS 17 el editor del sistema no pide permiso; en iOS 16 hay que pedirlo antes.
+    private func abrirCalendario() async {
+        if #available(iOS 17.0, *) {
+            agregandoCalendario = true
+            return
+        }
+        let permitido = (try? await EKEventStore().requestAccess(to: .event)) ?? false
+        if permitido {
+            agregandoCalendario = true
+        } else {
+            error = "Ágora no tiene permiso para tu calendario. Actívalo en Ajustes del iPhone."
+        }
     }
 
     // MARK: - Formatos
@@ -371,6 +430,50 @@ struct EventoDetalleView: View {
             onBorrado()
         } catch {
             self.error = FormatUtils.mensajeDe(error)
+        }
+    }
+}
+
+/// Editor de eventos del sistema con los datos del evento ya puestos: la persona elige el
+/// calendario y lo guarda (o lo cancela) sin salir de Ágora.
+private struct EditorCalendario: UIViewControllerRepresentable {
+    let titulo: String
+    let inicio: Date
+    let fin: Date?
+    let lugar: String?
+    let notas: String?
+    let url: URL?
+    let alTerminar: () -> Void
+
+    func makeCoordinator() -> Coordinador { Coordinador(alTerminar: alTerminar) }
+
+    func makeUIViewController(context: Context) -> EKEventEditViewController {
+        let almacen = EKEventStore()
+        let evento = EKEvent(eventStore: almacen)
+        evento.title = titulo
+        evento.startDate = inicio
+        evento.endDate = fin ?? inicio.addingTimeInterval(2 * 3600)
+        evento.location = lugar
+        evento.notes = notas
+        evento.url = url
+        let editor = EKEventEditViewController()
+        editor.eventStore = almacen
+        editor.event = evento
+        editor.editViewDelegate = context.coordinator
+        return editor
+    }
+
+    func updateUIViewController(_ editor: EKEventEditViewController, context: Context) {}
+
+    final class Coordinador: NSObject, EKEventEditViewDelegate {
+        let alTerminar: () -> Void
+
+        init(alTerminar: @escaping () -> Void) {
+            self.alTerminar = alTerminar
+        }
+
+        func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) {
+            alTerminar()
         }
     }
 }

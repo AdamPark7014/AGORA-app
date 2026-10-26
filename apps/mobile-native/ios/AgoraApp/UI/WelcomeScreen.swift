@@ -35,11 +35,11 @@ struct WelcomeScreen: View {
             HStack(spacing: AgoraDesign.Spacing.xs) {
                 AgoraIsotipo(tamano: 32)
                 Text(AgoraCopy.appName)
-                    .font(.headline.bold())
+                    .font(.outfit(.headline, .bold))
                     .foregroundStyle(AgoraDesign.Colors.texto)
                 Spacer()
                 Button("Saltar", action: onFinished)
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
             .padding(.horizontal, AgoraDesign.Spacing.lg)
@@ -58,11 +58,11 @@ struct WelcomeScreen: View {
                                 .foregroundStyle(AgoraDesign.Colors.naranja)
                         }
                         Text(item.title)
-                            .font(.title2.bold())
+                            .font(.bricolage(.title2, extra: false))
                             .foregroundStyle(AgoraDesign.Colors.texto)
                             .multilineTextAlignment(.center)
                         Text(item.description)
-                            .font(.body)
+                            .font(.outfit(.body))
                             .foregroundStyle(AgoraDesign.Colors.textoMedio)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, AgoraDesign.Spacing.md)

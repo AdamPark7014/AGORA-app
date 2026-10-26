@@ -1,14 +1,22 @@
 import AVFoundation
 import SwiftUI
+import UIKit
 
-/// Clips del campus (docs/diseno-d.md §4): videos verticales a pantalla completa, uno tras otro.
-/// Solo se muestra lo que la API da (`GET feed?tipo=clips`): sin vistas ni evento ligado.
-/// En iOS 16 no hay paginado vertical nativo, así que se pasa de clip deslizando de lado.
+/// Clips del campus (docs/diseno-d.md §4, artboard Reels): videos verticales a pantalla completa,
+/// uno tras otro. Es la segunda pestaña y también se abre desde la fila del inicio.
+/// Solo se muestra lo que la API da (`GET feed?tipo=clips`): sin vistas, «Seguir» ni evento ligado.
+/// En iOS 17 se pasa de clip deslizando hacia arriba; en iOS 16, de lado.
 struct ClipsView: View {
     /// Clip con el que abre (el que se tocó en el inicio).
     var desde: String?
+    /// Raíz de la pestaña Clips: sin «Volver».
+    var enPestana = false
+    /// La pestaña está a la vista: si no, ningún video corre ni suena.
+    var visible = true
     var onPostTap: (String) -> Void = { _ in }
     var onAuthorTap: (String) -> Void = { _ in }
+    /// «Grabar un clip»: lleva a Publicar.
+    var onGrabar: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
     @State private var clips: [PostDto] = []
@@ -30,36 +38,9 @@ struct ClipsView: View {
                     Task { await cargar() }
                 }
             } else if clips.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "play.rectangle")
-                        .font(.system(size: 44, weight: .light))
-                        .foregroundStyle(Color.white.opacity(0.7))
-                    Text(soloMiCarrera ? "Tu carrera aún no sube clips" : "Todavía no hay clips")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                    Text("Un video vertical publicado desde el inicio aparece aquí para todo el campus.")
-                        .font(.subheadline)
-                        .foregroundStyle(Color.white.opacity(0.75))
-                        .multilineTextAlignment(.center)
-                }
-                .padding(32)
+                vacio
             } else {
-                TabView(selection: $actual) {
-                    ForEach(clips) { clip in
-                        ClipPagina(
-                            post: clip,
-                            activo: actual == clip.id,
-                            conSonido: conSonido,
-                            onComentarios: { onPostTap(clip.id) },
-                            onAutor: {
-                                if let handle = clip.autor?.handle { onAuthorTap(handle) }
-                            }
-                        )
-                        .tag(Optional(clip.id))
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .ignoresSafeArea()
+                paginas
             }
 
             cabecera
@@ -70,10 +51,84 @@ struct ClipsView: View {
         .task { await cargarCarrera() }
     }
 
+    @ViewBuilder
+    private var paginas: some View {
+        if #available(iOS 17.0, *) {
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(spacing: 0) {
+                    ForEach(clips) { clip in
+                        pagina(clip)
+                            .containerRelativeFrame([.horizontal, .vertical])
+                            .id(clip.id)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: $actual)
+            .ignoresSafeArea()
+        } else {
+            TabView(selection: $actual) {
+                ForEach(clips) { clip in
+                    pagina(clip)
+                        .tag(Optional(clip.id))
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .ignoresSafeArea()
+        }
+    }
+
+    private func pagina(_ clip: PostDto) -> some View {
+        ClipPagina(
+            post: clip,
+            activo: visible && actual == clip.id,
+            conSonido: conSonido,
+            onComentarios: { onPostTap(clip.id) },
+            onAutor: {
+                if let handle = clip.autor?.handle { onAuthorTap(handle) }
+            },
+            onAlternarSonido: { conSonido.toggle() }
+        )
+    }
+
+    private var vacio: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "play.rectangle")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(Color.white.opacity(0.7))
+            Text(soloMiCarrera ? "Tu carrera aún no sube clips" : "Todavía no hay clips")
+                .font(.bricolage(22, relativeTo: .title2))
+                .foregroundStyle(.white)
+            Text("Un video vertical que publiques aparece aquí para todo el campus.")
+                .font(.outfit(.subheadline))
+                .foregroundStyle(Color.white.opacity(0.75))
+                .multilineTextAlignment(.center)
+            Button(action: onGrabar) {
+                Label("Subir un clip", systemImage: "video")
+                    .font(.outfit(.subheadline, .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .frame(minHeight: 46)
+                    .background(AgoraDesign.Colors.naranja, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+            }
+            .buttonStyle(.agoraPlain)
+            .padding(.top, 4)
+        }
+        .padding(32)
+    }
+
     private var cabecera: some View {
         VStack {
             HStack(spacing: 10) {
-                botonRedondo("chevron.left", etiqueta: "Volver") { dismiss() }
+                if enPestana {
+                    botonRedondo(conSonido ? "speaker.wave.2.fill" : "speaker.slash.fill",
+                                 etiqueta: conSonido ? "Quitar sonido" : "Activar sonido") {
+                        conSonido.toggle()
+                    }
+                } else {
+                    botonRedondo("chevron.left", etiqueta: "Volver") { dismiss() }
+                }
                 Spacer()
                 HStack(spacing: 18) {
                     if miCarrera != nil {
@@ -82,10 +137,7 @@ struct ClipsView: View {
                     pestana("Campus", activa: !soloMiCarrera) { soloMiCarrera = false }
                 }
                 Spacer()
-                botonRedondo(conSonido ? "speaker.wave.2.fill" : "speaker.slash.fill",
-                             etiqueta: conSonido ? "Quitar sonido" : "Activar sonido") {
-                    conSonido.toggle()
-                }
+                botonRedondo("video", etiqueta: "Grabar un clip", accion: onGrabar)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
@@ -96,7 +148,7 @@ struct ClipsView: View {
     private func botonRedondo(_ icono: String, etiqueta: String, accion: @escaping () -> Void) -> some View {
         Button(action: accion) {
             Image(systemName: icono)
-                .font(.body.weight(.semibold))
+                .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
                 .background(Color.black.opacity(0.35), in: Circle())
@@ -108,7 +160,7 @@ struct ClipsView: View {
     private func pestana(_ texto: String, activa: Bool, accion: @escaping () -> Void) -> some View {
         Button(action: accion) {
             Text(texto)
-                .font(.subheadline.weight(activa ? .bold : .medium))
+                .font(.outfit(.callout, activa ? .bold : .medium))
                 .foregroundStyle(activa ? .white : Color.white.opacity(0.7))
                 .frame(minHeight: 44)
                 .overlay(alignment: .bottom) {
@@ -149,16 +201,20 @@ struct ClipsView: View {
     }
 }
 
-/// Un clip: el video ocupa todo y encima van la comunidad, el autor, el texto y las acciones.
+/// Un clip: el video ocupa todo y encima van la comunidad, el autor, el texto, las acciones
+/// a la derecha y la barra de progreso abajo.
 private struct ClipPagina: View {
     let post: PostDto
     let activo: Bool
     let conSonido: Bool
     let onComentarios: () -> Void
     let onAutor: () -> Void
+    let onAlternarSonido: () -> Void
 
     @State private var miReaccion: String?
     @State private var conteos: [String: Int] = [:]
+    @State private var guardado = false
+    @State private var progreso: Double = 0
 
     private var url: URL? {
         post.media?.first { $0.esVideo == true }.flatMap { ApiClient.shared.resolveUrl($0.url) }
@@ -167,33 +223,48 @@ private struct ClipPagina: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             if let url {
-                ReproductorClip(url: url, activo: activo, conSonido: conSonido)
+                ReproductorClip(url: url, activo: activo, conSonido: conSonido, progreso: $progreso)
                     .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: onAlternarSonido)
                     .accessibilityLabel("Video de \(post.autor?.nombre ?? "alguien")")
+                    .accessibilityHint(conSonido ? "Toca para quitar el sonido" : "Toca para activar el sonido")
             }
 
             LinearGradient(colors: [.clear, Color.black.opacity(0.85)], startPoint: .center, endPoint: .bottom)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
-            HStack(alignment: .bottom, spacing: 12) {
-                info
-                Spacer(minLength: 0)
-                acciones
+            VStack(spacing: 14) {
+                HStack(alignment: .bottom, spacing: 12) {
+                    info
+                    Spacer(minLength: 0)
+                    acciones
+                }
+                // Avance del clip (docs/diseno-d.md §4).
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.25))
+                        Capsule().fill(.white).frame(width: geo.size.width * progreso)
+                    }
+                }
+                .frame(height: 3)
+                .accessibilityHidden(true)
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 90)
+            .padding(.bottom, 92)
         }
         .onAppear {
             miReaccion = post.miReaccion
             conteos = post.reacciones ?? [:]
+            guardado = post.miGuardado ?? false
         }
     }
 
     private var info: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(post.comunidad.nombre)
-                .font(.caption.weight(.semibold))
+            Label(post.comunidad.nombre, systemImage: "building.columns")
+                .font(.outfit(.caption, .semibold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
@@ -202,16 +273,25 @@ private struct ClipPagina: View {
                 Button(action: onAutor) {
                     HStack(spacing: 10) {
                         AvatarD(nombre: autor.nombre ?? autor.handle ?? "?", fotoUrl: autor.fotoUrl, tamano: 40)
-                        Text(autor.nombre ?? autor.handle ?? "")
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.white)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: AgoraDesign.Radii.avatar, style: .continuous)
+                                    .stroke(.white, lineWidth: 2)
+                            }
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(autor.nombre ?? autor.handle ?? "")
+                                .font(.outfit(.subheadline, .bold))
+                                .foregroundStyle(.white)
+                            Text(FormatUtils.haceCuanto(post.createdAt))
+                                .font(.outfit(.caption))
+                                .foregroundStyle(Color.white.opacity(0.75))
+                        }
                     }
                 }
                 .buttonStyle(.agoraPlain)
             }
             if !post.texto.isEmpty {
                 Text(post.texto)
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
                     .foregroundStyle(.white)
                     .lineLimit(3)
             }
@@ -238,6 +318,12 @@ private struct ClipPagina: View {
                 }
                 .accessibilityLabel("Enviar")
             }
+
+            accion(icono: guardado ? "bookmark.fill" : "bookmark", texto: "Guardar", color: .white) {
+                Task { await guardar() }
+            }
+            .accessibilityLabel(guardado ? "Guardado" : "Guardar")
+            .accessibilityAddTraits(guardado ? .isSelected : [])
         }
     }
 
@@ -251,12 +337,12 @@ private struct ClipPagina: View {
     private func etiquetaAccion(icono: String, texto: String, color: Color) -> some View {
         VStack(spacing: 4) {
             Image(systemName: icono)
-                .font(.title2)
+                .font(.system(size: 22, weight: .regular))
                 .foregroundStyle(color)
                 .frame(width: 48, height: 48)
                 .background(Color.black.opacity(0.35), in: Circle())
             Text(texto)
-                .font(.caption.weight(.semibold))
+                .font(.outfit(.caption, .semibold))
                 .foregroundStyle(.white)
         }
     }
@@ -277,6 +363,18 @@ private struct ClipPagina: View {
             conteos = conteosAnteriores
         }
     }
+
+    private func guardar() async {
+        Haptics.toggle()
+        let anterior = guardado
+        guardado.toggle()
+        do {
+            let resp = try await AgoraApi.guardarPost(id: post.id)
+            guardado = resp.guardado
+        } catch {
+            guardado = anterior
+        }
+    }
 }
 
 /// Video sin controles, en bucle, que solo suena y corre cuando su página está a la vista.
@@ -284,11 +382,20 @@ private struct ReproductorClip: UIViewRepresentable {
     let url: URL
     let activo: Bool
     let conSonido: Bool
+    @Binding var progreso: Double
 
     func makeUIView(context: Context) -> VistaReproductor {
         let vista = VistaReproductor()
         let jugador = AVQueuePlayer()
         context.coordinator.bucle = AVPlayerLooper(player: jugador, templateItem: AVPlayerItem(url: url))
+        let progreso = $progreso
+        context.coordinator.observador = jugador.addPeriodicTimeObserver(
+            forInterval: CMTime(seconds: 0.25, preferredTimescale: 600),
+            queue: .main
+        ) { [weak jugador] tiempo in
+            guard let duracion = jugador?.currentItem?.duration.seconds, duracion.isFinite, duracion > 0 else { return }
+            progreso.wrappedValue = min(1, max(0, tiempo.seconds / duracion))
+        }
         vista.capa.player = jugador
         vista.capa.videoGravity = .resizeAspectFill
         return vista
@@ -305,6 +412,9 @@ private struct ReproductorClip: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ vista: VistaReproductor, coordinator: Coordinator) {
+        if let observador = coordinator.observador {
+            vista.capa.player?.removeTimeObserver(observador)
+        }
         vista.capa.player?.pause()
         coordinator.bucle = nil
     }
@@ -313,6 +423,7 @@ private struct ReproductorClip: UIViewRepresentable {
 
     final class Coordinator {
         var bucle: AVPlayerLooper?
+        var observador: Any?
     }
 
     final class VistaReproductor: UIView {
@@ -321,66 +432,56 @@ private struct ReproductorClip: UIViewRepresentable {
     }
 }
 
-/// Fila «Clips del campus» del inicio: tarjetas verticales que abren el visor. Sin videos, no sale.
+/// Fila «Clips del campus» del inicio (artboard FeedD): tarjetas 132×200 con la comunidad
+/// arriba y el texto abajo. Los clips los trae el inicio; sin clips no sale.
 struct FilaClips: View {
+    let clips: [PostDto]
     var onClipTap: (String?) -> Void = { _ in }
 
-    @State private var clips: [PostDto] = []
-
     var body: some View {
-        VStack(spacing: 0) {
-            if !clips.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Clips del campus")
-                            .font(.title3.weight(.heavy))
-                            .foregroundStyle(AgoraDesign.Colors.texto)
-                            .accessibilityAddTraits(.isHeader)
-                        Spacer()
-                        Button("Ver todos") { onClipTap(nil) }
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
-                    }
-                    .padding(.horizontal, 4)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Clips del campus")
+                    .font(.bricolage(20, relativeTo: .title3))
+                    .foregroundStyle(AgoraDesign.Colors.texto)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Button("Ver todos") { onClipTap(nil) }
+                    .font(.outfit(.subheadline, .semibold))
+                    .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
+                    .frame(minHeight: 44)
+            }
+            .padding(.horizontal, 4)
 
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(clips.prefix(8)) { clip in
-                                tarjeta(clip)
-                            }
-                        }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(clips.prefix(8)) { clip in
+                        tarjeta(clip)
                     }
                 }
-                .padding(.vertical, 6)
             }
         }
-        .task { await cargar() }
     }
 
     private func tarjeta(_ clip: PostDto) -> some View {
         Button {
             onClipTap(clip.id)
         } label: {
-            ZStack {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(red: 47 / 255, green: 42 / 255, blue: 38 / 255))
-                Image(systemName: "play.fill")
-                    .font(.subheadline)
-                    .foregroundStyle(.white)
-                    .frame(width: 34, height: 34)
-                    .background(Color.black.opacity(0.45), in: Circle())
+            ZStack(alignment: .topLeading) {
+                portada(clip)
+                LinearGradient(colors: [.clear, Color.black.opacity(0.7)], startPoint: .center, endPoint: .bottom)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(clip.comunidad.nombre)
-                        .font(.caption2.weight(.semibold))
+                        .font(.outfit(.caption2, .semibold))
                         .foregroundStyle(.white)
                         .lineLimit(1)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.white.opacity(0.16), in: Capsule())
+                        .background(Color.white.opacity(0.18), in: Capsule())
                     Spacer(minLength: 0)
                     if !clip.texto.isEmpty {
                         Text(clip.texto)
-                            .font(.footnote.weight(.semibold))
+                            .font(.outfit(.footnote, .semibold))
                             .foregroundStyle(.white)
                             .lineLimit(3)
                             .multilineTextAlignment(.leading)
@@ -390,15 +491,32 @@ struct FilaClips: View {
                 .padding(10)
             }
             .frame(width: 132, height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .buttonStyle(.agoraPlain)
         .accessibilityLabel("Clip de \(clip.autor?.nombre ?? "alguien") en \(clip.comunidad.nombre)")
     }
 
-    private func cargar() async {
-        let resp = try? await AgoraApi.feed(tipo: "clips")
-        clips = (resp?.publicaciones ?? []).filter { post in
-            post.media?.contains { $0.esVideo == true } == true
+    /// Una foto del mismo post si la hay (como Android); si no, el primer cuadro del video.
+    @ViewBuilder
+    private func portada(_ clip: PostDto) -> some View {
+        let foto = clip.media?.first { $0.esVideo != true }.flatMap { ApiClient.shared.resolveUrl($0.thumbUrl ?? $0.url) }
+        let video = clip.media?.first { $0.esVideo == true }.flatMap { ApiClient.shared.resolveUrl($0.url) }
+        if let foto {
+            AsyncImage(url: foto) { fase in
+                if case .success(let imagen) = fase {
+                    imagen.resizable().scaledToFill()
+                } else {
+                    Color(red: 47 / 255, green: 42 / 255, blue: 38 / 255)
+                }
+            }
+            .frame(width: 132, height: 200)
+            .clipped()
+        } else if let video {
+            MiniaturaVideo(url: video)
+                .frame(width: 132, height: 200)
+        } else {
+            Color(red: 47 / 255, green: 42 / 255, blue: 38 / 255)
         }
     }
 }

@@ -34,7 +34,7 @@ struct RachaBadgeRow: View {
                         if data.rachaActual >= 2 {
                             ShareLink(item: textoCompartirRacha(dias: data.rachaActual)) {
                                 Image(systemName: "square.and.arrow.up")
-                                    .font(.body.weight(.semibold))
+                                    .font(.outfit(.body, .semibold))
                                     .foregroundStyle(AgoraDesign.Colors.naranja)
                             }
                             .accessibilityLabel("Compartir racha")
@@ -47,7 +47,7 @@ struct RachaBadgeRow: View {
 
                     if let ganados = data.duelosGanados, ganados > 0 {
                         Text("🏆 \(ganados) \(ganados == 1 ? "duelo ganando" : "duelos ganando")")
-                            .font(.caption.bold())
+                            .font(.outfit(.caption, .bold))
                             .foregroundStyle(AgoraDesign.Colors.naranja)
                             .padding(.horizontal, AgoraDesign.Spacing.sm)
                             .padding(.vertical, 6)
@@ -70,7 +70,7 @@ struct RachaBadgeRow: View {
 
     private func rachaChip(dias: Int) -> some View {
         Text("🔥 \(dias) \(dias == 1 ? "día" : "días")")
-            .font(.caption.bold())
+            .font(.outfit(.caption, .bold))
             .foregroundStyle(AgoraDesign.Colors.naranja)
             .padding(.horizontal, AgoraDesign.Spacing.sm)
             .padding(.vertical, 6)
@@ -81,7 +81,7 @@ struct RachaBadgeRow: View {
     private func comparacionCampusChip(_ comparacion: ComparacionCampusDto) -> some View {
         let promedio = Int(comparacion.promedioRacha.rounded())
         return Text("Tu racha vs campus: 🔥 \(comparacion.tuRacha) vs promedio \(promedio)")
-            .font(.caption2)
+            .font(.outfit(.caption2))
             .foregroundStyle(comparacion.porEncimaDelPromedio ? AgoraDesign.Colors.success : AgoraDesign.Colors.textoMedio)
             .padding(.horizontal, AgoraDesign.Spacing.sm)
             .padding(.vertical, 6)
@@ -114,7 +114,7 @@ struct GamificacionProfileSection: View {
                     if data.rachaActual > 0 {
                         HStack(spacing: 6) {
                             Text("🔥 \(data.rachaActual) \(data.rachaActual == 1 ? "día" : "días")")
-                                .font(.subheadline.bold())
+                                .font(.outfit(.subheadline, .bold))
                                 .foregroundStyle(AgoraDesign.Colors.naranja)
                                 .padding(.horizontal, AgoraDesign.Spacing.sm)
                                 .padding(.vertical, 6)
@@ -124,7 +124,7 @@ struct GamificacionProfileSection: View {
                             if data.rachaActual >= 2 {
                                 ShareLink(item: textoCompartirRacha(dias: data.rachaActual)) {
                                     Image(systemName: "square.and.arrow.up")
-                                        .font(.subheadline.weight(.semibold))
+                                        .font(.outfit(.subheadline, .semibold))
                                         .foregroundStyle(AgoraDesign.Colors.naranja)
                                 }
                                 .accessibilityLabel("Compartir racha")
@@ -133,7 +133,7 @@ struct GamificacionProfileSection: View {
 
                         if data.rachaMaxima > data.rachaActual {
                             Text("Mejor: \(data.rachaMaxima) días")
-                                .font(.caption)
+                                .font(.outfit(.caption))
                                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         }
                     }
@@ -142,7 +142,7 @@ struct GamificacionProfileSection: View {
                 if !data.badges.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Logros")
-                            .font(.caption.bold())
+                            .font(.outfit(.caption, .bold))
                             .foregroundStyle(AgoraDesign.Colors.naranja)
 
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -168,13 +168,13 @@ struct GamificacionPublicSection: View {
         if let data = gamificacion, data.rachaActual > 0 || !data.badges.isEmpty || (data.duelosGanados ?? 0) > 0 {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Racha")
-                    .font(.caption.bold())
+                    .font(.outfit(.caption, .bold))
                     .foregroundStyle(AgoraDesign.Colors.naranja)
 
                 HStack(spacing: AgoraDesign.Spacing.sm) {
                     if data.rachaActual > 0 {
                         Text("🔥 \(data.rachaActual) \(data.rachaActual == 1 ? "día" : "días")")
-                            .font(.caption.bold())
+                            .font(.outfit(.caption, .bold))
                             .foregroundStyle(AgoraDesign.Colors.naranja)
                             .padding(.horizontal, AgoraDesign.Spacing.sm)
                             .padding(.vertical, 6)
@@ -195,7 +195,7 @@ struct GamificacionPublicSection: View {
 
                 if let ganados = data.duelosGanados, ganados > 0 {
                     Text("🏆 \(ganados) \(ganados == 1 ? "duelo ganando" : "duelos ganando")")
-                        .font(.caption.bold())
+                        .font(.outfit(.caption, .bold))
                         .foregroundStyle(AgoraDesign.Colors.naranja)
                 }
             }

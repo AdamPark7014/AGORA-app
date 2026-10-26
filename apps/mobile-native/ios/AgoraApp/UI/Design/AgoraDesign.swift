@@ -76,6 +76,36 @@ enum AgoraDesign {
         static let avatar: CGFloat = 14
     }
 
+    /// Bricolage Grotesque 700–800 para títulos y cifras; Outfit 400–700 para lo demás
+    /// (docs/diseno-d.md §2). Empaquetadas en Resources/Fonts y registradas en Info.plist.
+    enum Fuentes {
+        static func nombreOutfit(_ peso: Font.Weight) -> String {
+            switch peso {
+            case .bold, .heavy, .black: return "Outfit-Bold"
+            case .semibold: return "Outfit-SemiBold"
+            case .medium: return "Outfit-Medium"
+            default: return "Outfit-Regular"
+            }
+        }
+
+        /// Tamaño del estilo del sistema en el tamaño de texto por omisión: con `relativeTo`
+        /// la fuente crece o se encoge con el que la persona elija en Ajustes.
+        static func tamano(_ estilo: Font.TextStyle) -> CGFloat {
+            switch estilo {
+            case .largeTitle: return 34
+            case .title: return 28
+            case .title2: return 22
+            case .title3: return 20
+            case .callout: return 16
+            case .subheadline: return 15
+            case .footnote: return 13
+            case .caption: return 12
+            case .caption2: return 11
+            default: return 17
+            }
+        }
+    }
+
     enum Animation {
         static let spring = SwiftUI.Animation.spring(response: 0.4, dampingFraction: 0.78)
         static let press = SwiftUI.Animation.spring(response: 0.25, dampingFraction: 0.6)
@@ -168,6 +198,9 @@ enum AgoraCopy {
         "Te registraste con tu correo personal. Te quedan \(dias) \(dias == 1 ? "día" : "días") para confirmar tu correo @udlap.mx."
     }
     static let udlapAvisoBoton = "Confirmar ahora"
+    static func udlapDiasRestantes(_ dias: Int) -> String {
+        "te \(dias == 1 ? "queda 1 día" : "quedan \(dias) días")"
+    }
     static let udlapAjustesBoton = "Confirmar mi correo UDLAP"
     static let udlapVencidoTitulo = "Confirma tu correo UDLAP para seguir"
     static let udlapVencidoTexto = "Pasaron los 30 días para confirmar tu correo @udlap.mx. Pide el código a tu correo UDLAP para seguir usando Ágora."
@@ -259,6 +292,26 @@ enum AgoraCopy {
     // Errors
     static let errorTitle = "Algo salió mal"
     static let retry = "Reintentar"
+}
+
+// MARK: - Tipografía D
+
+extension Font {
+    /// Outfit en el tamaño de un estilo del sistema. `headline` sale en seminegrita, como el del sistema.
+    static func outfit(_ estilo: Font.TextStyle, _ peso: Font.Weight = .regular) -> Font {
+        let real = estilo == .headline && peso == .regular ? .semibold : peso
+        return .custom(AgoraDesign.Fuentes.nombreOutfit(real), size: AgoraDesign.Fuentes.tamano(estilo), relativeTo: estilo)
+    }
+
+    /// Bricolage Grotesque: marca, nombres de sección, títulos de evento y de perfil, cifras.
+    static func bricolage(_ tamano: CGFloat, relativeTo estilo: Font.TextStyle = .title, extra: Bool = true) -> Font {
+        .custom(extra ? "BricolageGrotesque-ExtraBold" : "BricolageGrotesque-Bold", size: tamano, relativeTo: estilo)
+    }
+
+    /// Bricolage en el tamaño de un estilo del sistema.
+    static func bricolage(_ estilo: Font.TextStyle, extra: Bool = true) -> Font {
+        bricolage(AgoraDesign.Fuentes.tamano(estilo), relativeTo: estilo, extra: extra)
+    }
 }
 
 // MARK: - View helpers

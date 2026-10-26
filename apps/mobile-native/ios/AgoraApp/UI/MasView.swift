@@ -1,47 +1,26 @@
 import SwiftUI
 
-private struct EnlaceMas: Identifiable {
+private struct AccesoCampus: Identifiable {
     var id: String { ruta }
     let ruta: String
-    let emoji: String
+    let icono: String
     let titulo: String
     let nota: String
 }
 
-private struct SeccionMas: Identifiable {
-    var id: String { titulo }
-    let titulo: String
-    let enlaces: [EnlaceMas]
-}
-
-private let seccionesMas: [SeccionMas] = [
-    SeccionMas(
-        titulo: "Descubre",
-        enlaces: [
-            EnlaceMas(ruta: "buscar", emoji: "🔍", titulo: "Buscar", nota: "Personas, posts y más"),
-            EnlaceMas(ruta: "directorio", emoji: "📇", titulo: "Directorio", nota: "Buscar gente por carrera"),
-            EnlaceMas(ruta: "guardados", emoji: "🔖", titulo: "Guardados", nota: "Posts para ver después"),
-        ]
-    ),
-    SeccionMas(
-        titulo: "Campus",
-        enlaces: [
-            EnlaceMas(ruta: "marketplace", emoji: "🛍", titulo: "Marketplace", nota: "Compra y vende en campus"),
-            EnlaceMas(ruta: "aventones", emoji: "🚗", titulo: "Aventones", nota: "Comparte coche a Cholula"),
-            EnlaceMas(ruta: "anonimo", emoji: "🎭", titulo: "Sin nombre", nota: "Publicar sin firmar"),
-        ]
-    ),
-    SeccionMas(
-        titulo: "Tu cuenta",
-        enlaces: [
-            EnlaceMas(ruta: "notificaciones", emoji: "🔔", titulo: "Notificaciones", nota: "Todo tu historial"),
-            EnlaceMas(ruta: "mensajes", emoji: "✉️", titulo: "Mensajes", nota: "Tus conversaciones"),
-            EnlaceMas(ruta: "ajustes", emoji: "⚙️", titulo: "Ajustes", nota: "Tu perfil y privacidad"),
-        ]
-    ),
+/// Cuadrícula de la pestaña Campus (docs/diseno-d.md §3). Los identificadores `mas.<ruta>` se
+/// quedan: las pruebas de UI los usan.
+private let accesosCampus: [AccesoCampus] = [
+    AccesoCampus(ruta: "marketplace", icono: "bag", titulo: "Mercado", nota: "Compra y vende"),
+    AccesoCampus(ruta: "aventones", icono: "car", titulo: "Aventones", nota: "Viajes a Cholula y Puebla"),
+    AccesoCampus(ruta: "directorio", icono: "person.2", titulo: "Directorio", nota: "Gente por carrera"),
+    AccesoCampus(ruta: "anonimo", icono: "eye.slash", titulo: "Sin nombre", nota: "Publica sin firmar"),
+    AccesoCampus(ruta: "buscar", icono: "magnifyingglass", titulo: "Buscar", nota: "Personas y publicaciones"),
+    AccesoCampus(ruta: "guardados", icono: "bookmark", titulo: "Guardados", nota: "Para ver después"),
 ]
 
-/// Hub «Más» — paridad con `MasScreen.kt`.
+/// Pestaña Campus (antes «Más»), artboard «Campus · accesos y "Tu día"»: los accesos del campus,
+/// la racha y los retos que salieron del inicio, y tu cuenta. Paridad con `MasScreen.kt`.
 struct MasView: View {
     let onNavigate: (String) -> Void
     let onTerminos: () -> Void
@@ -53,189 +32,212 @@ struct MasView: View {
 
     @EnvironmentObject var session: SessionStore
 
-    @State private var perfil: PerfilMioDto?
+    private let columnas = [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+    ]
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: AgoraDesign.Spacing.md) {
-                Text("Más")
-                    .font(.largeTitle.bold())
-                    .foregroundStyle(AgoraDesign.Colors.texto)
-
-                if let handle = perfil?.handle ?? session.currentUser?.handle {
-                    tarjetaPerfil(handle: handle)
-                }
-
-                ForEach(seccionesMas) { seccion in
-                    Text(seccion.titulo)
-                        .font(.subheadline.bold())
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Campus")
+                        .font(.bricolage(30, relativeTo: .largeTitle))
+                        .tracking(-0.6)
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("Mercado, aventones, gente y tu día")
+                        .font(.outfit(.footnote))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                        .padding(.leading, AgoraDesign.Spacing.xxs)
+                }
+                .padding(.horizontal, 4)
+                .padding(.top, 8)
+                .padding(.bottom, 14)
 
-                    VStack(spacing: 0) {
-                        ForEach(Array(seccion.enlaces.enumerated()), id: \.element.id) { index, enlace in
-                            Button {
-                                onNavigate(enlace.ruta)
-                            } label: {
-                                HStack(spacing: AgoraDesign.Spacing.sm) {
-                                    Text(enlace.emoji)
-                                        .font(.title3)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(enlace.titulo)
-                                            .font(.subheadline.bold())
-                                            .foregroundStyle(AgoraDesign.Colors.texto)
-                                        Text(enlace.nota)
-                                            .font(.caption)
-                                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                                    }
-                                    Spacer()
-                                    if enlace.ruta == "mensajes", mensajesSinLeer > 0 {
-                                        Text(mensajesSinLeer > 99 ? "99+" : "\(mensajesSinLeer)")
-                                            .font(.caption2.bold())
-                                            .foregroundStyle(.white)
-                                            .padding(.horizontal, 7)
-                                            .padding(.vertical, 3)
-                                            .background(AgoraDesign.Colors.naranja)
-                                            .clipShape(Capsule())
-                                            .accessibilityLabel("\(mensajesSinLeer) sin leer")
-                                    }
-                                    Text("›")
-                                        .foregroundStyle(AgoraDesign.Colors.textoMuted)
-                                }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 14)
-                            }
-                            .buttonStyle(.agoraPlain)
-                            .accessibilityIdentifier("mas.\(enlace.ruta)")
-
-                            if index < seccion.enlaces.count - 1 {
-                                Divider()
-                                    .overlay(AgoraDesign.Colors.bordeSutil)
-                            }
-                        }
-                    }
-                    .background(AgoraDesign.Colors.superficie)
-                    .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: AgoraDesign.Radii.card)
-                            .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
+                LazyVGrid(columns: columnas, spacing: 8) {
+                    ForEach(accesosCampus) { acceso in
+                        tile(acceso)
                     }
                 }
+
+                titulo("Tu día")
+                VStack(spacing: 8) {
+                    TarjetaRachaD()
+                    RetoSemanalBanner()
+                    RetosAmigosRow()
+                    RetosRankingSemanalRow(onPerfilTap: { handle in onNavigate("perfil/\(handle)") })
+                    LeaderboardRachasRow(onPerfilTap: { handle in onNavigate("perfil/\(handle)") })
+                    CampusPulseBanner(
+                        onHashtagTap: { tag in onNavigate("hashtag/\(tag)") },
+                        onPerfilTap: { handle in onNavigate("perfil/\(handle)") }
+                    )
+                }
+
+                titulo("Tu cuenta")
+                VStack(spacing: 0) {
+                    fila("Mi perfil", ruta: "perfil-yo")
+                    Divider().overlay(AgoraDesign.Colors.borde)
+                    fila("Mensajes", ruta: "mensajes", cuenta: mensajesSinLeer)
+                    Divider().overlay(AgoraDesign.Colors.borde)
+                    fila("Ajustes", ruta: "ajustes")
+                }
+                .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
 
                 HStack(spacing: AgoraDesign.Spacing.xs) {
                     Spacer(minLength: 0)
                     Button("Términos", action: onTerminos)
-                        .foregroundStyle(AgoraDesign.Colors.naranja)
+                        .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
                     Text("·")
                         .foregroundStyle(AgoraDesign.Colors.textoMuted)
                     Button("Reglas", action: onReglas)
-                        .foregroundStyle(AgoraDesign.Colors.naranja)
+                        .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
                         .accessibilityLabel("Reglas de la comunidad")
                     Text("·")
                         .foregroundStyle(AgoraDesign.Colors.textoMuted)
                     Button("Privacidad", action: onPrivacidad)
-                        .foregroundStyle(AgoraDesign.Colors.naranja)
+                        .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
                     Spacer(minLength: 0)
                 }
-                .font(.subheadline)
+                .font(.outfit(.subheadline))
                 .frame(minHeight: 44)
+                .padding(.top, 12)
 
-                Button("Cerrar sesión", role: .destructive, action: onLogout)
-                    .frame(maxWidth: .infinity)
-                    .buttonStyle(.bordered)
+                Button(role: .destructive, action: onLogout) {
+                    Text("Cerrar sesión")
+                        .font(.outfit(.subheadline, .semibold))
+                        .foregroundStyle(AgoraDesign.Colors.danger)
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+                }
+                .buttonStyle(.agoraPlain)
+                .padding(.top, 4)
 
                 VStack(spacing: AgoraDesign.Spacing.xs) {
                     AgoraIsotipo(tamano: 28)
                     AgoraCreditoLegal()
                 }
-                .padding(.top, AgoraDesign.Spacing.sm)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 20)
             }
-            .padding(AgoraDesign.Spacing.md)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 16)
         }
         .background(AgoraDesign.Colors.fondo)
-        .navigationTitle("Más")
-        .navigationBarTitleDisplayMode(.inline)
-        .task { await cargarPerfil() }
+        .toolbar(.hidden, for: .navigationBar)
     }
 
-    private func tarjetaPerfil(handle: String) -> some View {
+    private func titulo(_ texto: String) -> some View {
+        Text(texto)
+            .font(.bricolage(20, relativeTo: .title3))
+            .foregroundStyle(AgoraDesign.Colors.texto)
+            .accessibilityAddTraits(.isHeader)
+            .padding(.horizontal, 4)
+            .padding(.top, 22)
+            .padding(.bottom, 10)
+    }
+
+    private func tile(_ acceso: AccesoCampus) -> some View {
         Button {
-            // Hub propio: ProfileView (moderación, ajustes, legal), no PerfilAjeno.
-            onNavigate("perfil-yo")
+            onNavigate(acceso.ruta)
         } label: {
-            HStack(spacing: 14) {
-                avatarConAnillo(nombre: perfil?.nombre ?? handle)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(perfil?.nombre ?? "Tu perfil")
-                        .font(.headline)
-                        .foregroundStyle(AgoraDesign.Colors.texto)
-                    Text("@\(handle)")
-                        .font(.subheadline)
-                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                    Text("Ver mi perfil ›")
-                        .font(.caption.bold())
-                        .foregroundStyle(AgoraDesign.Colors.naranja)
-                        .padding(.top, 2)
-                }
-                Spacer()
+            VStack(alignment: .leading, spacing: 0) {
+                Image(systemName: acceso.icono)
+                    .font(.system(size: 22, weight: .regular))
+                    .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
+                    .accessibilityHidden(true)
+                Spacer(minLength: 12)
+                Text(acceso.titulo)
+                    .font(.outfit(.callout, .bold))
+                    .foregroundStyle(AgoraDesign.Colors.texto)
+                Text(acceso.nota)
+                    .font(.outfit(.caption))
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
-            .padding(AgoraDesign.Spacing.md)
-            .background(AgoraDesign.Colors.superficieElevada)
-            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
-            .overlay {
-                RoundedRectangle(cornerRadius: AgoraDesign.Radii.card)
-                    .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
-            }
+            .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+            .padding(14)
+            .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
         }
         .buttonStyle(.agoraPlain)
+        .accessibilityIdentifier("mas.\(acceso.ruta)")
+        .accessibilityLabel("\(acceso.titulo): \(acceso.nota)")
     }
 
-    private func avatarConAnillo(nombre: String) -> some View {
-        let iniciales = inicialesDe(nombre)
-        return ZStack {
-            Circle()
-                .stroke(AgoraDesign.Colors.naranja, lineWidth: 2.5)
-                .frame(width: 56, height: 56)
-            if let url = ApiClient.shared.resolveUrl(perfil?.fotoUrl) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        placeholderAvatar(iniciales: iniciales)
-                    }
+    private func fila(_ texto: String, ruta: String, cuenta: Int = 0) -> some View {
+        Button {
+            onNavigate(ruta)
+        } label: {
+            HStack(spacing: 10) {
+                Text(texto)
+                    .font(.outfit(.callout))
+                    .foregroundStyle(AgoraDesign.Colors.texto)
+                Spacer()
+                if cuenta > 0 {
+                    Text(cuenta > 99 ? "99+" : "\(cuenta)")
+                        .font(.outfit(.caption2, .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(AgoraDesign.Colors.naranja, in: Capsule())
+                        .accessibilityLabel("\(cuenta) sin leer")
                 }
-                .frame(width: 48, height: 48)
-                .clipShape(Circle())
-            } else {
-                placeholderAvatar(iniciales: iniciales)
-                    .frame(width: 48, height: 48)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    .accessibilityHidden(true)
             }
+            .padding(.horizontal, 18)
+            .frame(minHeight: 52)
+            .contentShape(Rectangle())
         }
-    }
-
-    private func placeholderAvatar(iniciales: String) -> some View {
-        Circle()
-            .fill(AgoraDesign.Colors.naranjaSuave)
-            .overlay {
-                Text(iniciales)
-                    .font(.headline.bold())
-                    .foregroundStyle(AgoraDesign.Colors.naranja)
-            }
-    }
-
-    private func cargarPerfil() async {
-        do {
-            perfil = try await AgoraApi.perfilMio()
-        } catch {
-            // La tarjeta usa datos de sesión si falla.
-        }
+        .buttonStyle(.agoraPlain)
+        .accessibilityIdentifier("mas.\(ruta)")
     }
 }
 
-private func inicialesDe(_ nombre: String) -> String {
-    nombre.split(separator: " ")
-        .prefix(2)
-        .compactMap { $0.first.map { String($0).uppercased() } }
-        .joined()
+/// Racha en la tarjeta oscura de «Tu día»: días seguidos, la mejor y cómo va el campus.
+private struct TarjetaRachaD: View {
+    @State private var datos: GamificacionDto?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if let datos {
+                HStack(spacing: 14) {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(Color(red: 1, green: 138 / 255, blue: 76 / 255))
+                        .frame(width: 52, height: 52)
+                        .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(datos.rachaActual) \(datos.rachaActual == 1 ? "día" : "días") de racha")
+                            .font(.bricolage(22, relativeTo: .title2))
+                            .foregroundStyle(.white)
+                        Text(detalle(datos))
+                            .font(.outfit(.footnote))
+                            .foregroundStyle(Color.white.opacity(0.75))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+                .background(
+                    Color(red: 20 / 255, green: 17 / 255, blue: 15 / 255),
+                    in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous)
+                )
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .task { datos = try? await AgoraApi.gamificacionMio() }
+    }
+
+    private func detalle(_ datos: GamificacionDto) -> String {
+        var partes = ["Mejor: \(datos.rachaMaxima)"]
+        if let promedio = datos.comparacionCampus?.promedioRacha {
+            partes.append("el campus va en \(Int(promedio.rounded()))")
+        }
+        return partes.joined(separator: " · ") + ". Contesta la pregunta de hoy para seguir."
+    }
 }

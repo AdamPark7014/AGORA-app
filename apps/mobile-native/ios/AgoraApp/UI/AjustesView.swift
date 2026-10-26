@@ -80,7 +80,7 @@ struct AjustesView: View {
                     VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
                         Group {
                             Text("@\(handle)")
-                                .font(.title3.bold())
+                                .font(.outfit(.title3, .bold))
                                 .foregroundStyle(AgoraDesign.Colors.naranja)
 
                             seccionFoto
@@ -93,7 +93,7 @@ struct AjustesView: View {
                         }
 
                         Group {
-                            Text("Bio").font(.subheadline.bold())
+                            Text("Bio").font(.outfit(.subheadline, .bold))
                             TextEditor(text: $bio)
                                 .frame(minHeight: 90)
                                 .padding(6)
@@ -103,7 +103,7 @@ struct AjustesView: View {
                                     if newValue.count > 280 { bio = String(newValue.prefix(280)) }
                                 }
                             Text("\(bio.count)/280")
-                                .font(.caption)
+                                .font(.outfit(.caption))
                                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
                             campoEditable("Ciudad de origen", text: $ciudad)
@@ -127,10 +127,10 @@ struct AjustesView: View {
 
                         Group {
                             if let error {
-                                Text(error).font(.footnote).foregroundStyle(AgoraDesign.Colors.danger)
+                                Text(error).font(.outfit(.footnote)).foregroundStyle(AgoraDesign.Colors.danger)
                             }
                             if let aviso {
-                                Text(aviso).font(.footnote).foregroundStyle(AgoraDesign.Colors.naranja)
+                                Text(aviso).font(.outfit(.footnote)).foregroundStyle(AgoraDesign.Colors.naranja)
                             }
 
                             Button {
@@ -186,10 +186,10 @@ struct AjustesView: View {
     private var seccionEliminarCuenta: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
             Text("Eliminar mi cuenta")
-                .font(.headline)
+                .font(.outfit(.headline))
                 .foregroundStyle(AgoraDesign.Colors.danger)
             Text("Se borran tu perfil, tus publicaciones, comentarios, mensajes y tu actividad. No se puede deshacer.")
-                .font(.footnote)
+                .font(.outfit(.footnote))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
             Button(role: .destructive) {
                 confirmacionBaja = ""
@@ -229,7 +229,7 @@ struct AjustesView: View {
 
     private var seccionFoto: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
-            Text("Foto de perfil").font(.subheadline.bold())
+            Text("Foto de perfil").font(.outfit(.subheadline, .bold))
             HStack(spacing: AgoraDesign.Spacing.md) {
                 if let url = ApiClient.shared.resolveUrl(fotoUrl) {
                     AsyncImage(url: url) { phase in
@@ -257,7 +257,7 @@ struct AjustesView: View {
 
     private var seccionPortada: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
-            Text("Portada").font(.subheadline.bold())
+            Text("Portada").font(.outfit(.subheadline, .bold))
             ZStack {
                 if let url = ApiClient.shared.resolveUrl(portadaUrl) {
                     AsyncImage(url: url) { phase in
@@ -272,7 +272,7 @@ struct AjustesView: View {
                     AgoraDesign.Colors.naranjaSuave
                         .overlay {
                             Text("Sin portada")
-                                .font(.caption)
+                                .font(.outfit(.caption))
                                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         }
                 }
@@ -291,9 +291,9 @@ struct AjustesView: View {
 
     private var seccionCumple: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
-            Text("Cumpleaños").font(.subheadline.bold())
+            Text("Cumpleaños").font(.outfit(.subheadline, .bold))
             Text("Solo día y mes. Ese día se lo avisamos a tu gente.")
-                .font(.caption)
+                .font(.outfit(.caption))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
             HStack(spacing: AgoraDesign.Spacing.sm) {
                 Picker("Mes", selection: $cumpleMes) {
@@ -317,7 +317,7 @@ struct AjustesView: View {
                         cumpleMes = 0
                         cumpleDia = 0
                     }
-                    .font(.caption)
+                    .font(.outfit(.caption))
                 }
             }
         }
@@ -331,7 +331,7 @@ struct AjustesView: View {
     private var seccionApariencia: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
             Text("Apariencia")
-                .font(.headline)
+                .font(.outfit(.headline))
                 .padding(.top, AgoraDesign.Spacing.xs)
             Picker("Apariencia", selection: $apariencia) {
                 ForEach(AgoraTema.allCases) { tema in
@@ -340,7 +340,7 @@ struct AjustesView: View {
             }
             .pickerStyle(.segmented)
             Text("Se aplica al instante.")
-                .font(.caption)
+                .font(.outfit(.caption))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
         }
     }
@@ -352,10 +352,10 @@ struct AjustesView: View {
         if udlap.pendiente {
             VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
                 Text(AgoraCopy.udlapAvisoTitulo)
-                    .font(.headline)
+                    .font(.outfit(.headline))
                     .padding(.top, AgoraDesign.Spacing.xs)
                 Text(AgoraCopy.udlapAvisoTexto(udlap.diasRestantes ?? 30))
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     .fixedSize(horizontal: false, vertical: true)
                 AgoraOutlinedButton(title: AgoraCopy.udlapAjustesBoton, action: { confirmandoUdlap = true })
@@ -387,10 +387,10 @@ struct AjustesView: View {
         if let tiene = tieneContrasena {
             VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
                 Text(AgoraCopy.ajustesContrasenaTitulo)
-                    .font(.headline)
+                    .font(.outfit(.headline))
                     .padding(.top, AgoraDesign.Spacing.xs)
                 Text(tiene ? AgoraCopy.ajustesContrasenaTiene : AgoraCopy.ajustesContrasenaNoTiene)
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     .fixedSize(horizontal: false, vertical: true)
                 if contrasenaAbierta {
@@ -414,7 +414,7 @@ struct AjustesView: View {
                     Button(AgoraCopy.ajustesContrasenaCancelar) {
                         contrasenaAbierta = false
                     }
-                    .font(.footnote)
+                    .font(.outfit(.footnote))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 } else {
                     AgoraOutlinedButton(
@@ -430,19 +430,19 @@ struct AjustesView: View {
         Circle()
             .fill(AgoraDesign.Colors.naranjaSuave)
             .frame(width: 72, height: 72)
-            .overlay { Text("?").font(.title2) }
+            .overlay { Text("?").font(.outfit(.title2)) }
     }
 
     private var seccionIntereses: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
-            Text("Intereses").font(.subheadline.bold())
+            Text("Intereses").font(.outfit(.subheadline, .bold))
             FlowWrapLayout(spacing: 8) {
                 ForEach(intereses, id: \.self) { interes in
                     Button {
                         intereses.removeAll { $0 == interes }
                     } label: {
                         Text("\(interes) ×")
-                            .font(.caption)
+                            .font(.outfit(.caption))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(AgoraDesign.Colors.naranjaSuave)
@@ -463,7 +463,7 @@ struct AjustesView: View {
 
     private var seccionVisibilidad: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
-            Text("Quién ve tu perfil").font(.subheadline.bold())
+            Text("Quién ve tu perfil").font(.outfit(.subheadline, .bold))
             HStack(spacing: 8) {
                 chipVisibilidad("Toda la UDLAP", valor: "UNIVERSIDAD")
                 chipVisibilidad("Solo mis comunidades", valor: "COMUNIDADES")
@@ -475,7 +475,7 @@ struct AjustesView: View {
         Group {
             if !comunidades.isEmpty {
                 Text("Silenciar comunidades en el feed")
-                    .font(.subheadline.bold())
+                    .font(.outfit(.subheadline, .bold))
                     .padding(.top, AgoraDesign.Spacing.xs)
                 ForEach(comunidades, id: \.slug) { comunidad in
                     Toggle(comunidad.nombre, isOn: Binding(
@@ -490,7 +490,7 @@ struct AjustesView: View {
     private var seccionNotificaciones: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
             Text("Notificaciones")
-                .font(.headline)
+                .font(.outfit(.headline))
                 .padding(.top, AgoraDesign.Spacing.xs)
             Toggle(isOn: Binding(
                 get: { avisoPregunta },
@@ -498,9 +498,9 @@ struct AjustesView: View {
             )) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("⚡ Avísame cuando caiga la pregunta")
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                     Text("Sale a una hora sorpresa; tienes 2 minutos para contestar a tiempo.")
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 }
             }
@@ -508,7 +508,7 @@ struct AjustesView: View {
                 let pref = preferencias[index]
                 VStack(alignment: .leading, spacing: 4) {
                     Text(etiquetasPreferencia[pref.tipo] ?? pref.tipo)
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                     Toggle("En la app", isOn: Binding(
                         get: { preferencias[index].inApp },
                         set: { checked in
@@ -532,7 +532,7 @@ struct AjustesView: View {
 
     private func campoSoloLectura(_ titulo: String, valor: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(titulo).font(.caption).foregroundStyle(AgoraDesign.Colors.textoMedio)
+            Text(titulo).font(.outfit(.caption)).foregroundStyle(AgoraDesign.Colors.textoMedio)
             Text(valor)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(10)
@@ -543,7 +543,7 @@ struct AjustesView: View {
 
     private func campoEditable(_ titulo: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(titulo).font(.caption).foregroundStyle(AgoraDesign.Colors.textoMedio)
+            Text(titulo).font(.outfit(.caption)).foregroundStyle(AgoraDesign.Colors.textoMedio)
             TextField(titulo, text: text)
                 .textFieldStyle(.roundedBorder)
         }
@@ -554,7 +554,7 @@ struct AjustesView: View {
             visibilidad = valor
         } label: {
             Text(etiqueta)
-                .font(.caption)
+                .font(.outfit(.caption))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
                 .background(visibilidad == valor ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)

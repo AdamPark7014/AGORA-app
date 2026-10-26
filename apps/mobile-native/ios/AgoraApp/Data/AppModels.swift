@@ -13,6 +13,8 @@ struct MediaDto: Codable {
     let url: String
     let mime: String?
     let esVideo: Bool?
+    /// Versión de 480 px de una foto (nula en videos).
+    var thumbUrl: String? = nil
 }
 
 struct ComunidadDto: Codable, Hashable {
@@ -372,6 +374,9 @@ struct EventoDto: Decodable, Identifiable {
     let miRespuesta: String?
     let comunidad: ComunidadDto?
     let cupo: Int?
+    var autor: AutorDto? = nil
+    /// Hasta 5 que van, primero gente que sigues.
+    var asistentes: [AutorDto]? = nil
 }
 
 struct EventosResponse: Decodable {

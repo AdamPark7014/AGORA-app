@@ -19,7 +19,7 @@ struct LegalTextView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 Text(fecha)
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     .padding(.bottom, AgoraDesign.Spacing.xs)
 
@@ -31,7 +31,7 @@ struct LegalTextView: View {
                 ForEach(secciones.indices, id: \.self) { index in
                     let seccion = secciones[index]
                     Text(seccion.titulo)
-                        .font(.headline)
+                        .font(.outfit(.headline))
                         .padding(.top, AgoraDesign.Spacing.md)
                         .padding(.bottom, 6)
                     ForEach(seccion.parrafos.indices, id: \.self) { pIndex in
@@ -48,7 +48,7 @@ struct LegalTextView: View {
 
     private func parrafo(_ texto: String) -> some View {
         Text(Self.markdown(texto))
-            .font(.body)
+            .font(.outfit(.body))
             .tint(AgoraDesign.Colors.naranja)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.bottom, 8)

@@ -79,21 +79,21 @@ struct SeguidoresView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(persona.nombre)
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                         .foregroundStyle(AgoraDesign.Colors.texto)
                     if persona.verificado == true {
                         Image(systemName: "checkmark.seal.fill")
-                            .font(.caption2)
+                            .font(.outfit(.caption2))
                             .foregroundStyle(AgoraDesign.Colors.naranja)
                     }
                 }
                 Text("@\(persona.handle)")
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
             Spacer()
             Image(systemName: "chevron.right")
-                .font(.caption)
+                .font(.outfit(.caption))
                 .foregroundStyle(AgoraDesign.Colors.textoMuted)
         }
         .padding(.vertical, 4)
@@ -129,7 +129,7 @@ struct SeguidoresView: View {
             .fill(AgoraDesign.Colors.naranjaSuave)
             .overlay {
                 Text(letras)
-                    .font(.subheadline.bold())
+                    .font(.outfit(.subheadline, .bold))
                     .foregroundStyle(AgoraDesign.Colors.naranja)
             }
     }

@@ -16,11 +16,11 @@ struct RetosHistorialRow: View {
             if !items.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("📜 Historial de duelos")
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                         .foregroundStyle(AgoraDesign.Colors.naranja)
 
                     Text("Retos rechazados y duelos de semanas pasadas.")
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
                     ForEach(items) { reto in
@@ -31,7 +31,7 @@ struct RetosHistorialRow: View {
                         Button(cargando ? "Cargando…" : "Ver más") {
                             Task { await cargar(reset: false) }
                         }
-                        .font(.caption.bold())
+                        .font(.outfit(.caption, .bold))
                         .frame(maxWidth: .infinity)
                         .disabled(cargando)
                     }
@@ -55,12 +55,12 @@ struct RetosHistorialRow: View {
         } label: {
             VStack(alignment: .leading, spacing: 4) {
                 Text(etiquetaTipo(reto.tipo))
-                    .font(.caption.bold())
+                    .font(.outfit(.caption, .bold))
                     .foregroundStyle(AgoraDesign.Colors.naranja)
                 Text("@\(rival.handle)")
-                    .font(.caption.weight(.semibold))
+                    .font(.outfit(.caption, .semibold))
                 Text(etiquetaResultado(reto.resultado))
-                    .font(.subheadline.bold())
+                    .font(.outfit(.subheadline, .bold))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)

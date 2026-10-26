@@ -49,7 +49,7 @@ struct BuscarView: View {
                                 tipo = t.valor
                             } label: {
                                 Text(t.etiqueta)
-                                    .font(.subheadline)
+                                    .font(.outfit(.subheadline))
                                     .padding(.horizontal, AgoraDesign.Spacing.sm)
                                     .padding(.vertical, AgoraDesign.Spacing.xs)
                                     .background(tipo == t.valor ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
@@ -77,12 +77,12 @@ struct BuscarView: View {
                         subtitle: AgoraCopy.buscarHintsSubtitle
                     )
                     Text("Prueba con:")
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         .padding(.top, AgoraDesign.Spacing.xs)
                     ForEach(AgoraCopy.buscarEjemplos, id: \.self) { ejemplo in
                         Text("«\(ejemplo)»")
-                            .font(.body)
+                            .font(.outfit(.body))
                             .foregroundStyle(AgoraDesign.Colors.naranja)
                     }
                 }
@@ -146,7 +146,7 @@ struct BuscarView: View {
 
     private func bloqueTitulo(_ texto: String) -> some View {
         Text(texto)
-            .font(.subheadline.bold())
+            .font(.outfit(.subheadline, .bold))
             .foregroundStyle(AgoraDesign.Colors.textoMedio)
             .padding(.top, AgoraDesign.Spacing.xs)
     }
@@ -155,14 +155,14 @@ struct BuscarView: View {
         Button(action: onTap) {
             HStack(spacing: 10) {
                 Text(iniciales)
-                    .font(.subheadline.bold())
+                    .font(.outfit(.subheadline, .bold))
                     .foregroundStyle(AgoraDesign.Colors.naranja)
                     .frame(width: 44, height: 44)
                     .background(AgoraDesign.Colors.naranjaSuave)
                     .clipShape(Circle())
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(titulo).font(.subheadline.bold()).foregroundStyle(.primary)
-                    Text(subtitulo).font(.caption).foregroundStyle(.secondary)
+                    Text(titulo).font(.outfit(.subheadline, .bold)).foregroundStyle(.primary)
+                    Text(subtitulo).font(.outfit(.caption)).foregroundStyle(.secondary)
                 }
                 Spacer()
             }
@@ -177,12 +177,12 @@ struct BuscarView: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 6) {
                 if let titulo {
-                    Text(titulo).font(.subheadline.bold()).foregroundStyle(.primary)
+                    Text(titulo).font(.outfit(.subheadline, .bold)).foregroundStyle(.primary)
                 }
-                Text(meta).font(.caption).foregroundStyle(.secondary)
+                Text(meta).font(.outfit(.caption)).foregroundStyle(.secondary)
                 if let texto {
                     Text(texto)
-                        .font(.subheadline)
+                        .font(.outfit(.subheadline))
                         .foregroundStyle(.primary)
                         .lineLimit(3)
                 }

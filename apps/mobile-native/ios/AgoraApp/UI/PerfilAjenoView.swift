@@ -9,6 +9,8 @@ struct PerfilAjenoView: View {
     var onPostTap: (String) -> Void = { _ in }
     var onSeguidores: (String) -> Void = { _ in }
     var onSiguiendo: (String) -> Void = { _ in }
+    var onEventoTap: (String) -> Void = { _ in }
+    var onAventonesTap: () -> Void = {}
 
     @State private var perfil: PerfilAjenoDto?
     @State private var gamificacion: GamificacionDto?
@@ -25,6 +27,9 @@ struct PerfilAjenoView: View {
     @State private var mostrarSheetRetar = false
     @State private var enviandoReto = false
     @State private var mostrarExitoReto = false
+    @State private var pestana = PestanaPerfil.publicaciones
+    @State private var eventosPerfil: [EventoDto] = []
+    @State private var aventonesPerfil: [AventonDto] = []
 
     private var esMio: Bool { miHandle == handle }
 
@@ -101,24 +106,24 @@ struct PerfilAjenoView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(nombreCompleto)
-                        .font(.title2.weight(.heavy))
+                        .font(.bricolage(.title2))
                         .foregroundStyle(AgoraDesign.Colors.texto)
                     if p.verificado == true {
                         Image(systemName: "checkmark.seal.fill")
-                            .font(.subheadline)
+                            .font(.outfit(.subheadline))
                             .foregroundStyle(AgoraDesign.Colors.naranja)
                             .accessibilityLabel("Verificado")
                     }
                 }
                 .accessibilityAddTraits(.isHeader)
                 Text(linea)
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
 
             if let bio = p.bio, !bio.isEmpty {
                 Text(bio)
-                    .font(.body)
+                    .font(.outfit(.body))
                     .foregroundStyle(AgoraDesign.Colors.texto)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -131,11 +136,11 @@ struct PerfilAjenoView: View {
 
             if p.restringido == true {
                 Text("Este perfil es privado o no comparten comunidades.")
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             } else if silenciado {
                 Text("Silenciado: no verás sus publicaciones. No se le avisa.")
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
 
@@ -143,7 +148,7 @@ struct PerfilAjenoView: View {
 
             if let error {
                 Text(error)
-                    .font(.footnote)
+                    .font(.outfit(.footnote))
                     .foregroundStyle(AgoraDesign.Colors.danger)
             }
         }
@@ -173,7 +178,7 @@ struct PerfilAjenoView: View {
         if esMio {
             Button(action: onAjustes) {
                 Text("Editar perfil")
-                    .font(.subheadline.weight(.bold))
+                    .font(.outfit(.subheadline, .bold))
                     .foregroundStyle(AgoraDesign.Colors.fondo)
                     .padding(.horizontal, 16)
                     .frame(minHeight: 44)
@@ -186,7 +191,7 @@ struct PerfilAjenoView: View {
                     Task { await alternarSeguir() }
                 } label: {
                     Text(siguiendo ? "Siguiendo" : "Seguir")
-                        .font(.subheadline.weight(.bold))
+                        .font(.outfit(.subheadline, .bold))
                         .foregroundStyle(siguiendo ? AgoraDesign.Colors.texto : AgoraDesign.Colors.fondo)
                         .padding(.horizontal, 16)
                         .frame(minHeight: 44)
@@ -209,7 +214,7 @@ struct PerfilAjenoView: View {
                     Task { await escribir() }
                 } label: {
                     Text("Mensaje")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.outfit(.subheadline, .semibold))
                         .foregroundStyle(AgoraDesign.Colors.texto)
                         .padding(.horizontal, 14)
                         .frame(minHeight: 44)
@@ -242,7 +247,7 @@ struct PerfilAjenoView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.subheadline.weight(.bold))
+                        .font(.outfit(.subheadline, .bold))
                         .foregroundStyle(AgoraDesign.Colors.texto)
                         .frame(width: 44, height: 44)
                         .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
@@ -267,7 +272,7 @@ struct PerfilAjenoView: View {
                 }
                 if let busco = p.busco, !busco.isEmpty {
                     Text("Busca: \(busco)")
-                        .font(.footnote.weight(.semibold))
+                        .font(.outfit(.footnote, .semibold))
                         .foregroundStyle(AgoraDesign.Colors.naranjaTinta)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -282,7 +287,7 @@ struct PerfilAjenoView: View {
 
     private func chip(_ texto: String) -> some View {
         Text(texto)
-            .font(.footnote)
+            .font(.outfit(.footnote))
             .foregroundStyle(AgoraDesign.Colors.texto)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -325,11 +330,11 @@ struct PerfilAjenoView: View {
     private func cifra(_ n: Int, _ etiqueta: String) -> some View {
         VStack(spacing: 0) {
             Text("\(n)")
-                .font(.title3.weight(.heavy))
+                .font(.bricolage(.title3))
                 .foregroundStyle(AgoraDesign.Colors.texto)
                 .monospacedDigit()
             Text(etiqueta)
-                .font(.caption)
+                .font(.outfit(.caption))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -353,7 +358,7 @@ struct PerfilAjenoView: View {
                 }
                 .accessibilityHidden(true)
                 Text(Self.textoEnComun(primeros, otros: otros))
-                    .font(.footnote)
+                    .font(.outfit(.footnote))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
             .padding(.horizontal, 12)
@@ -386,7 +391,7 @@ struct PerfilAjenoView: View {
         NavigationStack {
             VStack(spacing: AgoraDesign.Spacing.md) {
                 Text("¿A qué le entramos?")
-                    .font(.headline)
+                    .font(.outfit(.headline))
                     .padding(.top, AgoraDesign.Spacing.sm)
 
                 Button {
@@ -394,9 +399,9 @@ struct PerfilAjenoView: View {
                 } label: {
                     VStack(spacing: 4) {
                         Text("Racha diaria")
-                            .font(.subheadline.bold())
+                            .font(.outfit(.subheadline, .bold))
                         Text("Quien mantenga más días seguidos gana.")
-                            .font(.caption)
+                            .font(.outfit(.caption))
                             .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     }
                     .frame(maxWidth: .infinity)
@@ -412,9 +417,9 @@ struct PerfilAjenoView: View {
                 } label: {
                     VStack(spacing: 4) {
                         Text("Semana de preguntas")
-                            .font(.subheadline.bold())
+                            .font(.outfit(.subheadline, .bold))
                         Text("Quien responda más preguntas del día gana.")
-                            .font(.caption)
+                            .font(.outfit(.caption))
                             .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     }
                     .frame(maxWidth: .infinity)
@@ -447,15 +452,57 @@ struct PerfilAjenoView: View {
         .presentationDetents([.medium])
     }
 
+    /// Pestañas del perfil (docs/diseno-d.md §4). Eventos y Aventones salen de las listas
+    /// generales filtradas por esta persona: la API no tiene una ruta por perfil.
     @ViewBuilder
     private var seccionPublicaciones: some View {
-        Text("Publicaciones")
-            .font(.subheadline.bold())
-            .frame(maxWidth: .infinity, alignment: .leading)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(PestanaPerfil.allCases, id: \.self) { opcion in
+                    Button {
+                        pestana = opcion
+                    } label: {
+                        Text(opcion.titulo)
+                            .font(.outfit(.subheadline, pestana == opcion ? .semibold : .medium))
+                            .foregroundStyle(pestana == opcion ? AgoraDesign.Colors.fondo : AgoraDesign.Colors.texto)
+                            .padding(.horizontal, 14)
+                            .frame(minHeight: 38)
+                            .background(
+                                pestana == opcion ? AgoraDesign.Colors.texto : AgoraDesign.Colors.superficie,
+                                in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous)
+                            )
+                            .overlay {
+                                if pestana != opcion {
+                                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous)
+                                        .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+                                }
+                            }
+                    }
+                    .buttonStyle(.agoraPlain)
+                    .accessibilityAddTraits(pestana == opcion ? .isSelected : [])
+                }
+            }
+        }
+        .padding(.top, 4)
+        .task(id: pestana) { await cargarPestana() }
 
+        switch pestana {
+        case .publicaciones:
+            listaPublicaciones
+        case .fotos:
+            cuadriculaFotos
+        case .eventos:
+            listaEventos
+        case .aventones:
+            listaAventones
+        }
+    }
+
+    @ViewBuilder
+    private var listaPublicaciones: some View {
         if publicaciones.isEmpty {
             AgoraEmptyState(
-                emoji: "📷",
+                emoji: "",
                 title: AgoraCopy.perfilPublicacionesEmptyTitle,
                 subtitle: AgoraCopy.perfilPublicacionesEmptySubtitle
             )
@@ -473,6 +520,115 @@ struct PerfilAjenoView: View {
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
+        }
+    }
+
+    /// Fotos de las publicaciones ya cargadas, en cuadrícula de tres.
+    @ViewBuilder
+    private var cuadriculaFotos: some View {
+        let fotos = publicaciones.flatMap { pub in
+            (pub.media ?? []).filter { $0.esVideo != true }.map { (pub.id, $0) }
+        }
+        if fotos.isEmpty {
+            AgoraEmptyState(emoji: "", title: "Sin fotos todavía", subtitle: "Las fotos que publique aparecerán aquí.")
+        } else {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3), spacing: 4) {
+                ForEach(Array(fotos.enumerated()), id: \.offset) { _, par in
+                    Button {
+                        onPostTap(par.0)
+                    } label: {
+                        AsyncImage(url: ApiClient.shared.resolveUrl(par.1.thumbUrl ?? par.1.url)) { fase in
+                            if case .success(let imagen) = fase {
+                                imagen.resizable().scaledToFill()
+                            } else {
+                                AgoraDesign.Colors.skeletonBase
+                            }
+                        }
+                        .frame(minWidth: 0, maxWidth: .infinity)
+                        .aspectRatio(1, contentMode: .fill)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .buttonStyle(.agoraPlain)
+                    .accessibilityLabel("Foto de una publicación")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var listaEventos: some View {
+        if eventosPerfil.isEmpty {
+            AgoraEmptyState(emoji: "", title: "Sin eventos próximos", subtitle: "Cuando organice algo, lo verás aquí.")
+        }
+        ForEach(eventosPerfil) { evento in
+            Button {
+                onEventoTap(evento.id)
+            } label: {
+                let partes = FormatUtils.partesFecha(evento.inicioAt)
+                HStack(spacing: 12) {
+                    VStack(spacing: 0) {
+                        Text(partes?.dia ?? "")
+                            .font(.outfit(.caption2, .bold))
+                        Text(partes?.numero ?? "")
+                            .font(.bricolage(22, relativeTo: .title2))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(width: 52, height: 58)
+                    .background(AgoraDesign.Colors.naranja, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(evento.titulo)
+                            .font(.outfit(.subheadline, .semibold))
+                            .foregroundStyle(AgoraDesign.Colors.texto)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                        Text([partes?.hora, evento.lugar].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
+                            .font(.outfit(.caption))
+                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(12)
+                .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+            .buttonStyle(.agoraPlain)
+        }
+    }
+
+    @ViewBuilder
+    private var listaAventones: some View {
+        if aventonesPerfil.isEmpty {
+            AgoraEmptyState(emoji: "", title: "Sin aventones ahora", subtitle: "Cuando ofrezca uno, lo verás aquí.")
+        }
+        ForEach(aventonesPerfil) { aventon in
+            Button(action: onAventonesTap) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(aventon.origen) → \(aventon.destino)")
+                        .font(.outfit(.subheadline, .semibold))
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                    Text(FormatUtils.formatearFecha(aventon.salidaAt) + " · \(max(0, aventon.lugares - aventon.ocupados)) de \(aventon.lugares) lugares")
+                        .font(.outfit(.caption))
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+            .buttonStyle(.agoraPlain)
+        }
+    }
+
+    private func cargarPestana() async {
+        switch pestana {
+        case .eventos:
+            let todos = (try? await AgoraApi.eventosProximos())?.eventos ?? []
+            eventosPerfil = todos.filter { $0.autor?.handle == handle }
+        case .aventones:
+            let todos = (try? await AgoraApi.aventones())?.aventones ?? []
+            aventonesPerfil = todos.filter { $0.conductor?.handle == handle }
+        default:
+            break
         }
     }
 
@@ -611,11 +767,11 @@ private struct PublicacionPerfilCard: View {
             Button(action: onTap) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("\(FormatUtils.haceCuanto(pub.createdAt)) · \(pub.comunidad)")
-                        .font(.caption)
+                        .font(.outfit(.caption))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     if !pub.texto.isEmpty {
                         Text(pub.texto)
-                            .font(.subheadline)
+                            .font(.outfit(.subheadline))
                             .foregroundStyle(.primary)
                             .lineLimit(4)
                             .multilineTextAlignment(.leading)
@@ -632,7 +788,7 @@ private struct PublicacionPerfilCard: View {
 
             Button(action: onTap) {
                 Text("\(pub.numReactions ?? 0) reacciones · \(pub.numComments ?? 0) comentarios")
-                    .font(.caption.bold())
+                    .font(.outfit(.caption, .bold))
                     .foregroundStyle(AgoraDesign.Colors.naranja)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
@@ -688,4 +844,17 @@ private struct FlowWrapLayout: Layout {
 /// «1 seguidor» / «3 seguidores»: el plural en español solo cuando no es uno.
 func cuenta(_ n: Int, _ singular: String, _ plural: String) -> String {
     "\(n) \(n == 1 ? singular : plural)"
+}
+
+private enum PestanaPerfil: CaseIterable {
+    case publicaciones, fotos, eventos, aventones
+
+    var titulo: String {
+        switch self {
+        case .publicaciones: return "Publicaciones"
+        case .fotos: return "Fotos"
+        case .eventos: return "Eventos"
+        case .aventones: return "Aventones"
+        }
+    }
 }

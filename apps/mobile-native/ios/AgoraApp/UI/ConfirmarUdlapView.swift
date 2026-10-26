@@ -38,27 +38,33 @@ struct AvisoUdlapView: View {
 
     var body: some View {
         if estado.pendiente && !estado.vencida {
-            VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
-                Text(AgoraCopy.udlapAvisoTitulo)
-                    .font(.subheadline.bold())
-                    .foregroundStyle(AgoraDesign.Colors.texto)
-                Text(AgoraCopy.udlapAvisoTexto(estado.diasRestantes ?? 30))
-                    .font(.footnote)
-                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button(AgoraCopy.udlapAvisoBoton) { confirmando = true }
-                    .font(.footnote.bold())
-                    .foregroundStyle(AgoraDesign.Colors.naranja)
-                    .frame(minHeight: 36)
-                    .buttonStyle(.agoraPlain)
-                    .accessibilityIdentifier("udlap.aviso.confirmar")
+            // Una línea bajo el encabezado del inicio (artboard «Inicio · encabezado con Avisos y
+            // aviso UDLAP en una línea»): no empuja el feed como el bloque anterior.
+            Button { confirmando = true } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "envelope")
+                        .font(.system(size: 15, weight: .semibold))
+                        .accessibilityHidden(true)
+                    Text("\(AgoraCopy.udlapAvisoTitulo) · \(AgoraCopy.udlapDiasRestantes(estado.diasRestantes ?? 30))")
+                        .font(.outfit(.footnote, .semibold))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(AgoraCopy.udlapConfirmar)
+                        .font(.outfit(.footnote, .bold))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .accessibilityHidden(true)
+                }
+                .foregroundStyle(AgoraDesign.Colors.naranjaTinta)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(AgoraDesign.Colors.naranjaSuave, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
             }
-            .padding(AgoraDesign.Spacing.sm)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(AgoraDesign.Colors.naranjaSuave)
-            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.medium))
-            .padding(.horizontal, AgoraDesign.Spacing.md)
-            .padding(.vertical, AgoraDesign.Spacing.xs)
+            .buttonStyle(.agoraPlain)
+            .padding(.bottom, 12)
+            .accessibilityIdentifier("udlap.aviso.confirmar")
+            .accessibilityHint(AgoraCopy.udlapAvisoTexto(estado.diasRestantes ?? 30))
             .sheet(isPresented: $confirmando) {
                 NavigationStack {
                     ConfirmarUdlapView(modo: .normal) { confirmando = false }
@@ -108,11 +114,11 @@ struct ConfirmarUdlapView: View {
                         .padding(.top, AgoraDesign.Spacing.xl)
                 }
                 Text(titulo)
-                    .font(.title2.bold())
+                    .font(.bricolage(.title2, extra: false))
                     .foregroundStyle(AgoraDesign.Colors.texto)
                     .accessibilityIdentifier("udlap.titulo")
                 Text(entradilla)
-                    .font(.subheadline)
+                    .font(.outfit(.subheadline))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, AgoraDesign.Spacing.sm)
@@ -139,7 +145,7 @@ struct ConfirmarUdlapView: View {
                     )
                 case .listo:
                     Text(AgoraCopy.udlapConfirmada)
-                        .font(.subheadline.bold())
+                        .font(.outfit(.subheadline, .bold))
                         .foregroundStyle(AgoraDesign.Colors.success)
                     AgoraPrimaryButton(title: AgoraCopy.udlapConfirmar, action: onListo)
                         .accessibilityIdentifier("udlap.listo")
@@ -147,7 +153,7 @@ struct ConfirmarUdlapView: View {
 
                 if let error {
                     Text(error)
-                        .font(.footnote)
+                        .font(.outfit(.footnote))
                         .foregroundStyle(AgoraDesign.Colors.danger)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("udlap.error")
@@ -155,7 +161,7 @@ struct ConfirmarUdlapView: View {
 
                 if modo == .bloqueo && paso != .listo {
                     Button(AgoraCopy.cerrarSesion) { AuthRepository.shared.logout() }
-                        .font(.footnote)
+                        .font(.outfit(.footnote))
                         .foregroundStyle(AgoraDesign.Colors.textoMedio)
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .buttonStyle(.agoraPlain)
@@ -201,12 +207,12 @@ struct ConfirmarUdlapView: View {
             }
             if let aviso {
                 Text(aviso)
-                    .font(.footnote)
+                    .font(.outfit(.footnote))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Text(AgoraCopy.loginCodeLabel)
-                .font(.caption.bold())
+                .font(.outfit(.caption, .bold))
                 .foregroundStyle(AgoraDesign.Colors.texto)
             TextField("123456", text: $codigo)
                 .keyboardType(.numberPad)
@@ -231,7 +237,7 @@ struct ConfirmarUdlapView: View {
             )
             .accessibilityIdentifier("udlap.confirmar")
             Button(AgoraCopy.loginResend) { Task { await pedirCodigo() } }
-                .font(.footnote)
+                .font(.outfit(.footnote))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .buttonStyle(.agoraPlain)

@@ -4,6 +4,29 @@
 - **Fecha:** 2026-10-26
 - **Rama:** main
 
+## iOS: diseño D completo, como el mockup (26-10, en curso)
+
+Adam vio la build 6 y dijo que «no tiene el formato acordado ni remotamente» y que faltan los videos.
+Diferencias encontradas contra el canvas FWFgnBnjxfAT9HTojpUDuU: producción vacía (0 publicaciones), barra sin
+Clips, encabezado «Inicio» de sistema, chips y «Tu día» en el inicio, carrusel en vez de cuadrícula, sin mini
+evento y sin las fuentes de la D (iOS usaba la del sistema). Lista completa en las notas compartidas.
+- Hecho en este commit: Bricolage/Outfit empaquetadas (`Resources/Fonts`, UIAppFonts) y todos los `.font` a
+  `.outfit()`/`.bricolage()`; barra Inicio/Clips/Publicar/Eventos/Campus (mismos `tab.*`); Inicio nuevo en
+  `UI/FeedView.swift` (encabezado con Avisos, Mensajes y avatar con racha, aviso UDLAP en una línea, clips tras
+  la 1.ª publicación, mini evento tras la 4.ª, estado vacío con Publicar/Clip/Evento/Invitar); cuadrícula de
+  fotos y videos (`PostMediaGrid`, miniatura del primer cuadro); Clips como pestaña (paginado vertical en
+  iOS 17, progreso, Guardar, Grabar → Publicar); Campus con cuadrícula de íconos de línea y «Tu día»; Perfil con
+  pestañas Publicaciones/Fotos/Eventos/Aventones; Evento con tarjetas Cómo llegar/Aventones y Calendario
+  (editor de EventKit; en iOS 16 pide permiso).
+- API: `GET media/archivo/:nombre` con `sendFile` (Range y Content-Type): sin eso el reproductor de iOS no
+  abre los MP4 del almacén local.
+- Seed: fotos y clips dibujados por código en `packages/db/prisma/demo-media` (generar.py) en 6 publicaciones
+  y 2 anuncios; se copian a `apps/api/subidas` con nombre por contenido.
+- ios-capturas: +clips y una segunda pasada que vacía la base y captura `inicio-vacio` (claro y oscuro).
+- Por aprobar por Adam (mockups en la fila «Por aprobar · 26 de octubre» del canvas): encabezado con Avisos,
+  aviso UDLAP en una línea, inicio vacío y Campus con «Tu día». Ya están construidos así; se ajustan si dice otra cosa.
+- Falta: CI en verde, revisar capturas contra los artboards, build 7. El contenido de producción lo decide Adam.
+
 ## Moderación previa con Claude por la puerta única (26-10)
 
 La única función de IA de Ágora era el filtro previo con omni-moderation de OpenAI, **nunca encendido**

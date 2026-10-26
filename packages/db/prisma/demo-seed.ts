@@ -5,6 +5,10 @@
  * reconocen por texto o titulo estable para no duplicar al re-correr el seed.
  */
 
+import { createHash } from 'node:crypto';
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { extname, join, resolve } from 'node:path';
+
 import {
   CARRERAS,
   comunidadesDelPerfil,
@@ -266,9 +270,33 @@ interface Publicacion {
   readonly texto: string;
   readonly haceMinutos: number;
   readonly encuesta?: { pregunta: string; opciones: string[] };
+  /** Archivos de `prisma/demo-media` (fotos .jpg, clips .mp4). */
+  readonly media?: readonly string[];
 }
 
 const PUBLICACIONES: readonly Publicacion[] = [
+  {
+    autor: 'isa.ruiz',
+    comunidad: 'carrera:arquitectura',
+    texto:
+      'Terminé la maqueta del proyecto final. Tres noches sin dormir y sí valió la pena. #arquitectura #maqueta',
+    haceMinutos: 6,
+    media: ['maqueta.jpg', 'maqueta-detalle.jpg', 'maqueta-noche.jpg'],
+  },
+  {
+    autor: 'diego.tr',
+    comunidad: 'universidad:udlap',
+    texto: 'Amanecer en la Recta camino a la clase de 7. Solo por esto vale la pena madrugar. #recta #udlap',
+    haceMinutos: 70,
+    media: ['clip-amanecer.mp4'],
+  },
+  {
+    autor: 'carlos.hdz',
+    comunidad: 'colegio:jose-gaos',
+    texto: 'Así quedó la cascarita de ayer en las canchas. Revancha el jueves, ya saben quiénes. #futbol #josegaos',
+    haceMinutos: 130,
+    media: ['clip-cancha.mp4'],
+  },
   {
     autor: 'renata.mv',
     comunidad: 'carrera:ing-sistemas-computacionales',
@@ -282,6 +310,7 @@ const PUBLICACIONES: readonly Publicacion[] = [
     texto:
       'Armé un repo con los apuntes de Arquitecturas hasta el parcial 2, por si a alguien le sirve. Está en Verilog, no en VHDL, ojo. #apuntes #arquitecturas',
     haceMinutos: 47,
+    media: ['apuntes.jpg'],
   },
   {
     autor: 'ximena.oc',
@@ -332,6 +361,7 @@ const PUBLICACIONES: readonly Publicacion[] = [
     texto:
       'Terminé el prototipo del brazo robótico para el proyecto final. Aún le falta calibración pero ya mueve los 6 ejes. #robotica #mecatronica',
     haceMinutos: 420,
+    media: ['clip-robot.mp4'],
   },
   {
     autor: 'isa.ruiz',
@@ -423,6 +453,7 @@ const PUBLICACIONES: readonly Publicacion[] = [
     texto:
       'Grupo de estudio de Anatomía los domingos en la biblioteca. Ya somos 8, caben 4 más. #medicina #anatomia',
     haceMinutos: 960,
+    media: ['biblioteca.jpg'],
   },
   {
     autor: 'diego.tr',
@@ -657,6 +688,7 @@ interface AnuncioDemo {
   readonly descripcion: string;
   readonly categoria: CategoriaAnuncio;
   readonly precioMxn: number;
+  readonly media?: readonly string[];
 }
 
 const ANUNCIOS: readonly AnuncioDemo[] = [
@@ -673,6 +705,7 @@ const ANUNCIOS: readonly AnuncioDemo[] = [
     descripcion: 'Funciona perfecto, batería dura 4h. Incluye cargador original.',
     categoria: 'ELECTRONICA',
     precioMxn: 8500,
+    media: ['laptop.jpg'],
   },
   {
     vendedor: 'isa.ruiz',
@@ -680,6 +713,7 @@ const ANUNCIOS: readonly AnuncioDemo[] = [
     descripcion: 'Madera, 120x60cm. Hay que recogerlo en Cain Murray.',
     categoria: 'MUEBLES',
     precioMxn: 1200,
+    media: ['escritorio.jpg'],
   },
   {
     vendedor: 'dani.reyes',
@@ -927,6 +961,66 @@ async function vincularHashtags(
 // Siembra principal
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Fotos y clips (prisma/demo-media, dibujados por generar.py)
+// ---------------------------------------------------------------------------
+
+/** El seed corre desde packages/db (`pnpm --filter @agora/db prisma:seed`). */
+const DEMO_MEDIA = resolve(process.cwd(), 'prisma/demo-media');
+/** Almacén local de la API (`AlmacenLocal`: `apps/api/subidas`). */
+const SUBIDAS = process.env.AGORA_SUBIDAS_DIR ?? resolve(process.cwd(), '../../apps/api/subidas');
+
+const MIME_DEMO: Record<string, string> = { '.jpg': 'image/jpeg', '.mp4': 'video/mp4' };
+
+/** Con S3/R2 la API no lee el disco local: ahí la demo va sin fotos. */
+const almacenEsS3 = (): boolean =>
+  Boolean(process.env.S3_BUCKET && process.env.S3_ENDPOINT && process.env.S3_ACCESS_KEY_ID);
+
+/**
+ * Copia un archivo de demo-media al almacén local con el nombre que la API acepta (24 hex por
+ * contenido + extensión: re-correr el seed no duplica) y devuelve los datos de su fila `media`.
+ */
+const archivoDemo = (
+  archivo: string,
+): { url: string; mime: string; bytes: number; ancho: number | null; alto: number | null } | null => {
+  const origen = join(DEMO_MEDIA, archivo);
+  if (!existsSync(origen)) return null;
+  const datos = readFileSync(origen);
+  const ext = extname(archivo).toLowerCase();
+  const nombre = createHash('sha256').update(datos).digest('hex').slice(0, 24) + ext;
+  mkdirSync(SUBIDAS, { recursive: true });
+  const destino = join(SUBIDAS, nombre);
+  if (!existsSync(destino)) copyFileSync(origen, destino);
+  // Las fotos de generar.py son de 1080×1350; de los videos la API no guarda medidas.
+  const esFoto = ext === '.jpg';
+  return {
+    url: `/api/media/archivo/${nombre}`,
+    mime: MIME_DEMO[ext] ?? 'application/octet-stream',
+    bytes: datos.length,
+    ancho: esFoto ? 1080 : null,
+    alto: esFoto ? 1350 : null,
+  };
+};
+
+/** Adjunta los archivos a una publicación o anuncio que aún no tiene media. Devuelve cuántos. */
+const adjuntarMediaDemo = async (
+  prisma: PrismaClient,
+  destino: { postId: string } | { anuncioId: string },
+  ownerId: string,
+  archivos: readonly string[] | undefined,
+): Promise<number> => {
+  if (!archivos?.length || almacenEsS3()) return 0;
+  if ((await prisma.media.count({ where: destino })) > 0) return 0;
+  let n = 0;
+  for (const archivo of archivos) {
+    const fila = archivoDemo(archivo);
+    if (!fila) continue;
+    await prisma.media.create({ data: { ...destino, ownerId, ...fila } });
+    n += 1;
+  }
+  return n;
+};
+
 export async function sembrarDemo(
   prisma: PrismaClient,
   universityId: string,
@@ -943,6 +1037,7 @@ export async function sembrarDemo(
     eventos: 0,
     asistencias: 0,
     anuncios: 0,
+    media: 0,
     aventones: 0,
     asientos: 0,
     conversaciones: 0,
@@ -1030,6 +1125,7 @@ export async function sembrarDemo(
     if (existente) {
       postIds.set(pub.texto, existente.id);
       await vincularHashtags(prisma, universityId, existente.id, pub.texto);
+      conteos.media += await adjuntarMediaDemo(prisma, { postId: existente.id }, perfil.userId, pub.media);
       continue;
     }
 
@@ -1056,6 +1152,7 @@ export async function sembrarDemo(
     });
     postIds.set(pub.texto, post.id);
     await vincularHashtags(prisma, universityId, post.id, pub.texto);
+    conteos.media += await adjuntarMediaDemo(prisma, { postId: post.id }, perfil.userId, pub.media);
     conteos.publicaciones += 1;
   }
   console.log(`   demo publicaciones: ${conteos.publicaciones} nuevas`);
@@ -1178,9 +1275,12 @@ export async function sembrarDemo(
     const yaExiste = await prisma.anuncio.findFirst({
       where: { vendedorId: vendedor.userId, titulo: an.titulo },
     });
-    if (yaExiste) continue;
+    if (yaExiste) {
+      conteos.media += await adjuntarMediaDemo(prisma, { anuncioId: yaExiste.id }, vendedor.userId, an.media);
+      continue;
+    }
 
-    await prisma.anuncio.create({
+    const anuncio = await prisma.anuncio.create({
       data: {
         vendedorId: vendedor.userId,
         universityId,
@@ -1190,9 +1290,11 @@ export async function sembrarDemo(
         precioMxn: an.precioMxn,
       },
     });
+    conteos.media += await adjuntarMediaDemo(prisma, { anuncioId: anuncio.id }, vendedor.userId, an.media);
     conteos.anuncios += 1;
   }
   console.log(`   demo anuncios: ${conteos.anuncios} nuevos`);
+  console.log(`   demo fotos y clips: ${conteos.media} nuevos (${almacenEsS3() ? 'S3: se omiten' : SUBIDAS})`);
 
   // --- Aventones
   for (const av of AVENTONES) {

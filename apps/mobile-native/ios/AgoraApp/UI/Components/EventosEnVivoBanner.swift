@@ -1,17 +1,20 @@
 import SwiftUI
 
 /// «Ahora en el campus» del diseño D (docs/diseno-d.md §3): eventos en curso o que empiezan
-/// pronto, como tarjetas chicas desplazables con un punto verde de «en vivo».
+/// en las próximas 3 h y aventones que salen pronto, como tarjetas chicas desplazables con un
+/// punto verde de «en vivo».
 struct EventosEnVivoBanner: View {
     var onEventoTap: (String) -> Void = { _ in }
+    var onAventonesTap: () -> Void = {}
 
     @State private var eventos: [EventoEnVivoDto] = []
+    @State private var aventones: [AventonDto] = []
 
     var body: some View {
         // VStack y no Group: los modificadores de un Group se aplican a cada hijo,
         // y con el contenido vacío `.task` nunca se disparaba (el banner no cargaba).
         VStack(spacing: 0) {
-            if !eventos.isEmpty {
+            if !eventos.isEmpty || !aventones.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         Circle()
@@ -24,7 +27,7 @@ struct EventosEnVivoBanner: View {
                             )
                             .accessibilityHidden(true)
                         Text("AHORA EN EL CAMPUS")
-                            .font(.footnote.weight(.bold))
+                            .font(.outfit(.footnote, .bold))
                             .tracking(0.5)
                             .foregroundStyle(AgoraDesign.Colors.texto)
                     }
@@ -37,6 +40,9 @@ struct EventosEnVivoBanner: View {
                         HStack(spacing: 8) {
                             ForEach(eventos) { evento in
                                 eventoCard(evento)
+                            }
+                            ForEach(aventones) { aventon in
+                                aventonCard(aventon)
                             }
                         }
                     }
@@ -53,11 +59,11 @@ struct EventosEnVivoBanner: View {
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(evento.titulo)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.outfit(.subheadline, .semibold))
                     .foregroundStyle(AgoraDesign.Colors.texto)
                     .lineLimit(1)
                 Text(detalle(evento))
-                    .font(.caption)
+                    .font(.outfit(.caption))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     .lineLimit(1)
             }
@@ -93,12 +99,50 @@ struct EventosEnVivoBanner: View {
         }
     }
 
-    private func cargar() async {
-        do {
-            let resp = try await AgoraApi.eventosEnVivo()
-            eventos = resp.eventos ?? []
-        } catch {
-            eventos = []
+    private func aventonCard(_ aventon: AventonDto) -> some View {
+        Button(action: onAventonesTap) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(aventon.origen) → \(aventon.destino)")
+                    .font(.outfit(.subheadline, .semibold))
+                    .foregroundStyle(AgoraDesign.Colors.texto)
+                    .lineLimit(1)
+                Text(detalleAventon(aventon))
+                    .font(.outfit(.caption))
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    .lineLimit(1)
+            }
+            .frame(minWidth: 150, maxWidth: 240, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(AgoraDesign.Colors.superficie)
+            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
+                    .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+            }
         }
+        .buttonStyle(.agoraPlain)
+        .accessibilityLabel("Aventón de \(aventon.origen) a \(aventon.destino), \(detalleAventon(aventon))")
+    }
+
+    /// «Aventón · sale 18:00 · 2 lugares».
+    private func detalleAventon(_ aventon: AventonDto) -> String {
+        let libres = max(0, aventon.lugares - aventon.ocupados)
+        var partes = ["Aventón"]
+        if let hora = FormatUtils.partesFecha(aventon.salidaAt)?.hora { partes.append("sale \(hora)") }
+        partes.append("\(libres) \(libres == 1 ? "lugar" : "lugares")")
+        return partes.joined(separator: " · ")
+    }
+
+    private func cargar() async {
+        eventos = (try? await AgoraApi.eventosEnVivo(horas: 3))?.eventos ?? []
+        // Aventones con lugar que salen en las próximas 3 h (la API no tiene filtro por hora).
+        let ahora = Date()
+        let limite = ahora.addingTimeInterval(3 * 3600)
+        let todos = (try? await AgoraApi.aventones())?.aventones ?? []
+        aventones = Array(todos.filter { a in
+            guard let salida = FormatUtils.parseISO(a.salidaAt) else { return false }
+            return salida > ahora && salida <= limite && a.lugares > a.ocupados && a.esMio != true
+        }.prefix(3))
     }
 }

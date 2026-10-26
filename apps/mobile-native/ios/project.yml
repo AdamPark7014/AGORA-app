@@ -23,6 +23,10 @@ targets:
     sources:
       - path: AgoraApp
       - path: Resources/Assets.xcassets
+      # Bricolage Grotesque y Outfit del diseño D (OFL, licencias en licencias-fuentes/),
+      # registradas en Info.plist → UIAppFonts.
+      - path: Resources/Fonts
+        buildPhase: resources
       # Manifiesto de privacidad: va a la raíz del .app (Apple lo exige desde 2024).
       - path: Resources/PrivacyInfo.xcprivacy
     entitlements:

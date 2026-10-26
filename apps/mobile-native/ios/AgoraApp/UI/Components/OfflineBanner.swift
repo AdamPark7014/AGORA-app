@@ -3,7 +3,7 @@ import SwiftUI
 struct OfflineBanner: View {
     var body: some View {
         Text("Sin conexión")
-            .font(.subheadline.weight(.semibold))
+            .font(.outfit(.subheadline, .semibold))
             .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, AgoraDesign.Spacing.sm)

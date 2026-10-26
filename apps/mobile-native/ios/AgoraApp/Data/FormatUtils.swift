@@ -70,7 +70,21 @@ enum FormatUtils {
     return error.localizedDescription
   }
 
-  private static func parseISO(_ iso: String) -> Date? {
+  /// «SÁB», «25» y «22:00» de un instante, con la hora del campus (bloque de fecha del diseño D).
+  static func partesFecha(_ iso: String) -> (dia: String, numero: String, hora: String)? {
+    guard let date = parseISO(iso) else { return nil }
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "es_MX")
+    f.timeZone = zona
+    f.dateFormat = "EEE"
+    let dia = f.string(from: date).replacingOccurrences(of: ".", with: "").uppercased()
+    f.dateFormat = "d"
+    let numero = f.string(from: date)
+    f.dateFormat = "HH:mm"
+    return (dia, numero, f.string(from: date))
+  }
+
+  static func parseISO(_ iso: String) -> Date? {
     let f1 = ISO8601DateFormatter()
     f1.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     if let d = f1.date(from: iso) { return d }
