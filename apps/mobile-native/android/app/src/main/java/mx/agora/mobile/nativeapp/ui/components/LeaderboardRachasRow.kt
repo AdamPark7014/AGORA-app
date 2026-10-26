@@ -30,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -153,7 +155,7 @@ private fun LeaderboardRachaCard(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .background(AgoraColors.Fondo)
-            .clickable(onClick = onClick)
+            .clickable(onClickLabel = "Ver perfil de ${entrada.nombre}", role = Role.Button, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -185,6 +187,13 @@ private fun LeaderboardAvatar(nombre: String) {
             .background(AgoraColors.NaranjaSuave),
         contentAlignment = Alignment.Center,
     ) {
-        Text(inicial, fontWeight = FontWeight.Bold, color = AgoraColors.Naranja, fontSize = 16.sp)
+        // Inicial decorativa: el nombre ya se lee abajo.
+        Text(
+            inicial,
+            fontWeight = FontWeight.Bold,
+            color = AgoraColors.Naranja,
+            fontSize = 16.sp,
+            modifier = Modifier.clearAndSetSemantics {},
+        )
     }
 }

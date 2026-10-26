@@ -40,6 +40,36 @@ Reparto: esta sesión lleva **web e iOS**; la sesión de móvil lleva **Android*
   «Sin nombre abre pronto»; retos con estado vacío; Más con íconos de línea y fila «Apariencia»; registro
   con correo personal mostrando el UDLAP con «Cambiar». Seed: «Ximena creó un evento».
 
+## Android, pasada de profesionalismo (sesión de móvil, 23→26-10)
+
+Android es de la sesión de móvil desde `55fe226`. Auditoría de toda `ui/**` (3 agentes, ~200 hallazgos) y
+arreglos en 68 archivos sin cambiar el diseño aprobado. Compila y `testDebugUnitTest` 44/44.
+- **ANR al arrancar** (la otra sesión lo vio con `pm clear`): `MainActivity` abría las prefs cifradas
+  (llave en el Keystore + keyset de Tink) en el hilo principal, cada `AuthRepository` las volvía a abrir y
+  `PendingDeepLink` abría otras dos veces por llamada. Ahora `SessionStore.prefsCifradas` es una sola por
+  proceso, `MainActivity` la abre en segundo plano antes de `setContent` (los deep links que llegan antes se
+  guardan) y `PendingDeepLink` usa esas mismas prefs (`pending_route`). Probado: 3 arranques en limpio en el
+  emulador, 1.1–1.7 s, sin ANR.
+- **Tema:** `secondaryContainer` y `surfaceContainer*` mapeados a la paleta: los FilterChip seleccionados,
+  diálogos, menús y selectores de fecha salían en el lila por omisión de Material 3. Verificado en emulador.
+- **Accesibilidad:** interruptores y casillas con nombre (`toggleable`), áreas de 48 dp, insignias «N sin
+  leer», fotos y videos descritos, burbujas del chat leídas como «Tú: …», errores con `liveRegion`, títulos
+  como encabezado, emojis y glifos («›», «▾», «＋») fuera de TalkBack.
+- **Textos:** plurales con `cuenta(n, singular, plural)` (plural obligatorio), «posts» → «publicaciones»,
+  «Me río», «✓ Vas a ir» / «✓ Vas en este», «Sin aventones disponibles», cuota «Gratis», «queda 1»,
+  sin voseo, mensajes del servidor sin los genéricos de Nest en inglés (`mensajeLegibleDelServidor`).
+- **Fallos:** «Cargar más» del mercado duplicaba anuncios (la lista podía tronar); Directorio se tragaba el
+  error; registro bajo la barra de estado y el teclado; «atrás» cerraba la app en los pasos de la puerta y del
+  registro; snackbars que dejaban spinners y diálogos atorados en Publicación; cambiar de filtro dejaba la
+  lista vieja sin indicador; el mercado no filtraba Muebles/Cuarto/Servicios; el contador de seguidores no se
+  movía; «Deshacer» al bloquear; video y foto con error y «Reintentar».
+- **Decisiones de Adam que quedan fuera:** el naranja como texto da 3.5–3.8:1 (AA pide 4.5:1; `NaranjaOscuro`
+  daría ~5.5:1), texto blanco sobre el botón naranja, bordes de campos casi invisibles (1.16:1), etiquetas de
+  reacción a 9 sp, «Developed by», «Tip:»/«Trending»/«Feed».
+- **Siguiente (Android):** el rediseño D según `docs/diseno-d.md`, y el permiso de avisos en el último paso de
+  la bienvenida (hoy salta al entrar). Para probar en local sin Docker: Postgres 17 nativo con `initdb` en el
+  scratchpad y la API en el 4210 (`-PDEBUG_API_BASE_URL=http://10.0.2.2:4210/api`); el 4200 suele estar ocupado.
+
 ## Pasada grande del 22-10: fallos, funciones y fichas de tienda (cerrada por Claude; pendientes de Adam abajo)
 
 Adam pidió auditar fallos y arreglarlos, listar funciones que faltan para chavos de 18-22 y dejar

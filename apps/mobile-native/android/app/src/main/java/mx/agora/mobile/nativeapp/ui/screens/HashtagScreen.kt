@@ -21,6 +21,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
@@ -122,7 +124,10 @@ fun HashtagScreen(
                         "#$tag",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 4.dp),
+                        // Encabezado para saltar con TalkBack.
+                        modifier = Modifier
+                            .padding(bottom = 4.dp)
+                            .semantics { heading() },
                     )
                 }
                 if (publicaciones.isEmpty()) {

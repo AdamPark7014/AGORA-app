@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +24,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -30,7 +34,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.SessionUser
-import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.ui.components.AgoraIsotipo
 import mx.agora.mobile.nativeapp.ui.components.AgoraPrimaryButton
 import mx.agora.mobile.nativeapp.ui.components.EstadoEntregaCodigo
@@ -40,6 +43,7 @@ import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
+import mx.agora.mobile.nativeapp.ui.util.mensajeLegibleDelServidor
 import retrofit2.HttpException
 
 private enum class PasoUdlap { INICIO, CODIGO, CONTRASENA }
@@ -90,7 +94,7 @@ fun ConfirmarUdlap(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: HttpException) {
-                val delServidor = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                val delServidor = mensajeLegibleDelServidor(e) ?: mensajeDe(e)
                 // El límite es uno por minuto por cuenta, cuente el buzón: en el
                 // primer intento un 429 no garantiza que haya un código UDLAP.
                 if (e.code() == 429 && paso == PasoUdlap.CODIGO) aviso = delServidor else error = delServidor
@@ -121,7 +125,9 @@ fun ConfirmarUdlap(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: HttpException) {
-                error = ApiClient.mensajeDelServidor(e) ?: copy.errorVerificar
+                // Sin cuerpo (429, 5xx) no es que el código esté mal.
+                error = mensajeLegibleDelServidor(e)
+                    ?: if (e.code() in 400..401) copy.errorVerificar else mensajeDe(e)
             } catch (e: Exception) {
                 error = mensajeDe(e)
             } finally {
@@ -225,7 +231,12 @@ fun ConfirmarUdlap(
 
         error?.let {
             Spacer(Modifier.height(AgoraSpacing.Sm))
-            Text(it, color = AgoraColors.Danger, style = MaterialTheme.typography.bodySmall)
+            Text(
+                it,
+                color = AgoraColors.Danger,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
         }
     }
 }
@@ -241,6 +252,7 @@ fun ConfirmarUdlapScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(AgoraSpacing.Lg),
     ) {

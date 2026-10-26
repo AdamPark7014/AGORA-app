@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.components
 
+import android.widget.Toast
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -15,10 +16,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,6 +57,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -63,6 +66,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,7 +85,9 @@ import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.EnlacesWeb
 import mx.agora.mobile.nativeapp.ui.util.HapticType
 import mx.agora.mobile.nativeapp.ui.util.compartirEnlace
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
+import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 import mx.agora.mobile.nativeapp.ui.util.rememberHaptics
 import java.io.IOException
 
@@ -93,7 +99,7 @@ data class ReaccionInfo(
 
 val REACCIONES_POST = listOf(
     ReaccionInfo("ME_LATE", "🧡", "Me late"),
-    ReaccionInfo("ME_RIO", "😂", "Me rió"),
+    ReaccionInfo("ME_RIO", "😂", "Me río"),
     ReaccionInfo("APOYO", "🤝", "Apoyo"),
     ReaccionInfo("NO_MAMES", "😮", "No mames"),
 )
@@ -139,9 +145,13 @@ fun PostCard(
             try {
                 val resp = ApiClient.api<PostsApi>(tokenProvider).reaccionar(post.id, ReaccionarRequest(tipo))
                 miReaccion = resp.miReaccion
-            } catch (_: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 miReaccion = anterior
                 totalReacciones = post.numReactions
+                // Que se note que no se guardó, no solo que el emoji regresa.
+                Toast.makeText(context, mensajeDe(e), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -180,7 +190,15 @@ fun PostCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = if (onAuthorClick != null) Modifier.clickable(onClick = onAuthorClick) else Modifier,
+                modifier = if (onAuthorClick != null) {
+                    Modifier.clickable(
+                        onClickLabel = post.autor?.nombre?.let { "Ver perfil de $it" } ?: "Ver perfil",
+                        role = Role.Button,
+                        onClick = onAuthorClick,
+                    )
+                } else {
+                    Modifier
+                },
             ) {
                 AgoraAvatar(post.autor?.nombre, post.autor?.fotoUrl)
                 Column(modifier = Modifier.weight(1f)) {
@@ -189,12 +207,14 @@ fun PostCard(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         "${post.comunidad.nombre} · ${haceCuanto(post.createdAt)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = AgoraColors.TextoMedio,
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 GuardarButton(
@@ -311,11 +331,13 @@ fun ReaccionesRow(
                     contentDescription = if (totalReacciones == 1) "1 reacción" else "$totalReacciones reacciones"
                 },
         )
+        // 48 dp de alto como las reacciones; TalkBack lee «3 comentarios», no el emoji.
         Text(
             "💬 $numComments",
             style = MaterialTheme.typography.labelMedium,
             color = AgoraColors.TextoMedio,
             modifier = Modifier
+                .heightIn(min = 48.dp)
                 .then(
                     if (onCommentsClick != null) {
                         Modifier.clickable(onClick = onCommentsClick)
@@ -323,6 +345,11 @@ fun ReaccionesRow(
                         Modifier
                     },
                 )
+                .semantics(mergeDescendants = true) {
+                    if (onCommentsClick != null) role = Role.Button
+                    contentDescription = cuenta(numComments, "comentario", "comentarios")
+                }
+                .wrapContentHeight()
                 .padding(horizontal = 4.dp, vertical = 6.dp),
         )
         if (onCompartir != null) {
@@ -510,7 +537,8 @@ fun EncuestaBloque(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(36.dp)
+                    // Área táctil de 48 dp; crece si el texto ocupa dos líneas.
+                    .heightIn(min = 48.dp)
                     .clip(forma)
                     .background(AgoraColors.Fondo)
                     .then(
@@ -525,12 +553,15 @@ fun EncuestaBloque(
                     .semantics { if (elegida) stateDescription = "Tu voto" },
             ) {
                 if (pct > 0) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(fraction = pct / 100f)
-                            .background(AgoraColors.NaranjaSuave),
-                    )
+                    // Sin alto fijo, fillMaxHeight no tendría tope: la barra se mide contra la opción.
+                    Box(Modifier.matchParentSize()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(fraction = pct / 100f)
+                                .background(AgoraColors.NaranjaSuave),
+                        )
+                    }
                 }
                 Text(
                     if (elegida) "✓ ${opcion.texto} · $pct%" else "${opcion.texto} · $pct%",
@@ -539,7 +570,9 @@ fun EncuestaBloque(
                     color = if (elegida) AgoraColors.Naranja else Color.Unspecified,
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .padding(horizontal = 10.dp),
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        // El «✓» no se lee: el estado ya va en stateDescription.
+                        .clearAndSetSemantics { contentDescription = "${opcion.texto}, $pct%" },
                 )
             }
         }

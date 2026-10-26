@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,8 +33,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -49,6 +52,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -196,6 +202,12 @@ fun PerfilAjenoScreen(
             try {
                 val resp = ApiClient.api<PerfilApi>(tokenProvider).seguir(handle)
                 siguiendo = resp.siguiendo
+                // El contador de seguidores sigue al botón sin recargar el perfil.
+                if (resp.siguiendo != era) {
+                    perfil = perfil?.let {
+                        it.copy(seguidores = ((it.seguidores ?: 0) + if (resp.siguiendo) 1 else -1).coerceAtLeast(0))
+                    }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -222,7 +234,20 @@ fun PerfilAjenoScreen(
                     val resp = api.aplicar(handle, BloquearRequest(soloSilencio = false))
                     bloqueado = resp.bloqueado
                     silenciado = resp.silenciado
-                    avisar("Bloqueado. Ya no se ven ni se escriben.")
+                    if (resp.bloqueado) {
+                        // Aparte, para no dejar «ocupado» mientras se ve el aviso.
+                        scope.launch {
+                            val r = snackbarHostState.showSnackbar(
+                                "Bloqueado. Ya no se ven ni se escriben.",
+                                actionLabel = "Deshacer",
+                                duration = SnackbarDuration.Long,
+                            )
+                            // Deshacer = desbloquear (DELETE bloqueos/{handle}).
+                            if (r == SnackbarResult.ActionPerformed && bloqueado && !ocupado) alternarBloqueo()
+                        }
+                    } else {
+                        avisar("Bloqueado. Ya no se ven ni se escriben.")
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -488,6 +513,14 @@ fun PerfilAjenoScreen(
                                     },
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
+                                    // TalkBack no lee el «✓»: dice «perfil verificado».
+                                    modifier = if (p.verificado) {
+                                        Modifier.clearAndSetSemantics {
+                                            contentDescription = "$nombreCompleto, perfil verificado"
+                                        }
+                                    } else {
+                                        Modifier
+                                    },
                                 )
                                 Text("@${p.handle}", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                                 p.bio?.takeIf { it.isNotBlank() }?.let {
@@ -500,15 +533,22 @@ fun PerfilAjenoScreen(
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                                     )
                                 }
-                                p.ciudadOrigen?.let {
+                                p.ciudadOrigen?.takeIf { it.isNotBlank() }?.let {
                                     Text("📍 $it", style = MaterialTheme.typography.bodySmall)
                                 }
-                                p.instagram?.let {
+                                p.instagram?.takeIf { it.isNotBlank() }?.let {
                                     Text("📷 @$it", style = MaterialTheme.typography.bodySmall)
                                 }
 
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    Text(cuenta(p.publicaciones ?: 0, "publicación", "publicaciones"), style = MaterialTheme.typography.bodySmall)
+                                // FlowRow: con fuente grande los tres contadores no caben en una línea.
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                                ) {
+                                    Text(
+                                        cuenta(p.publicaciones ?: 0, "publicación", "publicaciones"),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.align(Alignment.CenterVertically),
+                                    )
                                     ContadorConexion(
                                         texto = cuenta(p.seguidores ?: 0, "seguidor", "seguidores"),
                                         habilitado = !p.restringido,
@@ -529,7 +569,7 @@ fun PerfilAjenoScreen(
                                 when {
                                     p.restringido -> {
                                         Text(
-                                            "Este perfil es privado o no compartís comunidades.",
+                                            "Este perfil es privado o no compartes comunidades con esta persona.",
                                             textAlign = TextAlign.Center,
                                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                                             modifier = Modifier.padding(top = 8.dp),
@@ -552,7 +592,15 @@ fun PerfilAjenoScreen(
                                                 onClick = { alternarSeguir() },
                                                 enabled = !ocupado && !bloqueado,
                                             ) {
-                                                Text(if (siguiendo) "✓ Siguiendo" else "＋ Seguir", maxLines = 1, softWrap = false)
+                                                Text(
+                                                    if (siguiendo) "✓ Siguiendo" else "+ Seguir",
+                                                    maxLines = 1,
+                                                    softWrap = false,
+                                                    // Sin leer «más» ni «marca de verificación».
+                                                    modifier = Modifier.clearAndSetSemantics {
+                                                        contentDescription = if (siguiendo) "Siguiendo a @$handle" else "Seguir a @$handle"
+                                                    },
+                                                )
                                             }
                                             OutlinedButton(
                                                 onClick = { escribir() },
@@ -671,16 +719,22 @@ internal fun ContadorConexion(
     habilitado: Boolean,
     onClick: () -> Unit,
 ) {
-    Text(
-        texto,
-        style = MaterialTheme.typography.bodySmall,
-        fontWeight = if (habilitado) FontWeight.SemiBold else FontWeight.Normal,
-        color = if (habilitado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+    // Área táctil de 48dp; el texto queda centrado y se ve igual que antes.
+    Box(
         modifier = Modifier
+            .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(6.dp))
-            .clickable(enabled = habilitado, onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 2.dp),
-    )
+            .clickable(enabled = habilitado, role = Role.Button, onClickLabel = "Ver lista", onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            texto,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = if (habilitado) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (habilitado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+        )
+    }
 }
 
 /**
@@ -722,7 +776,7 @@ internal fun PublicacionPerfilCard(
                 )
             }
             Text(
-                "${pub.numReactions} reacciones · ${pub.numComments} comentarios",
+                "${cuenta(pub.numReactions, "reacción", "reacciones")} · ${cuenta(pub.numComments, "comentario", "comentarios")}",
                 modifier = Modifier.padding(top = 8.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,

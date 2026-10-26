@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 
@@ -19,7 +21,10 @@ fun AgoraProgressDots(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier,
+        // TalkBack: los puntos solos no dicen nada.
+        modifier = modifier.semantics {
+            contentDescription = "Página ${currentPage + 1} de $pageCount"
+        },
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         repeat(pageCount) { index ->
@@ -30,7 +35,7 @@ fun AgoraProgressDots(
                     .clip(CircleShape)
                     .background(
                         if (active) AgoraColors.Naranja
-                        else AgoraColors.Borde,
+                        else AgoraColors.TextMuted.copy(alpha = 0.5f),
                     ),
             )
         }

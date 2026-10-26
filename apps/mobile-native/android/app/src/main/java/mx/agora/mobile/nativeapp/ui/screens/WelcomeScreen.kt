@@ -4,18 +4,22 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.DynamicFeed
@@ -30,6 +34,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -60,7 +66,7 @@ fun WelcomeScreen(
                 )
             },
             title = "Tu feed del campus",
-            description = "Descubre lo que pasa en la UDLAP: posts, encuestas y conversaciones de tu comunidad verificada.",
+            description = "Descubre lo que pasa en la UDLAP: publicaciones, encuestas y conversaciones de tu comunidad verificada.",
         ),
         WelcomePage(
             icon = {
@@ -72,7 +78,7 @@ fun WelcomeScreen(
                 )
             },
             title = "Comunidades verificadas",
-            description = "Carreras, colegios y grupos oficiales con badge verificado. Solo gente real de la UDLAP.",
+            description = "Carreras, colegios y grupos oficiales con insignia de verificado. Solo gente real de la UDLAP.",
         ),
         WelcomePage(
             icon = {
@@ -84,7 +90,7 @@ fun WelcomeScreen(
                 )
             },
             title = "Eventos en vivo",
-            description = "Fiestas, charlas, torneos y más. RSVP y no te pierdas nada del campus.",
+            description = "Fiestas, charlas, torneos y más. Confirma tu asistencia y no te pierdas nada del campus.",
         ),
     )
 
@@ -118,43 +124,55 @@ fun WelcomeScreen(
                 .fillMaxWidth(),
         ) { page ->
             val item = pages[page]
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Box(
+            // Con letra grande el texto no cabía: cada página se desplaza, y el
+            // alto mínimo la deja centrada cuando sí cabe (como en LoginScreen).
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val alto = maxHeight
+                Column(
                     modifier = Modifier
-                        .size(96.dp)
-                        .clip(CircleShape)
-                        .background(AgoraColors.NaranjaSuave),
-                    contentAlignment = Alignment.Center,
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .heightIn(min = alto)
+                        .padding(horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
                 ) {
-                    item.icon()
+                    Box(
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(CircleShape)
+                            .background(AgoraColors.NaranjaSuave),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        item.icon()
+                    }
+                    Spacer(Modifier.height(32.dp))
+                    Text(
+                        item.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        item.description,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = AgoraColors.TextoMedio,
+                        textAlign = TextAlign.Center,
+                    )
                 }
-                Spacer(Modifier.height(32.dp))
-                Text(
-                    item.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    item.description,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = AgoraColors.TextoMedio,
-                    textAlign = TextAlign.Center,
-                )
             }
         }
 
         AgoraProgressDots(
             pageCount = pages.size,
             currentPage = pagerState.currentPage,
-            modifier = Modifier.padding(vertical = 24.dp),
+            // Los puntos son solo dibujo: TalkBack lee en qué página va.
+            modifier = Modifier
+                .padding(vertical = 24.dp)
+                .clearAndSetSemantics {
+                    contentDescription = "Página ${pagerState.currentPage + 1} de ${pages.size}"
+                },
         )
 
         Button(

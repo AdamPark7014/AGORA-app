@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import mx.agora.mobile.nativeapp.ui.theme.AgoraChipShape
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
@@ -59,10 +60,12 @@ fun AgoraChipRow(
                 selected = selected,
                 onClick = { onChipSelected(chip.id) },
                 label = {
+                    // Seleccionado: más peso, no solo otro color.
                     Text(
                         text = chip.label,
                         maxLines = 1,
                         style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (selected) FontWeight.SemiBold else null,
                     )
                 },
                 shape = AgoraChipShape,
@@ -76,7 +79,7 @@ fun AgoraChipRow(
                     enabled = true,
                     selected = selected,
                     borderColor = AgoraColors.Borde,
-                    selectedBorderColor = AgoraColors.Naranja.copy(alpha = 0.3f),
+                    selectedBorderColor = AgoraColors.Naranja,
                 ),
             )
         }

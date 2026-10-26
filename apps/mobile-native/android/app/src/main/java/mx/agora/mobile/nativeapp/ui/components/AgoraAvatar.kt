@@ -10,10 +10,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
@@ -49,11 +50,14 @@ private fun Iniciales(nombre: String?, modifier: Modifier, size: Dp) {
         modifier = modifier.background(AgoraColors.NaranjaSuave),
         contentAlignment = Alignment.Center,
     ) {
+        // Decorativas: el nombre ya se lee junto al avatar. El tamaño va en dp
+        // para que con letra grande del sistema no se salgan del círculo.
         Text(
             iniciales,
             fontWeight = FontWeight.Bold,
             color = AgoraColors.Naranja,
-            fontSize = (size.value * 0.38f).sp,
+            fontSize = with(LocalDensity.current) { (size * 0.38f).toSp() },
+            modifier = Modifier.clearAndSetSemantics {},
         )
     }
 }

@@ -20,6 +20,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -56,7 +58,9 @@ fun GuardarButton(
     )
 
     IconButton(
-        modifier = modifier.scale(scale),
+        modifier = modifier
+            .scale(scale)
+            .semantics { stateDescription = if (estado) "Guardada" else "Sin guardar" },
         enabled = !cargando,
         onClick = {
             haptics.perform(HapticType.Toggle)
@@ -93,7 +97,7 @@ fun GuardarButton(
     ) {
         Icon(
             imageVector = if (estado) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder,
-            contentDescription = if (estado) "Quitar de guardados" else "Guardar",
+            contentDescription = if (estado) "Quitar de guardados" else "Guardar publicación",
             tint = if (estado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(0.6f),
         )
     }

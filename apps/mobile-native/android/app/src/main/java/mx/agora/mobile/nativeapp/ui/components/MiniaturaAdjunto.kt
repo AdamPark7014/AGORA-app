@@ -21,6 +21,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -43,9 +46,14 @@ fun MiniaturaAdjunto(
     Box(modifier = modifier) {
         if (esVideo) {
             Surface(
+                // TalkBack: qué es y si se está subiendo; el 🎬 y el spinner no se leen.
                 modifier = Modifier
                     .size(tamano)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .clip(RoundedCornerShape(8.dp))
+                    .clearAndSetSemantics {
+                        contentDescription = "Video adjunto"
+                        if (subiendo) stateDescription = "Subiendo"
+                    },
                 color = AgoraColors.Naranja.copy(alpha = 0.15f),
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -65,14 +73,20 @@ fun MiniaturaAdjunto(
                 contentDescription = null,
                 modifier = Modifier
                     .size(tamano)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .clip(RoundedCornerShape(8.dp))
+                    .clearAndSetSemantics {
+                        contentDescription = "Foto adjunta"
+                        if (subiendo) stateDescription = "Subiendo"
+                    },
                 contentScale = ContentScale.Crop,
             )
             if (subiendo) {
+                // El estado ya lo dice la foto.
                 CircularProgressIndicator(
                     modifier = Modifier
                         .size(tamano)
-                        .padding(tamano / 3),
+                        .padding(tamano / 3)
+                        .clearAndSetSemantics {},
                     color = AgoraColors.Naranja,
                 )
             }

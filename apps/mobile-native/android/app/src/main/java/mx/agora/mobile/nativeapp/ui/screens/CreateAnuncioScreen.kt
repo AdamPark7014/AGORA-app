@@ -8,11 +8,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +37,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -159,6 +164,8 @@ fun CreateAnuncioScreen(
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Título") },
             singleLine = true,
+            // Lo mismo que pide puedePublicar (y crearAnuncioSchema).
+            supportingText = { Text("Mínimo 3 caracteres") },
         )
         OutlinedTextField(
             value = descripcion,
@@ -167,6 +174,7 @@ fun CreateAnuncioScreen(
                 .fillMaxWidth()
                 .height(120.dp),
             label = { Text("Descripción") },
+            supportingText = { Text("Obligatoria") },
         )
         OutlinedTextField(
             value = precio,
@@ -220,15 +228,21 @@ fun CreateAnuncioScreen(
             },
             enabled = !subiendo && cupoFotos > 0,
         ) {
-            Text(
-                when {
-                    subiendo -> "Subiendo fotos…"
-                    cupoFotos == 0 -> "Máx. $MAX_FOTOS_ANUNCIO fotos"
-                    fotos.isEmpty() -> "📷 Agregar fotos"
-                    else -> "📷 Agregar más (${fotos.size}/$MAX_FOTOS_ANUNCIO)"
-                },
-            )
+            // El lector no lee el emoji: la descripción va sin él.
+            val (textoFotos, lecturaFotos) = when {
+                subiendo -> "Subiendo fotos…" to "Subiendo fotos…"
+                cupoFotos == 0 -> "Máx. $MAX_FOTOS_ANUNCIO fotos" to "Máximo $MAX_FOTOS_ANUNCIO fotos"
+                fotos.isEmpty() -> "📷 Agregar fotos" to "Agregar fotos"
+                else -> Pair(
+                    "📷 Agregar más (${fotos.size}/$MAX_FOTOS_ANUNCIO)",
+                    "Agregar más fotos, ${fotos.size} de $MAX_FOTOS_ANUNCIO",
+                )
+            }
+            Text(textoFotos, modifier = Modifier.semantics { contentDescription = lecturaFotos })
         }
+
+        // Arriba de Publicar: abajo de Cancelar quedaba fuera de vista.
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         Button(
             onClick = {
@@ -260,7 +274,9 @@ fun CreateAnuncioScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (enviando) {
-                CircularProgressIndicator(modifier = Modifier.height(20.dp))
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("Publicando…")
             } else {
                 Text("Publicar")
             }
@@ -269,7 +285,5 @@ fun CreateAnuncioScreen(
         OutlinedButton(onClick = onCancelar, modifier = Modifier.fillMaxWidth()) {
             Text("Cancelar")
         }
-
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
 }

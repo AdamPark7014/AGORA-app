@@ -23,8 +23,18 @@ private fun esquema(oscuro: Boolean): ColorScheme {
         onPrimaryContainer = AgoraColors.NaranjaOscuro,
         secondary = AgoraColors.TextoMedio,
         onSecondary = if (oscuro) AgoraColors.Fondo else Color.White,
+        // Sin estos, Material 3 rellena con su lila por omisión: los FilterChip
+        // seleccionados (secondaryContainer) y los diálogos, menús y selectores de
+        // fecha (surfaceContainer*) salían lavanda, fuera de la paleta cálida.
+        secondaryContainer = AgoraColors.ChipSelected,
+        onSecondaryContainer = AgoraColors.ChipSelectedText,
         surface = AgoraColors.Superficie,
         surfaceVariant = AgoraColors.SurfaceElevated,
+        surfaceContainerLowest = AgoraColors.Superficie,
+        surfaceContainerLow = AgoraColors.Superficie,
+        surfaceContainer = AgoraColors.Superficie,
+        surfaceContainerHigh = AgoraColors.SurfaceElevated,
+        surfaceContainerHighest = AgoraColors.SurfaceElevated,
         background = AgoraColors.Fondo,
         onSurface = AgoraColors.Texto,
         onBackground = AgoraColors.Texto,

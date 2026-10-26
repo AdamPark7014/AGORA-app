@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -62,6 +63,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -78,8 +82,10 @@ import mx.agora.mobile.nativeapp.data.gamificacion.GamificacionEvents
 import mx.agora.mobile.nativeapp.data.local.OfflineCache
 import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
 import mx.agora.mobile.nativeapp.ui.components.MiniaturaAdjunto
+import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.HapticType
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 import mx.agora.mobile.nativeapp.ui.util.rememberHaptics
 import java.io.IOException
@@ -134,6 +140,8 @@ fun PublicarScreen(
     var texto by remember { mutableStateOf("") }
     val adjuntos = remember { mutableStateListOf<AdjuntoPendiente>() }
     var cargandoComunidades by remember { mutableStateOf(true) }
+    /** Falló traer las comunidades: se ve con «Reintentar» (sin ellas no se puede publicar). */
+    var errorComunidades by remember { mutableStateOf<String?>(null) }
     var enviando by remember { mutableStateOf(false) }
 
     /**
@@ -146,6 +154,16 @@ fun PublicarScreen(
     var encuestaActiva by remember { mutableStateOf(false) }
     var preguntaEncuesta by remember { mutableStateOf("") }
     val opcionesEncuesta = remember { mutableStateListOf("", "") }
+
+    // Tras dejarla en cola sin conexión el formulario se vacía, para no invitar a duplicarla.
+    fun limpiarTrasEncolar() {
+        texto = ""
+        adjuntos.clear()
+        encuestaActiva = false
+        preguntaEncuesta = ""
+        opcionesEncuesta.clear()
+        opcionesEncuesta.addAll(listOf("", ""))
+    }
 
     // Cada adjunto se ubica por su uri, nunca por un índice guardado: si la
     // persona quita otro mientras este sube, el índice ya no apunta a él.
@@ -200,9 +218,10 @@ fun PublicarScreen(
         if (rechazados.isEmpty()) return@LaunchedEffect
         val primero = rechazados.first()
         val mensaje = if (rechazados.size == 1) {
-            "No se pudo publicar tu post pendiente" + (primero.motivo?.let { ": $it" } ?: ".")
+            "No se pudo publicar tu publicación pendiente" + (primero.motivo?.let { ": $it" } ?: ".")
         } else {
-            "No se pudieron publicar ${rechazados.size} posts pendientes" +
+            "No se pudieron publicar " +
+                cuenta(rechazados.size, "publicación pendiente", "publicaciones pendientes") +
                 (primero.motivo?.let { ": $it" } ?: ".")
         }
         val recuperable = primero.texto.isNotBlank()
@@ -217,18 +236,25 @@ fun PublicarScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        cargandoComunidades = true
-        try {
-            val lista = ApiClient.api<PerfilApi>(tokenProvider).misComunidades()
-            comunidades = lista
-            slug = lista.firstOrNull()?.slug
-        } catch (e: Exception) {
-            snackbarHostState.showSnackbar(mensajeDe(e))
-        } finally {
-            cargandoComunidades = false
+    fun cargarComunidades() {
+        scope.launch {
+            cargandoComunidades = true
+            errorComunidades = null
+            try {
+                val lista = ApiClient.api<PerfilApi>(tokenProvider).misComunidades()
+                comunidades = lista
+                slug = lista.firstOrNull()?.slug
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorComunidades = mensajeDe(e)
+            } finally {
+                cargandoComunidades = false
+            }
         }
     }
+
+    LaunchedEffect(Unit) { cargarComunidades() }
 
     val opcionesValidas = opcionesEncuesta
         .map { it.trim() }
@@ -267,6 +293,18 @@ fun PublicarScreen(
             Text("Publicar en", style = MaterialTheme.typography.titleSmall)
             if (cargandoComunidades) {
                 CircularProgressIndicator()
+            } else if (errorComunidades != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        errorComunidades!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { cargarComunidades() }) {
+                        Text(AgoraCopy.cta.reintentar)
+                    }
+                }
             } else {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     comunidades.forEach { c ->
@@ -312,13 +350,13 @@ fun PublicarScreen(
                     },
                     enabled = !subiendoAlguno && cupoAdjuntos > 0,
                 ) {
-                    Text(
-                        when {
-                            subiendoAlguno -> "Subiendo…"
-                            cupoAdjuntos == 0 -> "Máx. $MAX_ADJUNTOS"
-                            else -> "📷 Fotos o videos"
-                        },
-                    )
+                    // El lector no lee el emoji: la descripción va sin él.
+                    val (textoAdjuntar, lecturaAdjuntar) = when {
+                        subiendoAlguno -> "Subiendo…" to "Subiendo…"
+                        cupoAdjuntos == 0 -> "Límite de $MAX_ADJUNTOS alcanzado" to "Límite de $MAX_ADJUNTOS alcanzado"
+                        else -> "📷 Fotos o videos" to "Agregar fotos o videos"
+                    }
+                    Text(textoAdjuntar, modifier = Modifier.semantics { contentDescription = lecturaAdjuntar })
                 }
                 if (adjuntos.isNotEmpty()) {
                     Text(
@@ -330,15 +368,22 @@ fun PublicarScreen(
                 }
             }
 
+            // Toda la fila es el interruptor: así el lector lo anuncia con su nombre.
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = encuestaActiva,
+                        role = Role.Switch,
+                        onValueChange = { encuestaActiva = it },
+                    ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Agregar encuesta", style = MaterialTheme.typography.titleSmall)
                 Switch(
                     checked = encuestaActiva,
-                    onCheckedChange = { encuestaActiva = it },
+                    onCheckedChange = null,
                 )
             }
 
@@ -369,7 +414,7 @@ fun PublicarScreen(
                         )
                         if (opcionesEncuesta.size > MIN_OPCIONES) {
                             IconButton(onClick = { opcionesEncuesta.removeAt(index) }) {
-                                Icon(Icons.Default.Close, contentDescription = "Quitar opción")
+                                Icon(Icons.Default.Close, contentDescription = "Quitar opción ${index + 1}")
                             }
                         }
                     }
@@ -401,6 +446,10 @@ fun PublicarScreen(
                     "$restantes",
                     style = MaterialTheme.typography.labelSmall,
                     color = if (restantes < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(0.6f),
+                    // Un número suelto no dice nada al lector.
+                    modifier = Modifier.semantics {
+                        contentDescription = cuenta(restantes, "carácter restante", "caracteres restantes")
+                    },
                 )
             }
 
@@ -425,6 +474,7 @@ fun PublicarScreen(
                         try {
                             if (!NetworkMonitor.isOnline(context)) {
                                 offlineCache.enqueuePost(request)
+                                limpiarTrasEncolar()
                                 snackbarHostState.showSnackbar("Sin conexión. Se publicará al reconectar.")
                                 return@launch
                             }
@@ -446,6 +496,7 @@ fun PublicarScreen(
                         } catch (e: Exception) {
                             if (e is IOException) {
                                 offlineCache.enqueuePost(request)
+                                limpiarTrasEncolar()
                                 snackbarHostState.showSnackbar("Sin conexión. Se publicará al reconectar.")
                             } else {
                                 snackbarHostState.showSnackbar(mensajeDe(e))
@@ -505,7 +556,7 @@ fun PublicarScreen(
                 Icon(
                     Icons.Default.Check,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(48.dp),
                 )
             }

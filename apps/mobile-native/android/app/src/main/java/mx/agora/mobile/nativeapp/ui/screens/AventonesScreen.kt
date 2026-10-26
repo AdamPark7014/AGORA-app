@@ -39,11 +39,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.AbrirConversacionRequest
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -54,12 +60,15 @@ import mx.agora.mobile.nativeapp.data.api.MensajesApi
 import mx.agora.mobile.nativeapp.data.gamificacion.GamificacionEvents
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
 import mx.agora.mobile.nativeapp.ui.components.DialogoConfirmacion
 import mx.agora.mobile.nativeapp.ui.components.SelectorFechaHora
 import mx.agora.mobile.nativeapp.ui.components.fechaHoraCampus
 import mx.agora.mobile.nativeapp.ui.components.isoUtc
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.util.cuenta
+import mx.agora.mobile.nativeapp.ui.util.formatearCuota
 import mx.agora.mobile.nativeapp.ui.util.formatearFecha
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
@@ -74,6 +83,9 @@ private val sentidosAventon = listOf(
     "A_CAMPUS" to "Hacia el campus",
     "DESDE_CAMPUS" to "Desde el campus",
 )
+
+/** Lo que dice el lector en los chips de filtro, sin las flechas. */
+private val lecturaSentido = sentidosAventon.toMap()
 
 /** Límites de `crearAventonSchema` (packages/contracts). */
 private val RANGO_LUGARES = 1..7
@@ -144,9 +156,17 @@ fun AventonesScreen(
                 aventones = ApiClient.api<AventonesApi>(tokenProvider)
                     .proximos(sentido.takeIf { it.isNotBlank() })
                     .aventones
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                error = mensajeDe(e)
-                aventones = emptyList()
+                val mensaje = mensajeDe(e)
+                if (refresh && aventones.isNotEmpty()) {
+                    // Con la lista en pantalla no se vacía: se avisa aparte.
+                    avisar(mensaje)
+                } else {
+                    error = mensaje
+                    aventones = emptyList()
+                }
             } finally {
                 cargando = false
                 refrescando = false
@@ -215,14 +235,25 @@ fun AventonesScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     filtrosSentido.forEach { (valor, etiqueta) ->
+                        val lectura = lecturaSentido[valor]
                         FilterChip(
                             selected = sentido == valor,
                             onClick = { sentido = valor },
                             label = { Text(etiqueta, maxLines = 1) },
+                            modifier = if (lectura != null) {
+                                Modifier.semantics { contentDescription = lectura }
+                            } else {
+                                Modifier
+                            },
                         )
                     }
                 }
-                Button(onClick = { abrirNuevo() }, modifier = Modifier.padding(start = 8.dp)) {
+                Button(
+                    onClick = { abrirNuevo() },
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .semantics { contentDescription = "Ofrecer un aventón" },
+                ) {
                     Text("+ Ofrecer", maxLines = 1, softWrap = false)
                 }
             }
@@ -236,20 +267,21 @@ fun AventonesScreen(
                     cargando && aventones.isEmpty() -> {
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                     }
+                    // Desplazables para que el jalón de refrescar funcione aunque no haya lista.
                     aventones.isEmpty() -> {
-                        if (error != null) {
-                            AgoraErrorState(
-                                message = error!!,
-                                modifier = Modifier.align(Alignment.Center),
-                                onRetry = { cargar() },
-                            )
-                        } else {
-                            AgoraEmptyState(
-                                state = AgoraCopy.emptyAventones,
-                                modifier = Modifier.align(Alignment.Center),
-                                ctaLabel = AgoraCopy.cta.publicarAlgo,
-                                onCta = { abrirNuevo() },
-                            )
+                        AgoraEstadoDesplazable {
+                            if (error != null) {
+                                AgoraErrorState(
+                                    message = error!!,
+                                    onRetry = { cargar() },
+                                )
+                            } else {
+                                AgoraEmptyState(
+                                    state = AgoraCopy.emptyAventones,
+                                    ctaLabel = "Ofrecer aventón",
+                                    onCta = { abrirNuevo() },
+                                )
+                            }
                         }
                     }
                     else -> {
@@ -312,12 +344,25 @@ fun AventonesScreen(
     }
 
     if (modal) {
+        val scrollFormulario = rememberScrollState()
+
+        // El error se pinta al final del formulario: se baja hasta él para que se vea.
+        fun mostrarErrorFormulario(mensaje: String) {
+            errorFormulario = mensaje
+            scope.launch {
+                // Dos cuadros: en el primero apenas se recompone y mide el texto.
+                withFrameNanos { }
+                withFrameNanos { }
+                scrollFormulario.animateScrollTo(scrollFormulario.maxValue)
+            }
+        }
+
         AlertDialog(
             onDismissRequest = { if (!enviando) modal = false },
             title = { Text("Nuevo aventón") },
             text = {
                 Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    modifier = Modifier.verticalScroll(scrollFormulario),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -393,7 +438,13 @@ fun AventonesScreen(
                         label = { Text("Nota (opcional)") },
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    errorFormulario?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    errorFormulario?.let {
+                        Text(
+                            it,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -401,7 +452,7 @@ fun AventonesScreen(
                     onClick = {
                         val problema = validarNuevoAventon(nuevo)
                         if (problema != null) {
-                            errorFormulario = problema
+                            mostrarErrorFormulario(problema)
                             return@TextButton
                         }
                         scope.launch {
@@ -423,8 +474,10 @@ fun AventonesScreen(
                                 modal = false
                                 avisar("¡Publicado! Ya aparece en la lista.")
                                 cargar(refresh = true)
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: Exception) {
-                                errorFormulario = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                                mostrarErrorFormulario(ApiClient.mensajeDelServidor(e) ?: mensajeDe(e))
                             } finally {
                                 enviando = false
                             }
@@ -472,8 +525,15 @@ private fun AventonCard(
     ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("${aventon.origen} → ${aventon.destino}", style = MaterialTheme.typography.titleMedium)
+            // «Gratis» en vez de «$0» y lugares libres en vez de «2/3 lugares».
+            val libres = (aventon.lugares - aventon.ocupados).coerceAtLeast(0)
+            val textoLugares = if (libres == 0) {
+                "Sin lugares"
+            } else {
+                "${cuenta(libres, "lugar libre", "lugares libres")} de ${aventon.lugares}"
+            }
             Text(
-                "${formatearFecha(aventon.salidaAt)} · $${aventon.cuotaMxn} · ${aventon.ocupados}/${aventon.lugares} lugares",
+                "${formatearFecha(aventon.salidaAt)} · ${formatearCuota(aventon.cuotaMxn)} · $textoLugares",
                 style = MaterialTheme.typography.bodySmall,
                 color = AgoraColors.TextoMedio,
             )
@@ -481,7 +541,11 @@ private fun AventonCard(
                 Text(it, style = MaterialTheme.typography.bodyMedium)
             }
             aventon.conductor?.let { conductor ->
-                TextButton(onClick = { conductor.handle?.let(onPerfilClick) }) {
+                TextButton(
+                    onClick = { conductor.handle?.let(onPerfilClick) },
+                    // Sin handle no hay perfil que abrir.
+                    enabled = conductor.handle != null,
+                ) {
                     Text(conductor.nombre ?: conductor.handle ?: "Conductor")
                 }
             }
@@ -498,15 +562,26 @@ private fun AventonCard(
             if (!aventon.esMio) {
                 when {
                     // Quien ya apartó siempre puede soltar su lugar, aunque el aventón se haya llenado.
+                    // Texto corto como en iOS; el lector sí dice que tocar suelta el lugar.
                     aventon.voyYo -> OutlinedButton(
                         onClick = onApartar,
                         enabled = !ocupado,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (ocupado) {
+                                    Modifier
+                                } else {
+                                    Modifier.semantics {
+                                        contentDescription = "Vas en este aventón. Toca para soltar tu lugar."
+                                    }
+                                },
+                            ),
                     ) {
-                        Text(if (ocupado) "Un momento…" else "✓ Vas en este · Soltar mi lugar")
+                        Text(if (ocupado) "Un momento…" else "✓ Vas en este")
                     }
                     lleno -> Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
-                        Text("Lleno")
+                        Text("Sin lugares")
                     }
                     else -> Button(onClick = onApartar, enabled = !ocupado, modifier = Modifier.fillMaxWidth()) {
                         Text(if (ocupado) "Apartando…" else "Apartar lugar")

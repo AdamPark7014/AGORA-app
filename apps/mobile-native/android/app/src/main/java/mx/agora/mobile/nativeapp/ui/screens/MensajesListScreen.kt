@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +34,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -47,6 +52,7 @@ import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
@@ -63,6 +69,7 @@ fun MensajesListScreen(
     var refrescando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     /** Hay una carga en curso: el refresco automático no encima otra. */
     var ocupado by remember { mutableStateOf(false) }
@@ -87,7 +94,12 @@ fun MensajesListScreen(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (!silencioso || conversaciones.isEmpty()) error = mensajeDe(e)
+                val mensaje = mensajeDe(e)
+                if (!silencioso || conversaciones.isEmpty()) error = mensaje
+                // Con la lista en pantalla el error no se pinta: se avisa.
+                if (jalon && conversaciones.isNotEmpty()) {
+                    Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
+                }
             } finally {
                 ocupado = false
                 cargando = false
@@ -150,7 +162,7 @@ private fun ConversacionRow(conv: ConversacionDto, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClickLabel = "Abrir conversación", role = Role.Button, onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = if (nueva) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
@@ -227,6 +239,10 @@ private fun ConversacionRow(conv: ConversacionDto, onClick: () -> Unit) {
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimary,
                             fontWeight = FontWeight.Bold,
+                            // Un número suelto no dice nada al lector; aquí va la cuenta real.
+                            modifier = Modifier.semantics {
+                                contentDescription = cuenta(conv.noLeidos, "mensaje sin leer", "mensajes sin leer")
+                            },
                         )
                     }
                 }

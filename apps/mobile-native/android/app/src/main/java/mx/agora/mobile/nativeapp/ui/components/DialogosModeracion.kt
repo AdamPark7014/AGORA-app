@@ -77,6 +77,8 @@ fun RetirarPostDialogo(
                 OutlinedTextField(
                     value = motivo,
                     onValueChange = { if (it.length <= 500) motivo = it },
+                    // Etiqueta: sin ella TalkBack solo lee el ejemplo.
+                    label = { Text("Motivo") },
                     placeholder = { Text("Ej. datos personales de un tercero") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,

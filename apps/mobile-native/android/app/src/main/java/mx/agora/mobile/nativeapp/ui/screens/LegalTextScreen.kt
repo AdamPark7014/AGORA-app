@@ -9,8 +9,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import mx.agora.mobile.nativeapp.ui.components.SubScreenScaffold
+import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 
 data class LegalSection(val titulo: String, val parrafos: List<String>)
 
@@ -130,6 +139,7 @@ fun PrivacidadScreen(onBack: () -> Unit) {
             ),
         ),
         pie = "Versión completa en udlagora.com/privacidad",
+        enlacePie = "udlagora.com/privacidad",
         onBack = onBack,
     )
 }
@@ -176,7 +186,7 @@ fun ReglasScreen(onBack: () -> Unit) {
                 "Cómo se modera",
                 listOf(
                     "• Cualquiera puede reportar una publicación, un comentario, un mensaje o un perfil desde " +
-                        "«…». El reporte entra a una cola de moderación que el equipo revisa en menos de 24 " +
+                        "el menú de opciones (⋮). El reporte entra a una cola de moderación que el equipo revisa en menos de 24 " +
                         "horas, y si cruza una línea roja se retira.",
                     "• Si una publicación tuya se retira, ves el motivo. Puede ser un error: escríbenos y la " +
                         "revisamos.",
@@ -185,7 +195,7 @@ fun ReglasScreen(onBack: () -> Unit) {
                 ),
             ),
             LegalSection(
-                "La zona anónima",
+                "Sin nombre (publicar sin firmar)",
                 listOf(
                     "Nadie ve tu nombre, pero Ágora sí lo sabe. El anonimato es frente a otros usuarios, no " +
                         "frente a nosotros ni frente a una autoridad que lo pida conforme a la ley. Las mismas " +
@@ -204,7 +214,7 @@ fun ReglasScreen(onBack: () -> Unit) {
             LegalSection(
                 "Cómo reportar",
                 listOf(
-                    "Cada publicación y cada comentario tienen la opción Reportar. Elige el motivo; quien " +
+                    "Cada publicación y cada comentario tienen la opción «Reportar». Elige el motivo; quien " +
                         "publicó no sabe quién lo reportó. También puedes bloquear a alguien: no podrá " +
                         "escribirte, seguirte ni mandarte avisos.",
                     "Si alguien está en peligro, no esperes a la app: llama al 911.",
@@ -224,6 +234,8 @@ private fun LegalTextScreen(
     onBack: () -> Unit,
     /** Nota final en tono tenue (p. ej. dónde está la versión completa). */
     pie: String? = null,
+    /** Dirección (sin https://) que aparece tal cual en [pie] y se abre en el navegador. */
+    enlacePie: String? = null,
 ) {
     // El padding del Scaffold no se aplicaba: el principio del texto quedaba
     // debajo de la barra superior.
@@ -235,22 +247,46 @@ private fun LegalTextScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
         ) {
-            Text(fecha, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(0.6f))
+            Text(fecha, style = MaterialTheme.typography.bodySmall, color = AgoraColors.TextMuted)
             secciones.forEach { seccion ->
                 Text(
                     seccion.titulo,
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
+                    modifier = Modifier
+                        .padding(top = 16.dp, bottom = 6.dp)
+                        .semantics { heading() },
                 )
                 seccion.parrafos.forEach { parrafo ->
                     Text(parrafo, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
                 }
             }
             pie?.let {
+                val inicio = enlacePie?.let { enlace -> it.indexOf(enlace) } ?: -1
+                val texto = buildAnnotatedString {
+                    if (enlacePie == null || inicio < 0) {
+                        append(it)
+                    } else {
+                        append(it.substring(0, inicio))
+                        withLink(
+                            LinkAnnotation.Url(
+                                "https://$enlacePie",
+                                TextLinkStyles(
+                                    style = SpanStyle(
+                                        color = AgoraColors.Naranja,
+                                        textDecoration = TextDecoration.Underline,
+                                    ),
+                                ),
+                            ),
+                        ) {
+                            append(enlacePie)
+                        }
+                        append(it.substring(inicio + enlacePie.length))
+                    }
+                }
                 Text(
-                    it,
+                    texto,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(0.6f),
+                    color = AgoraColors.TextMuted,
                     modifier = Modifier.padding(top = 16.dp),
                 )
             }

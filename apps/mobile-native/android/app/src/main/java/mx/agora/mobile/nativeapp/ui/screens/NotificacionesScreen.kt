@@ -28,6 +28,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
@@ -175,9 +178,13 @@ private fun NotificacionCard(n: NotificacionDto, onNavigateUrl: (String) -> Unit
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            // TalkBack lee la tarjeta entera y si ya se leyó (antes solo lo decía el color).
+            .semantics(mergeDescendants = true) {
+                stateDescription = if (n.leida) "Leída" else "No leída"
+            }
             .then(
                 if (tieneUrl) {
-                    Modifier.clickable { onNavigateUrl(n.url!!) }
+                    Modifier.clickable(role = Role.Button, onClickLabel = "Abrir") { onNavigateUrl(n.url!!) }
                 } else {
                     Modifier
                 },

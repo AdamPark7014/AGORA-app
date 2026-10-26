@@ -27,7 +27,11 @@ fun haceCuanto(iso: String): String = runCatching {
     }
 }.getOrElse { iso }
 
-fun formatearPrecio(mxn: Int): String = "$${"%,d".format(mxn)}"
+// Con el locale fijo: con el del teléfono (es-ES) salía «$1.500».
+fun formatearPrecio(mxn: Int): String = "$${"%,d".format(Locale("es", "MX"), mxn)}"
+
+/** Cuota de un aventón: «Gratis» en vez de «$0». */
+fun formatearCuota(mxn: Int): String = if (mxn <= 0) "Gratis" else formatearPrecio(mxn)
 
 private val horaCorta = DateTimeFormatter.ofPattern("HH:mm")
 
@@ -85,6 +89,18 @@ fun mensajeDe(error: Throwable): String = when (error) {
     else -> AgoraCopy.errors.generic
 }
 
-/** «1 seguidor» / «3 seguidores»: el plural en español solo cuando no es uno. */
-fun cuenta(n: Int, singular: String, plural: String = singular + "s"): String =
+/**
+ * «1 seguidor» / «3 seguidores»: el plural en español solo cuando no es uno. El
+ * plural va siempre explícito: con `singular + "s"` salía «reaccións».
+ */
+fun cuenta(n: Int, singular: String, plural: String): String =
     "$n ${if (n == 1) singular else plural}"
+
+/**
+ * El mensaje del cuerpo del error si sirve para el usuario: null si no hay o si
+ * es el genérico en inglés de Nest («Too Many Requests», «Internal Server
+ * Error»). Para pantallas que leen `mensajeDelServidor` directo (la puerta, que
+ * no puede usar [mensajeDe] porque para 401 diría «Tu sesión expiró»).
+ */
+fun mensajeLegibleDelServidor(error: HttpException): String? =
+    ApiClient.mensajeDelServidor(error)?.trim()?.takeUnless { it.isEmpty() || mensajeGenericoEnIngles.matches(it) }

@@ -11,6 +11,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
@@ -36,18 +39,21 @@ fun AgoraEmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(AgoraSpacing.Xs),
     ) {
-        Text(text = emoji, fontSize = 48.sp)
+        // El emoji es decoración: TalkBack no lo lee.
+        Text(text = emoji, fontSize = 48.sp, modifier = Modifier.clearAndSetSemantics {})
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
             color = if (isError) AgoraColors.Danger else AgoraColors.Texto,
+            modifier = Modifier.semantics { heading() },
         )
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
-            color = if (isError) AgoraColors.Danger.copy(alpha = 0.85f) else AgoraColors.TextMuted,
+            // Sin alpha: al 85 % bajaba del contraste mínimo.
+            color = if (isError) AgoraColors.Danger else AgoraColors.TextMuted,
         )
         if (ctaLabel != null && onCta != null) {
             Spacer(Modifier.height(AgoraSpacing.Xs))
@@ -96,7 +102,8 @@ fun AgoraErrorState(
     modifier: Modifier = Modifier,
     onRetry: (() -> Unit)? = null,
     retryLabel: String = AgoraCopy.cta.reintentar,
-    title: String = "Algo salió mal",
+    // El mensaje genérico ya dice «Algo salió mal»: no repetirlo en el título.
+    title: String = "No se pudo cargar",
 ) {
     Column(
         modifier = modifier
@@ -105,13 +112,14 @@ fun AgoraErrorState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(text = "😕", fontSize = 48.sp)
+        Text(text = "😕", fontSize = 48.sp, modifier = Modifier.clearAndSetSemantics {})
         Spacer(Modifier.height(AgoraSpacing.Md))
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             color = AgoraColors.Texto,
             textAlign = TextAlign.Center,
+            modifier = Modifier.semantics { heading() },
         )
         Spacer(Modifier.height(AgoraSpacing.Xxs))
         Text(

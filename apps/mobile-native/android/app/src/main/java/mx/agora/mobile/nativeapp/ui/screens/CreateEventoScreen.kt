@@ -4,11 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -23,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,10 +35,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.ComunidadDto
@@ -43,6 +50,8 @@ import mx.agora.mobile.nativeapp.data.api.PerfilApi
 import mx.agora.mobile.nativeapp.ui.components.SelectorFechaHora
 import mx.agora.mobile.nativeapp.ui.components.fechaHoraCampus
 import mx.agora.mobile.nativeapp.ui.components.isoUtc
+import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
 private val tiposEvento = listOf(
@@ -82,14 +91,24 @@ fun CreateEventoScreen(
     var menuComunidad by remember { mutableStateOf(false) }
     var enviando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var errorComunidades by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        try {
-            comunidades = ApiClient.api<PerfilApi>(tokenProvider).misComunidades()
-        } catch (_: Exception) {
-            comunidades = emptyList()
+    // Si falla se avisa con «Reintentar»: antes el selector simplemente no salía.
+    fun cargarComunidades() {
+        scope.launch {
+            errorComunidades = false
+            try {
+                comunidades = ApiClient.api<PerfilApi>(tokenProvider).misComunidades()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                comunidades = emptyList()
+                errorComunidades = true
+            }
         }
     }
+
+    LaunchedEffect(Unit) { cargarComunidades() }
 
     val errorInicio = if (inicioAt < System.currentTimeMillis()) "Esa hora ya pasó. Elige otra." else null
     val errorFin = finAt?.let { fin ->
@@ -130,6 +149,8 @@ fun CreateEventoScreen(
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Título") },
             singleLine = true,
+            // Lo mismo que pide puedePublicar (y crearEventoSchema).
+            supportingText = { Text("Mínimo 3 caracteres") },
         )
         OutlinedTextField(
             value = lugar,
@@ -137,6 +158,7 @@ fun CreateEventoScreen(
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Lugar") },
             singleLine = true,
+            supportingText = { Text("Mínimo 2 caracteres") },
         )
         OutlinedTextField(
             value = descripcion,
@@ -145,6 +167,7 @@ fun CreateEventoScreen(
                 .fillMaxWidth()
                 .height(100.dp),
             label = { Text("Descripción") },
+            supportingText = { Text("Obligatoria") },
         )
 
         Text("Tipo", style = MaterialTheme.typography.labelLarge)
@@ -247,6 +270,18 @@ fun CreateEventoScreen(
                     }
                 }
             }
+        } else if (errorComunidades) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "No pudimos traer tus comunidades.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AgoraColors.TextoMedio,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { cargarComunidades() }) {
+                    Text(AgoraCopy.cta.reintentar)
+                }
+            }
         }
 
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -287,7 +322,9 @@ fun CreateEventoScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (enviando) {
-                CircularProgressIndicator(modifier = Modifier.height(20.dp))
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("Publicando…")
             } else {
                 Text("Publicar evento")
             }

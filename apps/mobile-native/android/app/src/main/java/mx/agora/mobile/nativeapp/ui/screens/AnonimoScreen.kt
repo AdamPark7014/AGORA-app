@@ -56,6 +56,9 @@ import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
+/** Tope de texto de una publicación anónima. */
+private const val LIMITE_ANONIMO = 600
+
 /** Las mismas tres que la web (`apps/web/app/anonimo`): tipo, emoji y etiqueta. */
 private val reacciones = listOf(
     Triple("ME_LATE", "🔥", "Me late"),
@@ -219,7 +222,7 @@ fun AnonimoScreen(
                         AgoraEstadoDesplazable {
                             AgoraErrorState(
                                 message = errorCarga!!,
-                                title = "No pudimos abrir la zona",
+                                title = "No pudimos abrir la zona sin nombre",
                                 onRetry = { cargarTodo() },
                             )
                         }
@@ -230,9 +233,9 @@ fun AnonimoScreen(
                                 modifier = Modifier.padding(24.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                Text("Zona sin nombre apagada", style = MaterialTheme.typography.titleMedium)
+                                Text("La zona sin nombre está apagada", style = MaterialTheme.typography.titleMedium)
                                 Text(
-                                    "El equipo la tiene desactivada por ahora.",
+                                    "El equipo la desactivó por ahora. Vuelve más tarde.",
                                     color = AgoraColors.TextoMedio,
                                     modifier = Modifier.padding(top = 8.dp),
                                 )
@@ -252,17 +255,24 @@ fun AnonimoScreen(
                                 ) {
                                     Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Text(
-                                            "Publicas como ${alias ?: "…"}",
+                                            // Si falló alias() no se queda en «…».
+                                            alias?.let { "Publicas como $it" } ?: "Publicas con un alias anónimo",
                                             style = MaterialTheme.typography.labelMedium,
                                             color = AgoraColors.TextoMedio,
                                         )
                                         OutlinedTextField(
                                             value = texto,
-                                            onValueChange = { if (it.length <= 600) texto = it },
+                                            onValueChange = { if (it.length <= LIMITE_ANONIMO) texto = it },
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .height(100.dp),
                                             placeholder = { Text("Di algo sin que sepan quién eres…") },
+                                            // Antes cortaba en seco al llegar al tope: ahora se ve venir.
+                                            supportingText = if (LIMITE_ANONIMO - texto.length < 100) {
+                                                { Text("${texto.length}/$LIMITE_ANONIMO") }
+                                            } else {
+                                                null
+                                            },
                                         )
                                         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                                         Button(
@@ -287,7 +297,7 @@ fun AnonimoScreen(
                                             enabled = !enviando && texto.isNotBlank(),
                                             modifier = Modifier.fillMaxWidth(),
                                         ) {
-                                            Text(if (enviando) "…" else "Publicar")
+                                            Text(if (enviando) "Publicando…" else "Publicar")
                                         }
                                     }
                                 }
@@ -365,10 +375,17 @@ private fun AnonimoPostCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(post.alias, style = MaterialTheme.typography.titleSmall)
+                // Con a quién o qué se refiere: en la lista hay muchos «Reportar».
                 if (post.esMio) {
-                    TextButton(onClick = onBorrar) { Text("Borrar") }
+                    TextButton(
+                        onClick = onBorrar,
+                        modifier = Modifier.semantics { contentDescription = "Borrar tu publicación" },
+                    ) { Text("Borrar") }
                 } else {
-                    TextButton(onClick = onReportar) {
+                    TextButton(
+                        onClick = onReportar,
+                        modifier = Modifier.semantics { contentDescription = "Reportar publicación de ${post.alias}" },
+                    ) {
                         Text("Reportar", color = AgoraColors.TextoMedio)
                     }
                 }

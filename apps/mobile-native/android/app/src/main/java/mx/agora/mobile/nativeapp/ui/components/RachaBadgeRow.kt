@@ -9,8 +9,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -41,6 +46,7 @@ import mx.agora.mobile.nativeapp.data.api.GamificacionDto
 import mx.agora.mobile.nativeapp.data.gamificacion.BadgesCampus
 import mx.agora.mobile.nativeapp.data.gamificacion.GamificacionEvents
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 
 fun textoCompartirRacha(rachaActual: Int): String =
     "Llevo 🔥 $rachaActual días seguidos en Ágora — ¿te sumas? https://udlagora.com"
@@ -112,9 +118,9 @@ fun RachaBadgeRow(
             }
 
             if (data.rachaActual >= 2) {
+                // Sin size(36.dp): el IconButton trae su área táctil de 48 dp.
                 IconButton(
                     onClick = { compartirRacha(context, data.rachaActual) },
-                    modifier = Modifier.size(36.dp),
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
@@ -131,7 +137,7 @@ fun RachaBadgeRow(
 
         (data.duelosGanados ?: 0).takeIf { it > 0 }?.let { ganados ->
             Text(
-                "🏆 $ganados ${if (ganados == 1) "duelo ganando" else "duelos ganando"}",
+                "🏆 ${cuenta(ganados, "duelo ganado", "duelos ganados")}",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = AgoraColors.Naranja,
@@ -170,7 +176,6 @@ fun GamificacionProfileSection(
                 if (data.rachaActual >= 2) {
                     IconButton(
                         onClick = { compartirRacha(context, data.rachaActual) },
-                        modifier = Modifier.size(36.dp),
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
@@ -261,7 +266,7 @@ fun GamificacionPublicSection(
 
         (data.duelosGanados ?: 0).takeIf { it > 0 }?.let { ganados ->
             Text(
-                "🏆 $ganados ${if (ganados == 1) "duelo ganando" else "duelos ganando"}",
+                "🏆 ${cuenta(ganados, "duelo ganado", "duelos ganados")}",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = AgoraColors.Naranja,
@@ -318,9 +323,18 @@ private fun BadgeEmoji(badge: GamificacionBadgeDto, compact: Boolean) {
         text = badge.emoji,
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier
+            // Área táctil de 48 dp de alto; la pastilla visible queda igual.
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { mostrarInfo = true }
+            // TalkBack lee el nombre de la insignia, no el emoji.
+            .semantics {
+                role = Role.Button
+                contentDescription = etiqueta
+            }
+            .wrapContentHeight()
             .clip(RoundedCornerShape(8.dp))
             .background(AgoraColors.Fondo)
-            .clickable { mostrarInfo = true }
             .padding(horizontal = if (compact) 8.dp else 10.dp, vertical = if (compact) 6.dp else 8.dp),
     )
 
@@ -335,7 +349,7 @@ private fun BadgeEmoji(badge: GamificacionBadgeDto, compact: Boolean) {
             },
             confirmButton = {
                 TextButton(onClick = { mostrarInfo = false }) {
-                    Text("OK")
+                    Text("Entendido")
                 }
             },
         )

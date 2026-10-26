@@ -37,6 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.math.sqrt
@@ -47,17 +51,17 @@ import mx.agora.mobile.nativeapp.ui.util.rememberHaptics
 private object CampusTips {
     val tips = listOf(
         "Tip: La biblioteca cierra tarde los jueves — aprovecha para estudiar en silencio.",
-        "Tip: Doble tap en una foto = 🧡 Me late",
-        "Tip: Responde la pregunta del día 7 veces y ganas insignia",
+        "Tip: Doble toque en una foto = 🧡 Me late.",
+        "Tip: Responde la pregunta del día 7 veces y ganas insignia.",
         "Tip: Filtra por tu carrera en el feed para ver lo más relevante.",
         "Tip: Mantén tu racha activa entrando un ratito cada día.",
         "Tip: Los jueves hay más movimiento en el feed — buen momento para publicar.",
         "Tip: Desliza en Trending para descubrir hashtags del campus.",
         "Tip: Saluda a quien cumple años hoy — aparecen arriba en el feed.",
-        "Tip: Guarda posts útiles con el bookmark para encontrarlos después.",
+        "Tip: Guarda las publicaciones que te sirvan para encontrarlas después.",
         "Tip: Usa # para conectar tu publicación con el resto del campus.",
         "Tip: El Centro Estudiantil tiene WiFi estable si tu señal falla.",
-        "Tip: Agita el teléfono aquí para otro tip del campus 📱",
+        "Tip: Agita el teléfono aquí para otro tip del campus. 📱",
     )
 
     fun randomIndex(excluding: Int? = null): Int {
@@ -109,7 +113,7 @@ fun CampusTipBanner(
                 .scale(scale)
                 .clip(RoundedCornerShape(12.dp))
                 .background(AgoraColors.NaranjaSuave)
-                .clickable(onClick = ::rotateTip)
+                .clickable(onClickLabel = "Ver otro consejo", role = Role.Button, onClick = ::rotateTip)
                 .padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -120,7 +124,10 @@ fun CampusTipBanner(
             )
             Text(
                 text = CampusTips.tips[tipIndex],
-                modifier = Modifier.weight(1f),
+                // Al cambiar de tip, TalkBack lee el nuevo.
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium,
                 color = AgoraColors.Texto,

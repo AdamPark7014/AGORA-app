@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,6 +29,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
@@ -51,9 +55,9 @@ private data class TipoBusqueda(val valor: String, val etiqueta: String)
 private val tipos = listOf(
     TipoBusqueda("todo", "Todo"),
     TipoBusqueda("personas", "Personas"),
-    TipoBusqueda("publicaciones", "Posts"),
+    TipoBusqueda("publicaciones", "Publicaciones"),
     TipoBusqueda("eventos", "Eventos"),
-    TipoBusqueda("marketplace", "Market"),
+    TipoBusqueda("marketplace", "Marketplace"),
 )
 
 @Composable
@@ -123,7 +127,7 @@ fun BuscarScreen(
             value = q,
             onValueChange = { q = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Buscar personas, posts, eventos…") },
+            placeholder = { Text("Buscar personas, publicaciones, eventos…") },
             singleLine = true,
         )
 
@@ -161,11 +165,15 @@ fun BuscarScreen(
                 modifier = Modifier.padding(top = 8.dp),
             )
             AgoraCopy.buscarEjemplos.forEach { ejemplo ->
+                // Se ve como enlace: tocarlo busca el ejemplo (48dp de área).
                 Text(
                     "«$ejemplo»",
                     style = MaterialTheme.typography.bodyMedium,
                     color = AgoraColors.Naranja,
-                    modifier = Modifier.padding(vertical = 2.dp),
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .clickable(role = Role.Button, onClickLabel = "Buscar") { q = ejemplo }
+                        .padding(vertical = 2.dp),
                 )
             }
         }
@@ -218,7 +226,8 @@ fun BuscarScreen(
             eventos.forEach { ev ->
                 TarjetaResultado(
                     titulo = ev.titulo,
-                    meta = "${ev.lugar ?: ""} · ${formatearFecha(ev.inicioAt)}",
+                    meta = listOfNotNull(ev.lugar?.takeIf { it.isNotBlank() }, formatearFecha(ev.inicioAt))
+                        .joinToString(" · "),
                     onClick = { onEvento(ev.id) },
                 )
             }
@@ -269,7 +278,13 @@ private fun FilaPersona(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(iniciales, fontWeight = FontWeight.Bold, color = AgoraColors.Naranja)
+                // Decorativas: el nombre ya se lee al lado.
+                Text(
+                    iniciales,
+                    fontWeight = FontWeight.Bold,
+                    color = AgoraColors.Naranja,
+                    modifier = Modifier.clearAndSetSemantics {},
+                )
             }
             Column(Modifier.weight(1f)) {
                 Text(titulo, fontWeight = FontWeight.Bold)

@@ -32,7 +32,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -122,7 +130,7 @@ fun SelectorFechaHora(
     minimo: Long? = null,
     sugerencia: Long? = null,
     onQuitar: (() -> Unit)? = null,
-    placeholder: String = "Toca para elegir fecha y hora",
+    placeholder: String = "Elige fecha y hora",
     error: String? = null,
     enabled: Boolean = true,
 ) {
@@ -131,10 +139,12 @@ fun SelectorFechaHora(
     var paso by remember { mutableStateOf(PasoFechaHora.Cerrado) }
     var diaElegido by remember { mutableStateOf<Long?>(null) }
     val mostrarQuitar = onQuitar != null && valor != null && enabled
+    val textoValor = valor?.let { textoFechaHoraCampus(it, es24h) }
+    val etiquetaMinusculas = etiqueta.lowercase()
 
     Box(modifier) {
         OutlinedTextField(
-            value = valor?.let { textoFechaHoraCampus(it, es24h) } ?: "",
+            value = textoValor ?: "",
             onValueChange = {},
             readOnly = true,
             enabled = enabled,
@@ -150,13 +160,16 @@ fun SelectorFechaHora(
             trailingIcon = {
                 if (mostrarQuitar) {
                     IconButton(onClick = { onQuitar?.invoke() }) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Quitar $etiqueta")
+                        Icon(Icons.Outlined.Close, contentDescription = "Quitar $etiquetaMinusculas")
                     }
                 } else {
                     Icon(Icons.Outlined.CalendarMonth, contentDescription = null)
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
+            // TalkBack no lo enfoca aparte: lo dice todo el botón de encima.
+            modifier = Modifier
+                .fillMaxWidth()
+                .clearAndSetSemantics {},
         )
         // El campo es de solo lectura: tocar en cualquier parte abre el calendario
         // (menos la «x», que queda libre para quitar la fecha).
@@ -166,11 +179,25 @@ fun SelectorFechaHora(
                 .padding(end = if (mostrarQuitar) 48.dp else 0.dp)
                 .clickable(
                     enabled = enabled,
-                    onClickLabel = "Elegir $etiqueta",
+                    onClickLabel = "Elegir $etiquetaMinusculas",
                     role = Role.Button,
                 ) {
                     diaElegido = null
                     paso = PasoFechaHora.Dia
+                }
+                // Un solo elemento para TalkBack: «Inicio, jue 23 oct · 07:30».
+                .semantics {
+                    contentDescription = "$etiqueta, ${textoValor ?: "sin elegir"}"
+                    error?.let { this.error(it) }
+                    // La «x» quedó dentro del campo oculto: se ofrece como acción.
+                    if (mostrarQuitar) {
+                        customActions = listOf(
+                            CustomAccessibilityAction("Quitar $etiquetaMinusculas") {
+                                onQuitar?.invoke()
+                                true
+                            },
+                        )
+                    }
                 },
         )
     }
@@ -232,6 +259,7 @@ fun SelectorFechaHora(
                             "Esa hora ya pasó. Elige una más tarde.",
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         )
                     }
                 }

@@ -25,6 +25,8 @@ fun AgoraCard(
     val cardModifier = modifier.fillMaxWidth()
     val colors = CardDefaults.cardColors(
         containerColor = AgoraColors.SurfaceElevated,
+        // Sin esto el texto hereda onSurfaceVariant (gris).
+        contentColor = AgoraColors.Texto,
     )
     val elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     val border = BorderStroke(1.dp, AgoraColors.BordeSutil)

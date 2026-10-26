@@ -36,6 +36,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -48,6 +50,7 @@ import mx.agora.mobile.nativeapp.data.realtime.RealtimeBus
 import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
+import mx.agora.mobile.nativeapp.ui.components.AgoraPieErrorPagina
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.util.formatearHora
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
@@ -76,8 +79,10 @@ fun MensajeDetalleScreen(
     var texto by remember { mutableStateOf("") }
     /** Falló la primera carga y no hay nada que enseñar. */
     var errorCarga by remember { mutableStateOf<String?>(null) }
-    /** Falló el último envío (o traer mensajes anteriores). */
+    /** Falló el último envío. */
     var errorEnvio by remember { mutableStateOf<String?>(null) }
+    /** Falló traer mensajes anteriores: va arriba, junto a su botón, no junto al cuadro de texto. */
+    var errorAntiguos by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -144,6 +149,7 @@ fun MensajeDetalleScreen(
         val cursor = siguienteCursor ?: return
         scope.launch {
             cargandoAntiguos = true
+            errorAntiguos = null
             try {
                 val datos = ApiClient.api<MensajesApi>(tokenProvider).conversacion(conversacionId, cursor = cursor)
                 siguienteCursor = datos.siguienteCursor
@@ -152,7 +158,7 @@ fun MensajeDetalleScreen(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                errorEnvio = mensajeDe(e)
+                errorAntiguos = mensajeDe(e)
             } finally {
                 cargandoAntiguos = false
             }
@@ -265,11 +271,19 @@ fun MensajeDetalleScreen(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Button(
-                                onClick = { cargarAntiguos() },
-                                enabled = !cargandoAntiguos,
-                            ) {
-                                Text(if (cargandoAntiguos) "Cargando…" else "Cargar mensajes anteriores")
+                            val falloAntiguos = errorAntiguos
+                            if (falloAntiguos != null && !cargandoAntiguos) {
+                                AgoraPieErrorPagina(
+                                    mensaje = falloAntiguos,
+                                    onReintentar = { cargarAntiguos() },
+                                )
+                            } else {
+                                Button(
+                                    onClick = { cargarAntiguos() },
+                                    enabled = !cargandoAntiguos,
+                                ) {
+                                    Text(if (cargandoAntiguos) "Cargando…" else "Cargar mensajes anteriores")
+                                }
                             }
                         }
                     }
@@ -285,7 +299,11 @@ fun MensajeDetalleScreen(
                 }
 
                 items(mensajes, key = { it.id }) { mensaje ->
-                    BurbujaMensaje(mensaje, enviando = mensaje.esLocal())
+                    BurbujaMensaje(
+                        mensaje,
+                        enviando = mensaje.esLocal(),
+                        nombre = con?.nombre ?: "Contacto",
+                    )
                 }
             }
 
@@ -317,7 +335,8 @@ fun MensajeDetalleScreen(
                     onClick = { enviar() },
                     enabled = texto.trim().isNotBlank() && !enviando,
                 ) {
-                    Text(if (enviando) "…" else "Enviar")
+                    // La burbuja ya dice «Enviando…»; el botón solo se deshabilita.
+                    Text("Enviar")
                 }
             }
         }
@@ -329,10 +348,18 @@ fun MensajeDetalleScreen(
  * (hora de México) abajo. Mientras el servidor no confirma dice «Enviando…».
  */
 @Composable
-private fun BurbujaMensaje(mensaje: MensajeDto, enviando: Boolean) {
+private fun BurbujaMensaje(mensaje: MensajeDto, enviando: Boolean, nombre: String) {
     val mio = mensaje.mio
     val alineacion = if (mio) Alignment.CenterEnd else Alignment.CenterStart
     val colorTexto = if (mio) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val pie = if (enviando) "Enviando…" else formatearHora(mensaje.createdAt)
+    // El lector dice quién lo escribió, el texto y la hora en una sola lectura.
+    val lectura = buildString {
+        append(if (mio) "Tú" else nombre)
+        append(": ")
+        append(mensaje.texto)
+        if (pie.isNotEmpty()) append(", ").append(pie)
+    }
     Box(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = alineacion,
@@ -344,6 +371,7 @@ private fun BurbujaMensaje(mensaje: MensajeDto, enviando: Boolean) {
         ) {
             Column(
                 modifier = Modifier
+                    .semantics(mergeDescendants = true) { contentDescription = lectura }
                     .background(
                         color = if (mio) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                         shape = RoundedCornerShape(16.dp),
@@ -352,11 +380,11 @@ private fun BurbujaMensaje(mensaje: MensajeDto, enviando: Boolean) {
                 horizontalAlignment = Alignment.End,
             ) {
                 Text(mensaje.texto, color = colorTexto)
-                val pie = if (enviando) "Enviando…" else formatearHora(mensaje.createdAt)
                 if (pie.isNotEmpty()) {
                     Text(
                         pie,
-                        color = colorTexto.copy(alpha = 0.7f),
+                        // 0.9: con 0.7 la hora no se leía sobre la burbuja naranja.
+                        color = colorTexto.copy(alpha = 0.9f),
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(top = 2.dp),
                     )

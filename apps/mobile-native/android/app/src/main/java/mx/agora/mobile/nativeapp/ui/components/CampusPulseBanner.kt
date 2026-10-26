@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
@@ -77,9 +80,11 @@ fun CampusPulseBanner(
                         fontWeight = FontWeight.SemiBold,
                         color = AgoraColors.Naranja,
                         modifier = Modifier
+                            // Área táctil de 48 dp sin agrandar la pastilla.
+                            .minimumInteractiveComponentSize()
                             .clip(RoundedCornerShape(50))
                             .background(AgoraColors.NaranjaSuave)
-                            .clickable { onHashtagClick(tag) }
+                            .clickable(role = Role.Button) { onHashtagClick(tag) }
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                     )
                 }
@@ -96,7 +101,9 @@ fun CampusPulseBanner(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .clickable { onPerfilClick(c.handle) }
+                            .clickable(onClickLabel = "Ver perfil de ${c.nombre}", role = Role.Button) {
+                                onPerfilClick(c.handle)
+                            }
                             .padding(4.dp),
                     ) {
                         CumpleAvatar(nombre = c.nombre)
@@ -127,6 +134,13 @@ private fun CumpleAvatar(nombre: String) {
             .background(AgoraColors.NaranjaSuave),
         contentAlignment = Alignment.Center,
     ) {
-        Text(inicial, fontWeight = FontWeight.Bold, color = AgoraColors.Naranja, fontSize = 18.sp)
+        // Inicial decorativa: el nombre ya se lee abajo.
+        Text(
+            inicial,
+            fontWeight = FontWeight.Bold,
+            color = AgoraColors.Naranja,
+            fontSize = 18.sp,
+            modifier = Modifier.clearAndSetSemantics {},
+        )
     }
 }

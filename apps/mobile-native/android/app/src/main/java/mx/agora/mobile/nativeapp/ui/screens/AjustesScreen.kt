@@ -19,25 +19,37 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,6 +63,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
@@ -83,6 +103,7 @@ import mx.agora.mobile.nativeapp.ui.components.SubScreenScaffold
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
+import mx.agora.mobile.nativeapp.ui.util.mensajeLegibleDelServidor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
@@ -207,6 +228,18 @@ private fun AjustesScreenContent(
     var subiendoFoto by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var aviso by remember { mutableStateOf<String?>(null) }
+    /** Comunidades, avisos o generación no cargaron: aviso en su sección con «Reintentar». */
+    var extrasFallaron by remember { mutableStateOf(false) }
+    /** `auth/yo` falló: sin aviso, las tarjetas Contraseña y Correo UDLAP desaparecían en silencio. */
+    var yoFallo by remember { mutableStateOf(false) }
+    var reintentando by remember { mutableStateOf(false) }
+    val scrollAjustes = rememberScrollState()
+
+    // El error vive al final del formulario largo: se baja hasta él al aparecer.
+    // Los avisos de éxito no («Foto actualizada.» alejaría la vista de la foto).
+    LaunchedEffect(error) {
+        if (error != null) scrollAjustes.animateScrollTo(scrollAjustes.maxValue)
+    }
 
     val picker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -243,7 +276,7 @@ private fun AjustesScreenContent(
                 portadaUrl = media.url
                 aviso = "Portada actualizada."
             } catch (e: Exception) {
-                error = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                error = (e as? HttpException)?.let { mensajeLegibleDelServidor(it) } ?: mensajeDe(e)
             } finally {
                 subiendoPortada = false
             }
@@ -259,7 +292,7 @@ private fun AjustesScreenContent(
                 portadaUrl = null
                 aviso = "Portada quitada."
             } catch (e: Exception) {
-                error = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                error = (e as? HttpException)?.let { mensajeLegibleDelServidor(it) } ?: mensajeDe(e)
             } finally {
                 subiendoPortada = false
             }
@@ -272,6 +305,51 @@ private fun AjustesScreenContent(
         modoTema = nuevo
         // Los colores de la app se leen al crear la Activity: recrearla aplica el tema.
         context.buscarActivity()?.recreate()
+    }
+
+    // Con el perfil ya en pantalla, lo demás puede fallar sin riesgo de pisar
+    // datos: se avisa en su sección y «Reintentar» repite solo esa parte
+    // (recargar el perfil borraría lo que ya se editó).
+    suspend fun cargarExtras() {
+        extrasFallaron = false
+        try {
+            val api = ApiClient.api<PerfilApi>(tokenProvider)
+            comunidades = api.misComunidades()
+            preferencias = ApiClient.api<NotificacionesApi>(tokenProvider).preferencias().preferencias
+            generacion = api.porHandle(handle).generacion
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            extrasFallaron = true
+        }
+    }
+
+    // Aparte: si falla, el resto de Ajustes sigue sirviendo.
+    suspend fun cargarYo() {
+        yoFallo = false
+        try {
+            val yo = ApiClient.api<AuthApi>(tokenProvider).yo()
+            tieneContrasena = yo.tieneContrasena
+            yoUdlap = yo.takeIf { it.udlapPendiente == true }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            tieneContrasena = null
+            yoUdlap = null
+            yoFallo = true
+        }
+    }
+
+    fun reintentar(carga: suspend () -> Unit) {
+        if (reintentando) return
+        scope.launch {
+            reintentando = true
+            try {
+                carga()
+            } finally {
+                reintentando = false
+            }
+        }
     }
 
     LaunchedEffect(intentoCarga) {
@@ -303,21 +381,8 @@ private fun AjustesScreenContent(
             cumpleDia = perfil.cumpleDia
             teniaCumple = perfil.cumpleMes != null && perfil.cumpleDia != null
             avisoPregunta = perfil.avisoPregunta ?: true
-            // Con el perfil ya en pantalla, lo demás puede fallar sin riesgo de
-            // pisar datos: se avisa y el formulario sigue.
-            try {
-                comunidades = api.misComunidades()
-                preferencias = ApiClient.api<NotificacionesApi>(tokenProvider).preferencias().preferencias
-                generacion = api.porHandle(perfil.handle).generacion
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                error = mensajeDe(e)
-            }
-            // Aparte: si falla, el resto de Ajustes sigue sirviendo.
-            val yo = runCatching { ApiClient.api<AuthApi>(tokenProvider).yo() }.getOrNull()
-            tieneContrasena = yo?.tieneContrasena
-            yoUdlap = yo?.takeIf { it.udlapPendiente == true }
+            cargarExtras()
+            cargarYo()
         } finally {
             cargando = false
         }
@@ -358,7 +423,7 @@ private fun AjustesScreenContent(
                 teniaCumple = mes != null
                 aviso = "Cambios guardados."
             } catch (e: Exception) {
-                error = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                error = (e as? HttpException)?.let { mensajeLegibleDelServidor(it) } ?: mensajeDe(e)
             } finally {
                 guardando = false
             }
@@ -366,6 +431,7 @@ private fun AjustesScreenContent(
     }
 
     fun guardarPreferencias(nuevas: List<PreferenciaNotificacionDto>) {
+        val antes = preferencias
         preferencias = nuevas
         scope.launch {
             try {
@@ -373,6 +439,8 @@ private fun AjustesScreenContent(
                     .actualizarPreferencias(ActualizarPreferenciasRequest(nuevas))
                     .preferencias
             } catch (e: Exception) {
+                // Como alternarAvisoPregunta: el interruptor no se queda en un valor que no se guardó.
+                preferencias = antes
                 error = mensajeDe(e)
             }
         }
@@ -437,7 +505,8 @@ private fun AjustesScreenContent(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .imePadding()
+                        .verticalScroll(scrollAjustes)
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -523,19 +592,24 @@ private fun AjustesScreenContent(
                             Text(if (subiendoPortada) "Subiendo…" else "Cambiar portada")
                         }
                         if (portadaUrl != null) {
-                            TextButton(onClick = { quitarPortada() }, enabled = !subiendoPortada) {
+                            TextButton(
+                                onClick = { quitarPortada() },
+                                enabled = !subiendoPortada,
+                                modifier = Modifier.semantics { contentDescription = "Quitar portada" },
+                            ) {
                                 Text("Quitar")
                             }
                         }
                     }
 
+                    // Solo lectura pero no deshabilitados: deshabilitados se leían sin contraste.
                     OutlinedTextField(
                         value = nombre,
                         onValueChange = {},
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Nombre") },
                         readOnly = true,
-                        enabled = false,
+                        enabled = true,
                     )
                     OutlinedTextField(
                         value = apellidos,
@@ -543,31 +617,33 @@ private fun AjustesScreenContent(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Apellidos") },
                         readOnly = true,
-                        enabled = false,
+                        enabled = true,
                     )
                     generacion?.let {
                         OutlinedTextField(
-                            value = "Generación $it",
+                            value = it.toString(),
                             onValueChange = {},
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Generación") },
                             readOnly = true,
-                            enabled = false,
+                            enabled = true,
                         )
                     }
 
-                    Text("Bio", style = MaterialTheme.typography.labelLarge)
+                    // La etiqueta va en el campo (como Ciudad e Instagram): con un
+                    // Text suelto encima, TalkBack leía el campo sin nombre.
                     OutlinedTextField(
                         value = bio,
                         onValueChange = { if (it.length <= 280) bio = it },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 3,
+                        label = { Text("Bio") },
                         placeholder = { Text("Cuéntanos algo sobre ti") },
                     )
                     Text(
                         "${bio.length}/280",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(0.5f),
+                        color = AgoraColors.TextMuted,
                     )
 
                     OutlinedTextField(
@@ -595,6 +671,8 @@ private fun AjustesScreenContent(
                     ) {
                         SelectorSimple(
                             texto = cumpleMes?.let { MESES[it - 1] } ?: "Mes",
+                            etiqueta = "Mes de cumpleaños",
+                            elegido = cumpleMes != null,
                             opciones = MESES.mapIndexed { i, nombreMes -> (i + 1) to nombreMes },
                             onElegir = { mes ->
                                 cumpleMes = mes
@@ -604,11 +682,16 @@ private fun AjustesScreenContent(
                         )
                         SelectorSimple(
                             texto = cumpleDia?.toString() ?: "Día",
+                            etiqueta = "Día de cumpleaños",
+                            elegido = cumpleDia != null,
                             opciones = (1..(cumpleMes?.let { DIAS_POR_MES[it - 1] } ?: 31)).map { it to it.toString() },
                             onElegir = { cumpleDia = it },
                         )
                         if (cumpleMes != null || cumpleDia != null) {
-                            TextButton(onClick = { cumpleMes = null; cumpleDia = null }) {
+                            TextButton(
+                                onClick = { cumpleMes = null; cumpleDia = null },
+                                modifier = Modifier.semantics { contentDescription = "Quitar cumpleaños" },
+                            ) {
                                 Text("Quitar")
                             }
                         }
@@ -627,13 +710,28 @@ private fun AjustesScreenContent(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         intereses.forEach { interes ->
-                            FilterChip(
-                                selected = true,
+                            // Un botón que quita, no una casilla «seleccionada»: mismos
+                            // colores que el FilterChip marcado que había.
+                            AssistChip(
                                 onClick = { intereses = intereses.filter { it != interes } },
-                                label = { Text("$interes ×") },
+                                label = { Text(interes) },
+                                trailingIcon = {
+                                    Icon(
+                                        Icons.Filled.Close,
+                                        contentDescription = "Quitar $interes",
+                                        modifier = Modifier.size(AssistChipDefaults.IconSize),
+                                    )
+                                },
+                                colors = AssistChipDefaults.assistChipColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    trailingIconContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                ),
+                                border = null,
                             )
                         }
                     }
+                    val topeIntereses = intereses.size >= 10
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -645,14 +743,30 @@ private fun AjustesScreenContent(
                             modifier = Modifier.weight(1f),
                             label = { Text("Agregar interés") },
                             singleLine = true,
+                            supportingText = if (topeIntereses) {
+                                { Text("Máximo 10") }
+                            } else {
+                                null
+                            },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { agregarInteres() }),
                         )
-                        Button(onClick = { agregarInteres() }) {
-                            Text("+")
+                        Button(
+                            onClick = { agregarInteres() },
+                            enabled = !topeIntereses,
+                            modifier = Modifier.semantics { contentDescription = "Agregar interés" },
+                        ) {
+                            Text("+", modifier = Modifier.clearAndSetSemantics { })
                         }
                     }
 
                     Text("Quién ve tu perfil", style = MaterialTheme.typography.labelLarge)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // FlowRow: con letra grande los dos chips no caben en un renglón.
+                    FlowRow(
+                        modifier = Modifier.selectableGroup(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         FilterChip(
                             selected = visibilidad == "UNIVERSIDAD",
                             onClick = { visibilidad = "UNIVERSIDAD" },
@@ -668,18 +782,34 @@ private fun AjustesScreenContent(
                     if (comunidades.isNotEmpty()) {
                         Text("Silenciar comunidades en el feed", style = MaterialTheme.typography.titleSmall)
                         comunidades.forEach { comunidad ->
+                            // El renglón entero alterna: TalkBack lee el nombre con el interruptor.
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .toggleable(
+                                        value = comunidad.silenciada,
+                                        role = Role.Switch,
+                                        onValueChange = { alternarSilencio(comunidad.slug, it) },
+                                    ),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(comunidad.nombre, modifier = Modifier.weight(1f))
                                 Switch(
                                     checked = comunidad.silenciada,
-                                    onCheckedChange = { alternarSilencio(comunidad.slug, it) },
+                                    onCheckedChange = null,
+                                    modifier = Modifier.minimumInteractiveComponentSize(),
                                 )
                             }
                         }
+                    }
+
+                    if (yoFallo) {
+                        AvisoReintentar(
+                            texto = "No pudimos cargar las opciones de tu contraseña.",
+                            reintentando = reintentando,
+                            onReintentar = { reintentar { cargarYo() } },
+                        )
                     }
 
                     val pendiente = yoUdlap
@@ -710,8 +840,21 @@ private fun AjustesScreenContent(
                     }
 
                     Text("Notificaciones", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+                    if (extrasFallaron) {
+                        AvisoReintentar(
+                            texto = "No pudimos cargar tus avisos ni tus comunidades.",
+                            reintentando = reintentando,
+                            onReintentar = { reintentar { cargarExtras() } },
+                        )
+                    }
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = avisoPregunta,
+                                role = Role.Switch,
+                                onValueChange = { alternarAvisoPregunta(it) },
+                            ),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -722,54 +865,86 @@ private fun AjustesScreenContent(
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
-                        Switch(checked = avisoPregunta, onCheckedChange = { alternarAvisoPregunta(it) })
+                        Switch(
+                            checked = avisoPregunta,
+                            onCheckedChange = null,
+                            modifier = Modifier.minimumInteractiveComponentSize(),
+                        )
                     }
                     preferencias.forEach { pref ->
-                        val etiqueta = etiquetasPreferencia[pref.tipo] ?: pref.tipo
+                        // Tipo nuevo sin etiqueta: legible («Tipo nuevo»), no el código crudo TIPO_NUEVO.
+                        val etiqueta = etiquetasPreferencia[pref.tipo]
+                            ?: pref.tipo.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Text(etiqueta, style = MaterialTheme.typography.bodyMedium)
+                            // TalkBack dice el tipo con el canal: «Comentarios, en la app».
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .toggleable(
+                                        value = pref.inApp,
+                                        role = Role.Switch,
+                                        onValueChange = { checked ->
+                                            guardarPreferencias(
+                                                preferencias.map {
+                                                    if (it.tipo == pref.tipo) it.copy(inApp = checked) else it
+                                                },
+                                            )
+                                        },
+                                    )
+                                    .semantics { contentDescription = "$etiqueta, en la app" },
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text("En la app", style = MaterialTheme.typography.bodySmall)
                                 Switch(
                                     checked = pref.inApp,
-                                    onCheckedChange = { checked ->
-                                        guardarPreferencias(
-                                            preferencias.map {
-                                                if (it.tipo == pref.tipo) it.copy(inApp = checked) else it
-                                            },
-                                        )
-                                    },
+                                    onCheckedChange = null,
+                                    modifier = Modifier.minimumInteractiveComponentSize(),
                                 )
                             }
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .toggleable(
+                                        value = pref.push,
+                                        role = Role.Switch,
+                                        onValueChange = { checked ->
+                                            guardarPreferencias(
+                                                preferencias.map {
+                                                    if (it.tipo == pref.tipo) it.copy(push = checked) else it
+                                                },
+                                            )
+                                        },
+                                    )
+                                    .semantics { contentDescription = "$etiqueta, en el celular" },
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("Push", style = MaterialTheme.typography.bodySmall)
+                                Text("En el celular", style = MaterialTheme.typography.bodySmall)
                                 Switch(
                                     checked = pref.push,
-                                    onCheckedChange = { checked ->
-                                        guardarPreferencias(
-                                            preferencias.map {
-                                                if (it.tipo == pref.tipo) it.copy(push = checked) else it
-                                            },
-                                        )
-                                    },
+                                    onCheckedChange = null,
+                                    modifier = Modifier.minimumInteractiveComponentSize(),
                                 )
                             }
                         }
                     }
 
                     error?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error)
+                        Text(
+                            it,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
                     }
                     aviso?.let {
-                        Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            it,
+                            color = AgoraColors.Success,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
                     }
 
                     Button(
@@ -791,17 +966,56 @@ private fun AjustesScreenContent(
     }
 }
 
-/** Botón con menú desplegable (mes, día). */
+/** Una parte de Ajustes no cargó: lo dice en su lugar y deja repetir solo esa carga. */
+@Composable
+private fun AvisoReintentar(
+    texto: String,
+    reintentando: Boolean,
+    onReintentar: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            texto,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onReintentar, enabled = !reintentando) {
+            Text(AgoraCopy.cta.reintentar)
+        }
+    }
+}
+
+/**
+ * Botón con menú desplegable (mes, día). [etiqueta] es lo que lee TalkBack
+ * («Mes de cumpleaños: Marzo»); [elegido] en false si [texto] es el marcador.
+ */
 @Composable
 private fun SelectorSimple(
     texto: String,
+    etiqueta: String,
+    elegido: Boolean,
     opciones: List<Pair<Int, String>>,
     onElegir: (Int) -> Unit,
 ) {
     var abierto by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { abierto = true }) {
-            Text("$texto ▾")
+        OutlinedButton(
+            onClick = { abierto = true },
+            modifier = Modifier.semantics {
+                contentDescription = if (elegido) "$etiqueta: $texto" else "$etiqueta, sin elegir"
+                role = Role.DropdownList
+            },
+        ) {
+            Text(texto)
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+                modifier = Modifier.size(ButtonDefaults.IconSize),
+            )
         }
         DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
             opciones.forEach { (valor, etiqueta) ->
@@ -965,6 +1179,7 @@ private fun EliminarCuentaSeccion(
                     OutlinedTextField(
                         value = confirmacion,
                         onValueChange = { confirmacion = it },
+                        label = { Text(if (handle.isNotBlank()) "Tu usuario" else "Escribe ELIMINAR") },
                         singleLine = true,
                         enabled = !eliminando,
                         modifier = Modifier.fillMaxWidth(),

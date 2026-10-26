@@ -25,6 +25,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import mx.agora.mobile.nativeapp.ui.theme.AgoraCardShape
@@ -71,7 +73,10 @@ fun AgoraFeedSkeleton(
     itemCount: Int = 3,
 ) {
     Column(
-        modifier = modifier.padding(AgoraSpacing.Sm),
+        // Sin esto TalkBack no dice nada mientras carga.
+        modifier = modifier
+            .padding(AgoraSpacing.Sm)
+            .clearAndSetSemantics { contentDescription = "Cargando publicaciones" },
         verticalArrangement = Arrangement.spacedBy(AgoraSpacing.Xs),
     ) {
         repeat(itemCount) {

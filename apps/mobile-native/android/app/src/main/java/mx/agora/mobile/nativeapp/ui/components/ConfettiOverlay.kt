@@ -16,10 +16,6 @@ import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import kotlin.random.Random
 
-private val ConfettiAqua = Color(0xFF008675)
-private val ConfettiVerde = Color(0xFF154734)
-private val ConfettiOro = Color(0xFF8B6F4E)
-
 private data class ConfettiParticle(
     val startXFraction: Float,
     val startYFraction: Float,
@@ -40,11 +36,12 @@ fun ConfettiOverlay(
             ConfettiParticle(
                 startXFraction = 0.15f + index * 0.1f,
                 startYFraction = 0.25f + Random.nextFloat() * 0.15f,
+                // Tokens del tema: los fijos de antes no se veían en oscuro.
                 color = when (index % 4) {
                     0 -> AgoraColors.Naranja
-                    1 -> ConfettiAqua
-                    2 -> ConfettiVerde
-                    else -> ConfettiOro
+                    1 -> AgoraColors.Success
+                    2 -> AgoraColors.Warning
+                    else -> AgoraColors.NaranjaOscuro
                 },
                 delayMs = index * 40,
                 drift = (Random.nextFloat() - 0.5f) * 24f,

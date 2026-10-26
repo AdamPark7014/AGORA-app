@@ -1,8 +1,11 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -115,6 +118,7 @@ fun ProfileScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProfileHome(
     auth: AuthRepository,
@@ -162,8 +166,10 @@ private fun ProfileHome(
             runCatching {
                 gamificacion = ApiClient.api<GamificacionApi> { auth.token() }.mio()
             }
-            val yo = ApiClient.api<AuthApi> { auth.token() }.yo()
-            puedeModerar = yo.puedeModerar
+            // Solo decide si se ve «Moderación»: si falla no debe tapar el perfil con la caché.
+            puedeModerar = runCatching {
+                ApiClient.api<AuthApi> { auth.token() }.yo().puedeModerar
+            }.getOrDefault(false)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -238,23 +244,31 @@ private fun ProfileHome(
                         contentScale = ContentScale.Crop,
                     )
                 } else {
+                    // Mismo fondo e iniciales que el perfil ajeno.
+                    val iniciales = "${perfil?.nombre ?: ""} ${perfil?.apellidos ?: ""}".trim()
+                        .split(' ').take(2).mapNotNull { it.firstOrNull()?.uppercaseChar() }.joinToString("")
                     Box(
                         modifier = Modifier
                             .size(88.dp)
-                            .clip(CircleShape),
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            (perfil?.nombre?.firstOrNull() ?: '?').toString(),
+                            iniciales.ifEmpty { "?" },
                             style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
 
-                Text(
-                    "@${perfil?.handle ?: session?.handle ?: "tu"}",
-                    style = MaterialTheme.typography.headlineSmall,
-                )
+                // Sin handle no se enseña nada (antes salía «@tu»).
+                (perfil?.handle ?: session?.handle)?.let { h ->
+                    Text(
+                        "@$h",
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                }
                 Text(
                     "${perfil?.nombre ?: ""} ${perfil?.apellidos ?: ""}".trim(),
                     style = MaterialTheme.typography.titleMedium,
@@ -265,12 +279,16 @@ private fun ProfileHome(
 
                 val miHandle = perfil?.handle ?: session?.handle
                 if (miHandle != null) {
-                    Row(
+                    // FlowRow: con fuente grande los tres contadores no caben en una línea.
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         publico?.let { p ->
-                            Text(cuenta(p.publicaciones ?: 0, "publicación", "publicaciones"), style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                cuenta(p.publicaciones ?: 0, "publicación", "publicaciones"),
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.align(Alignment.CenterVertically),
+                            )
                             ContadorConexion(
                                 texto = cuenta(p.seguidores ?: 0, "seguidor", "seguidores"),
                                 habilitado = true,
@@ -344,7 +362,7 @@ private fun ProfileHome(
                     Text("Términos de uso")
                 }
                 OutlinedButton(onClick = onPrivacidad, modifier = Modifier.fillMaxWidth()) {
-                    Text("Política de privacidad")
+                    Text("Aviso de privacidad")
                 }
                 OutlinedButton(onClick = onReglas, modifier = Modifier.fillMaxWidth()) {
                     Text("Reglas de la comunidad")

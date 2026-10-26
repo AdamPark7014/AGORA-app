@@ -8,16 +8,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -31,8 +35,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -40,7 +48,9 @@ import mx.agora.mobile.nativeapp.data.api.CatalogoDto
 import mx.agora.mobile.nativeapp.data.api.DirectorioApi
 import mx.agora.mobile.nativeapp.data.api.DirectorioPersonaDto
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
+import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 import java.util.Calendar
 
 @Composable
@@ -58,6 +68,10 @@ fun DirectorioScreen(
     var resultados by remember { mutableStateOf<List<DirectorioPersonaDto>>(emptyList()) }
     var cursor by remember { mutableStateOf<String?>(null) }
     var cargando by remember { mutableStateOf(true) }
+    /** Falló la primera página; no es lo mismo que «no hay nadie». */
+    var error by remember { mutableStateOf<String?>(null) }
+    /** Pidiendo la página siguiente (indicador al pie). */
+    var cargandoMas by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val ano = Calendar.getInstance().get(Calendar.YEAR)
@@ -65,7 +79,12 @@ fun DirectorioScreen(
 
     fun buscar(desde: String? = null) {
         scope.launch {
-            if (desde == null) cargando = true
+            if (desde == null) {
+                cargando = true
+                error = null
+            } else {
+                cargandoMas = true
+            }
             try {
                 val datos = ApiClient.api<DirectorioApi>(tokenProvider).buscar(
                     q = q.trim().ifBlank { null },
@@ -77,10 +96,15 @@ fun DirectorioScreen(
                 )
                 resultados = if (desde != null) resultados + datos.resultados else datos.resultados
                 cursor = datos.siguienteCursor
-            } catch (_: Exception) {
-                if (desde == null) resultados = emptyList()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (desde == null) {
+                    resultados = emptyList()
+                    error = mensajeDe(e)
+                }
             } finally {
-                if (desde == null) cargando = false
+                if (desde == null) cargando = false else cargandoMas = false
             }
         }
     }
@@ -171,6 +195,14 @@ fun DirectorioScreen(
                     CircularProgressIndicator()
                 }
             }
+            error != null -> {
+                AgoraErrorState(
+                    message = error ?: AgoraCopy.errors.generic,
+                    title = "No pudimos cargar el directorio",
+                    onRetry = { buscar() },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             resultados.isEmpty() -> {
                 AgoraEmptyState(
                     state = AgoraCopy.emptyDirectorio,
@@ -193,11 +225,13 @@ fun DirectorioScreen(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
+                                // Decorativas: el nombre ya se lee al lado.
                                 Text(
                                     iniciales(persona),
                                     modifier = Modifier
                                         .clip(CircleShape)
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                                        .clearAndSetSemantics {},
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
@@ -222,6 +256,14 @@ fun DirectorioScreen(
                     if (cursor != null) {
                         item {
                             LaunchedEffect(cursor) { buscar(cursor) }
+                            if (cargandoMas) {
+                                Box(
+                                    Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                                }
+                            }
                         }
                     }
                 }
@@ -247,7 +289,12 @@ private fun FiltroDesplegable(
             selected = seleccion != null,
             onClick = { abierto = true },
             enabled = habilitado,
-            label = { Text("${nombre ?: etiqueta} ▾", maxLines = 1) },
+            // TalkBack: «Filtrar por escuela: Ingeniería» en vez de leer la flecha.
+            modifier = Modifier.semantics {
+                contentDescription = "Filtrar por ${etiqueta.lowercase()}" + (nombre?.let { ": $it" } ?: "")
+            },
+            label = { Text(nombre ?: etiqueta, maxLines = 1, modifier = Modifier.clearAndSetSemantics {}) },
+            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
         )
         DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
             DropdownMenuItem(

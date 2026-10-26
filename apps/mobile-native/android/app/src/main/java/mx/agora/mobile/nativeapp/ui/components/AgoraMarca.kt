@@ -19,6 +19,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -81,7 +82,12 @@ fun AgoraPieLegal(modifier: Modifier = Modifier) {
                     LinkAnnotation.Url(
                         url = AgoraCopy.legal.zynoraUrl,
                         styles = TextLinkStyles(
-                            style = SpanStyle(color = AgoraColors.Naranja, fontWeight = FontWeight.SemiBold),
+                            // Subrayado: que se vea como enlace sin depender del color.
+                            style = SpanStyle(
+                                color = AgoraColors.Naranja,
+                                fontWeight = FontWeight.SemiBold,
+                                textDecoration = TextDecoration.Underline,
+                            ),
                         ),
                     ),
                 ) {

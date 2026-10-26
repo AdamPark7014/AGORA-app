@@ -125,7 +125,7 @@ fun RetoSemanalBanner(
                 )
             } else {
                 Text(
-                    "Responde la pregunta del día cada día esta semana",
+                    "Responde la pregunta del día todos los días de esta semana",
                     style = MaterialTheme.typography.bodySmall,
                     color = AgoraColors.TextoMedio,
                 )
@@ -145,7 +145,8 @@ fun RetoSemanalBanner(
                         .height(6.dp)
                         .clip(RoundedCornerShape(50)),
                     color = AgoraColors.Naranja,
-                    trackColor = AgoraColors.Borde,
+                    // Borde no se veía sobre el degradado.
+                    trackColor = AgoraColors.Naranja.copy(alpha = 0.2f),
                 )
             }
         }

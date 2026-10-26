@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.YoCache
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -37,6 +38,7 @@ import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.SubScreenScaffold
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
 @Composable
@@ -49,6 +51,10 @@ fun ModeracionScreen(
     var cargando by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var resolviendo by remember { mutableStateOf<String?>(null) }
+    /** Acción que se está mandando (para «Retirando…», «Suspendiendo…»). */
+    var accionResolviendo by remember { mutableStateOf<String?>(null) }
+    /** Falló resolver: va dentro del diálogo, que sigue abierto y taparía cualquier aviso. */
+    var errorResolver by remember { mutableStateOf<String?>(null) }
     var dialogoItem by remember { mutableStateOf<ModeracionColaItemDto?>(null) }
     var dialogoAccion by remember { mutableStateOf<String?>(null) }
     var motivo by remember { mutableStateOf("") }
@@ -78,7 +84,8 @@ fun ModeracionScreen(
     fun resolver(item: ModeracionColaItemDto, accion: String, motivoTexto: String) {
         scope.launch {
             resolviendo = item.reporteId
-            error = null
+            accionResolviendo = accion
+            errorResolver = null
             try {
                 ApiClient.api<ModeracionApi>(tokenProvider).resolver(
                     item.reporteId,
@@ -88,10 +95,13 @@ fun ModeracionScreen(
                 dialogoItem = null
                 dialogoAccion = null
                 motivo = ""
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                error = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                errorResolver = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
             } finally {
                 resolviendo = null
+                accionResolviendo = null
             }
         }
     }
@@ -121,16 +131,14 @@ fun ModeracionScreen(
                     modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    item {
-                        if (error != null) {
-                            Text(error!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp))
-                        }
-                    }
+                    // Ítem vacío: conserva el margen de arriba (spacedBy). El error de
+                    // resolver ya no sale aquí: va dentro del diálogo.
+                    item {}
                     items(items, key = { it.reporteId }) { item ->
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    "${item.tipo} · ${item.numReportes} reporte(s)",
+                                    "${etiquetaTipo(item.tipo)} · ${cuenta(item.numReportes, "reporte", "reportes")}",
                                     style = MaterialTheme.typography.labelLarge,
                                 )
                                 item.comunidad?.let {
@@ -147,6 +155,7 @@ fun ModeracionScreen(
                                 )
                                 RowAcciones(
                                     cargando = resolviendo == item.reporteId,
+                                    accionEnCurso = if (resolviendo == item.reporteId) accionResolviendo else null,
                                     onSinAccion = {
                                         dialogoItem = item
                                         dialogoAccion = "SIN_ACCION"
@@ -181,6 +190,7 @@ fun ModeracionScreen(
             onDismissRequest = {
                 dialogoItem = null
                 dialogoAccion = null
+                errorResolver = null
             },
             title = {
                 Text(
@@ -192,13 +202,22 @@ fun ModeracionScreen(
                 )
             },
             text = {
-                OutlinedTextField(
-                    value = motivo,
-                    onValueChange = { motivo = it },
-                    label = { Text("Motivo") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    errorResolver?.let {
+                        Text(
+                            it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    OutlinedTextField(
+                        value = motivo,
+                        onValueChange = { motivo = it },
+                        label = { Text("Motivo") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                    )
+                }
             },
             confirmButton = {
                 Button(
@@ -210,16 +229,41 @@ fun ModeracionScreen(
                     },
                     enabled = motivo.trim().length >= 3 && resolviendo == null,
                 ) {
-                    Text("Confirmar")
+                    // El botón dice lo que hace, no «Confirmar».
+                    Text(
+                        if (resolviendo != null) {
+                            gerundioAccion(dialogoAccion)
+                        } else {
+                            when (dialogoAccion) {
+                                "RETIRAR_CONTENIDO" -> "Retirar"
+                                "SUSPENDER_USUARIO" -> "Suspender"
+                                else -> "Cerrar"
+                            }
+                        },
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { dialogoItem = null; dialogoAccion = null }) {
+                TextButton(onClick = { dialogoItem = null; dialogoAccion = null; errorResolver = null }) {
                     Text("Cancelar")
                 }
             },
         )
     }
+}
+
+/** «POST»/«COMENTARIO» del API, en palabras. */
+private fun etiquetaTipo(tipo: String): String = when (tipo.uppercase()) {
+    "POST" -> "Publicación"
+    "COMENTARIO" -> "Comentario"
+    else -> tipo
+}
+
+/** Texto del botón mientras se manda la acción. */
+private fun gerundioAccion(accion: String?): String = when (accion) {
+    "RETIRAR_CONTENIDO" -> "Retirando…"
+    "SUSPENDER_USUARIO" -> "Suspendiendo…"
+    else -> "Cerrando…"
 }
 
 @Composable
@@ -228,16 +272,18 @@ private fun RowAcciones(
     onSinAccion: () -> Unit,
     onRetirar: () -> Unit,
     onSuspender: (() -> Unit)? = null,
+    /** Acción que se está mandando para este reporte (null si ninguna). */
+    accionEnCurso: String? = null,
 ) {
     androidx.compose.foundation.layout.Row(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         OutlinedButton(onClick = onSinAccion, enabled = !cargando, modifier = Modifier.weight(1f)) {
-            Text("Sin acción")
+            Text(if (accionEnCurso == "SIN_ACCION") gerundioAccion(accionEnCurso) else "Sin acción")
         }
         Button(onClick = onRetirar, enabled = !cargando, modifier = Modifier.weight(1f)) {
-            Text(if (cargando) "…" else "Retirar")
+            Text(if (accionEnCurso == "RETIRAR_CONTENIDO") gerundioAccion(accionEnCurso) else "Retirar")
         }
     }
     if (onSuspender != null) {
@@ -249,7 +295,7 @@ private fun RowAcciones(
                 contentColor = MaterialTheme.colorScheme.error,
             ),
         ) {
-            Text("Suspender autor")
+            Text(if (accionEnCurso == "SUSPENDER_USUARIO") gerundioAccion(accionEnCurso) else "Suspender autor")
         }
     }
 }

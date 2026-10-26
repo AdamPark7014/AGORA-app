@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -110,7 +111,9 @@ fun RetosHistorialRow(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
                     .background(AgoraColors.Fondo)
-                    .clickable { onPerfilClick(rival.handle) }
+                    .clickable(onClickLabel = "Ver perfil de ${rival.nombre}", role = Role.Button) {
+                        onPerfilClick(rival.handle)
+                    }
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {

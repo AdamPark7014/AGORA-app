@@ -29,13 +29,13 @@ object AgoraCopy {
     val emptyNotificaciones = EmptyState(
         emoji = "🔔",
         title = "Estás al día",
-        subtitle = "— cuando pase algo en el campus, te avisamos aquí.",
+        subtitle = "Cuando pase algo en el campus, te avisamos aquí.",
     )
 
     val emptyGuardados = EmptyState(
         emoji = "🔖",
         title = "Nada guardado aún",
-        subtitle = "Toca 🔖 en cualquier publicación del feed para leerla después.",
+        subtitle = "Toca el marcador en cualquier publicación del feed para leerla después.",
     )
 
     val emptyBuscar = EmptyState(
@@ -47,7 +47,7 @@ object AgoraCopy {
     val emptyBuscarHints = EmptyState(
         emoji = "🔍",
         title = "¿Qué andas buscando?",
-        subtitle = "Personas, posts, eventos o cosas en el marketplace — escribe al menos 2 letras.",
+        subtitle = "Personas, publicaciones, eventos o cosas del marketplace. Escribe al menos 2 letras.",
     )
 
     val emptyMarketplace = EmptyState(
@@ -58,7 +58,7 @@ object AgoraCopy {
 
     val emptyAventones = EmptyState(
         emoji = "🚗",
-        title = "Sin rides disponibles",
+        title = "Sin aventones disponibles",
         subtitle = "Nadie ha publicado un aventón con ese filtro. ¿Te animas a ofrecer uno?",
     )
 
@@ -221,7 +221,11 @@ object AgoraCopy {
         object udlap {
             const val avisoTitulo = "Confirma tu correo UDLAP"
             fun avisoTexto(dias: Int) =
-                "Te registraste con tu correo personal. Te quedan $dias ${if (dias == 1) "día" else "días"} para confirmar tu correo @udlap.mx."
+                if (dias <= 0) {
+                    "Te registraste con tu correo personal. Hoy vence el plazo para confirmar tu correo @udlap.mx."
+                } else {
+                    "Te registraste con tu correo personal. Te quedan $dias ${if (dias == 1) "día" else "días"} para confirmar tu correo @udlap.mx."
+                }
             const val avisoBoton = "Confirmar ahora"
             const val ajustesTitulo = "Correo UDLAP"
             const val ajustesBoton = "Confirmar mi correo UDLAP"

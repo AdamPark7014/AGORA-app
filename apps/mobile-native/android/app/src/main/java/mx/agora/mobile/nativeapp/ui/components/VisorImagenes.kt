@@ -5,7 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -13,14 +15,18 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,7 +42,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 
 private const val ZOOM_MAXIMO = 5f
 private const val ZOOM_DOBLE_TOQUE = 2.5f
@@ -76,7 +82,11 @@ fun VisorImagenes(
                 modifier = Modifier.fillMaxSize(),
                 beyondViewportPageCount = 1,
             ) { pagina ->
-                ImagenZoomable(url = urls[pagina], activa = pager.currentPage == pagina)
+                ImagenZoomable(
+                    url = urls[pagina],
+                    activa = pager.currentPage == pagina,
+                    descripcion = "Foto ${pagina + 1} de ${urls.size}",
+                )
             }
 
             Box(
@@ -109,8 +119,10 @@ fun VisorImagenes(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ImagenZoomable(url: String, activa: Boolean) {
+private fun ImagenZoomable(url: String, activa: Boolean, descripcion: String) {
     var escala by remember { mutableFloatStateOf(1f) }
+    // Sube con «Reintentar»: recrea la imagen y Coil vuelve a pedirla.
+    var intento by remember { mutableIntStateOf(0) }
     var desplazamiento by remember { mutableStateOf(Offset.Zero) }
     var tamano by remember { mutableStateOf(IntSize.Zero) }
 
@@ -155,18 +167,43 @@ private fun ImagenZoomable(url: String, activa: Boolean) {
             .transformable(state = estado, canPan = { escala > 1f }),
         contentAlignment = Alignment.Center,
     ) {
-        AsyncImage(
-            model = url,
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = escala
-                    scaleY = escala
-                    translationX = desplazamiento.x
-                    translationY = desplazamiento.y
+        key(intento) {
+            // Con spinner mientras carga y aviso si falla (antes quedaba en negro).
+            SubcomposeAsyncImage(
+                model = url,
+                contentDescription = descripcion,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = escala
+                        scaleY = escala
+                        translationX = desplazamiento.x
+                        translationY = desplazamiento.y
+                    },
+                loading = {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color.White)
+                    }
                 },
-        )
+                error = {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                "No se pudo cargar la foto",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            TextButton(onClick = { intento++ }) {
+                                Text("Reintentar", color = Color.White)
+                            }
+                        }
+                    }
+                },
+            )
+        }
     }
 }

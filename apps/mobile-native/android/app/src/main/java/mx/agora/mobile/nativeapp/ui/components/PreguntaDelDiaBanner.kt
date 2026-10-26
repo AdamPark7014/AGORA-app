@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,6 +32,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -52,6 +60,7 @@ fun PreguntaDelDiaBanner(
 ) {
     var pregunta by remember { mutableStateOf<PreguntaHoyDto?>(null) }
     var respondiendo by remember { mutableStateOf(false) }
+    var errorRespuesta by remember { mutableStateOf(false) }
     var celebrando by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
@@ -208,8 +217,9 @@ fun PreguntaDelDiaBanner(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
                         .background(AgoraColors.Superficie)
-                        .clickable(enabled = !respondiendo) {
+                        .clickable(enabled = !respondiendo, role = Role.Button) {
                             respondiendo = true
+                            errorRespuesta = false
                             scope.launch {
                                 val resultado = runCatching {
                                     ApiClient.api<PreguntaApi>(tokenProvider)
@@ -222,12 +232,25 @@ fun PreguntaDelDiaBanner(
                                     haptics.perform(HapticType.Success)
                                     celebrando++
                                     delay(400)
+                                } else {
+                                    errorRespuesta = true
                                 }
                                 respondiendo = false
                             }
                         }
+                        // Área táctil de 48 dp; el texto queda centrado en vertical.
+                        .heightIn(min = 48.dp)
+                        .wrapContentHeight(Alignment.CenterVertically)
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (errorRespuesta) {
+                Text(
+                    "No se pudo enviar tu respuesta. Intenta de nuevo.",
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AgoraColors.Danger,
                 )
             }
         } else {
@@ -243,6 +266,13 @@ fun PreguntaDelDiaBanner(
                         .background(
                             if (seleccionada) AgoraColors.Superficie else AgoraColors.Superficie.copy(alpha = 0.7f),
                         )
+                        // TalkBack lee la opción como una sola unidad y marca la elegida.
+                        .semantics(mergeDescendants = true) {
+                            if (seleccionada) {
+                                selected = true
+                                stateDescription = "Tu respuesta"
+                            }
+                        }
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
@@ -262,8 +292,13 @@ fun PreguntaDelDiaBanner(
                 }
             }
             val deCarrera = carrera?.takeIf { it.total > 0 }?.let { ", ${it.total} de ${it.nombre}" } ?: ""
+            val contestaron = if (actual.total == 1) {
+                "1 persona de tu comunidad ya contestó hoy"
+            } else {
+                "${actual.total} personas de tu comunidad ya contestaron hoy"
+            }
             Text(
-                "${actual.total} de tu comunidad ya contestaron hoy$deCarrera.",
+                "$contestaron$deCarrera.",
                 style = MaterialTheme.typography.labelSmall,
                 color = AgoraColors.TextoMedio,
             )
@@ -289,7 +324,8 @@ private fun ProgresoSemanaPregunta(semana: SemanaPreguntaDto) {
                 .height(6.dp)
                 .clip(RoundedCornerShape(50)),
             color = AgoraColors.Naranja,
-            trackColor = AgoraColors.Borde,
+            // Borde no se veía sobre el degradado.
+            trackColor = AgoraColors.Naranja.copy(alpha = 0.2f),
         )
     }
 }

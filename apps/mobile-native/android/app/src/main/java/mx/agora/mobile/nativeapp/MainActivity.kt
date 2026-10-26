@@ -14,9 +14,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.ModoTema
 import mx.agora.mobile.nativeapp.data.PreferenciasTema
@@ -33,7 +35,11 @@ import mx.agora.mobile.nativeapp.ui.navigation.PendingDeepLink
 import mx.agora.mobile.nativeapp.ui.theme.AgoraTheme
 
 class MainActivity : FragmentActivity() {
-    private lateinit var auth: AuthRepository
+    /** Null hasta que las prefs cifradas de la sesión están abiertas (ver onCreate). */
+    private var auth: AuthRepository? = null
+
+    /** Deep link que llegó por onNewIntent antes de tener la sesión lista. */
+    private var intentSinAtender: Intent? = null
 
     private val pedirNotificaciones = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -44,14 +50,30 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        val auth = AuthRepository(applicationContext)
-        this.auth = auth
         AgoraNotifications.ensureChannels(applicationContext)
         // Al recrearse (rotación o cambio de tema en Ajustes) el intent de
         // arranque es el mismo: volver a procesarlo repetiría la navegación.
-        if (savedInstanceState == null) handleDeepLinkIntent(intent)
+        val atenderIntent = savedInstanceState == null
+        // Cambiar el tema en Ajustes guarda la preferencia y recrea la Activity.
+        val modoTema = PreferenciasTema.leer(applicationContext)
 
+        // La sesión vive en prefs cifradas: abrirlas la primera vez crea la llave en
+        // el Keystore y tarda segundos en un teléfono lento. Hecho aquí, en el hilo
+        // principal, la puerta salía con «Ágora no responde». Se abren en segundo
+        // plano; mientras, se ve el fondo del tema.
+        lifecycleScope.launch {
+            val auth = withContext(Dispatchers.IO) {
+                AuthRepository(applicationContext).also { it.token() }
+            }
+            this@MainActivity.auth = auth
+            if (atenderIntent) handleDeepLinkIntent(intent)
+            intentSinAtender?.let { handleDeepLinkIntent(it) }
+            intentSinAtender = null
+            arrancar(auth, modoTema)
+        }
+    }
+
+    private fun arrancar(auth: AuthRepository, modoTema: ModoTema) {
         if (auth.token() != null) {
             solicitarPermisoNotificacionesSiFalta()
             PushRegistration.registerCurrentDeviceAsync(applicationContext)
@@ -59,9 +81,6 @@ class MainActivity : FragmentActivity() {
             AgoraCrashReporting.install { auth.token() }
             registrarActividadGamificacion(auth)
         }
-
-        // Cambiar el tema en Ajustes guarda la preferencia y recrea la Activity.
-        val modoTema = PreferenciasTema.leer(applicationContext)
 
         setContent {
             val oscuro = when (modoTema) {
@@ -89,10 +108,11 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleDeepLinkIntent(intent)
+        if (auth == null) intentSinAtender = intent else handleDeepLinkIntent(intent)
     }
 
     private fun handleDeepLinkIntent(intent: Intent?) {
+        val auth = auth ?: return
         val route = DeepLinkParser.parseIntent(intent) ?: return
         PendingDeepLink.enqueue(applicationContext, route, auth.token() != null)
     }

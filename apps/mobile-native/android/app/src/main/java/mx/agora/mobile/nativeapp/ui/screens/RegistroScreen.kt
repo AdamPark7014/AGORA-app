@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -23,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
@@ -49,12 +51,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
@@ -66,6 +73,7 @@ import mx.agora.mobile.nativeapp.data.api.CatalogoDto
 import mx.agora.mobile.nativeapp.data.api.CrearPerfilRequest
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.SessionUser
+import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.ZonaCampus
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
@@ -104,14 +112,17 @@ fun RegistroScreen(
      */
     var aceptaReglas by remember { mutableStateOf(false) }
     var legalAbierto by remember { mutableStateOf<LegalRegistro?>(null) }
+    /** Sube con «Reintentar» y vuelve a pedir el catálogo. */
+    var intentoCatalogo by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(intentoCatalogo) {
         cargandoCatalogo = true
         error = null
         try {
             catalogo = ApiClient.catalogo.todo()
-        } catch (e: Exception) {
-            error = mensajeDe(e)
+        } catch (_: Exception) {
+            // Sin catálogo se muestra AgoraErrorState con «Reintentar».
+            catalogo = null
         } finally {
             cargandoCatalogo = false
         }
@@ -121,6 +132,11 @@ fun RegistroScreen(
 
     // Encima del formulario y no en otra ruta: así no se pierde lo ya capturado.
     BackHandler(enabled = legalAbierto != null) { legalAbierto = null }
+    // En el paso 2, «atrás» del sistema regresa al 1 como el botón «Atrás»; antes cerraba la app.
+    BackHandler(enabled = paso == 2 && legalAbierto == null && !exito) {
+        paso = 1
+        error = null
+    }
     when (legalAbierto) {
         LegalRegistro.TERMINOS -> {
             TerminosScreen(onBack = { legalAbierto = null })
@@ -148,19 +164,22 @@ fun RegistroScreen(
             }
         }
         catalogo == null -> {
-            Column(
-                Modifier.fillMaxSize().padding(24.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
+            Box(
+                Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(error ?: "No se pudo cargar el catálogo.", color = MaterialTheme.colorScheme.error)
+                AgoraErrorState(
+                    message = "No pudimos cargar las carreras. Revisa tu conexión e intenta de nuevo.",
+                    onRetry = { intentoCatalogo++ },
+                )
             }
         }
         else -> {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
+                    .background(MaterialTheme.colorScheme.background)
+                    .safeDrawingPadding(),
             ) {
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                     Text(
@@ -202,9 +221,15 @@ fun RegistroScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                                 prefix = { Text("@", color = AgoraColors.Naranja) },
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.None,
+                                    autoCorrectEnabled = false,
+                                    imeAction = ImeAction.Next,
+                                ),
                             )
+                            // El filtro quita en silencio lo inválido: la regla va a la vista.
                             Text(
-                                "Elige tu @ — será tu identidad en el campus",
+                                "Elige tu @ — será tu identidad en el campus. Letras, números y guion bajo. Mínimo 3.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = AgoraColors.TextoMedio,
                                 modifier = Modifier.padding(top = 4.dp),
@@ -217,6 +242,10 @@ fun RegistroScreen(
                                 label = { Text("Nombre") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Words,
+                                    imeAction = ImeAction.Next,
+                                ),
                             )
                         }
                         item {
@@ -226,6 +255,10 @@ fun RegistroScreen(
                                 label = { Text("Apellidos") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Words,
+                                    imeAction = ImeAction.Next,
+                                ),
                             )
                         }
                     } else {
@@ -280,12 +313,6 @@ fun RegistroScreen(
                             )
                         }
                     }
-
-                    if (error != null) {
-                        item {
-                            Text(error!!, color = MaterialTheme.colorScheme.error)
-                        }
-                    }
                 }
 
                 // Fuera de la lista para que se vea junto al botón sin tener
@@ -297,6 +324,17 @@ fun RegistroScreen(
                         onTerminos = { legalAbierto = LegalRegistro.TERMINOS },
                         onReglas = { legalAbierto = LegalRegistro.REGLAS },
                         modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
+                    )
+                }
+
+                // Junto al botón y no al final de la lista larga, donde nadie lo veía.
+                error?.let {
+                    Text(
+                        it,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .padding(start = 20.dp, end = 20.dp, top = 8.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
                     )
                 }
 
@@ -345,7 +383,7 @@ fun RegistroScreen(
                             }
                         },
                         enabled = when (paso) {
-                            1 -> handle.length >= 3 && nombre.length >= 2 && apellidos.length >= 2
+                            1 -> handle.length >= 3 && nombre.trim().length >= 2 && apellidos.trim().length >= 2
                             else -> !enviando && carreraSlug != null && aceptaReglas
                         },
                         modifier = Modifier.weight(if (paso == 2) 2f else 1f),

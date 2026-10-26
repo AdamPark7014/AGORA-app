@@ -1,6 +1,7 @@
 package mx.agora.mobile.nativeapp.data
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
@@ -26,17 +27,33 @@ interface AlmacenSesion {
 }
 
 class SessionStore(context: Context) : AlmacenSesion {
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
+    private val prefs = prefsCifradas(context)
 
-    private val prefs = EncryptedSharedPreferences.create(
-        context,
-        "agora_session",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-    )
+    companion object {
+        @Volatile private var cache: SharedPreferences? = null
+
+        /**
+         * Una sola vez por proceso. Abrir las prefs cifradas crea la llave maestra en
+         * el Keystore y el keyset de Tink: en una instalación nueva y un teléfono
+         * lento tarda segundos, y hecho en el hilo principal (en cada
+         * `AuthRepository` y en cada deep link) la puerta salía con «Ágora no
+         * responde». [MainActivity] la abre en segundo plano antes de dibujar.
+         */
+        fun prefsCifradas(context: Context): SharedPreferences =
+            cache ?: synchronized(this) {
+                cache ?: crear(context.applicationContext).also { cache = it }
+            }
+
+        private fun crear(context: Context): SharedPreferences = EncryptedSharedPreferences.create(
+            context,
+            "agora_session",
+            MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build(),
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+        )
+    }
 
     override fun load(): SessionUser? {
         val token = prefs.getString("token", null) ?: return null

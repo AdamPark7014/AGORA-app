@@ -21,9 +21,11 @@ fun InsigniaCelebracionListener(snackbarHostState: SnackbarHostState) {
         GamificacionEvents.nuevasInsignias.collect { codigos ->
             codigos.forEach { codigo ->
                 scope.launch {
+                    // Corto y con «x»: varias insignias seguidas ya no tapan la pantalla.
                     snackbarHostState.showSnackbar(
                         message = BadgesCampus.mensajeNuevaInsignia(codigo),
-                        duration = SnackbarDuration.Long,
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Short,
                     )
                 }
             }

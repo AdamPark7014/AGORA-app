@@ -1,8 +1,8 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,7 +34,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -44,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.SessionUser
-import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
 import mx.agora.mobile.nativeapp.ui.components.AgoraIsotipo
 import mx.agora.mobile.nativeapp.ui.components.AgoraPieLegal
@@ -58,6 +62,7 @@ import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
+import mx.agora.mobile.nativeapp.ui.util.mensajeLegibleDelServidor
 import retrofit2.HttpException
 
 /**
@@ -135,7 +140,7 @@ fun LoginScreen(
                 terminar(auth.entrar(email, contrasena, recordarme))
             } catch (e: HttpException) {
                 // 401 uniforme y 429 por intentos: el mensaje de la API ya lo explica.
-                error = ApiClient.mensajeDelServidor(e) ?: copy.errorEntrar
+                error = mensajeLegibleDelServidor(e) ?: copy.errorEntrar
             } catch (e: Exception) {
                 error = mensajeDe(e).ifBlank { copy.errorEntrar }
             } finally {
@@ -156,7 +161,7 @@ fun LoginScreen(
                 aviso = if (id == null) copy.avisoOutlook else null
                 paso = PASO_CODIGO
             } catch (e: HttpException) {
-                val delServidor = ApiClient.mensajeDelServidor(e)
+                val delServidor = mensajeLegibleDelServidor(e)
                 if (e.code() == 429) {
                     // Como la web: el código anterior sigue sirviendo; se pasa a
                     // escribirlo y se explica por qué no salió otro.
@@ -198,7 +203,7 @@ fun LoginScreen(
                 if (paso != PASO_CODIGO_PERSONAL) codigo = ""
                 paso = PASO_CODIGO_PERSONAL
             } catch (e: HttpException) {
-                val delServidor = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                val delServidor = mensajeLegibleDelServidor(e) ?: mensajeDe(e)
                 when {
                     // El que falló es el UDLAP (p. ej. sin el punto): se dice junto a él.
                     e.code() == 400 && delServidor.startsWith("El correo UDLAP") -> errorUdlap = delServidor
@@ -242,12 +247,28 @@ fun LoginScreen(
                     terminar(entrada.user)
                 }
             } catch (e: HttpException) {
-                error = ApiClient.mensajeDelServidor(e) ?: copy.errorVerificar
+                // Sin cuerpo (429, 5xx) no es que el código esté mal.
+                error = mensajeLegibleDelServidor(e)
+                    ?: if (e.code() in 400..401) copy.errorVerificar else mensajeDe(e)
             } catch (e: Exception) {
                 error = mensajeDe(e)
             } finally {
                 cargando = false
             }
+        }
+    }
+
+    // «Atrás» del sistema regresa al paso anterior, como el botón de cada paso;
+    // antes cerraba la app a media verificación. En «contrasena» no hay a dónde
+    // volver: el código ya se canjeó y la sesión ya está abierta.
+    BackHandler(enabled = paso != PASO_ENTRAR && paso != PASO_CONTRASENA) {
+        // Con una petición en curso no se cambia de paso (al terminar movería el paso).
+        if (cargando) return@BackHandler
+        when (paso) {
+            PASO_PEDIR -> irA(PASO_ENTRAR)
+            PASO_CODIGO -> volverAlCorreo()
+            PASO_PERSONAL -> irA(PASO_CODIGO)
+            PASO_CODIGO_PERSONAL -> volverAlPersonal()
         }
     }
 
@@ -323,15 +344,23 @@ fun LoginScreen(
                             imeAction = ImeAction.Done,
                             onDone = { entrar() },
                         )
+                        // Un solo nodo para TalkBack: el renglón alterna y la casilla solo se dibuja.
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(role = Role.Checkbox) { recordarme = !recordarme },
+                                .toggleable(
+                                    value = recordarme,
+                                    role = Role.Checkbox,
+                                    enabled = !cargando,
+                                    onValueChange = { recordarme = it },
+                                ),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Checkbox(
                                 checked = recordarme,
-                                onCheckedChange = { recordarme = it },
+                                onCheckedChange = null,
+                                // Sin onCheckedChange pierde los 48 dp: se conservan para no mover el renglón.
+                                modifier = Modifier.minimumInteractiveComponentSize(),
                                 colors = CheckboxDefaults.colors(checkedColor = AgoraColors.Naranja),
                             )
                             Text(
@@ -422,7 +451,12 @@ fun LoginScreen(
                             )
                             Spacer(Modifier.height(AgoraSpacing.Sm))
                         }
-                        CampoCodigo(codigo = codigo, onCambio = { codigo = it }, onDone = { verificar() })
+                        CampoCodigo(
+                            codigo = codigo,
+                            onCambio = { codigo = it },
+                            onDone = { verificar() },
+                            enabled = !cargando,
+                        )
                         Spacer(Modifier.height(AgoraSpacing.Sm))
                         AgoraPrimaryButton(
                             text = if (cargando) copy.botonVerificando else copy.botonCodigo,
@@ -434,7 +468,7 @@ fun LoginScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Center,
                         ) {
-                            TextButton(onClick = { volverAlCorreo() }) {
+                            TextButton(onClick = { volverAlCorreo() }, enabled = !cargando) {
                                 Text(copy.cambiarCorreo, color = AgoraColors.Naranja)
                             }
                             TextButton(onClick = { pedirCodigo() }, enabled = !cargando) {
@@ -524,7 +558,12 @@ fun LoginScreen(
                             )
                             Spacer(Modifier.height(AgoraSpacing.Sm))
                         }
-                        CampoCodigo(codigo = codigo, onCambio = { codigo = it }, onDone = { verificar(personal = true) })
+                        CampoCodigo(
+                            codigo = codigo,
+                            onCambio = { codigo = it },
+                            onDone = { verificar(personal = true) },
+                            enabled = !cargando,
+                        )
                         Spacer(Modifier.height(AgoraSpacing.Sm))
                         AgoraPrimaryButton(
                             text = if (cargando) copy.botonVerificando else copy.botonCodigo,
@@ -536,7 +575,7 @@ fun LoginScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Center,
                         ) {
-                            TextButton(onClick = { volverAlPersonal() }) {
+                            TextButton(onClick = { volverAlPersonal() }, enabled = !cargando) {
                                 Text(copy.cambiarCorreo, color = AgoraColors.Naranja)
                             }
                             TextButton(onClick = { pedirCodigoPersonal() }, enabled = !cargando) {
@@ -566,6 +605,7 @@ fun LoginScreen(
                         it,
                         color = AgoraColors.Danger,
                         style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
                 }
 

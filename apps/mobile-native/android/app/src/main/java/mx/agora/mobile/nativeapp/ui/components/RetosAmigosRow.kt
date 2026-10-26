@@ -24,6 +24,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -134,7 +136,8 @@ private fun RetoPendienteCard(
     val tipoLabel = when (reto.tipo) {
         "RACHA" -> "🔥 racha diaria"
         "SEMANA_PREGUNTA" -> "🧠 semana de preguntas"
-        else -> reto.tipo
+        // Nunca el código crudo de la API.
+        else -> "un reto"
     }
 
     Column(
@@ -163,7 +166,10 @@ private fun RetoPendienteCard(
                 enabled = !cargando,
                 colors = ButtonDefaults.buttonColors(containerColor = AgoraColors.Naranja),
                 shape = RoundedCornerShape(50),
-                modifier = Modifier.weight(1f),
+                // «¡Va!» y «Nel» solos no dicen qué hacen con TalkBack.
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { contentDescription = "Aceptar reto de @${reto.retador.handle}" },
             ) {
                 Text("¡Va!", style = MaterialTheme.typography.labelSmall)
             }
@@ -171,7 +177,9 @@ private fun RetoPendienteCard(
                 onClick = onRechazar,
                 enabled = !cargando,
                 shape = RoundedCornerShape(50),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { contentDescription = "Rechazar reto de @${reto.retador.handle}" },
             ) {
                 Text("Nel", style = MaterialTheme.typography.labelSmall)
             }
@@ -192,7 +200,7 @@ private fun RetoActivoCard(
     val tipoLabel = when (reto.tipo) {
         "RACHA" -> "🔥 Racha"
         "SEMANA_PREGUNTA" -> "🧠 Preguntas"
-        else -> reto.tipo
+        else -> "Reto"
     }
 
     val estadoEmoji = when (reto.ganando) {

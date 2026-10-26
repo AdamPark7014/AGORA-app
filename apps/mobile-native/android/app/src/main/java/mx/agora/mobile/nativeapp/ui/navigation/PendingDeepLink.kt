@@ -1,24 +1,18 @@
 package mx.agora.mobile.nativeapp.ui.navigation
 
 import android.content.Context
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+import mx.agora.mobile.nativeapp.data.SessionStore
 
 /**
  * Cola de deep links recibidos antes de login (patrón NEXARA).
- * Persiste en prefs cifradas para cold-start.
+ * Persiste en las prefs cifradas de la sesión para cold-start: antes abría unas
+ * propias (otra llave y otro keyset de Tink, dos veces por llamada y en el hilo
+ * principal). Cerrar sesión las vacía, y con ellas la ruta pendiente.
  */
 object PendingDeepLink {
-    private const val PREFS = "agora_pending"
-    private const val KEY_ROUTE = "route"
+    private const val KEY_ROUTE = "pending_route"
 
-    private fun prefs(context: Context) = EncryptedSharedPreferences.create(
-        context,
-        PREFS,
-        MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-    )
+    private fun prefs(context: Context) = SessionStore.prefsCifradas(context)
 
     fun enqueue(context: Context, route: String, isLoggedIn: Boolean) {
         if (isLoggedIn) {
@@ -29,8 +23,9 @@ object PendingDeepLink {
     }
 
     fun flush(context: Context) {
-        val route = prefs(context).getString(KEY_ROUTE, null) ?: return
-        prefs(context).edit().remove(KEY_ROUTE).apply()
+        val prefs = prefs(context)
+        val route = prefs.getString(KEY_ROUTE, null) ?: return
+        prefs.edit().remove(KEY_ROUTE).apply()
         DeepLinkBus.emit(route)
     }
 

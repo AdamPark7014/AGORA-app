@@ -45,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -66,6 +68,7 @@ import mx.agora.mobile.nativeapp.ui.screens.NotificacionesScreen
 import mx.agora.mobile.nativeapp.ui.screens.PublicarScreen
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.HapticType
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.util.rememberHaptics
 
 private data class Tab(
@@ -172,10 +175,19 @@ fun MainShell(
                 BadgedBox(
                     badge = {
                         Badge(
-                            modifier = Modifier.graphicsLayer {
-                                scaleX = badgeScale
-                                scaleY = badgeScale
-                            },
+                            modifier = Modifier
+                                .graphicsLayer {
+                                    scaleX = badgeScale
+                                    scaleY = badgeScale
+                                }
+                                // TalkBack: «3 avisos sin leer», no «9+».
+                                .clearAndSetSemantics {
+                                    contentDescription = if (badge > 9) {
+                                        "Más de 9 avisos sin leer"
+                                    } else {
+                                        cuenta(badge, "aviso sin leer", "avisos sin leer")
+                                    }
+                                },
                         ) {
                             Text(if (badge > 9) "9+" else badge.toString())
                         }
@@ -201,19 +213,25 @@ fun MainShell(
                         BadgedBox(
                             badge = {
                                 if (mensajesSinLeer > 0) {
-                                    Badge {
+                                    // TalkBack: «3 mensajes sin leer», no «99+».
+                                    Badge(
+                                        modifier = Modifier.clearAndSetSemantics {
+                                            contentDescription = if (mensajesSinLeer > 99) {
+                                                "Más de 99 mensajes sin leer"
+                                            } else {
+                                                cuenta(mensajesSinLeer, "mensaje sin leer", "mensajes sin leer")
+                                            }
+                                        },
+                                    ) {
                                         Text(if (mensajesSinLeer > 99) "99+" else mensajesSinLeer.toString())
                                     }
                                 }
                             },
                         ) {
+                            // El conteo lo dice la insignia.
                             Icon(
                                 Icons.Outlined.MailOutline,
-                                contentDescription = if (mensajesSinLeer > 0) {
-                                    "Mensajes, $mensajesSinLeer sin leer"
-                                } else {
-                                    "Mensajes"
-                                },
+                                contentDescription = "Mensajes",
                             )
                         }
                     }

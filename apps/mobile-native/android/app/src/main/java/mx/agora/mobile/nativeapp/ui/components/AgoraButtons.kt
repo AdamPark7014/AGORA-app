@@ -10,6 +10,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import mx.agora.mobile.nativeapp.ui.theme.AgoraButtonShape
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
@@ -25,11 +27,12 @@ fun AgoraPrimaryButton(
     loading: Boolean = false,
 ) {
     Button(
-        onClick = onClick,
+        // Cargando: sigue con su color normal (no el 40 %) y solo ignora el clic.
+        onClick = { if (!loading) onClick() },
         modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = ButtonMinHeight),
-        enabled = enabled && !loading,
+        enabled = enabled,
         shape = AgoraButtonShape,
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
         colors = ButtonDefaults.buttonColors(
@@ -41,7 +44,10 @@ fun AgoraPrimaryButton(
     ) {
         if (loading) {
             CircularProgressIndicator(
-                modifier = Modifier.defaultMinSize(minWidth = 20.dp, minHeight = 20.dp),
+                // TalkBack lee el texto del botón aunque se vea el spinner.
+                modifier = Modifier
+                    .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+                    .semantics { contentDescription = text },
                 strokeWidth = 2.dp,
                 color = MaterialTheme.colorScheme.onPrimary,
             )

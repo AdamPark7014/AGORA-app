@@ -18,6 +18,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
@@ -33,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
@@ -61,11 +63,15 @@ private val filtrosTipo = listOf(
     "OTRO" to "Otro",
 )
 
-/** "cupo 40 · quedan 12" / "cupo 40 · lleno"; null si el evento no tiene cupo. */
+/** "cupo 40 · quedan 12" / "cupo 40 · queda 1" / "cupo 40 · lleno"; null si el evento no tiene cupo. */
 internal fun textoCupo(cupo: Int?, vanAIr: Int): String? {
     if (cupo == null) return null
     val quedan = (cupo - vanAIr).coerceAtLeast(0)
-    return if (quedan == 0) "cupo $cupo · lleno" else "cupo $cupo · quedan $quedan"
+    return when (quedan) {
+        0 -> "cupo $cupo · lleno"
+        1 -> "cupo $cupo · queda 1"
+        else -> "cupo $cupo · quedan $quedan"
+    }
 }
 
 /**
@@ -139,7 +145,7 @@ fun EventosScreen(
                     tokenProvider,
                     mapOf("eventoId" to evento.id, "respuesta" to "VOY"),
                 )
-                avisar(if (resp.miRespuesta == "VOY") "¡Te apuntaste! Nos vemos ahí." else "Quitaste tu «Voy».")
+                avisar(if (resp.miRespuesta == "VOY") "¡Te apuntaste! Nos vemos ahí." else "Listo, ya no vas a ir.")
                 cargar(refresh = true)
             } catch (e: Exception) {
                 avisar(ApiClient.mensajeDelServidor(e) ?: mensajeDe(e))
@@ -164,7 +170,11 @@ fun EventosScreen(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    Button(onClick = onCrearClick) {
+                    Button(
+                        onClick = onCrearClick,
+                        // Sin el «+» en la lectura.
+                        modifier = Modifier.semantics { contentDescription = "Crear evento" },
+                    ) {
                         Text("+ Crear evento")
                     }
                 }
@@ -201,7 +211,7 @@ fun EventosScreen(
                             AgoraEstadoDesplazable {
                                 AgoraEmptyState(
                                     state = AgoraCopy.emptyEventos,
-                                    ctaLabel = AgoraCopy.cta.publicarAlgo,
+                                    ctaLabel = "Crear evento",
                                     onCta = onCrearClick,
                                     secondaryCtaLabel = AgoraCopy.cta.reintentar,
                                     onSecondaryCta = { cargar() },
@@ -222,6 +232,14 @@ fun EventosScreen(
                                         onVoy = { responderVoy(evento) },
                                     )
                                 }
+                            }
+                            // Al cambiar de filtro la lista anterior sigue: que se note que carga.
+                            if (cargando) {
+                                LinearProgressIndicator(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.TopCenter),
+                                )
                             }
                         }
                     }
@@ -251,12 +269,20 @@ private fun EventoCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClickLabel = "Ver evento", role = Role.Button, onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("$icono ${evento.titulo}", style = MaterialTheme.typography.titleMedium)
+            // El lector dice el tipo con palabras en vez de leer el emoji.
+            val tipoLeido = filtrosTipo.firstOrNull { it.first == evento.tipo }?.second
+            Text(
+                "$icono ${evento.titulo}",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics {
+                    contentDescription = listOfNotNull(tipoLeido, evento.titulo).joinToString(": ")
+                },
+            )
             Text(formatearFecha(evento.inicioAt), style = MaterialTheme.typography.labelMedium)
             evento.lugar?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall)
@@ -266,7 +292,7 @@ private fun EventoCard(
             }
             Text(
                 listOfNotNull(
-                    "${evento.vanAIr} van",
+                    if (evento.vanAIr == 1) "1 persona va" else "${evento.vanAIr} van",
                     textoCupo(evento.cupo, evento.vanAIr),
                     textoCosto(evento.costoMxn),
                 ).joinToString(" · "),

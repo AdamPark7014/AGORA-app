@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -116,16 +117,31 @@ fun FeedScreen(
         }
     }
 
+    /** Falló traer mis comunidades: se reintenta al volver la red o al jalar para refrescar. */
+    var comunidadesPendientes by remember { mutableStateOf(false) }
+
+    fun cargarComunidades() {
+        scope.launch {
+            try {
+                comunidades = ApiClient.api<PerfilApi>(tokenProvider).misComunidades()
+                comunidadesPendientes = false
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                comunidadesPendientes = true
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         sinConexion = !NetworkMonitor.isOnline(context)
-        runCatching {
-            comunidades = ApiClient.api<PerfilApi>(tokenProvider).misComunidades()
-        }
+        cargarComunidades()
     }
 
     LaunchedEffect(Unit) {
         NetworkMonitor.connectivityFlow(context).collect { online ->
             sinConexion = !online
+            if (online && comunidadesPendientes) cargarComunidades()
         }
     }
 
@@ -144,6 +160,8 @@ fun FeedScreen(
             if (!online && reemplazar) {
                 cargando = true
                 cargarCache()
+                // Sin red y sin caché no es un feed «tranquilo»: estado de error con «Reintentar».
+                if (posts.isEmpty()) error = AgoraCopy.errors.network
                 cargando = false
                 refrescando = false
                 return@launch
@@ -233,7 +251,10 @@ fun FeedScreen(
 
     AgoraPullToRefreshBox(
         isRefreshing = refrescando,
-        onRefresh = { traer(null, reemplazar = true, refresh = true) },
+        onRefresh = {
+            if (comunidadesPendientes) cargarComunidades()
+            traer(null, reemplazar = true, refresh = true)
+        },
         modifier = Modifier.fillMaxSize(),
     ) {
         when {
@@ -332,6 +353,14 @@ fun FeedScreen(
                             )
                         }
                     }
+                }
+                // Al cambiar de filtro la lista anterior sigue: que se note que carga.
+                if (cargando && posts.isNotEmpty()) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.TopCenter),
+                    )
                 }
             }
         }

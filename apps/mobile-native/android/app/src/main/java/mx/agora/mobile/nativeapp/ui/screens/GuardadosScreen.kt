@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,6 +21,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -52,6 +54,7 @@ fun GuardadosScreen(
     var cursor by remember { mutableStateOf<String?>(null) }
     var cargandoMas by remember { mutableStateOf(false) }
     var errorMas by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     fun cargar(refresh: Boolean = false) {
@@ -67,7 +70,12 @@ fun GuardadosScreen(
                 throw e
             } catch (e: Exception) {
                 // Si ya había lista, se queda; el error solo tapa la pantalla vacía.
-                error = mensajeDe(e)
+                val mensaje = mensajeDe(e)
+                error = mensaje
+                // Con lista en pantalla el error no se pinta: se avisa (como en Notificaciones).
+                if (publicaciones.isNotEmpty()) {
+                    Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
+                }
             } finally {
                 cargando = false
                 refrescando = false

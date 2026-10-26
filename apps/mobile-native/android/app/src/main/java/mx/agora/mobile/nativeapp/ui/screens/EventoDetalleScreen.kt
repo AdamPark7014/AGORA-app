@@ -33,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -188,7 +190,13 @@ fun EventoDetalleScreen(
                     Text(item.titulo, style = MaterialTheme.typography.headlineMedium)
                     Text(formatearFecha(item.inicioAt), style = MaterialTheme.typography.bodyMedium, color = AgoraColors.TextoMedio)
                     item.lugar?.let {
-                        Text("📍 $it", style = MaterialTheme.typography.bodyMedium, color = AgoraColors.TextoMedio)
+                        Text(
+                            "📍 $it",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AgoraColors.TextoMedio,
+                            // Sin leer el emoji.
+                            modifier = Modifier.semantics { contentDescription = "Lugar: $it" },
+                        )
                     }
                     item.comunidad?.let {
                         Text(it.nombre, style = MaterialTheme.typography.bodyMedium, color = AgoraColors.TextoMedio)
@@ -202,8 +210,13 @@ fun EventoDetalleScreen(
                     item.descripcion?.takeIf { it.isNotBlank() }?.let {
                         Text(it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
                     }
+                    val textoVan = when (item.vanAIr) {
+                        0 -> "Nadie se ha apuntado aún"
+                        1 -> "1 persona va"
+                        else -> "${item.vanAIr} personas van"
+                    }
                     Text(
-                        listOfNotNull("${item.vanAIr} personas van", textoCupo(item.cupo, item.vanAIr)).joinToString(" · "),
+                        listOfNotNull(textoVan, textoCupo(item.cupo, item.vanAIr)).joinToString(" · "),
                         style = MaterialTheme.typography.bodySmall,
                         color = AgoraColors.TextoMedio,
                     )
@@ -216,20 +229,19 @@ fun EventoDetalleScreen(
                                 onClick = { responder(valor) },
                                 enabled = !respondiendo,
                                 label = { Text(if (elegida) "✓ $etiqueta" else etiqueta) },
+                                // Antes había un texto visible para esto; ahora solo lo dice el lector.
+                                modifier = if (elegida) {
+                                    Modifier.semantics { contentDescription = "$etiqueta, seleccionado. Toca para quitar." }
+                                } else {
+                                    Modifier
+                                },
                             )
                         }
-                    }
-                    if (item.miRespuesta != null) {
-                        Text(
-                            "Toca otra vez tu respuesta para quitarla.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = AgoraColors.TextoMedio,
-                        )
                     }
 
                     item.autor?.let { autor ->
                         TextButton(onClick = { autor.handle?.let(onPerfilClick) }) {
-                            Text("Organiza ${autor.nombre ?: autor.handle}")
+                            Text("Organiza ${autor.nombre ?: autor.handle ?: "alguien"}")
                         }
                     }
 

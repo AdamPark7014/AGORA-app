@@ -35,12 +35,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.MediaDto
+import mx.agora.mobile.nativeapp.ui.util.cuenta
 import kotlin.math.roundToInt
 
 private data class FloatingReaction(
@@ -67,8 +74,19 @@ fun PostMediaGrid(
     val limites = remember(postId) { mutableStateMapOf<Int, Rect>() }
     var origen by remember(postId) { mutableStateOf(Offset.Zero) }
 
+    // El toque lo detecta el pointerInput de arriba por coordenadas; TalkBack
+    // necesita además una acción propia en cada foto para abrir el visor.
     fun miniatura(indice: Int): Modifier =
-        Modifier.onGloballyPositioned { limites[indice] = it.boundsInRoot() }
+        Modifier
+            .onGloballyPositioned { limites[indice] = it.boundsInRoot() }
+            .semantics {
+                role = Role.Image
+                contentDescription = "Foto ${indice + 1} de ${imagenes.size}"
+                onClick(label = "Ver foto") {
+                    visor = indice
+                    true
+                }
+            }
 
     Box(
         modifier = modifier
@@ -193,6 +211,10 @@ fun PostMediaGrid(
                                                 "+${imagenes.size - 3}",
                                                 style = MaterialTheme.typography.titleLarge,
                                                 color = androidx.compose.ui.graphics.Color.White,
+                                                modifier = Modifier.semantics {
+                                                    contentDescription =
+                                                        cuenta(imagenes.size - 3, "foto más", "fotos más")
+                                                },
                                             )
                                         }
                                     }
@@ -246,6 +268,8 @@ private fun FloatingHeartReaction(
                 )
             }
             .scale(scale.value)
-            .alpha(alpha.value),
+            .alpha(alpha.value)
+            // Animación decorativa: la reacción ya se anuncia en el botón.
+            .clearAndSetSemantics {},
     )
 }

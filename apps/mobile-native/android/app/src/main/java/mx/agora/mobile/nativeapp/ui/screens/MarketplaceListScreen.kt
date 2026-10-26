@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -7,10 +8,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +25,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -35,9 +40,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.AnuncioDto
 import mx.agora.mobile.nativeapp.data.api.ApiClient
@@ -45,17 +55,22 @@ import mx.agora.mobile.nativeapp.data.api.MarketplaceApi
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
+import mx.agora.mobile.nativeapp.ui.components.AgoraPieErrorPagina
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 import mx.agora.mobile.nativeapp.ui.util.formatearPrecio
 import mx.agora.mobile.nativeapp.ui.util.haceCuanto
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
+// Mismas categorías (y valores de API) que CreateAnuncioScreen.
 private val categorias = listOf(
     "" to "Todas",
     "LIBROS" to "Libros",
     "ELECTRONICA" to "Electrónica",
+    "MUEBLES" to "Muebles",
     "ROPA" to "Ropa",
+    "CUARTO" to "Cuarto",
+    "SERVICIOS" to "Servicios",
     "OTRO" to "Otro",
 )
 
@@ -74,26 +89,71 @@ fun MarketplaceListScreen(
     var cargando by remember { mutableStateOf(true) }
     var refrescando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var cargandoMas by remember { mutableStateOf(false) }
+    var errorMas by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    fun cargar(desde: String? = null, refresh: Boolean = false) {
+    fun cargar(refresh: Boolean = false) {
         scope.launch {
-            if (refresh) refrescando = true else if (desde == null) cargando = true
+            if (refresh) refrescando = true else cargando = true
             error = null
             try {
                 val datos = ApiClient.api<MarketplaceApi>(tokenProvider).listar(
                     categoria = categoria.takeIf { it.isNotBlank() },
                     q = busqueda.trim().takeIf { it.isNotBlank() },
-                    cursor = desde,
+                    cursor = null,
                 )
-                anuncios = if (desde != null) anuncios + datos.anuncios else datos.anuncios
+                anuncios = datos.anuncios
                 cursor = datos.siguienteCursor
+                errorMas = null
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                error = mensajeDe(e)
-                if (desde == null) anuncios = emptyList()
+                val mensaje = mensajeDe(e)
+                if (refresh && anuncios.isNotEmpty()) {
+                    // Con lista en pantalla no se vacía: se avisa.
+                    Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
+                } else {
+                    error = mensaje
+                    anuncios = emptyList()
+                }
             } finally {
                 cargando = false
                 refrescando = false
+            }
+        }
+    }
+
+    // Con bandera y sin repetir ids: dos toques seguidos duplicaban claves y
+    // la LazyColumn tronaba.
+    fun cargarMas() {
+        val desde = cursor ?: return
+        // Mientras recarga la primera página el cursor viejo ya no sirve.
+        if (cargandoMas || cargando) return
+        val cat = categoria
+        val q = busqueda
+        scope.launch {
+            cargandoMas = true
+            errorMas = null
+            try {
+                val datos = ApiClient.api<MarketplaceApi>(tokenProvider).listar(
+                    categoria = cat.takeIf { it.isNotBlank() },
+                    q = q.trim().takeIf { it.isNotBlank() },
+                    cursor = desde,
+                )
+                // Si cambió el filtro mientras tanto, esta página ya no va.
+                if (cat == categoria && q == busqueda) {
+                    val vistos = anuncios.mapTo(HashSet()) { it.id }
+                    anuncios = anuncios + datos.anuncios.filter { it.id !in vistos }
+                    cursor = datos.siguienteCursor
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorMas = mensajeDe(e)
+            } finally {
+                cargandoMas = false
             }
         }
     }
@@ -116,7 +176,10 @@ fun MarketplaceListScreen(
                 placeholder = { Text("Buscar anuncios…") },
                 singleLine = true,
             )
-            Button(onClick = onCrearClick) {
+            Button(
+                onClick = onCrearClick,
+                modifier = Modifier.semantics { contentDescription = "Vender algo" },
+            ) {
                 Text("+ Vender")
             }
         }
@@ -157,7 +220,7 @@ fun MarketplaceListScreen(
                     AgoraEstadoDesplazable {
                         AgoraEmptyState(
                             state = AgoraCopy.emptyMarketplace,
-                            ctaLabel = AgoraCopy.cta.publicarAlgo,
+                            ctaLabel = "Publicar un anuncio",
                             onCta = onCrearClick,
                         )
                     }
@@ -171,15 +234,40 @@ fun MarketplaceListScreen(
                             AnuncioCard(anuncio = anuncio, onClick = { onAnuncioClick(anuncio.id) })
                         }
                         if (cursor != null) {
-                            item {
-                                Button(
-                                    onClick = { cargar(cursor) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text("Cargar más")
+                            item(key = "mas") {
+                                if (errorMas != null) {
+                                    AgoraPieErrorPagina(
+                                        mensaje = errorMas!!,
+                                        onReintentar = { cargarMas() },
+                                    )
+                                } else {
+                                    Button(
+                                        onClick = { cargarMas() },
+                                        enabled = !cargandoMas && !cargando,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        if (cargandoMas) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(18.dp),
+                                                strokeWidth = 2.dp,
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Cargando…")
+                                        } else {
+                                            Text("Cargar más")
+                                        }
+                                    }
                                 }
                             }
                         }
+                    }
+                    // Al cambiar categoría o búsqueda la lista vieja sigue: que se note que carga.
+                    if (cargando) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.TopCenter),
+                        )
                     }
                 }
             }
@@ -192,7 +280,7 @@ private fun AnuncioCard(anuncio: AnuncioDto, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClickLabel = "Ver anuncio", role = Role.Button, onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = AgoraColors.Superficie),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
@@ -237,7 +325,8 @@ internal const val ESTADO_VENDIDO = "VENDIDO"
 internal fun EtiquetaEstadoAnuncio(estadoVenta: String, modifier: Modifier = Modifier) {
     val (texto, color, fondo) = when (estadoVenta) {
         ESTADO_DISPONIBLE -> Triple("Disponible", AgoraColors.Success, AgoraColors.SuccessSuave)
-        ESTADO_APARTADO -> Triple("Apartado", AgoraColors.Warning, AgoraColors.WarningSuave)
+        // WarningTexto: el ámbar de marca no se lee como texto.
+        ESTADO_APARTADO -> Triple("Apartado", AgoraColors.WarningTexto, AgoraColors.WarningSuave)
         ESTADO_VENDIDO -> Triple("Vendido", AgoraColors.Danger, AgoraColors.DangerSuave)
         else -> return
     }

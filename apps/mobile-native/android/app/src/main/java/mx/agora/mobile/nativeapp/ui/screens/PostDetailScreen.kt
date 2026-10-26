@@ -59,6 +59,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
@@ -120,6 +121,7 @@ fun PostDetailScreen(
     var dialogoBorrar by remember { mutableStateOf(false) }
     var reporteComentarioId by remember { mutableStateOf<String?>(null) }
     var textoEditar by remember { mutableStateOf("") }
+    var errorEditar by remember { mutableStateOf<String?>(null) }
     var miReaccion by remember(postId) { mutableStateOf<String?>(null) }
     var totalReacciones by remember(postId) { mutableIntStateOf(0) }
     var encuesta by remember(postId) { mutableStateOf<EncuestaDto?>(null) }
@@ -172,17 +174,22 @@ fun PostDetailScreen(
         scope.launch {
             if (refresh) refrescando = true else if (post == null) cargando = true
             error = null
+            var aviso: String? = null
             try {
                 val detalle = ApiClient.api<PostsApi>(tokenProvider).detalle(postId)
                 aplicarDetalle(detalle)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 val msg = mensajeDe(e)
                 error = msg
-                if (post != null) snackbarHostState.showSnackbar(msg)
+                if (post != null) aviso = msg
             } finally {
                 cargando = false
                 refrescando = false
             }
+            // El snackbar suspende ~4 s: va después del finally para no dejar el spinner atorado.
+            aviso?.let { snackbarHostState.showSnackbar(it) }
         }
     }
 
@@ -193,6 +200,7 @@ fun PostDetailScreen(
         if (cargandoAnteriores) return
         cargandoAnteriores = true
         scope.launch {
+            var aviso: String? = null
             try {
                 val pagina = ApiClient.api<PostsApi>(tokenProvider).comentariosAnteriores(postId, cursor)
                 anteriores = (pagina.comentarios + anteriores).distinctBy { it.id }
@@ -200,10 +208,11 @@ fun PostDetailScreen(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar(ApiClient.mensajeDelServidor(e) ?: mensajeDe(e))
+                aviso = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
             } finally {
                 cargandoAnteriores = false
             }
+            aviso?.let { snackbarHostState.showSnackbar(it) }
         }
     }
 
@@ -222,9 +231,12 @@ fun PostDetailScreen(
             try {
                 val resp = ApiClient.api<PostsApi>(tokenProvider).reaccionar(postId, ReaccionarRequest(tipo))
                 miReaccion = resp.miReaccion
-            } catch (_: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 miReaccion = anterior
                 totalReacciones = totalAnterior
+                snackbarHostState.showSnackbar(mensajeDe(e))
             }
         }
     }
@@ -311,13 +323,18 @@ fun PostDetailScreen(
         val texto = textoEditar.trim()
         if (texto.isBlank()) return
         scope.launch {
+            errorEditar = null
             try {
                 ApiClient.api<PostsApi>(tokenProvider).editar(postId, EditarPostRequest(texto))
                 dialogoEditar = false
-                snackbarHostState.showSnackbar("Publicación actualizada.")
+                // Primero recargar: el snackbar suspende ~4 s.
                 cargar()
+                snackbarHostState.showSnackbar("Publicación actualizada.")
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar(mensajeDe(e))
+                // El diálogo sigue abierto y tapa el snackbar: el error va adentro.
+                errorEditar = mensajeDe(e)
             }
         }
     }
@@ -328,9 +345,12 @@ fun PostDetailScreen(
                 ApiClient.api<PostsApi>(tokenProvider).borrar(postId)
                 dialogoBorrar = false
                 onDeleted()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar(mensajeDe(e))
+                // Se cierra antes: el diálogo taparía el snackbar.
                 dialogoBorrar = false
+                snackbarHostState.showSnackbar(mensajeDe(e))
             }
         }
     }
@@ -338,17 +358,23 @@ fun PostDetailScreen(
     fun retirar(motivo: String) {
         scope.launch {
             retirando = true
+            var aviso: String? = null
             try {
                 val resp = ApiClient.api<ModeracionApi>(tokenProvider)
                     .retirarPost(postId, RetirarPostRequest(motivo))
                 if (!resp.isSuccessful) throw HttpException(resp)
                 dialogoRetirar = false
                 onDeleted()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar(ApiClient.mensajeDelServidor(e) ?: mensajeDe(e))
+                aviso = ApiClient.mensajeDelServidor(e) ?: mensajeDe(e)
+                // RetirarPostDialogo no tiene dónde mostrar el error: se cierra para que se vea.
+                dialogoRetirar = false
             } finally {
                 retirando = false
             }
+            aviso?.let { snackbarHostState.showSnackbar(it) }
         }
     }
 
@@ -395,6 +421,7 @@ fun PostDetailScreen(
                                 onClick = {
                                     menuAbierto = false
                                     textoEditar = post?.texto ?: ""
+                                    errorEditar = null
                                     dialogoEditar = true
                                 },
                                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
@@ -454,17 +481,26 @@ fun PostDetailScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
+                        val nombreAutor = actual.autor?.nombre ?: "Alguien"
                         Row(
+                            // 48dp de área táctil y rol de botón para TalkBack.
                             modifier = actual.autor?.handle?.let { handle ->
-                                Modifier.clickable { onAuthorClick(handle) }
+                                Modifier
+                                    .heightIn(min = 48.dp)
+                                    .clickable(
+                                        role = Role.Button,
+                                        onClickLabel = "Ver perfil de $nombreAutor",
+                                    ) { onAuthorClick(handle) }
                             } ?: Modifier,
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Text(
-                                actual.autor?.nombre ?: "Alguien",
+                                nombreAutor,
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 "· ${actual.comunidad.nombre} · ${haceCuanto(actual.createdAt)}",
@@ -601,15 +637,26 @@ fun PostDetailScreen(
             onDismissRequest = { dialogoEditar = false },
             title = { Text("Editar publicación") },
             text = {
-                OutlinedTextField(
-                    value = textoEditar,
-                    onValueChange = { textoEditar = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    errorEditar?.let {
+                        Text(
+                            it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    OutlinedTextField(
+                        value = textoEditar,
+                        onValueChange = { textoEditar = it },
+                        // Nombre accesible del campo (el título del diálogo no se asocia).
+                        label = { Text("Texto de la publicación") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3,
+                    )
+                }
             },
             confirmButton = {
-                TextButton(onClick = ::editar) { Text("Guardar") }
+                TextButton(onClick = ::editar, enabled = textoEditar.isNotBlank()) { Text("Guardar") }
             },
             dismissButton = {
                 TextButton(onClick = { dialogoEditar = false }) { Text("Cancelar") }
@@ -680,6 +727,7 @@ private fun ComentarioFila(
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             Box {
@@ -731,9 +779,15 @@ private fun BarraComentar(
         ) {
             OutlinedTextField(
                 value = texto,
-                onValueChange = { if (it.length <= LIMITE_COMENTARIO) onTextoChange(it) },
+                // Un pegado largo se recorta al límite en vez de descartarse entero.
+                onValueChange = { onTextoChange(it.take(LIMITE_COMENTARIO)) },
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Escribe un comentario…") },
+                supportingText = if (texto.length > LIMITE_COMENTARIO - 100) {
+                    { Text("${texto.length}/$LIMITE_COMENTARIO") }
+                } else {
+                    null
+                },
                 maxLines = 4,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             )

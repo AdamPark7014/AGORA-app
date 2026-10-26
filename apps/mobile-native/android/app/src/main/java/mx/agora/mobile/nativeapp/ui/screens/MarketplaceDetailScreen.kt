@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
@@ -67,6 +68,8 @@ fun MarketplaceDetailScreen(
     var cargando by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var cambiandoEstado by remember { mutableStateOf(false) }
+    // Evita abrir dos chats con dos toques.
+    var abriendo by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     /** Índice de la imagen abierta en el visor a pantalla completa. */
@@ -136,12 +139,12 @@ fun MarketplaceDetailScreen(
                 urls.firstOrNull()?.let { principal ->
                     AsyncImage(
                         model = principal,
-                        contentDescription = null,
+                        contentDescription = "Foto 1 de ${urls.size}",
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(220.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable { visor = 0 },
+                            .clickable(onClickLabel = "Ampliar", role = Role.Button) { visor = 0 },
                         contentScale = ContentScale.Crop,
                     )
                 }
@@ -150,11 +153,11 @@ fun MarketplaceDetailScreen(
                         itemsIndexed(urls) { indice, url ->
                             AsyncImage(
                                 model = url,
-                                contentDescription = null,
+                                contentDescription = "Foto ${indice + 1} de ${urls.size}",
                                 modifier = Modifier
                                     .size(72.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable { visor = indice },
+                                    .clickable(onClickLabel = "Ampliar", role = Role.Button) { visor = indice },
                                 contentScale = ContentScale.Crop,
                             )
                         }
@@ -239,19 +242,28 @@ fun MarketplaceDetailScreen(
                         Button(
                             onClick = {
                                 scope.launch {
+                                    // Sin handle no hay con quién abrir el chat (antes tronaba con !!).
+                                    val handle = item.vendedor?.handle ?: return@launch
+                                    abriendo = true
+                                    error = null
                                     try {
                                         val chat = ApiClient.api<MensajesApi>(tokenProvider).abrir(
-                                            AbrirConversacionRequest(item.vendedor!!.handle!!),
+                                            AbrirConversacionRequest(handle),
                                         )
                                         onMensajeClick(chat.id)
+                                    } catch (e: CancellationException) {
+                                        throw e
                                     } catch (e: Exception) {
                                         error = mensajeDe(e)
+                                    } finally {
+                                        abriendo = false
                                     }
                                 }
                             },
+                            enabled = !abriendo,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Text("Escribir al vendedor")
+                            Text(if (abriendo) "Abriendo chat…" else "Escribir al vendedor")
                         }
                         OutlinedButton(
                             onClick = { item.vendedor?.handle?.let(onPerfilClick) },
