@@ -1,31 +1,40 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Colors (paridad con `AgoraColors.kt`; modo oscuro = tokens de `apps/web/app/globals.css`)
+// MARK: - Colors: diseño D (docs/diseno-d.md §2), los mismos tokens que la web y Android
 
 enum AgoraDesign {
     enum Colors {
         static let naranja = dinamico(claro: (227, 82, 5), oscuro: (255, 107, 38))
-        static let naranjaSuave = dinamico(claro: (255, 240, 232), oscuro: (42, 21, 9))
-        static let naranjaOscuro = dinamico(claro: (184, 64, 4), oscuro: (255, 133, 71))
+        static let naranjaSuave = dinamico(claro: (253, 232, 220), oscuro: (42, 21, 9))
+        static let naranjaOscuro = dinamico(claro: (196, 68, 4), oscuro: (255, 133, 71))
+        /// Texto sobre `naranjaSuave`: banda de comunidad y chip de reacción activo.
+        static let naranjaTinta = dinamico(claro: (154, 53, 3), oscuro: (255, 179, 133))
 
-        static let fondo = dinamico(claro: (247, 245, 242), oscuro: (13, 18, 16))
-        static let superficie = dinamico(claro: (255, 255, 255), oscuro: (22, 25, 29))
-        static let superficieElevada = dinamico(claro: (255, 252, 250), oscuro: (30, 34, 39))
+        /// Fondo cálido, no gris frío.
+        static let fondo = dinamico(claro: (244, 242, 239), oscuro: (15, 13, 11))
+        static let superficie = dinamico(claro: (255, 255, 255), oscuro: (27, 24, 21))
+        static let superficieElevada = dinamico(claro: (255, 255, 255), oscuro: (36, 32, 28))
+        /// Segmentos y chips inactivos.
+        static let superficie2 = dinamico(claro: (233, 229, 223), oscuro: (36, 32, 28))
+        /// Tarjeta de la pregunta relámpago y barras oscuras.
+        static let oscuro = dinamico(claro: (20, 17, 15), oscuro: (36, 32, 28))
+        /// Punto de «Ahora en el campus».
+        static let vivo = dinamico(claro: (22, 163, 74), oscuro: (34, 197, 94))
 
-        static let texto = dinamico(claro: (26, 26, 26), oscuro: (231, 233, 234))
-        static let textoMedio = dinamico(claro: (107, 107, 107), oscuro: (154, 164, 175))
-        static let textoMuted = dinamico(claro: (154, 149, 144), oscuro: (125, 135, 146))
+        static let texto = dinamico(claro: (20, 17, 15), oscuro: (244, 242, 239))
+        static let textoMedio = dinamico(claro: (107, 98, 91), oscuro: (179, 170, 161))
+        static let textoMuted = dinamico(claro: (115, 105, 97), oscuro: (161, 151, 141))
 
-        static let borde = dinamico(claro: (232, 228, 223), oscuro: (42, 47, 54))
-        static let bordeSutil = dinamico(claro: (240, 236, 232), oscuro: (34, 38, 44))
+        static let borde = dinamico(claro: (230, 225, 219), oscuro: (46, 41, 37))
+        static let bordeSutil = dinamico(claro: (240, 236, 231), oscuro: (38, 34, 30))
 
         static let success = dinamico(claro: (46, 125, 79), oscuro: (127, 201, 168))
         static let danger = dinamico(claro: (198, 40, 40), oscuro: (242, 97, 97))
         static let dangerSuave = dinamico(claro: (253, 236, 234), oscuro: (58, 24, 24))
 
-        static let skeletonBase = dinamico(claro: (232, 228, 223), oscuro: (34, 38, 44))
-        static let skeletonHighlight = dinamico(claro: (245, 242, 239), oscuro: (46, 51, 58))
+        static let skeletonBase = dinamico(claro: (233, 229, 223), oscuro: (36, 32, 28))
+        static let skeletonHighlight = dinamico(claro: (244, 242, 239), oscuro: (46, 41, 37))
 
         /// Color que cambia solo con el modo claro/oscuro del sistema (o el que
         /// fije el usuario en Ajustes → Apariencia).
@@ -57,11 +66,14 @@ enum AgoraDesign {
         static let xxl: CGFloat = 48
     }
 
+    /// Tarjeta 22, foto dentro de tarjeta 16, botón 14, chip 12, avatar 14 (docs/diseno-d.md §2).
     enum Radii {
-        static let card: CGFloat = 16
-        static let button: CGFloat = 12
-        static let small: CGFloat = 8
+        static let card: CGFloat = 22
+        static let foto: CGFloat = 16
+        static let button: CGFloat = 14
+        static let small: CGFloat = 12
         static let medium: CGFloat = 12
+        static let avatar: CGFloat = 14
     }
 
     enum Animation {

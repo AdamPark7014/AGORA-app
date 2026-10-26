@@ -14,6 +14,7 @@ struct PostCardView: View {
 
     @State private var miReaccion: String?
     @State private var totalReacciones = 0
+    @State private var conteos: [String: Int] = [:]
     @State private var encuesta: EncuestaDto?
     @State private var votando = false
     @State private var heartTrigger = 0
@@ -65,113 +66,122 @@ struct PostCardView: View {
         }
     }
 
+    private var nombreVisible: String {
+        esAnonimo ? (post.alias ?? "Sin nombre") : (post.autor?.nombre ?? "Usuario")
+    }
+
+    /// Diseño D (docs/diseno-d.md §3): banda de comunidad → autor → texto → fotos con esquinas →
+    /// chips de reacción con número → comentarios y acciones.
     private var tarjeta: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button {
-                onAuthorTap?()
-            } label: {
+        VStack(alignment: .leading, spacing: 0) {
+            bandaComunidad
+
+            VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
-                    avatar
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
-                            Text(esAnonimo ? (post.alias ?? "Sin nombre") : (post.autor?.nombre ?? "Usuario"))
-                                .font(.subheadline.bold())
-                                .foregroundStyle(AgoraDesign.Colors.texto)
-                            if post.autor?.verificado == true {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(AgoraDesign.Colors.naranja)
-                            }
-                        }
-                        HStack(spacing: 6) {
-                            if let handle = post.autor?.handle {
-                                Text("@\(handle)")
-                                    .font(.caption)
-                                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                                Text("·")
-                                    .font(.caption)
-                                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                            }
-                            Text(FormatUtils.haceCuanto(post.createdAt))
+                    Button {
+                        onAuthorTap?()
+                    } label: {
+                        HStack(spacing: 10) {
+                            avatar
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 4) {
+                                    Text(nombreVisible)
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(AgoraDesign.Colors.texto)
+                                        .lineLimit(1)
+                                    if post.autor?.verificado == true {
+                                        Image(systemName: "checkmark.seal.fill")
+                                            .font(.caption2)
+                                            .foregroundStyle(AgoraDesign.Colors.naranja)
+                                            .accessibilityLabel("Verificado")
+                                    }
+                                }
+                                Text(
+                                    [post.autor.map { "@\($0.handle)" }, FormatUtils.haceCuanto(post.createdAt)]
+                                        .compactMap { $0 }
+                                        .joined(separator: " · ")
+                                )
                                 .font(.caption)
                                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                                .lineLimit(1)
+                            }
                         }
-                    }
-                    Spacer()
-                    Text(post.comunidad.nombre)
-                        .font(.caption2)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(AgoraDesign.Colors.naranjaSuave)
-                        .foregroundStyle(AgoraDesign.Colors.naranja)
-                        .clipShape(Capsule())
-                }
-            }
-            .buttonStyle(.agoraPlain)
-            .disabled(onAuthorTap == nil || esAnonimo)
-
-            if !texto.isEmpty {
-                if let onHashtagTap {
-                    TextoConHashtags(
-                        texto: texto,
-                        onHashtagTap: onHashtagTap,
-                        onBackgroundTap: onTap,
-                        onMencionTap: onMencionTap
-                    )
-                } else {
-                    Button {
-                        onTap?()
-                    } label: {
-                        Text(texto)
-                            .font(.body)
-                            .foregroundStyle(AgoraDesign.Colors.texto)
-                            .multilineTextAlignment(.leading)
-                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .buttonStyle(.agoraPlain)
+                    .disabled(onAuthorTap == nil || esAnonimo)
+
+                    Spacer(minLength: 0)
+                    menuOpciones
                 }
-            }
 
-            if let media = post.media, !media.isEmpty {
-                ZStack {
-                    PostMediaCarousel(
-                        media: media,
-                        altura: 200,
-                        onToque: onTap,
-                        onDobleToque: {
-                            heartTrigger += 1
-                            Task { await reaccionar("ME_LATE") }
+                if !texto.isEmpty {
+                    if let onHashtagTap {
+                        TextoConHashtags(
+                            texto: texto,
+                            onHashtagTap: onHashtagTap,
+                            onBackgroundTap: onTap,
+                            onMencionTap: onMencionTap
+                        )
+                    } else {
+                        Button {
+                            onTap?()
+                        } label: {
+                            Text(texto)
+                                .font(.body)
+                                .foregroundStyle(AgoraDesign.Colors.texto)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                    )
-
-                    if heartTrigger > 0 {
-                        FloatingHeartOverlay()
-                            .id(heartTrigger)
-                            .allowsHitTesting(false)
+                        .buttonStyle(.agoraPlain)
                     }
                 }
-            }
 
-            if let encuesta {
-                EncuestaBloque(
-                    encuesta: encuesta,
-                    onVotar: { opcionId in Task { await votar(opcionId: opcionId) } },
-                    votando: votando
-                )
-            }
+                if let media = post.media, !media.isEmpty {
+                    ZStack {
+                        PostMediaCarousel(
+                            media: media,
+                            altura: 230,
+                            onToque: onTap,
+                            onDobleToque: {
+                                heartTrigger += 1
+                                Task { await reaccionar("ME_LATE") }
+                            }
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto))
 
-            HStack(alignment: .bottom) {
+                        if heartTrigger > 0 {
+                            FloatingHeartOverlay()
+                                .id(heartTrigger)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .padding(.horizontal, -4)
+                }
+
+                if let encuesta {
+                    EncuestaBloque(
+                        encuesta: encuesta,
+                        onVotar: { opcionId in Task { await votar(opcionId: opcionId) } },
+                        votando: votando
+                    )
+                }
+
                 ReaccionesRow(
                     miReaccion: miReaccion,
                     totalReacciones: totalReacciones,
                     numComments: post.numComments ?? 0,
+                    conteos: conteos,
                     onReaccionar: { tipo in Task { await reaccionar(tipo) } },
                     onCommentsTap: onTap
                 )
-                Spacer()
-                GuardarButton(postId: post.id, guardado: post.miGuardado ?? false)
-                menuOpciones
+                .padding(.top, 2)
+
+                pie
             }
+            .padding(.leading, 16)
+            .padding(.trailing, 8)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
         }
         .confirmationDialog("¿Por qué la reportas?", isPresented: $eligiendoMotivo, titleVisibility: .visible) {
             ForEach(motivosReporte) { motivo in
@@ -217,22 +227,91 @@ struct PostCardView: View {
                 }
             }
         }
-        .padding(AgoraDesign.Spacing.sm + 2)
         .background(AgoraDesign.Colors.superficie)
         .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
         .overlay {
             RoundedRectangle(cornerRadius: AgoraDesign.Radii.card)
-                .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
+                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+        }
+    }
+
+    /// La comunidad manda (docs/diseno-d.md §1): dónde se dijo algo va antes que quién.
+    private var bandaComunidad: some View {
+        HStack(spacing: 8) {
+            Image(systemName: iconoComunidad)
+                .font(.caption.weight(.semibold))
+                .accessibilityHidden(true)
+            Text(post.comunidad.nombre.uppercased())
+                .font(.caption.weight(.bold))
+                .tracking(0.6)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(AgoraDesign.Colors.naranjaTinta)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AgoraDesign.Colors.naranjaSuave)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("En \(post.comunidad.nombre)")
+    }
+
+    /// Ícono por tipo de comunidad: el slug empieza con el tipo (`carrera:`, `generacion:`…).
+    private var iconoComunidad: String {
+        switch post.comunidad.slug.split(separator: ":").first.map(String.init) ?? "" {
+        case "carrera": return "graduationcap"
+        case "generacion": return "person.2"
+        case "colegio": return "house"
+        case "escuela", "departamento": return "building.2"
+        default: return "building.columns"
+        }
+    }
+
+    private var pie: some View {
+        let comentarios = post.numComments ?? 0
+        return HStack(spacing: 0) {
+            if comentarios > 0 {
+                Button {
+                    onTap?()
+                } label: {
+                    Text("\(comentarios) \(comentarios == 1 ? "comentario" : "comentarios")")
+                        .font(.footnote)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                }
+                .buttonStyle(.agoraPlain)
+                .disabled(onTap == nil)
+            }
+            Spacer(minLength: 0)
+            if onTap != nil {
+                Button {
+                    onTap?()
+                } label: {
+                    Image(systemName: "bubble.left")
+                        .font(.body)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.agoraPlain)
+                .accessibilityLabel("Comentar")
+            }
+            if let url = EnlacesWeb.publicacion(post.id) {
+                ShareLink(item: url) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.body)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Compartir")
+            }
+            GuardarButton(postId: post.id, guardado: post.miGuardado ?? false)
+                .frame(width: 44, height: 44)
         }
     }
 
     private var menuOpciones: some View {
         Menu {
-            if let url = EnlacesWeb.publicacion(post.id) {
-                ShareLink(item: url) {
-                    Label("Compartir", systemImage: "square.and.arrow.up")
-                }
-            }
             if esMia {
                 Button {
                     editando = true
@@ -263,7 +342,7 @@ struct PostCardView: View {
             Image(systemName: "ellipsis")
                 .font(.subheadline)
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                .frame(width: 36, height: 36)
+                .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
         .accessibilityLabel("Más opciones")
@@ -281,20 +360,21 @@ struct PostCardView: View {
                 }
             }
             .frame(width: 40, height: 40)
-            .clipShape(Circle())
+            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.avatar))
         } else {
             avatarPlaceholder
         }
     }
 
     private var avatarPlaceholder: some View {
-        Circle()
-            .fill(AgoraDesign.Colors.naranjaSuave)
+        RoundedRectangle(cornerRadius: AgoraDesign.Radii.avatar)
+            .fill(esAnonimo ? AgoraDesign.Colors.superficie2 : AgoraDesign.Colors.naranjaSuave)
             .frame(width: 40, height: 40)
             .overlay {
                 if esAnonimo {
-                    Text("🎭")
+                    Image(systemName: "theatermasks")
                         .font(.subheadline)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 } else {
                     Text(String((post.autor?.nombre ?? "?").prefix(1)).uppercased())
                         .font(.subheadline.bold())
@@ -306,6 +386,7 @@ struct PostCardView: View {
     private func sincronizarEstado() {
         miReaccion = post.miReaccion
         totalReacciones = post.numReactions ?? 0
+        conteos = post.reacciones ?? [:]
     }
 
     private func votar(opcionId: String) async {
@@ -365,14 +446,20 @@ struct PostCardView: View {
         let activa = miReaccion == tipo
         let anterior = miReaccion
         let totalAnterior = totalReacciones
+        let conteosAnteriores = conteos
         miReaccion = activa ? nil : tipo
         totalReacciones += activa ? -1 : (anterior != nil ? 0 : 1)
+        // Solo si la ruta mandó los conteos por tipo: si no, se inventarían números.
+        if post.reacciones != nil {
+            conteos = moverReaccion(conteos, de: anterior, a: miReaccion)
+        }
         do {
             let resp = try await AgoraApi.reaccionar(postId: post.id, tipo: tipo)
             miReaccion = resp.miReaccion
         } catch {
             miReaccion = anterior
             totalReacciones = totalAnterior
+            conteos = conteosAnteriores
         }
     }
 }
@@ -382,8 +469,9 @@ private struct FloatingHeartOverlay: View {
     @State private var opacity: Double = 1
 
     var body: some View {
-        Text("🧡")
-            .font(.system(size: 36))
+        Image(systemName: "heart.fill")
+            .font(.system(size: 44))
+            .foregroundStyle(AgoraDesign.Colors.naranja)
             .scaleEffect(scale)
             .opacity(opacity)
             .onAppear {

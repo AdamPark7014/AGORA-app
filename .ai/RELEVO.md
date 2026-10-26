@@ -42,6 +42,15 @@ contrato). Reparto: API, web e iOS en esta sesión; Android en la sesión de mó
     (no hay configuración de Prettier; truena en `packages/config`).
   - Falta de la D en web: registro paso a paso con barra de progreso, bienvenida con «Activar avisos»,
     «N de tu generación ya están aquí» y vistas en clips (no hay datos en la API).
+  - **Desplegado** `d49531e` en udlagora.com el 26-10 (API con reacciones/clips/asistentes y web D;
+    smoke OK; rollback `prev-20261026-1037`).
+- **iOS D, paso 1 (26-10, sin compilar en local: lo compila `ios.yml`).** `AgoraDesign` con los tokens de
+  la D (fondo cálido, `naranjaTinta`, `superficie2`, `oscuro`, `vivo`; radios tarjeta 22, foto 16, botón 14,
+  chip 12, avatar 14). `PostDto`/`PostDetalleDto.reacciones`; `ReaccionesRow` son chips con nombre y número
+  (sin emojis; sin conteos por tipo dice el total); `PostCardView` con banda de comunidad, avatar cuadrado,
+  fotos con esquinas y pie Comentar/Compartir/Guardar; corazón del doble toque como ícono. Faltan el
+  inicio (encabezado, segmento, ahora en el campus, pregunta oscura), la barra flotante, clips, evento,
+  perfil, mercado y registro.
 
 ## Pasada de profesionalismo del 23-10 (en curso)
 

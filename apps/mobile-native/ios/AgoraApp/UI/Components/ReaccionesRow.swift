@@ -3,57 +3,60 @@ import SwiftUI
 struct ReaccionInfo: Identifiable {
     var id: String { tipo }
     let tipo: String
-    let emoji: String
     let etiqueta: String
 }
 
 let reaccionesPost: [ReaccionInfo] = [
-    ReaccionInfo(tipo: "ME_LATE", emoji: "🧡", etiqueta: "Me late"),
-    ReaccionInfo(tipo: "ME_RIO", emoji: "😂", etiqueta: "Me rió"),
-    ReaccionInfo(tipo: "APOYO", emoji: "🤝", etiqueta: "Apoyo"),
-    ReaccionInfo(tipo: "NO_MAMES", emoji: "😮", etiqueta: "No mames"),
+    ReaccionInfo(tipo: "ME_LATE", etiqueta: "Me late"),
+    ReaccionInfo(tipo: "ME_RIO", etiqueta: "Me río"),
+    ReaccionInfo(tipo: "APOYO", etiqueta: "Apoyo"),
+    ReaccionInfo(tipo: "NO_MAMES", etiqueta: "No mames"),
 ]
 
-/// Fila de reacciones UDLAP — paridad con `ReaccionesRow` en `PostCard.kt`.
+/// Mueve una reacción de tipo en los conteos (la mía pasa de `vieja` a `nueva`).
+func moverReaccion(_ conteos: [String: Int], de vieja: String?, a nueva: String?) -> [String: Int] {
+    var r = conteos
+    if let vieja { r[vieja] = max(0, (r[vieja] ?? 0) - 1) }
+    if let nueva { r[nueva] = (r[nueva] ?? 0) + 1 }
+    return r
+}
+
+/// Reacciones del diseño D: chips con su nombre y su número, sin emojis (docs/diseno-d.md §3).
+/// Si la ruta no manda los conteos por tipo, los chips van sin número y se dice el total.
 struct ReaccionesRow: View {
     let miReaccion: String?
     let totalReacciones: Int
     let numComments: Int
+    var conteos: [String: Int] = [:]
     let onReaccionar: (String) -> Void
     var onCommentsTap: (() -> Void)?
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 2) {
-            ForEach(reaccionesPost) { reaccion in
-                ReaccionButton(
-                    reaccion: reaccion,
-                    selected: miReaccion == reaccion.tipo,
-                    onTap: { onReaccionar(reaccion.tipo) }
-                )
+        VStack(alignment: .leading, spacing: 6) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(reaccionesPost) { reaccion in
+                        ReaccionButton(
+                            reaccion: reaccion,
+                            cuantas: conteos[reaccion.tipo] ?? 0,
+                            selected: miReaccion == reaccion.tipo,
+                            onTap: { onReaccionar(reaccion.tipo) }
+                        )
+                    }
+                }
             }
-            Text("\(totalReacciones)")
-                .font(.caption)
-                .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                .padding(.leading, 4)
-                .padding(.bottom, 6)
-
-            Button {
-                onCommentsTap?()
-            } label: {
-                Text("💬 \(numComments)")
-                    .font(.subheadline)
+            if conteos.isEmpty, totalReacciones > 0 {
+                Text("\(totalReacciones) \(totalReacciones == 1 ? "reacción" : "reacciones")")
+                    .font(.caption)
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
-            .buttonStyle(.agoraPlain)
-            .disabled(onCommentsTap == nil)
-            .padding(.horizontal, 4)
-            .padding(.bottom, 4)
         }
     }
 }
 
 private struct ReaccionButton: View {
     let reaccion: ReaccionInfo
+    let cuantas: Int
     let selected: Bool
     let onTap: () -> Void
 
@@ -62,21 +65,32 @@ private struct ReaccionButton: View {
             Haptics.toggle()
             onTap()
         } label: {
-            Text(reaccion.emoji)
-                .font(.title3)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 4)
-                .background(selected ? AgoraDesign.Colors.naranjaSuave : Color.clear)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay {
-                    if selected {
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(AgoraDesign.Colors.naranja.opacity(0.4), lineWidth: 1)
-                    }
+            HStack(spacing: 5) {
+                Text(reaccion.etiqueta)
+                if cuantas > 0 {
+                    Text("\(cuantas)")
+                        .monospacedDigit()
+                        .fontWeight(.semibold)
                 }
+            }
+            .font(.footnote.weight(selected ? .semibold : .medium))
+            .foregroundStyle(selected ? AgoraDesign.Colors.naranjaTinta : AgoraDesign.Colors.texto)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 36)
+            .background(selected ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
+            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
+            .overlay {
+                RoundedRectangle(cornerRadius: AgoraDesign.Radii.small)
+                    .stroke(
+                        selected ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.borde,
+                        lineWidth: selected ? 1.5 : 1
+                    )
+            }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.agoraPlain)
-        .accessibilityLabel(reaccion.etiqueta)
+        .accessibilityLabel(cuantas > 0 ? "\(reaccion.etiqueta), \(cuantas)" : reaccion.etiqueta)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

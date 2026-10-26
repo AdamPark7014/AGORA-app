@@ -15,6 +15,7 @@ struct PostDetailView: View {
     @State private var error: String?
     @State private var miReaccion: String?
     @State private var totalReacciones = 0
+    @State private var conteos: [String: Int] = [:]
     @State private var guardado = false
     @State private var textoComentario = ""
     @State private var encuesta: EncuestaDto?
@@ -185,6 +186,7 @@ struct PostDetailView: View {
                         miReaccion: miReaccion,
                         totalReacciones: totalReacciones,
                         numComments: post.numComments ?? 0,
+                        conteos: conteos,
                         onReaccionar: { tipo in Task { await reaccionar(tipo) } }
                     )
                     Spacer()
@@ -298,6 +300,7 @@ struct PostDetailView: View {
             textoEditado = nil
             miReaccion = detalle.miReaccion
             totalReacciones = detalle.numReactions ?? 0
+            conteos = detalle.reacciones ?? [:]
             guardado = detalle.miGuardado ?? false
             encuesta = detalle.encuesta
             let recientes = detalle.comentarios ?? []
@@ -335,14 +338,19 @@ struct PostDetailView: View {
         let activa = miReaccion == tipo
         let anterior = miReaccion
         let totalAnterior = totalReacciones
+        let conteosAnteriores = conteos
         miReaccion = activa ? nil : tipo
         totalReacciones += activa ? -1 : (anterior != nil ? 0 : 1)
+        if post?.reacciones != nil {
+            conteos = moverReaccion(conteos, de: anterior, a: miReaccion)
+        }
         do {
             let resp = try await AgoraApi.reaccionar(postId: postId, tipo: tipo)
             miReaccion = resp.miReaccion
         } catch {
             miReaccion = anterior
             totalReacciones = totalAnterior
+            conteos = conteosAnteriores
         }
     }
 

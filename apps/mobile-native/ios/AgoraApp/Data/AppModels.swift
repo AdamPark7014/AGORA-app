@@ -47,6 +47,8 @@ struct PostDto: Codable, Identifiable {
     let encuesta: EncuestaDto?
     let numComments: Int?
     let numReactions: Int?
+    /// Cuántas de cada tipo (`ME_LATE`, `ME_RIO`, `APOYO`, `NO_MAMES`): feed, detalle y guardados.
+    let reacciones: [String: Int]?
     let miReaccion: String?
     let miGuardado: Bool?
     /// Publicación de la zona sin nombre: sin autor, con alias.
@@ -91,6 +93,8 @@ struct PostDetalleDto: Decodable {
     let encuesta: EncuestaDto?
     let numComments: Int?
     let numReactions: Int?
+    /// Cuántas de cada tipo de reacción (diseño D).
+    let reacciones: [String: Int]?
     let miReaccion: String?
     let miGuardado: Bool?
     /// Los 50 comentarios más recientes, en orden cronológico.
