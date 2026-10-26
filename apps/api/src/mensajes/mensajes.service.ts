@@ -236,9 +236,8 @@ export class MensajesService {
       }
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (apiKey && moderacionPreviaActiva()) {
-      const veredicto = await moderarTexto(datos.texto, { apiKey });
+    if (moderacionPreviaActiva()) {
+      const veredicto = await moderarTexto(datos.texto, { tipo: 'mensaje' });
       if (veredicto.decision === DECISIONES.RETIRAR) {
         throw new BadRequestException(veredicto.motivo ?? 'Ese mensaje cruza una linea roja.');
       }

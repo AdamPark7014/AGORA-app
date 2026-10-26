@@ -1,8 +1,35 @@
 # RELEVO
 
-- **Último turno:** claude-code (sesión de móvil, en la compu de Adam)
+- **Último turno:** claude-code (sesión de Ágora web/iOS, en la compu de Adam)
 - **Fecha:** 2026-10-26
 - **Rama:** main
+
+## Moderación previa con Claude por la puerta única (26-10)
+
+La única función de IA de Ágora era el filtro previo con omni-moderation de OpenAI, **nunca encendido**
+(producción no tenía `OPENAI_API_KEY` y corría con `MODERACION_OPCIONAL=true`). Ahora es Claude Haiku 5.5 por
+`ia.zynoratek.com` (regla de Adam del 22-10: puerta única, el modelo más barato que pase el eval).
+- `packages/moderation`: `cliente.ts` arma una sola llamada con texto y fotos (`peticionModeracion`): Haiku 5.5,
+  sin razonamiento, esfuerzo low, salida con esquema JSON (`decision`, `linea_roja`, `razon`), la política fija
+  en `prompt.ts` con `cache_control` y el contenido entre `<contenido>`. Encabezado
+  `x-proceso: agora-moderar-<tipo>` (publicacion, comentario, sin-nombre, mensaje, evento, anuncio).
+  Tiempo 4 s (8 s con fotos), sin reintentos; si falla, se corta, no cumple el esquema o se niega → se publica
+  y se encola (nunca censura por caída del proveedor). Retirar exige una línea roja nombrada.
+- API: `moderacionPreviaActiva` mira `ANTHROPIC_API_KEY`; `revisarEntorno` exige además `ANTHROPIC_BASE_URL`
+  si hay token. Publicaciones y mercado mandan texto y fotos juntos (`moderarContenido`). La razón de la IA se
+  guarda en `moderationAction.motivo` (solo la ve quien modera; el autor ve el aviso genérico).
+- Compose: `ANTHROPIC_BASE_URL` por omisión `http://puerta-ia:8080` (la API ya está en la red `proxy`) y
+  `ANTHROPIC_API_KEY` = token del proyecto `agora` (`C:\dev\secrets\puerta-ia\agora.token`).
+- **Eval** `packages/moderation/eval` (42 casos sintéticos del campus: crítica y groserías, datos propios,
+  denuncias, las cinco líneas rojas, casos de revisión y dos de inyección), por la puerta con el token de
+  `pruebas`, calificado por código: 41–42/42 aceptables según la corrida, **0 errores críticos** (ni retiros
+  de algo publicable ni líneas rojas publicadas), p50 1.6 s, p95 2.1–2.3 s, 0.00006 USD por llamada leyendo
+  caché (~1.9K de entrada, 64 de salida). Correr:
+  `ANTHROPIC_BASE_URL=https://ia.zynoratek.com ANTHROPIC_API_KEY=<pruebas.token> node packages/moderation/eval/correr.mjs`
+  (fija `ANTHROPIC_BASE_URL`: el shell de Claude Code trae el suyo).
+- Puerta: proyecto `agora` (Haiku, 5 USD/mes, 120 rpm, objetivo p95 3 s y 0.0003 USD) y filas en
+  `IA-CLAUDE.md` §7/§8.
+- **Despliegue:** en curso en este turno (ver la siguiente sección si ya quedó).
 
 ## Android, diseño D (sesión de móvil, 26-10)
 

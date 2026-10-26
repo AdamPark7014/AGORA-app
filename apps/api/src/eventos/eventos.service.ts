@@ -30,7 +30,7 @@ export class EventosService {
 
   private async moderar(texto: string): Promise<Veredicto> {
     if (!moderacionPreviaActiva()) return { decision: DECISIONES.PUBLICAR };
-    return moderarTexto(texto, { apiKey: process.env.OPENAI_API_KEY! });
+    return moderarTexto(texto, { tipo: 'evento' });
   }
 
   /**

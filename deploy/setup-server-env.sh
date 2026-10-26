@@ -69,7 +69,7 @@ if [ -f "$ENV_FILE" ]; then
   set_if_missing CORREO_WEBHOOK_TOKEN "$(openssl rand -hex 24)"
   set_if_missing NEXT_PUBLIC_WEB_URL https://udlagora.com
   set_if_missing COOKIE_DOMAIN .udlagora.com
-  set_if_missing OPENAI_API_KEY ""
+  set_if_missing ANTHROPIC_API_KEY ""
   set_if_missing MODERACION_OPCIONAL ""
   set_if_missing MINIO_ROOT_USER "agora$(openssl rand -hex 4)"
   set_if_missing MINIO_ROOT_PASSWORD "$(openssl rand -hex 20)"
@@ -104,8 +104,8 @@ MAIL_FROM=Ágora <${BREVO_EMAIL:-contacto@udlagora.com}>
 
 NEXT_PUBLIC_WEB_URL=https://udlagora.com
 COOKIE_DOMAIN=.udlagora.com
-# Sin bypass silencioso: rellena OPENAI_API_KEY o pon MODERACION_OPCIONAL=true.
-OPENAI_API_KEY=
+# Sin bypass silencioso: pon el token de la puerta (pia_agora_...) o MODERACION_OPCIONAL=true.
+ANTHROPIC_API_KEY=
 MODERACION_OPCIONAL=
 
 MINIO_ROOT_USER=${MINIO_ROOT_USER}

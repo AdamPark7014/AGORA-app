@@ -361,7 +361,8 @@ la API, porque un endpoint se puede llamar sin pasar por la interfaz.
 - **Validación de entorno al arrancar** (`apps/api/src/comun/entorno.ts`):
   falla si falta `DATABASE_URL` o `SESSION_SECRET`, si el secreto tiene menos de
   32 caracteres, si `MAIL_PROVIDER=console` con `NODE_ENV=production`, si falta
-  `OPENAI_API_KEY` sin declarar `MODERACION_OPCIONAL=true`, o si la URL pública
+  `ANTHROPIC_API_KEY` sin declarar `MODERACION_OPCIONAL=true`, si el token va sin
+  `ANTHROPIC_BASE_URL`, o si la URL pública
   no es https.
 - **Cabeceras de seguridad** con helmet.
 - **Límite por IP** (`@nestjs/throttler`, 60/min y 600/h) además del límite por
@@ -616,7 +617,7 @@ otra comunidad.
 | Guarda | Cómo está implementada |
 |---|---|
 | Anónimo hacia afuera, identificado hacia adentro | El `authorId` real siempre se guarda; la API lo sustituye por el alias **antes** de responder |
-| Moderación previa obligatoria | Sin `OPENAI_API_KEY` la zona entera devuelve 503. Es la única parte del producto donde publicar sin filtro no es opción |
+| Moderación previa obligatoria | Sin `ANTHROPIC_API_KEY` la zona entera devuelve 503. Es la única parte del producto donde publicar sin filtro no es opción |
 | Sin imágenes | No hay subida en esa pantalla: una foto anónima de una persona es la vía directa a la Ley Olimpia, y un clasificador de texto no la ve |
 | Alias estable | "Ocelote 772", único por universidad. Da hilo y reputación; el anonimato total de Yik Yak fue lo que lo volvió ingobernable |
 

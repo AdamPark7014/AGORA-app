@@ -52,30 +52,37 @@ test('prod completa con MODERACION_OPCIONAL pasa', () => {
   assert.deepEqual(revisarEntorno(baseProd()), []);
 });
 
-test('en produccion sin OPENAI_API_KEY exige MODERACION_OPCIONAL=true explicito', () => {
+test('en produccion sin ANTHROPIC_API_KEY exige MODERACION_OPCIONAL=true explicito', () => {
   const { MODERACION_OPCIONAL: _omit, ...sinBypass } = baseProd();
   const problemas = revisarEntorno(sinBypass);
   assert.ok(
-    problemas.some((p) => p.variable === 'OPENAI_API_KEY'),
-    'debe exigir OPENAI_API_KEY o MODERACION_OPCIONAL',
+    problemas.some((p) => p.variable === 'ANTHROPIC_API_KEY'),
+    'debe exigir ANTHROPIC_API_KEY o MODERACION_OPCIONAL',
   );
 });
 
 test('MODERACION_OPCIONAL=true es el unico bypass deliberado sin IA', () => {
   const problemas = revisarEntorno(baseProd());
   assert.equal(
-    problemas.some((p) => p.variable === 'OPENAI_API_KEY'),
+    problemas.some((p) => p.variable === 'ANTHROPIC_API_KEY'),
     false,
   );
 });
 
-test('con OPENAI_API_KEY no hace falta el bypass', () => {
+test('con ANTHROPIC_API_KEY no hace falta el bypass', () => {
   const { MODERACION_OPCIONAL: _omit, ...resto } = baseProd();
-  const problemas = revisarEntorno({ ...resto, OPENAI_API_KEY: 'sk-test' });
-  assert.equal(
-    problemas.some((p) => p.variable === 'OPENAI_API_KEY'),
-    false,
-  );
+  const problemas = revisarEntorno({
+    ...resto,
+    ANTHROPIC_API_KEY: 'pia_test',
+    ANTHROPIC_BASE_URL: 'http://puerta-ia:8080',
+  });
+  assert.deepEqual(problemas, []);
+});
+
+test('el token de la puerta sin ANTHROPIC_BASE_URL se rechaza', () => {
+  const { MODERACION_OPCIONAL: _omit, ...resto } = baseProd();
+  const problemas = revisarEntorno({ ...resto, ANTHROPIC_API_KEY: 'pia_test' });
+  assert.ok(problemas.some((p) => p.variable === 'ANTHROPIC_BASE_URL'));
 });
 
 test('DEV_OTP_* en produccion se rechaza', () => {

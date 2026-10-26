@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { ActualizarAnuncio, CrearAnuncio, ListarAnuncios } from '@agora/contracts';
-import { DECISIONES, masSevero, moderarImagen, moderarTexto } from '@agora/moderation';
+import { DECISIONES, moderarContenido, moderarTexto } from '@agora/moderation';
 import { Prisma } from '@agora/db';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -39,14 +39,13 @@ export class MarketplaceService {
     }
 
     // Las fotos pasan por la misma moderacion que las de las publicaciones.
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (apiKey && moderacionPreviaActiva()) {
-      const publicas = urls.filter((url) => url.startsWith('https://'));
-      const veredicto = masSevero(
-        await Promise.all([
-          moderarTexto(`${datos.titulo}\n${datos.descripcion}`, { apiKey }),
-          ...publicas.map((url) => moderarImagen(url, { apiKey })),
-        ]),
+    if (moderacionPreviaActiva()) {
+      const veredicto = await moderarContenido(
+        {
+          texto: `${datos.titulo}\n${datos.descripcion}`,
+          imagenes: urls.filter((url) => url.startsWith('https://')),
+        },
+        { tipo: 'anuncio' },
       );
       if (veredicto.decision === DECISIONES.RETIRAR) {
         throw new BadRequestException(veredicto.motivo ?? 'Ese contenido cruza una línea roja.');
@@ -194,9 +193,8 @@ export class MarketplaceService {
     if (datos.titulo !== undefined || datos.descripcion !== undefined) {
       const titulo = datos.titulo ?? anuncio.titulo;
       const descripcion = datos.descripcion ?? anuncio.descripcion;
-      const apiKey = process.env.OPENAI_API_KEY;
-      if (apiKey && moderacionPreviaActiva()) {
-        const veredicto = await moderarTexto(`${titulo}\n${descripcion}`, { apiKey });
+      if (moderacionPreviaActiva()) {
+        const veredicto = await moderarTexto(`${titulo}\n${descripcion}`, { tipo: 'anuncio' });
         if (veredicto.decision === DECISIONES.RETIRAR) {
           throw new BadRequestException(veredicto.motivo ?? 'Ese contenido cruza una línea roja.');
         }

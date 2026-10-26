@@ -29,10 +29,10 @@ test('crear falla si el usuario no existe', async () => {
 });
 
 test('crear rechaza imagenes ya ligadas a otro anuncio o post', async () => {
-  const prevKey = process.env.OPENAI_API_KEY;
+  const prevKey = process.env.ANTHROPIC_API_KEY;
   const prevOpt = process.env.MODERACION_OPCIONAL;
   try {
-    delete process.env.OPENAI_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
     process.env.MODERACION_OPCIONAL = 'true';
 
     const prisma = {
@@ -59,8 +59,8 @@ test('crear rechaza imagenes ya ligadas a otro anuncio o post', async () => {
       (err: unknown) => err instanceof BadRequestException,
     );
   } finally {
-    if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
-    else process.env.OPENAI_API_KEY = prevKey;
+    if (prevKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = prevKey;
     if (prevOpt === undefined) delete process.env.MODERACION_OPCIONAL;
     else process.env.MODERACION_OPCIONAL = prevOpt;
   }
@@ -115,10 +115,10 @@ test('detalle de otra universidad no existe', async () => {
 });
 
 test('crear solo acepta imagenes que subio el mismo vendedor', async () => {
-  const prevKey = process.env.OPENAI_API_KEY;
+  const prevKey = process.env.ANTHROPIC_API_KEY;
   const prevOpt = process.env.MODERACION_OPCIONAL;
   try {
-    delete process.env.OPENAI_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
     process.env.MODERACION_OPCIONAL = 'true';
 
     let filtro: unknown;
@@ -150,8 +150,8 @@ test('crear solo acepta imagenes que subio el mismo vendedor', async () => {
       ownerId: 'u1',
     });
   } finally {
-    if (prevKey === undefined) delete process.env.OPENAI_API_KEY;
-    else process.env.OPENAI_API_KEY = prevKey;
+    if (prevKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = prevKey;
     if (prevOpt === undefined) delete process.env.MODERACION_OPCIONAL;
     else process.env.MODERACION_OPCIONAL = prevOpt;
   }

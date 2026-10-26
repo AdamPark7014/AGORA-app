@@ -8,9 +8,8 @@ import {
 import type { CrearComentario, CrearPost, EditarPost, Feed, Reaccionar } from '@agora/contracts';
 import {
   DECISIONES,
-  masSevero,
-  moderarImagen,
-  moderarTexto,
+  moderarContenido,
+  type TipoContenido,
   type Veredicto,
 } from '@agora/moderation';
 import { esStaff } from '@agora/rbac';
@@ -46,23 +45,21 @@ export class PostsService {
   /**
    * Pasa el texto por la politica de contenido.
    *
-   * Sin OPENAI_API_KEY se publica sin moderar y se avisa en el log. Es lo
-   * correcto en desarrollo: no tener llave no puede significar que nadie
-   * pueda publicar.
+   * Sin ANTHROPIC_API_KEY se publica sin moderar. Es lo correcto en
+   * desarrollo: no tener token no puede significar que nadie pueda publicar.
    */
-  private async moderar(texto: string, imagenes: readonly string[] = []): Promise<Veredicto> {
+  private async moderar(
+    texto: string,
+    tipo: TipoContenido,
+    imagenes: readonly string[] = [],
+  ): Promise<Veredicto> {
     if (!moderacionPreviaActiva()) {
       return { decision: DECISIONES.PUBLICAR };
     }
-    const apiKey = process.env.OPENAI_API_KEY!;
     // Solo URLs publicas: las del almacen local (/api/media/...) no las puede
     // descargar el clasificador.
     const publicas = imagenes.filter((url) => url.startsWith('https://'));
-    const veredictos = await Promise.all([
-      ...(texto ? [moderarTexto(texto, { apiKey })] : []),
-      ...publicas.map((url) => moderarImagen(url, { apiKey })),
-    ]);
-    return masSevero(veredictos);
+    return moderarContenido({ texto, imagenes: publicas }, { tipo });
   }
 
   async crear(userId: string, datos: CrearPost) {
@@ -100,7 +97,7 @@ export class PostsService {
         .map((m) => m.thumbUrl ?? m.url);
     }
 
-    const veredicto = await this.moderar(datos.texto, imagenes);
+    const veredicto = await this.moderar(datos.texto, 'publicacion', imagenes);
     const estado =
       veredicto.decision === DECISIONES.RETIRAR
         ? 'RETIRADO'
@@ -143,7 +140,8 @@ export class PostsService {
           postId: post.id,
           accion: estado === 'RETIRADO' ? 'RETIRAR_CONTENIDO' : 'MARCAR_REVISION',
           automatica: true,
-          motivo: veredicto.motivo ?? 'Marcado por el clasificador.',
+          // Quien modera ve por que lo marco el clasificador; el autor solo el motivo.
+          motivo: veredicto.razonIA ?? veredicto.motivo ?? 'Marcado por el clasificador.',
         },
       });
     }
@@ -326,7 +324,7 @@ export class PostsService {
     });
     if (!membresia) throw new ForbiddenException('No perteneces a esa comunidad.');
 
-    const veredicto = await this.moderar(datos.texto);
+    const veredicto = await this.moderar(datos.texto, 'comentario');
     if (veredicto.decision === DECISIONES.RETIRAR) {
       throw new BadRequestException(veredicto.motivo ?? 'Ese comentario cruza una linea roja.');
     }
@@ -515,7 +513,7 @@ export class PostsService {
       throw new BadRequestException('Las publicaciones anónimas no se editan; bórrala y publica otra.');
     }
 
-    const veredicto = await this.moderar(datos.texto);
+    const veredicto = await this.moderar(datos.texto, 'publicacion');
     if (veredicto.decision === DECISIONES.RETIRAR) {
       throw new BadRequestException(veredicto.motivo ?? 'Ese texto cruza una linea roja.');
     }

@@ -20,5 +20,8 @@
   "devDependencies": {
     "@agora/config": "workspace:*",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0"
   }
 }

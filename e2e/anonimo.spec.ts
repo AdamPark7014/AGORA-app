@@ -24,7 +24,7 @@ test('la respuesta anonima nunca incluye al autor', async ({ request }) => {
 
   const estado = await request.get(`${API}/anonimo/estado`);
   const { habilitada } = await estado.json();
-  test.skip(!habilitada, 'la zona esta apagada sin OPENAI_API_KEY');
+  test.skip(!habilitada, 'la zona esta apagada sin ANTHROPIC_API_KEY');
 
   // Una propia: en una base nueva (CI) la zona anonima empieza vacia y el
   // feed no tendria nada que revisar.
@@ -54,7 +54,7 @@ test('ninguna ruta de publicaciones revela al autor de una anonima', async ({ re
 
   const estado = await request.get(`${API}/anonimo/estado`);
   const { habilitada } = await estado.json();
-  test.skip(!habilitada, 'la zona esta apagada sin OPENAI_API_KEY');
+  test.skip(!habilitada, 'la zona esta apagada sin ANTHROPIC_API_KEY');
 
   const yo = await (await request.get(`${API}/auth/yo`)).json();
   const handle: string | null = yo?.handle ?? null;

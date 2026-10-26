@@ -48,82 +48,60 @@ export interface Veredicto {
   readonly lineaRoja?: LineaRoja;
   /** Texto que ve el autor. Siempre presente si no se publica sin mas. */
   readonly motivo?: string;
+  /** Por que lo marco el clasificador, para quien modera (nunca se le muestra al autor). */
+  readonly razonIA?: string;
 }
 
 /**
- * Categorias de la API omni-moderation de OpenAI mapeadas a lineas rojas.
- *
- * Deliberadamente NO se mapean 'hate' ni 'harassment' genericos a retirada:
- * en un campus, "el profesor de calculo es un inutil" dispara harassment y es
- * exactamente el discurso que este producto existe para permitir. Solo el
- * acoso con objetivo individual y sostenido cuenta, y eso lo decide una
- * persona viendo el historial, no un clasificador viendo un texto suelto.
+ * Lo que devuelve el clasificador con salida estructurada. `linea_roja` es
+ * `'ninguna'` cuando no aplica: un valor mas en el enum es mas facil de
+ * garantizar que un null en el esquema.
  */
-export const CATEGORIA_A_LINEA_ROJA: Readonly<Record<string, LineaRoja>> = {
-  'sexual/minors': LINEAS_ROJAS.INTIMIDAD_SEXUAL,
-  'violence/graphic': LINEAS_ROJAS.AMENAZA_VIOLENCIA,
-  'harassment/threatening': LINEAS_ROJAS.AMENAZA_VIOLENCIA,
-  'hate/threatening': LINEAS_ROJAS.AMENAZA_VIOLENCIA,
-  'self-harm/instructions': LINEAS_ROJAS.AMENAZA_VIOLENCIA,
+export interface Clasificacion {
+  readonly decision: 'publicar' | 'revisar' | 'retirar';
+  readonly linea_roja: LineaRoja | 'ninguna';
+  readonly razon: string;
+}
+
+const LISTA_LINEAS_ROJAS = Object.values(LINEAS_ROJAS) as readonly string[];
+
+/** `true` si el valor es una clasificacion completa y con valores del esquema. */
+export const esClasificacion = (valor: unknown): valor is Clasificacion => {
+  if (!valor || typeof valor !== 'object') return false;
+  const c = valor as Record<string, unknown>;
+  return (
+    (c.decision === 'publicar' || c.decision === 'revisar' || c.decision === 'retirar') &&
+    typeof c.linea_roja === 'string' &&
+    (c.linea_roja === 'ninguna' || LISTA_LINEAS_ROJAS.includes(c.linea_roja)) &&
+    typeof c.razon === 'string'
+  );
 };
 
 /**
- * Categorias que solo justifican una mirada humana, nunca retirada automatica.
+ * Traduce la clasificacion al veredicto de la politica. Funcion pura: se
+ * prueba sin red.
+ *
+ * Retirar exige una linea roja nombrada. Si el clasificador pide retirar sin
+ * decir cual, no se borra nada: pasa a revision humana. Un falso positivo aqui
+ * borra el discurso legitimo de un alumno, que es peor para este producto que
+ * dejar un caso en la cola.
  */
-export const CATEGORIAS_A_REVISAR: readonly string[] = [
-  'harassment',
-  'hate',
-  'sexual',
-  'self-harm',
-  'violence',
-];
-
-/**
- * Umbral alto a proposito. Un falso positivo aqui borra el discurso legitimo
- * de un alumno, que es peor para este producto que dejar pasar un caso a la
- * cola humana.
- */
-export const UMBRAL_LINEA_ROJA = 0.85;
-
-/** Umbral para pedir revision humana. Mas laxo: encolar no le cuesta a nadie. */
-export const UMBRAL_REVISION = 0.6;
-
-export interface PuntajesModeracion {
-  readonly [categoria: string]: number;
-}
-
-/**
- * Decide que hacer con un contenido a partir de los puntajes del clasificador.
- * Funcion pura: sin red, sin base de datos. Asi se puede probar contra un
- * corpus de casos en espanol sin gastar una sola llamada.
- */
-export const decidir = (puntajes: PuntajesModeracion): Veredicto => {
-  for (const [categoria, linea] of Object.entries(CATEGORIA_A_LINEA_ROJA)) {
-    const puntaje = puntajes[categoria] ?? 0;
-    if (puntaje >= UMBRAL_LINEA_ROJA) {
-      return {
-        decision: DECISIONES.RETIRAR,
-        lineaRoja: linea,
-        motivo: LINEA_ROJA_EXPLICACION[linea],
-      };
-    }
+export const veredictoDe = (c: Clasificacion): Veredicto => {
+  const razonIA = c.razon.trim() || undefined;
+  if (c.decision === 'retirar' && c.linea_roja !== 'ninguna') {
+    return {
+      decision: DECISIONES.RETIRAR,
+      lineaRoja: c.linea_roja,
+      motivo: LINEA_ROJA_EXPLICACION[c.linea_roja],
+      razonIA,
+    };
   }
-
-  // Las categorias de linea roja tambien cuentan para la revision humana. Sin
-  // esto, un puntaje de amenaza de 0.84 se publicaba sin que nadie lo mirara:
-  // quedaba por debajo del umbral de retirada y su clave ('harassment/
-  // threatening') no coincide con las categorias genericas de abajo. Justo el
-  // caso que mas necesita ojos humanos era el que se escapaba.
-  const aRevisar = [...Object.keys(CATEGORIA_A_LINEA_ROJA), ...CATEGORIAS_A_REVISAR];
-
-  for (const categoria of aRevisar) {
-    if ((puntajes[categoria] ?? 0) >= UMBRAL_REVISION) {
-      return {
-        decision: DECISIONES.PUBLICAR_Y_ENCOLAR,
-        motivo: 'Publicado. Un moderador lo revisara.',
-      };
-    }
+  if (c.decision === 'retirar' || c.decision === 'revisar') {
+    return {
+      decision: DECISIONES.PUBLICAR_Y_ENCOLAR,
+      motivo: 'Publicado. Un moderador lo revisara.',
+      razonIA,
+    };
   }
-
   return { decision: DECISIONES.PUBLICAR };
 };

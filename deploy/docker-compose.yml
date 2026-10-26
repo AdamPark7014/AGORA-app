@@ -137,7 +137,7 @@ services:
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
       TRUST_PROXY: 'true'
       # Sin default true: el bypass de IA debe ser explicito en deploy/.env.
-      # Si falta OPENAI_API_KEY y no hay MODERACION_OPCIONAL=true, la API no arranca.
+      # Si falta ANTHROPIC_API_KEY y no hay MODERACION_OPCIONAL=true, la API no arranca.
       MODERACION_OPCIONAL: ${MODERACION_OPCIONAL:-}
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: ${S3_BUCKET}
@@ -148,7 +148,9 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:contacto@udlagora.com}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Moderacion por la puerta unica a Claude (red proxy). El token es el del proyecto agora.
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-http://puerta-ia:8080}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       # Reporte de errores; vacio = apagado.
       SENTRY_DSN: ${SENTRY_DSN:-}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}

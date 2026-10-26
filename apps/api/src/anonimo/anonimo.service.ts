@@ -22,7 +22,7 @@ import { moderacionPreviaActiva } from '../comun/moderacion.js';
  *     siempre se guarda. El anonimato es frente a otros usuarios, nunca frente
  *     al operador: en México no hay safe harbor y quien aloja comparte
  *     responsabilidad.
- *  2. **Moderación previa obligatoria, no posterior.** Sin `OPENAI_API_KEY` la
+ *  2. **Moderación previa obligatoria, no posterior.** Sin `ANTHROPIC_API_KEY` la
  *     zona entera se apaga. Es la única parte del producto donde publicar sin
  *     filtro no es una opción aceptable.
  *  3. **Sin imágenes.** Una foto anónima de una persona es la vía más directa a
@@ -126,14 +126,16 @@ export class AnonimoService {
 
     let estado: 'PUBLICADO' | 'EN_REVISION' = 'PUBLICADO';
     let aviso: string | null = null;
+    let razonIA: string | undefined;
 
     if (moderacionPreviaActiva()) {
-      const veredicto = await moderarTexto(texto, { apiKey: process.env.OPENAI_API_KEY! });
+      const veredicto = await moderarTexto(texto, { tipo: 'sin-nombre' });
       if (veredicto.decision === DECISIONES.RETIRAR) {
         throw new BadRequestException(veredicto.motivo ?? 'Eso cruza una línea roja.');
       }
       estado = veredicto.decision === DECISIONES.PUBLICAR_Y_ENCOLAR ? 'EN_REVISION' : 'PUBLICADO';
       aviso = veredicto.motivo ?? null;
+      razonIA = veredicto.razonIA;
     }
 
     const comunidad = await this.comunidad(usuario.universityId);
@@ -156,7 +158,7 @@ export class AnonimoService {
           postId: post.id,
           accion: 'MARCAR_REVISION',
           automatica: true,
-          motivo: aviso ?? 'Marcado por el clasificador en la zona anónima.',
+          motivo: razonIA ?? aviso ?? 'Marcado por el clasificador en la zona anónima.',
         },
       });
     }

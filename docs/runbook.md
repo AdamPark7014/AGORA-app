@@ -21,7 +21,7 @@ cd /var/www/udlagora-app
 # Generar deploy/.env la primera vez (pide BREVO_API_KEY del .env raíz).
 # Si deploy/.env ya existe: NO regenera SESSION_SECRET / DB / MinIO; solo completa claves faltantes.
 bash deploy/setup-server-env.sh
-# Rellenar OPENAI_API_KEY=…  O  MODERACION_OPCIONAL=true
+# Rellenar ANTHROPIC_API_KEY=<token pia_agora_ de la puerta>  O  MODERACION_OPCIONAL=true
 docker compose -f deploy/docker-compose.yml up -d --build
 # Obligatorio tras compose up: instalar + verificar ruta Traefik (copia atómica + curl --resolve)
 bash deploy/install-traefik-route.sh
@@ -151,7 +151,7 @@ docker compose -f deploy/docker-compose.yml run --rm minio-init
 
 ## Moderación en prod
 
-- Preferir `OPENAI_API_KEY` real.
+- Preferir el token de la puerta en `ANTHROPIC_API_KEY` (`C:\dev\secrets\puerta-ia\agora.token`); `ANTHROPIC_BASE_URL` por omisión es `http://puerta-ia:8080` (red `proxy`).
 - `MODERACION_OPCIONAL=true` solo si se acepta cola humana sin IA (explícito).
 - Sin ninguno de los dos, la API **no arranca** (`revisarEntorno`).
 
@@ -181,7 +181,7 @@ Ver `docs/FIREBASE.md`. No commitear service accounts.
 | «Correo o contraseña incorrectos» con la buena | 5 fallos seguidos bloquean 15 min (`users.loginBloqueadoHasta`); entrar con código lo limpia. Ver `docs/autenticacion.md` |
 | 404 en fotos | MinIO sano + `S3_PUBLIC_URL`; Traefik PathPrefix `/media` |
 | `404 page not found` texto plano en `udlagora.com` | Falta `udlagora.yml` en `/opt/traefik/config/` → `bash deploy/install-traefik-route.sh`; contenedores `agora-*` en red `proxy` |
-| API no arranca en prod | `revisarEntorno`: SESSION_SECRET ≥ 32, MAIL no console, OPENAI o bypass, sin DEV_OTP |
+| API no arranca en prod | `revisarEntorno`: SESSION_SECRET ≥ 32, MAIL no console, ANTHROPIC (con BASE_URL) o bypass, sin DEV_OTP |
 | Panel admin sin sesión | `COOKIE_DOMAIN` con punto; HTTPS |
 | E2E local sin Docker postgres | Contenedor `agora-postgres` (infra/) o `AGORA_PSQL_DIRECT=1` |
 | Tras reboot todo UP pero dominio 404 | Misma causa Traefik compartida; checklist post-reboot arriba |

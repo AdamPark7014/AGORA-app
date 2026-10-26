@@ -84,13 +84,22 @@ export const revisarEntorno = (
       }
     }
 
-    // Sin llave de moderacion se publica sin filtro previo. Es una decision
+    // Sin token de moderacion se publica sin filtro previo. Es una decision
     // legitima, pero tiene que ser deliberada y no un olvido de configuracion.
-    if (!entorno.OPENAI_API_KEY && entorno.MODERACION_OPCIONAL !== 'true') {
+    if (!entorno.ANTHROPIC_API_KEY && entorno.MODERACION_OPCIONAL !== 'true') {
       problemas.push({
-        variable: 'OPENAI_API_KEY',
+        variable: 'ANTHROPIC_API_KEY',
         motivo:
           'falta: sin ella se publica sin moderacion previa. Si es a proposito, pon MODERACION_OPCIONAL=true',
+      });
+    }
+    // El token es de la puerta unica (pia_agora_…), no una llave de Anthropic:
+    // sin la URL de la puerta el SDK lo manda a api.anthropic.com, falla y
+    // todo cae en la cola humana sin que nadie se entere.
+    if (entorno.ANTHROPIC_API_KEY && !entorno.ANTHROPIC_BASE_URL) {
+      problemas.push({
+        variable: 'ANTHROPIC_BASE_URL',
+        motivo: 'falta: el token de moderacion solo sirve contra la puerta (http://puerta-ia:8080)',
       });
     }
 
