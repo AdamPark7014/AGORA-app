@@ -30,6 +30,11 @@ on:
         type: boolean
         required: true
         default: true
+      sin_capturas:
+        description: "Saltar la exigencia de capturas en verde (solo con orden expresa de Adam)"
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: ios-testflight
@@ -37,6 +42,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   testflight:
@@ -62,6 +68,32 @@ jobs:
       P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Regla de Adam (26-10-2026), tras subir el build 5 con la barra de pestañas estirada sobre
+      # toda la pantalla: no se sube nada que no haya pasado las capturas reales de la app
+      # (ios-capturas.yml entra con una cuenta y recorre feed, evento, mercado, mensajes y perfil,
+      # en claro y en oscuro). Se exige que la última corrida de main esté en verde y que el
+      # código de iOS no haya cambiado desde ella. Las capturas hay que MIRARLAS además.
+      - name: Exigir capturas de iOS en verde para este código
+        if: ${{ !inputs.sin_capturas }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          corrida=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ios-capturas.yml/runs?branch=main&status=completed&per_page=20" \
+            --jq '[.workflow_runs[] | select(.conclusion != "cancelled")][0] | "\(.conclusion) \(.head_sha) \(.html_url)"')
+          read -r conclusion sha url <<< "$corrida"
+          echo "Última corrida de capturas: ${conclusion} en ${sha:0:7} (${url})"
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::Las capturas de iOS no están en verde (${url}). Arréglalas y revísalas antes de subir."
+            exit 1
+          fi
+          if ! git diff --quiet "$sha" "$GITHUB_SHA" -- apps/mobile-native/ios .github/workflows/ios-capturas.yml; then
+            echo "::error::El código de iOS cambió desde la última corrida verde de capturas (${sha:0:7}). Espera a que ios-capturas.yml pase con este commit."
+            exit 1
+          fi
 
       - name: Xcode más reciente (App Store exige el SDK de iOS 26)
         uses: maxim-lobanov/setup-xcode@v1

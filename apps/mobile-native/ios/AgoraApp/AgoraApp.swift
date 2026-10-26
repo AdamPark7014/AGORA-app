@@ -4,8 +4,9 @@ import SwiftUI
 struct AgoraApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var session = SessionStore.shared
-    /// Ajustes → Apariencia (Sistema / Claro / Oscuro).
-    @AppStorage(AgoraTema.claveAlmacen) private var apariencia = AgoraTema.sistema.rawValue
+    /// Ajustes → Apariencia (Sistema / Claro / Oscuro). Claro por omisión (Adam, 26-10-2026):
+    /// quien no ha elegido ve la app en claro aunque su teléfono esté en oscuro.
+    @AppStorage(AgoraTema.claveAlmacen) private var apariencia = AgoraTema.porOmision.rawValue
 
     var body: some Scene {
         WindowGroup {
@@ -13,7 +14,7 @@ struct AgoraApp: App {
                 .environmentObject(session)
                 .environmentObject(DeepLinkBus.shared)
                 .tint(AgoraDesign.Colors.naranja)
-                .preferredColorScheme((AgoraTema(rawValue: apariencia) ?? .sistema).esquema)
+                .preferredColorScheme((AgoraTema(rawValue: apariencia) ?? .porOmision).esquema)
                 .onOpenURL { url in
                     guard let route = DeepLinkParser.parse(url: url) else { return }
                     let loggedIn = SessionStore.shared.token != nil

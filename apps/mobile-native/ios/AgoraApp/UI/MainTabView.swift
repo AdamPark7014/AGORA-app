@@ -17,80 +17,76 @@ struct MainTabView: View {
     @State private var feedPath = NavigationPath()
     @State private var eventosPath = NavigationPath()
     @State private var masPath = NavigationPath()
+    /// Pestañas ya abiertas: se montan la primera vez que se visitan y luego se quedan vivas
+    /// (conservan su navegación y su scroll).
+    @State private var visitadas: Set<Int> = [0]
 
-    init() {
-        let appearance = UITabBarAppearance()
-        appearance.configureWithDefaultBackground()
-        appearance.backgroundColor = UIColor(AgoraDesign.Colors.superficie)
-        appearance.shadowColor = UIColor(AgoraDesign.Colors.bordeSutil)
-        UITabBar.appearance().standardAppearance = appearance
-        UITabBar.appearance().scrollEdgeAppearance = appearance
-    }
-
+    /// Contenedor propio en vez de `TabView`: con el SDK de iOS 26 la barra nativa de `TabView`
+    /// ya no se oculta con `.toolbar(.hidden, for: .tabBar)` y se asomaba bajo la barra flotante
+    /// (TestFlight 1.0.0 (5), 26-10-2026). Sin `TabView` no hay barra nativa que ocultar.
     var body: some View {
-        TabView(selection: $tab) {
-            NavigationStack(path: $feedPath) {
-                FeedView(
-                    reloadKey: feedReloadKey,
-                    onPostTap: { postId in feedPath.append(AppRoute.postDetail(postId)) },
-                    onAuthorTap: { handle in feedPath.append(AppRoute.perfil(handle)) },
-                    onHashtagTap: { tag in feedPath.append(AppRoute.hashtag(tag)) },
-                    onEventoTap: { id in feedPath.append(AppRoute.eventoDetalle(id)) },
-                    onClipsTap: { id in feedPath.append(AppRoute.clips(id)) }
-                )
-                // Registro con correo personal: recordatorio de confirmar la UDLAP.
-                .safeAreaInset(edge: .top) { AvisoUdlapView() }
-                .navigationDestination(for: AppRoute.self) { route in
-                    hubDestination(route, path: $feedPath)
+        ZStack {
+            pestana(0) {
+                NavigationStack(path: $feedPath) {
+                    FeedView(
+                        reloadKey: feedReloadKey,
+                        onPostTap: { postId in feedPath.append(AppRoute.postDetail(postId)) },
+                        onAuthorTap: { handle in feedPath.append(AppRoute.perfil(handle)) },
+                        onHashtagTap: { tag in feedPath.append(AppRoute.hashtag(tag)) },
+                        onEventoTap: { id in feedPath.append(AppRoute.eventoDetalle(id)) },
+                        onClipsTap: { id in feedPath.append(AppRoute.clips(id)) }
+                    )
+                    // Registro con correo personal: recordatorio de confirmar la UDLAP.
+                    .safeAreaInset(edge: .top) { AvisoUdlapView() }
+                    .navigationDestination(for: AppRoute.self) { route in
+                        hubDestination(route, path: $feedPath)
+                    }
                 }
             }
-            .tabItem { Label("Inicio", systemImage: "house.fill") }
-            .tag(0)
 
-            NavigationStack(path: $eventosPath) {
-                EventosView(
-                    onEventoTap: { id in eventosPath.append(AppRoute.eventoDetalle(id)) },
-                    onCreateTap: { eventosPath.append(AppRoute.createEvento) }
-                )
-                .navigationDestination(for: AppRoute.self) { route in
-                    hubDestination(route, path: $eventosPath)
+            pestana(1) {
+                NavigationStack(path: $eventosPath) {
+                    EventosView(
+                        onEventoTap: { id in eventosPath.append(AppRoute.eventoDetalle(id)) },
+                        onCreateTap: { eventosPath.append(AppRoute.createEvento) }
+                    )
+                    .navigationDestination(for: AppRoute.self) { route in
+                        hubDestination(route, path: $eventosPath)
+                    }
                 }
             }
-            .tabItem { Label("Eventos", systemImage: "calendar") }
-            .tag(1)
 
-            NavigationStack {
-                PublicarView(onPublicado: {
-                    feedReloadKey += 1
-                    tab = 0
-                })
-            }
-            .tabItem { Label("Publicar", systemImage: "plus.circle.fill") }
-            .tag(2)
-
-            NavigationStack {
-                NotificacionesView()
-            }
-            .tabItem { Label("Avisos", systemImage: "bell.fill") }
-            .tag(3)
-
-            NavigationStack(path: $masPath) {
-                MasView(
-                    onNavigate: { ruta in navegarDesdeMas(ruta) },
-                    onTerminos: { masPath.append(AppRoute.terminos) },
-                    onReglas: { masPath.append(AppRoute.reglas) },
-                    onPrivacidad: { masPath.append(AppRoute.privacidad) },
-                    onLogout: { AuthRepository.shared.logout() },
-                    mensajesSinLeer: mensajesSinLeer
-                )
-                .navigationDestination(for: AppRoute.self) { route in
-                    hubDestination(route, path: $masPath)
+            pestana(2) {
+                NavigationStack {
+                    PublicarView(onPublicado: {
+                        feedReloadKey += 1
+                        tab = 0
+                    })
                 }
             }
-            .tabItem { Label("Más", systemImage: "line.3.horizontal") }
-            .tag(4)
+
+            pestana(3) {
+                NavigationStack {
+                    NotificacionesView()
+                }
+            }
+
+            pestana(4) {
+                NavigationStack(path: $masPath) {
+                    MasView(
+                        onNavigate: { ruta in navegarDesdeMas(ruta) },
+                        onTerminos: { masPath.append(AppRoute.terminos) },
+                        onReglas: { masPath.append(AppRoute.reglas) },
+                        onPrivacidad: { masPath.append(AppRoute.privacidad) },
+                        onLogout: { AuthRepository.shared.logout() },
+                        mensajesSinLeer: mensajesSinLeer
+                    )
+                    .navigationDestination(for: AppRoute.self) { route in
+                        hubDestination(route, path: $masPath)
+                    }
+                }
+            }
         }
-        .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             AgoraAnimatedTabBar(
                 selection: $tab,
@@ -103,6 +99,7 @@ struct MainTabView: View {
         .agoraScreenBackground()
         .animation(AgoraDesign.Animation.spring, value: tab)
         .onChange(of: tab) { newTab in
+            visitadas.insert(newTab)
             if newTab == 3 {
                 avisosSinLeer = 0
                 prevAvisosSinLeer = 0
@@ -142,6 +139,20 @@ struct MainTabView: View {
                 aplicarDeepLink(route)
                 deepLinkBus.consume()
             }
+        }
+    }
+
+    /// Una pestaña del contenedor: visible y tocable solo si es la elegida; las demás quedan
+    /// montadas pero fuera de la vista y de VoiceOver.
+    @ViewBuilder
+    private func pestana<Contenido: View>(_ indice: Int, @ViewBuilder contenido: () -> Contenido) -> some View {
+        if visitadas.contains(indice) || tab == indice {
+            let activa = tab == indice
+            contenido()
+                .opacity(activa ? 1 : 0)
+                .allowsHitTesting(activa)
+                .accessibilityHidden(!activa)
+                .zIndex(activa ? 1 : 0)
         }
     }
 
@@ -548,6 +559,7 @@ private struct AgoraAnimatedTabBar: View {
                 tabButton(item)
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
         .padding(6)
         .background(
             AgoraDesign.Colors.oscuro,
@@ -581,12 +593,16 @@ private struct AgoraAnimatedTabBar: View {
                 } else if selected {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .fill(Color.white.opacity(0.12))
+                        .frame(height: 48)
                         .transition(.scale.combined(with: .opacity))
                 }
 
                 tabIcon(item, scale: scale)
             }
-            .frame(maxWidth: .infinity, minHeight: 48)
+            // Alto fijo, no mínimo: dentro de `safeAreaInset` las figuras sin alto crecen hasta
+            // llenar la pantalla (TestFlight 1.0.0 (5) salió con la barra estirada).
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
             .contentShape(Rectangle())
         }
         .buttonStyle(.agoraPlain)

@@ -31,16 +31,18 @@ const display = Bricolage_Grotesque({
 export const metadata = ROOT_METADATA;
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f7f8f9' },
-    { media: '(prefers-color-scheme: dark)', color: '#0d1210' },
-  ],
+  // Claro por omisión: el color de la barra del navegador es el fondo cálido de la D.
+  themeColor: '#f4f2ef',
   width: 'device-width',
   initialScale: 1,
 };
 
-/** Aplica tema antes del paint — evita FOUC claro→oscuro. */
-const SCRIPT_TEMA = `(function(){try{var t=localStorage.getItem('agora:tema');var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){}})();`;
+/**
+ * Aplica el tema antes del primer pintado (sin destello). Claro por omisión
+ * (Adam, 26-10-2026): oscuro solo si la persona lo eligió, o si eligió seguir al
+ * sistema y el sistema está en oscuro.
+ */
+const SCRIPT_TEMA = `(function(){try{var t=localStorage.getItem('agora:tema');var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){document.documentElement.dataset.theme='light';}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

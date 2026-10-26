@@ -6,11 +6,13 @@ import { createContext, useContext, useEffect, useState, useSyncExternalStore } 
 type Tema = 'light' | 'dark' | 'system';
 
 const CLAVE_TEMA = 'agora:tema';
+/** Claro mientras la persona no elija otra cosa (regla de Adam, 26-10-2026). */
+const TEMA_POR_OMISION: Tema = 'light';
 
 const ContextoTema = createContext<{
   tema: Tema;
   setTema: (t: Tema) => void;
-}>({ tema: 'system', setTema: () => undefined });
+}>({ tema: TEMA_POR_OMISION, setTema: () => undefined });
 
 export function useTema() {
   return useContext(ContextoTema);
@@ -24,16 +26,13 @@ function resolverTema(tema: Tema): 'light' | 'dark' {
 }
 
 export function ProveedorTema({ children }: { children: React.ReactNode }) {
-  const [tema, setTemaEstado] = useState<Tema>('system');
+  const [tema, setTemaEstado] = useState<Tema>(TEMA_POR_OMISION);
   const [listo, setListo] = useState(false);
 
   useEffect(() => {
     const guardado = localStorage.getItem(CLAVE_TEMA) as Tema | null;
     if (guardado === 'light' || guardado === 'dark' || guardado === 'system') {
       setTemaEstado(guardado);
-    } else if (document.documentElement.dataset.theme === 'dark') {
-      // El script anti-FOUC ya resolvió system→dark; alinear estado React.
-      setTemaEstado('system');
     }
     setListo(true);
   }, []);

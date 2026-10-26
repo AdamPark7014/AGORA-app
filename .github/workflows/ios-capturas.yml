@@ -41,6 +41,12 @@ jobs:
       API_URL: http://127.0.0.1:4200
     steps:
       - uses: actions/checkout@v4
+      # El mismo SDK que TestFlight (iOS 26): con el SDK anterior la barra nativa de TabView
+      # sí se ocultaba y el problema de la 1.0.0 (5) no se veía aquí.
+      - name: Xcode más reciente (el de TestFlight)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
       - name: Postgres 17 y XcodeGen
         run: |

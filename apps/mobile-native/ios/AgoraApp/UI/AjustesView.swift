@@ -67,7 +67,7 @@ struct AjustesView: View {
     @State private var cumpleMesOriginal = 0
     @State private var cumpleDiaOriginal = 0
     /// Sistema / Claro / Oscuro; la raíz (`AgoraApp`) lee la misma clave.
-    @AppStorage(AgoraTema.claveAlmacen) private var apariencia = AgoraTema.sistema.rawValue
+    @AppStorage(AgoraTema.claveAlmacen) private var apariencia = AgoraTema.porOmision.rawValue
 
     var body: some View {
         Group {

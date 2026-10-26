@@ -90,6 +90,9 @@ enum AgoraTema: String, CaseIterable, Identifiable {
     /// Clave de `@AppStorage` compartida entre la raíz y Ajustes.
     static let claveAlmacen = "agora.apariencia"
 
+    /// Claro mientras la persona no elija otra cosa en Ajustes (regla de Adam, 26-10-2026).
+    static let porOmision: AgoraTema = .claro
+
     var id: String { rawValue }
 
     var etiqueta: String {
