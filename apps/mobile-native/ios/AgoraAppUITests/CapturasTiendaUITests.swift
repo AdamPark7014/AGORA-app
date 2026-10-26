@@ -76,6 +76,10 @@ final class CapturasTiendaUITests: XCTestCase {
         irAMas("marketplace")
         capturar("mercado", tema: tema, esperando: ["Laptop", "Stewart", "Escritorio"])
 
+        // Campus: accesos, «Tu día» y tu cuenta (artboard por aprobar del 26-10).
+        irAMas(nil)
+        capturar("campus", tema: tema, esperando: ["Tu día", "Mercado"])
+
         irAMensajes()
         tocarTexto("Diego")
         capturar("mensajes", tema: tema, esperando: ["biblio", "Arquitecturas"])
@@ -110,17 +114,17 @@ final class CapturasTiendaUITests: XCTestCase {
         boton.tap()
     }
 
-    /// Pestaña Campus, de vuelta a su inicio, y la fila `mas.<ruta>`.
-    private func irAMas(_ ruta: String) {
+    /// Pestaña Campus, de vuelta a su inicio, y la fila `mas.<ruta>` (sin ruta, solo el inicio).
+    private func irAMas(_ ruta: String?) {
         tocar(app.buttons["tab.4"])
-        let fila = app.buttons["mas.\(ruta)"]
+        let fila = app.buttons["mas.\(ruta ?? "marketplace")"]
         var intentos = 0
         while !fila.waitForExistence(timeout: 2) && intentos < 6 {
             let atras = app.navigationBars.buttons.element(boundBy: 0)
             if atras.exists { atras.tap() }
             intentos += 1
         }
-        tocar(fila)
+        if ruta != nil { tocar(fila) }
     }
 
     /// Toca el texto o, si SwiftUI lo fundió en la etiqueta de un botón, el botón.
