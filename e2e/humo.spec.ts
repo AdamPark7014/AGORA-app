@@ -110,9 +110,9 @@ test('cada ruta de la web carga sin error de compilacion', async ({ page }) => {
   await page.getByPlaceholder('adampozo').fill(handle);
   await page.getByPlaceholder('Adam', { exact: true }).fill('Humo');
   await page.getByPlaceholder('Del Pozo', { exact: true }).fill('De Prueba');
-  await page.locator('select').first().selectOption('ingenieria');
-  await page.locator('select').nth(1).selectOption('ing-sistemas-computacionales');
-  await page.locator('select').nth(2).selectOption('2024');
+  await page.getByRole('searchbox', { name: 'Busca tu carrera' }).fill('sistemas comp');
+  await page.getByRole('button', { name: /Ingeniería en Sistemas Computacionales/ }).click();
+  await page.getByRole('radio', { name: '2024' }).check();
   // Casilla obligatoria de Términos y Reglas (App Store 1.2): sin ella el botón no se activa.
   await page.getByRole('checkbox', { name: /Acepto los Términos/ }).check();
   await page.getByRole('button', { name: 'Crear mi perfil' }).click();

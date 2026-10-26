@@ -2,9 +2,23 @@
 
 import Link from 'next/link';
 import { useRef, useState } from 'react';
-import { Ban, Flag, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import {
+  Ban,
+  Building2,
+  Flag,
+  GraduationCap,
+  Heart,
+  House,
+  Landmark,
+  MessageCircle,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Users,
+} from 'lucide-react';
 
 import { avisar, confirmar } from '@/lib/avisos';
+import { SLUG_COMUNIDAD_CAMPUS_UDLAP } from '@/lib/campus';
 import { atributosImagen } from '@/lib/imagen';
 import {
   borrarPublicacion,
@@ -42,6 +56,10 @@ import { TiempoRelativo } from './tiempo';
  *   los comentarios estan debajo.
  * - `compacta`: resumen de una linea de meta (perfil, buscar); esas rutas
  *   mandan un resumen sin reaccion propia.
+ *
+ * Diseno D (docs/diseno-d.md §3): banda de comunidad arriba, foto dentro de la
+ * tarjeta, reacciones propias como chips con su numero y el pie con
+ * comentarios y acciones.
  */
 
 export type VarianteTarjeta = 'completa' | 'detalle' | 'compacta';
@@ -53,8 +71,6 @@ interface Props {
   variante?: VarianteTarjeta;
   /** Quien mira: decide editar/borrar propio y retirar como moderador. */
   yo?: { handle: string | null; puedeModerar?: boolean } | null;
-  /** Clase de la etiqueta de comunidad (el feed la colorea por tipo). */
-  claseComunidad?: string;
   /** Fecha a mostrar en vez de la de publicacion (guardados muestra cuando se guardo). */
   fecha?: string;
   /** Texto tras la fecha, p. ej. " · guardado". */
@@ -78,7 +94,6 @@ export function TarjetaPost({
   actualizar,
   variante = 'completa',
   yo,
-  claseComunidad = 'etiqueta naranja',
   fecha,
   sufijoMeta,
   permitirRetirar = false,
@@ -98,6 +113,7 @@ export function TarjetaPost({
   const puedeRetirar = permitirRetirar && !!yo?.puedeModerar && !compacta;
   const numReactions = post.numReactions ?? 0;
   const numComments = post.numComments ?? 0;
+  const conteos = post.reacciones;
   const media = (post.media ?? []).slice(0, 4);
 
   async function reaccionar(tipo: string) {
@@ -212,7 +228,20 @@ export function TarjetaPost({
   const nombreVisible = post.autor?.nombre ?? post.alias ?? 'Alguien';
 
   return (
-    <Envoltura className={claseEnvoltura}>
+    <Envoltura className={`${claseEnvoltura} pub-d`}>
+      {/* La comunidad va primero (docs/diseno-d.md §1): en Ágora importa
+          dónde se dijo algo tanto como quién lo dijo. */}
+      <Link
+        href={
+          post.comunidad.slug === SLUG_COMUNIDAD_CAMPUS_UDLAP
+            ? '/feed'
+            : `/feed?comunidad=${encodeURIComponent(post.comunidad.slug)}`
+        }
+        className="pub-banda"
+      >
+        <IconoComunidad slug={post.comunidad.slug} />
+        <span>{post.comunidad.nombre}</span>
+      </Link>
       <div className="pub-cabeza">
         {anonimo ? (
           // Sin avatar de persona: en una anonima no hay cara, y una generica
@@ -242,11 +271,20 @@ export function TarjetaPost({
             {post.estado === 'EN_REVISION' && ' · en revisión'}
           </div>
         </div>
-        <span className={`${claseComunidad} pub-comunidad`}>{post.comunidad.nombre}</span>
+        <button
+          type="button"
+          className="reaccion pub-mas"
+          title="Más opciones"
+          aria-label="Más opciones de la publicación"
+          aria-expanded={panel !== null}
+          onClick={() => setPanel(panel === null ? 'menu' : null)}
+        >
+          <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden="true" />
+        </button>
       </div>
 
       {editando ? (
-        <div style={{ marginTop: 8 }}>
+        <div className="pub-editar">
           <textarea
             rows={variante === 'detalle' ? 4 : 3}
             maxLength={2000}
@@ -305,60 +343,64 @@ export function TarjetaPost({
         </div>
       )}
 
+      {puedeReaccionar && (
+        <div className="pub-reacciones" role="group" aria-label="Reacciones">
+          {REACCIONES.map((r) => {
+            const cuantas = conteos?.[r.tipo] ?? 0;
+            return (
+              <button
+                key={r.tipo}
+                type="button"
+                className="reaccion-chip"
+                aria-pressed={post.miReaccion === r.tipo}
+                onClick={() => void reaccionar(r.tipo)}
+              >
+                {r.etiqueta}
+                {cuantas > 0 && <span className="reaccion-cuenta">{cuantas}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="pub-pie">
-        {puedeReaccionar &&
-          REACCIONES.map((r) => (
-            <button
-              key={r.tipo}
-              type="button"
-              className="reaccion"
-              aria-pressed={post.miReaccion === r.tipo}
-              onClick={() => void reaccionar(r.tipo)}
-            >
-              <span className="reaccion-emoji" aria-hidden="true">{r.emoji}</span>
-              {r.etiqueta}
-            </button>
-          ))}
-
-        <Compartir url={`/publicacion/${post.id}`} titulo="Publicación en Ágora" />
-
-        {post.miGuardado !== undefined && <GuardarPost postId={post.id} inicial={post.miGuardado} />}
-
-        <button
-          type="button"
-          className="reaccion"
-          title="Más opciones"
-          aria-label="Más opciones de la publicación"
-          aria-expanded={panel !== null}
-          onClick={() => setPanel(panel === null ? 'menu' : null)}
-        >
-          <MoreHorizontal size={16} strokeWidth={1.75} aria-hidden="true" />
-        </button>
-
-        {numReactions > 0 && (
-          <span className="pub-cuentas" style={{ marginLeft: 4 }}>
-            {numReactions} {numReactions === 1 ? 'reacción' : 'reacciones'}
-          </span>
-        )}
-
-        {variante !== 'detalle' && (
-          <Link
-            href={`/publicacion/${post.id}`}
-            className="pub-cuentas"
-            style={{ marginLeft: 'auto' }}
-          >
+        {variante !== 'detalle' ? (
+          <Link href={`/publicacion/${post.id}`} className="pub-cuentas">
             {numComments === 0
               ? 'Comentar'
               : `${numComments} ${numComments === 1 ? 'comentario' : 'comentarios'}`}
           </Link>
+        ) : (
+          <span className="pub-cuentas">
+            {numComments} {numComments === 1 ? 'comentario' : 'comentarios'}
+          </span>
         )}
+        {!puedeReaccionar && numReactions > 0 && (
+          <span className="pub-cuentas">
+            {' · '}
+            {numReactions} {numReactions === 1 ? 'reacción' : 'reacciones'}
+          </span>
+        )}
+        <span className="pub-pie-acciones">
+          {variante !== 'detalle' && (
+            <Link
+              href={`/publicacion/${post.id}`}
+              className="reaccion"
+              aria-label="Comentar la publicación"
+            >
+              <MessageCircle size={18} strokeWidth={1.75} aria-hidden="true" />
+            </Link>
+          )}
+          <Compartir url={`/publicacion/${post.id}`} titulo="Publicación en Ágora" />
+          {post.miGuardado !== undefined && <GuardarPost postId={post.id} inicial={post.miGuardado} />}
+        </span>
       </div>
 
       {/* Menu "mas" como fila desplegable y no como popover flotante: en el
           celular un popover se sale de la pantalla y tapa la tarjeta de abajo;
           una fila dentro de la tarjeta siempre cabe y se lee en orden. */}
       {panel === 'menu' && (
-        <div className="encuesta" style={{ marginTop: 12, marginBottom: 0 }}>
+        <div className="encuesta pub-panel">
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
             <button
               type="button"
@@ -411,7 +453,7 @@ export function TarjetaPost({
       )}
 
       {panel === 'reportar' && (
-        <div className="encuesta" style={{ marginTop: 12, marginBottom: 0 }}>
+        <div className="encuesta pub-panel">
           <p className="encuesta-pregunta">¿Por qué lo reportas?</p>
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
             {MOTIVOS_REPORTE.map((m) => (
@@ -432,7 +474,7 @@ export function TarjetaPost({
       )}
 
       {panel === 'retirar' && (
-        <div className="encuesta" style={{ marginTop: 12, marginBottom: 0 }}>
+        <div className="encuesta pub-panel">
           <p className="encuesta-pregunta">Motivo del retiro (lo verá el autor)</p>
           <input
             aria-label="Motivo del retiro"
@@ -453,6 +495,21 @@ export function TarjetaPost({
       )}
     </Envoltura>
   );
+}
+
+/**
+ * El icono de la banda segun el tipo de comunidad, que va en el prefijo del
+ * slug (`carrera:…`, `generacion:…`, `colegio:…`). Decorativo: el nombre de la
+ * comunidad va al lado en texto.
+ */
+function IconoComunidad({ slug }: { slug: string }) {
+  const tipo = slug.split(':')[0];
+  const props = { size: 14, strokeWidth: 2, 'aria-hidden': true } as const;
+  if (tipo === 'carrera') return <GraduationCap {...props} />;
+  if (tipo === 'generacion') return <Users {...props} />;
+  if (tipo === 'colegio') return <House {...props} />;
+  if (tipo === 'escuela' || tipo === 'departamento') return <Building2 {...props} />;
+  return <Landmark {...props} />;
 }
 
 /**
@@ -533,7 +590,7 @@ function Galeria({ media, onMeLate }: { media: Adjunto[]; onMeLate?: () => void 
                     style={{ left: c.x, top: c.y }}
                     aria-hidden="true"
                   >
-                    🧡
+                    <Heart size={44} strokeWidth={0} fill="currentColor" />
                   </span>
                 ))}
             </button>

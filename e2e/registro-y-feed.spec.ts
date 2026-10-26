@@ -104,12 +104,10 @@ test('registro completo deja al usuario en sus comunidades y pudiendo publicar',
   await page.getByPlaceholder('Adam', { exact: true }).fill('Prueba');
   await page.getByPlaceholder('Del Pozo', { exact: true }).fill('E2E');
 
-  await page.locator('select').first().selectOption('ingenieria');
-  // La carrera solo se puede elegir despues de la escuela: la cascada existe
-  // para que el formulario sea usable en un telefono.
-  await page.locator('select').nth(1).selectOption('ing-sistemas-computacionales');
-  await page.locator('select').nth(2).selectOption('2025');
-  await page.locator('select').nth(3).selectOption('cain-murray');
+  await page.getByRole('searchbox', { name: 'Busca tu carrera' }).fill('sistemas comp');
+  await page.getByRole('button', { name: /Ingeniería en Sistemas Computacionales/ }).click();
+  await page.getByRole('radio', { name: '2025' }).check();
+  await page.getByLabel('Colegio residencial (opcional)').selectOption('cain-murray');
 
   // Casilla obligatoria de Términos y Reglas (App Store 1.2): sin ella el botón no se activa.
   await page.getByRole('checkbox', { name: /Acepto los Términos/ }).check();

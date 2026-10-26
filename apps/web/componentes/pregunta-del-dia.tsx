@@ -10,7 +10,7 @@ import {
   type SemanaPregunta,
 } from '@/lib/gamificacion';
 import type { BadgeCodigo } from '@agora/contracts';
-import { Sparkles } from '@/componentes/iconos';
+import { Zap } from 'lucide-react';
 
 interface Opcion {
   indice: number;
@@ -115,26 +115,67 @@ export function PreguntaDelDia() {
 
   const progresoSemana = semana ?? pregunta.semanaPregunta;
 
+  const cabeza = (pildora: React.ReactNode) => (
+    <div className="relampago-cabeza">
+      <span className="relampago-etiqueta">
+        <Zap size={14} fill="currentColor" strokeWidth={0} aria-hidden="true" />
+        Pregunta relámpago
+      </span>
+      {pildora}
+    </div>
+  );
+
   if (esperando) {
     return (
-      <div className="panel pregunta pregunta-destacada pregunta-esperando">
-        <p className="panel-titulo" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Sparkles size={14} strokeWidth={2} />
-          Pregunta del día
-        </p>
-        <p className="pregunta-texto">⚡ Hoy cae a una hora sorpresa.</p>
-        <p className="tenue" style={{ margin: 0 }}>
+      <section className="relampago" aria-label="Pregunta relámpago">
+        {cabeza(null)}
+        <p className="relampago-texto">Hoy cae a una hora sorpresa.</p>
+        <p className="relampago-nota">
           Te avisamos en cuanto salga. Contesta en los primeros 2 minutos y sales a tiempo;
           antes de contestar no ves lo que dijeron los demás.
         </p>
-      </div>
+      </section>
     );
   }
 
   const carrera = pregunta.yaRespondi ? pregunta.miCarrera : null;
+  const pct = (votos: number, total: number) => (total > 0 ? Math.round((votos / total) * 100) : 0);
+
+  // "<Tu carrera> votó X % <opción> · el campus Y %" (docs/diseno-d.md §3):
+  // la opcion que mas eligio tu carrera, comparada con todo el campus.
+  let comparacion: string | null = null;
+  if (carrera && carrera.total > 0) {
+    const favorita = pregunta.opciones.reduce((mejor, o) =>
+      (carrera.votos[o.indice] ?? 0) > (carrera.votos[mejor.indice] ?? 0) ? o : mejor,
+    );
+    comparacion = `${carrera.nombre} votó ${pct(carrera.votos[favorita.indice] ?? 0, carrera.total)} % ${favorita.texto} · el campus ${pct(favorita.votos ?? 0, pregunta.total)} %`;
+  } else if (pregunta.yaRespondi && pregunta.totalATiempo != null && pregunta.abreAt) {
+    comparacion = `${pregunta.totalATiempo} contestaron a tiempo`;
+  }
+
+  let pildora: React.ReactNode = null;
+  if (corriendo && hastaMs != null) {
+    pildora = (
+      <span className="relampago-pildora" role="timer" aria-live="off">
+        cierra en {mmss(hastaMs - ahora)}
+      </span>
+    );
+  } else if (pregunta.yaRespondi && pregunta.aTiempo != null && pregunta.abreAt) {
+    pildora = (
+      <span className={`relampago-pildora${pregunta.aTiempo ? ' a-tiempo' : ''}`}>
+        {pregunta.aTiempo ? 'Contestaste a tiempo' : 'Contestaste tarde'}
+      </span>
+    );
+  } else if (progresoSemana) {
+    pildora = (
+      <span className="relampago-pildora">
+        {progresoSemana.respondidas}/{progresoSemana.meta} esta semana
+      </span>
+    );
+  }
 
   return (
-    <>
+    <section className="relampago" aria-label="Pregunta relámpago">
       {confetti && (
         <div className="pregunta-confetti" aria-hidden="true">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -152,95 +193,48 @@ export function PreguntaDelDia() {
         </div>
       )}
 
-      <div className="panel pregunta pregunta-destacada">
-        <p className="panel-titulo" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Sparkles size={14} strokeWidth={2} />
-          Pregunta del día
-          {pregunta.yaRespondi && ` · ${pregunta.total} respuestas`}
-        </p>
+      {cabeza(pildora)}
 
-        {corriendo && hastaMs != null && (
-          <p className="pregunta-reloj" role="timer" aria-live="off">
-            ⚡ {mmss(hastaMs - ahora)} para contestar a tiempo
-          </p>
-        )}
-        {pregunta.yaRespondi && pregunta.aTiempo != null && pregunta.abreAt && (
-          <p className={`pregunta-sello${pregunta.aTiempo ? ' a-tiempo' : ''}`}>
-            {pregunta.aTiempo ? '⚡ Contestaste a tiempo' : 'Contestaste tarde'}
-            {pregunta.totalATiempo != null && ` · ${pregunta.totalATiempo} a tiempo hoy`}
-          </p>
-        )}
+      <p className="relampago-texto">{pregunta.texto}</p>
 
-        {progresoSemana && (
-          <div className="pregunta-semana">
-            <p className="tenue pregunta-semana-etiqueta">
-              Esta semana: {progresoSemana.respondidas}/{progresoSemana.meta} días
-            </p>
-            <div
-              className="pregunta-semana-barra"
-              role="progressbar"
-              aria-valuenow={progresoSemana.respondidas}
-              aria-valuemin={0}
-              aria-valuemax={progresoSemana.meta}
-              aria-label={`${progresoSemana.respondidas} de ${progresoSemana.meta} días esta semana`}
+      <div className="relampago-opciones">
+        {pregunta.opciones.map((o) => {
+          const mia = pregunta.miOpcion === o.indice;
+          const porcentaje = pregunta.yaRespondi ? pct(o.votos ?? 0, pregunta.total) : 0;
+          return (
+            <button
+              key={o.indice}
+              type="button"
+              className="relampago-opcion"
+              aria-pressed={mia}
+              disabled={enviando || pregunta.yaRespondi}
+              onClick={() => responder(o.indice)}
             >
-              <span
-                className="pregunta-semana-relleno"
-                style={{
-                  width: `${Math.min(100, (progresoSemana.respondidas / progresoSemana.meta) * 100)}%`,
-                }}
-              />
-            </div>
-          </div>
-        )}
+              {pregunta.yaRespondi && (
+                <span
+                  className={`relampago-barra${mia ? ' mia' : ''}`}
+                  style={{ width: `${porcentaje}%` }}
+                  aria-hidden="true"
+                />
+              )}
+              <span className="relampago-opcion-texto">
+                {o.texto}
+                {mia && ' · tu respuesta'}
+              </span>
+              {pregunta.yaRespondi && <span className="relampago-pct">{porcentaje} %</span>}
+            </button>
+          );
+        })}
+      </div>
 
-        <p className="pregunta-texto">{pregunta.texto}</p>
-
-        <div style={{ display: 'grid', gap: 7, position: 'relative', zIndex: 1 }}>
-          {pregunta.opciones.map((o) => {
-            const porcentaje =
-              pregunta.yaRespondi && pregunta.total > 0
-                ? Math.round(((o.votos ?? 0) / pregunta.total) * 100)
-                : 0;
-
-            return (
-              <button
-                key={o.indice}
-                type="button"
-                className="opcion"
-                aria-pressed={pregunta.miOpcion === o.indice}
-                disabled={enviando || pregunta.yaRespondi}
-                onClick={() => responder(o.indice)}
-              >
-                {pregunta.yaRespondi && (
-                  <span className="opcion-barra" style={{ width: `${porcentaje}%` }} />
-                )}
-                <span className="opcion-contenido">
-                  <span>{o.texto}</span>
-                  {pregunta.yaRespondi && (
-                    <span className="tenue">
-                      {o.votos} · {porcentaje}%
-                      {carrera && carrera.total > 0 &&
-                        ` · tu carrera ${Math.round(((carrera.votos[o.indice] ?? 0) / carrera.total) * 100)}%`}
-                    </span>
-                  )}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {!pregunta.yaRespondi ? (
-          <p className="tenue" style={{ margin: '10px 0 0', position: 'relative', zIndex: 1 }}>
-            Contesta para ver qué dijeron los demás.
-          </p>
-        ) : (
-          <p className="tenue" style={{ margin: '10px 0 0', position: 'relative', zIndex: 1 }}>
-            {pregunta.total} de tu comunidad ya contestaron hoy
-            {carrera && carrera.total > 0 ? `, ${carrera.total} de ${carrera.nombre}.` : '.'}
-          </p>
+      <div className="relampago-pie">
+        <span>{pregunta.yaRespondi ? comparacion : 'Contesta para ver qué dijeron los demás.'}</span>
+        {pregunta.yaRespondi && (
+          <span className="relampago-total">
+            {pregunta.total} {pregunta.total === 1 ? 'respuesta' : 'respuestas'}
+          </span>
         )}
       </div>
-    </>
+    </section>
   );
 }

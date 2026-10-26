@@ -28,6 +28,7 @@ import {
   MapPin,
   MessageSquare,
   Sparkles,
+  SquarePlay,
   X,
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
@@ -44,7 +45,9 @@ export type IconoNav =
   | 'notificaciones'
   | 'ajustes'
   | 'mas'
-  | 'publicar';
+  | 'publicar'
+  | 'clips'
+  | 'campus';
 
 const MAPA: Record<IconoNav, LucideIcon> = {
   feed: Home,
@@ -59,6 +62,8 @@ const MAPA: Record<IconoNav, LucideIcon> = {
   ajustes: Settings,
   mas: MoreHorizontal,
   publicar: Plus,
+  clips: SquarePlay,
+  campus: LayoutGrid,
 };
 
 export function IconoNav({

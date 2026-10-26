@@ -8,12 +8,21 @@ import { api, ErrorApi } from '@/lib/api';
 import { sesion } from '@/lib/sesion';
 import { copy } from '@/lib/copy';
 import { Avatar } from '@/componentes/avatar';
-import { MessageCircle, Settings } from '@/componentes/iconos';
 import { TarjetaPost } from '@/componentes/tarjeta-post';
 import { EstadoVacio } from '@/componentes/estado-vacio';
 import { EstadoError } from '@/componentes/estado-error';
 import { EsqueletoFeed, EsqueletoLista, EsqueletoPerfil } from '@/componentes/esqueleto';
-import { UserX, Inbox, Cake, Lock } from 'lucide-react';
+import {
+  Ban,
+  BellOff,
+  Cake,
+  Image as IconoImagen,
+  Inbox,
+  Lock,
+  MoreHorizontal,
+  Swords,
+  UserX,
+} from 'lucide-react';
 import { RachaBadges } from '@/componentes/racha-badges';
 import { TIPOS_RETO_AMIGO } from '@agora/contracts';
 import {
@@ -54,6 +63,14 @@ interface Perfil {
   restringido?: boolean;
   yoLeSigo?: boolean;
   verificado?: boolean;
+  /** Gente que sigues y que sigue a este perfil (hasta 3) y cuantos son en total. */
+  seguidoresEnComun?: Array<{ handle: string; nombre: string; fotoUrl: string | null }>;
+  numSeguidoresEnComun?: number;
+}
+
+/** "y" se vuelve "e" antes de un nombre que suena a i (Isabella, Hilda). */
+function conjuncion(siguiente: string): string {
+  return /^h?i(?![aeou])/i.test(siguiente) ? 'e' : 'y';
 }
 
 const MESES = [
@@ -80,7 +97,8 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
   const [yo, setYo] = useState<string | null>(null);
   const [siguiendo, setSiguiendo] = useState(false);
   const [ocupado, setOcupado] = useState(false);
-  const [pestana, setPestana] = useState<'publicaciones' | 'info'>('publicaciones');
+  const [pestana, setPestana] = useState<'publicaciones' | 'fotos' | 'info'>('publicaciones');
+  const [menu, setMenu] = useState(false);
   const [bloqueado, setBloqueado] = useState(false);
   const [silenciado, setSilenciado] = useState(false);
   const [listaSocial, setListaSocial] = useState<'seguidores' | 'siguiendo' | null>(null);
@@ -327,119 +345,187 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
     );
   }
 
+  const linea = [
+    `@${perfil.handle}`,
+    perfil.carrera,
+    perfil.generacion ? `Gen ${perfil.generacion}` : null,
+    perfil.ciudadOrigen,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const enComun = perfil.seguidoresEnComun ?? [];
+  const otrosEnComun = (perfil.numSeguidoresEnComun ?? enComun.length) - Math.min(enComun.length, 2);
+  const primeros = enComun.slice(0, 2).map((x) => x.nombre.split(' ')[0]);
+  const fotos = publicaciones.flatMap((pub) =>
+    (pub.media ?? []).filter((m) => !m.esVideo).map((m) => ({ postId: pub.id, media: m })),
+  );
+
   return (
-    <main>
-      <div className="tarjeta perfil-tarjeta">
-        {/* Portada: si no hay imagen, un degradado con los colores UDLAP. */}
-        <div
-          className="portada"
-          style={
-            perfil.portadaUrl
-              ? { backgroundImage: `url(${perfil.portadaUrl})` }
-              : undefined
-          }
-        />
-
-        <div className="perfil-cabeza">
-          <span className="perfil-avatar">
-            <Avatar
-              nombre={nombreCompleto}
-              semilla={perfil.handle}
-              tamano="grande"
-              fotoUrl={perfil.fotoUrl}
-              anillo="aqua"
-              verificado={perfil.verificado}
-            />
-          </span>
-
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ marginBottom: 2 }}>{nombreCompleto}</h1>
-            <p className="tenue" style={{ margin: 0 }}>
-              @{perfil.handle}
-              {perfil.ciudadOrigen && ` · 📍 ${perfil.ciudadOrigen}`}
-            </p>
-          </div>
-        </div>
-
-        {perfil.suspendido && <p className="error">Esta cuenta está suspendida.</p>}
-
-        {perfil.bio && <p style={{ marginTop: 14 }}>{perfil.bio}</p>}
-
-        {perfil.busco && (
-          <p className="busco">
-            <strong>Busco:</strong> {perfil.busco}
-          </p>
+    <main className="perfil-d">
+      <div
+        className="perfil-d-portada"
+        style={perfil.portadaUrl ? { backgroundImage: `url(${perfil.portadaUrl})` } : undefined}
+      >
+        {!esMio && (
+          <button
+            type="button"
+            className="perfil-d-portada-boton"
+            aria-label="Más opciones"
+            aria-expanded={menu}
+            onClick={() => setMenu((v) => !v)}
+          >
+            <MoreHorizontal size={20} strokeWidth={2} aria-hidden="true" />
+          </button>
         )}
+      </div>
 
-        <div className="perfil-cifras">
-          <div className="perfil-cifra">
-            <strong>{perfil.publicaciones ?? 0}</strong>
-            <span className="tenue">publicaciones</span>
-          </div>
-          <button type="button" className="perfil-cifra" onClick={() => abrirLista('seguidores')}>
-            <strong>{perfil.seguidores ?? 0}</strong>
-            <span className="tenue">seguidores</span>
+      {/* Retar, silenciar y bloquear van en el menu: a la vista solo quedan
+          Seguir y Mensaje (docs/diseno-d.md §4). */}
+      {menu && !esMio && (
+        <div className="perfil-d-menu" role="menu" aria-label="Más opciones">
+          {puedeRetarInfo?.puedeRetar && (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={ocupado}
+              onClick={() => {
+                setMenu(false);
+                setTipoReto('RACHA');
+                setModalRetar(true);
+              }}
+            >
+              <Swords size={18} strokeWidth={1.9} aria-hidden="true" />
+              Retar
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            disabled={ocupado}
+            onClick={() => {
+              setMenu(false);
+              void alternarBloqueo(true);
+            }}
+          >
+            <BellOff size={18} strokeWidth={1.9} aria-hidden="true" />
+            {silenciado ? 'Dejar de silenciar' : 'Silenciar'}
           </button>
-          <button type="button" className="perfil-cifra" onClick={() => abrirLista('siguiendo')}>
-            <strong>{perfil.siguiendo ?? 0}</strong>
-            <span className="tenue">siguiendo</span>
+          <button
+            type="button"
+            role="menuitem"
+            className="perfil-d-menu-peligro"
+            disabled={ocupado}
+            onClick={() => {
+              setMenu(false);
+              void alternarBloqueo(false);
+            }}
+          >
+            <Ban size={18} strokeWidth={1.9} aria-hidden="true" />
+            {bloqueado ? 'Desbloquear' : 'Bloquear'}
           </button>
         </div>
+      )}
 
-        <div className="acciones" style={{ marginTop: 16 }}>
+      <div className="perfil-d-cabeza">
+        <span className="perfil-d-avatar">
+          <Avatar
+            nombre={nombreCompleto}
+            semilla={perfil.handle}
+            tamano="grande"
+            fotoUrl={perfil.fotoUrl}
+            verificado={perfil.verificado}
+          />
+        </span>
+        <div className="perfil-d-acciones">
           {esMio ? (
-            <Link href="/ajustes" className="reaccion" style={{ textDecoration: 'none' }}>
-              <Settings size={16} strokeWidth={1.75} aria-hidden="true" style={{ marginRight: 4 }} />
+            <Link href="/ajustes" className="enlace-boton boton-tinta">
               Editar perfil
             </Link>
           ) : (
             <>
-              <button type="button" disabled={ocupado} onClick={alternarSeguir}>
-                {siguiendo ? '✓ Siguiendo' : '＋ Seguir'}
+              <button
+                type="button"
+                className={siguiendo ? 'secundario' : 'boton-tinta'}
+                aria-pressed={siguiendo}
+                disabled={ocupado}
+                onClick={alternarSeguir}
+              >
+                {siguiendo ? 'Siguiendo' : 'Seguir'}
               </button>
               <button type="button" className="secundario" disabled={ocupado} onClick={escribir}>
-                <MessageCircle size={16} strokeWidth={1.75} aria-hidden="true" style={{ marginRight: 4, verticalAlign: -2 }} />
-                Escribirle
-              </button>
-              {puedeRetarInfo?.puedeRetar && (
-                <button
-                  type="button"
-                  className="secundario"
-                  disabled={ocupado}
-                  onClick={() => {
-                    setTipoReto('RACHA');
-                    setModalRetar(true);
-                  }}
-                >
-                  ⚔️ Retar
-                </button>
-              )}
-              <button type="button" className="fantasma" disabled={ocupado} onClick={() => alternarBloqueo(true)}>
-                {silenciado ? 'Dejar de silenciar' : 'Silenciar'}
-              </button>
-              <button type="button" className="fantasma" disabled={ocupado} onClick={() => alternarBloqueo(false)}>
-                {bloqueado ? 'Desbloquear' : 'Bloquear'}
+                Mensaje
               </button>
             </>
           )}
+        </div>
+      </div>
+
+      <h1 className="perfil-d-nombre">{nombreCompleto}</h1>
+      <p className="perfil-d-linea">{linea}</p>
+
+      {perfil.suspendido && <p className="error">Esta cuenta está suspendida.</p>}
+
+      {perfil.bio && <p className="perfil-d-bio">{perfil.bio}</p>}
+
+      {((perfil.intereses?.length ?? 0) > 0 || perfil.busco || perfil.instagram) && (
+        <ul className="perfil-d-chips">
+          {perfil.intereses?.map((i) => <li key={i}>{i}</li>)}
+          {perfil.busco && <li className="perfil-d-busca">Busca: {perfil.busco}</li>}
           {perfil.instagram && (
-            <a
-              className="reaccion"
-              style={{ textDecoration: 'none' }}
-              href={`https://instagram.com/${perfil.instagram}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              📷 @{perfil.instagram}
-            </a>
+            <li>
+              <a
+                href={`https://instagram.com/${perfil.instagram}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Instagram @{perfil.instagram}
+              </a>
+            </li>
           )}
+        </ul>
+      )}
+
+      <div className="perfil-d-cifras">
+        <div className="perfil-d-cifra">
+          <strong>{perfil.publicaciones ?? 0}</strong>
+          <span>publicaciones</span>
         </div>
-        {avisoReto && <p className="nota" style={{ marginTop: 12, marginBottom: 0 }}>{avisoReto}</p>}
-        {/* Los fallos de seguir, escribir, bloquear o retar se guardaban y
-            nunca se mostraban. */}
-        <div aria-live="polite">
-          {error && <p className="error" style={{ marginTop: 12, marginBottom: 0 }}>{error}</p>}
+        <button type="button" className="perfil-d-cifra" onClick={() => abrirLista('seguidores')}>
+          <strong>{perfil.seguidores ?? 0}</strong>
+          <span>seguidores</span>
+        </button>
+        <button type="button" className="perfil-d-cifra" onClick={() => abrirLista('siguiendo')}>
+          <strong>{perfil.siguiendo ?? 0}</strong>
+          <span>siguiendo</span>
+        </button>
+      </div>
+
+      {!esMio && primeros.length > 0 && (
+        <div className="perfil-d-comun">
+          <span className="evento-avatares" aria-hidden="true">
+            {enComun.slice(0, 3).map((x) => (
+              <Avatar key={x.handle} nombre={x.nombre} semilla={x.handle} fotoUrl={x.fotoUrl} tamano="chico" />
+            ))}
+          </span>
+          <span>
+            Lo sigue{primeros.length > 1 || otrosEnComun > 0 ? 'n' : ''} <strong>{primeros[0]}</strong>
+            {primeros[1] && (
+              <>
+                {otrosEnComun > 0 ? ', ' : ` ${conjuncion(primeros[1])} `}
+                <strong>{primeros[1]}</strong>
+              </>
+            )}
+            {otrosEnComun > 0 &&
+              ` y ${otrosEnComun} ${otrosEnComun === 1 ? 'persona más' : 'personas más'} que sigues`}
+          </span>
         </div>
+      )}
+
+      {avisoReto && <p className="nota" style={{ marginTop: 12, marginBottom: 0 }}>{avisoReto}</p>}
+      {/* Los fallos de seguir, escribir, bloquear o retar se guardaban y
+          nunca se mostraban. */}
+      <div aria-live="polite">
+        {error && <p className="error" style={{ marginTop: 12, marginBottom: 0 }}>{error}</p>}
       </div>
 
       <RachaBadges
@@ -447,24 +533,44 @@ export default function PaginaPerfil({ params }: { params: Promise<{ handle: str
         mostrarCompartir={esMio}
       />
 
-      <div className="pestanas-perfil">
-        <button
-          type="button"
-          className={pestana === 'publicaciones' ? 'pestana-perfil activa' : 'pestana-perfil'}
-          onClick={() => setPestana('publicaciones')}
-        >
-          Publicaciones
-        </button>
-        <button
-          type="button"
-          className={pestana === 'info' ? 'pestana-perfil activa' : 'pestana-perfil'}
-          onClick={() => setPestana('info')}
-        >
-          Información
-        </button>
+      <div className="perfil-d-pestanas" role="tablist" aria-label="Contenido del perfil">
+        {(
+          [
+            ['publicaciones', 'Publicaciones'],
+            ['fotos', 'Fotos'],
+            ['info', 'Información'],
+          ] as const
+        ).map(([id, texto]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={pestana === id}
+            onClick={() => setPestana(id)}
+          >
+            {texto}
+          </button>
+        ))}
       </div>
 
-      {pestana === 'info' ? (
+      {pestana === 'fotos' ? (
+        fotos.length === 0 ? (
+          <EstadoVacio icono={IconoImagen} titulo="Sin fotos todavía">
+            Las fotos de sus publicaciones aparecen aquí.
+          </EstadoVacio>
+        ) : (
+          <ul className="perfil-d-fotos">
+            {fotos.map((f) => (
+              <li key={f.media.url}>
+                <Link href={`/publicacion/${f.postId}`} aria-label="Ver la publicación de esta foto">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={f.media.thumbUrl ?? f.media.url} alt="" loading="lazy" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : pestana === 'info' ? (
         <div className="tarjeta">
           <ul className="etiquetas" style={{ margin: 0 }}>
             {etiquetas.map((e) => (

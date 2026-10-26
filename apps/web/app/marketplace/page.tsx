@@ -10,8 +10,18 @@ import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
 import { EstadoError } from '@/componentes/estado-error';
 import { EsqueletoLista } from '@/componentes/esqueleto';
-import { LayoutGrid, MessageCircle, Plus, X } from '@/componentes/iconos';
-import { ImagePlus } from 'lucide-react';
+import { LayoutGrid, MessageCircle, Plus, Search, X } from '@/componentes/iconos';
+import {
+  BedDouble,
+  BookOpen,
+  ImagePlus,
+  Laptop,
+  Package,
+  Shirt,
+  Sofa,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react';
 
 interface Anuncio {
   id: string;
@@ -35,6 +45,16 @@ const CATEGORIAS = [
   { valor: 'SERVICIOS', etiqueta: 'Servicios' },
   { valor: 'OTRO', etiqueta: 'Otro' },
 ] as const;
+
+/** Sin foto, el icono de la categoria y no un gris vacio (docs/diseno-d.md §4). */
+const ICONO_CATEGORIA: Record<string, LucideIcon> = {
+  LIBROS: BookOpen,
+  ELECTRONICA: Laptop,
+  MUEBLES: Sofa,
+  ROPA: Shirt,
+  CUARTO: BedDouble,
+  SERVICIOS: Wrench,
+};
 
 export default function Marketplace() {
   const router = useRouter();
@@ -177,7 +197,7 @@ export default function Marketplace() {
   return (
     <main>
       <EncabezadoPagina
-        titulo="Marketplace"
+        titulo="Mercado"
         entradilla="Compra y vende dentro de la UDLAP. Todos con nombre y cara."
         acciones={
           <button type="button" onClick={() => setAbierto((v) => !v)}>
@@ -189,7 +209,7 @@ export default function Marketplace() {
             ) : (
               <>
                 <Plus size={18} strokeWidth={1.75} style={{ marginRight: 6, verticalAlign: -3 }} />
-                Vender algo
+                Vender
               </>
             )}
           </button>
@@ -201,31 +221,29 @@ export default function Marketplace() {
         <Link href="/reglas">Consejos de seguridad</Link>
       </p>
 
-      <div className="acciones" style={{ marginBottom: 16 }}>
-        <select
-          className="selector-pastilla"
-          aria-label="Categoría"
-          value={categoria}
-          onChange={(e) => setCategoria(e.target.value)}
-        >
-          <option value="">Todo</option>
-          {CATEGORIAS.map((c) => (
-            <option key={c.valor} value={c.valor}>
-              {c.etiqueta}
-            </option>
-          ))}
-        </select>
-      </div>
+      <label className="buscador-d">
+        <Search size={18} strokeWidth={1.9} aria-hidden="true" />
+        <input
+          type="search"
+          aria-label="Buscar en el mercado"
+          placeholder="Libro de cálculo, monitor, bici…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </label>
 
-      <div className="tarjeta" style={{ marginBottom: 18 }}>
-        <label className="campo" style={{ marginBottom: 0 }}>
-          <span>Buscar</span>
-          <input
-            placeholder="Libro de cálculo, monitor, bici…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </label>
+      <div className="feed-canales" role="group" aria-label="Categoría">
+        {[{ valor: '', etiqueta: 'Todo' }, ...CATEGORIAS].map((c) => (
+          <button
+            key={c.valor || 'todo'}
+            type="button"
+            aria-pressed={categoria === c.valor}
+            className={`feed-canal${categoria === c.valor ? ' activo' : ''}`}
+            onClick={() => setCategoria(c.valor)}
+          >
+            {c.etiqueta}
+          </button>
+        ))}
       </div>
 
       {abierto && (
@@ -353,75 +371,70 @@ export default function Marketplace() {
         </EstadoVacio>
       )}
 
-      <ul className="grid-marketplace">
+      <ul className="grid-marketplace mercado-d">
         {anuncios.map((a) => (
-          <li key={a.id} className="tarjeta tarjeta-producto tarjeta-interactiva">
-            <Link href={`/marketplace/${a.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <li key={a.id} className="producto-d">
+            <Link href={`/marketplace/${a.id}`} className="producto-d-foto">
               {a.imagenes[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img className="tarjeta-producto-imagen" src={a.imagenes[0]} alt="" loading="lazy" />
+                <img src={a.imagenes[0]} alt="" loading="lazy" />
               ) : (
-                <div className="tarjeta-producto-imagen" aria-hidden="true" style={{ display: 'grid', placeItems: 'center', fontSize: '0.85rem', fontWeight: 600, color: 'var(--texto-tenue)' }}>
-                  {CATEGORIAS.find((c) => c.valor === a.categoria)?.etiqueta ?? 'Otro'}
-                </div>
+                (() => {
+                  const Icono = ICONO_CATEGORIA[a.categoria] ?? Package;
+                  return (
+                    <span className="producto-d-sin-foto" aria-hidden="true">
+                      <Icono size={40} strokeWidth={1.5} />
+                    </span>
+                  );
+                })()
               )}
-
-              <div className="tarjeta-producto-cuerpo">
-                <strong style={{ fontSize: '0.95rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {a.titulo}
-                </strong>
-                <span className="tarjeta-producto-precio">
-                  {a.precioMxn === 0 ? 'Gratis' : `$${a.precioMxn.toLocaleString('es-MX')}`}
-                </span>
-              </div>
+              {a.estadoVenta === 'APARTADO' && <span className="producto-d-apartado">Apartado</span>}
+              <span className="producto-d-precio">
+                {a.precioMxn === 0 ? 'Gratis' : `$${a.precioMxn.toLocaleString('es-MX')}`}
+              </span>
             </Link>
-
-            <div className="tarjeta-producto-cuerpo" style={{ paddingTop: 0 }}>
-              {a.estadoVenta === 'APARTADO' && (
-                <span className="etiqueta oro">Apartado</span>
-              )}
+            <Link href={`/marketplace/${a.id}`} className="producto-d-titulo">
+              {a.titulo}
+            </Link>
+            <div className="producto-d-pie">
               {a.vendedor && (
-                <span className="tenue" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem' }}>
+                <Link href={`/perfil/${a.vendedor.handle}`} className="producto-d-vendedor">
                   <Avatar
                     nombre={a.vendedor.nombre}
                     semilla={a.vendedor.handle}
                     fotoUrl={a.vendedor.fotoUrl}
                     tamano="chico"
                   />
-                  <Link href={`/perfil/${a.vendedor.handle}`}>{a.vendedor.nombre}</Link>
-                </span>
+                  <span>{a.vendedor.nombre.split(' ')[0]}</span>
+                </Link>
               )}
-              <div className="pub-pie" style={{ marginTop: 'auto', paddingTop: 8, borderTop: 'none' }}>
-                {a.esMio ? (
-                  <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      className="reaccion"
-                      onClick={() =>
-                        marcar(a.id, a.estadoVenta === 'APARTADO' ? 'DISPONIBLE' : 'APARTADO')
-                      }
-                    >
-                      {a.estadoVenta === 'APARTADO' ? 'Liberar' : 'Apartar'}
-                    </button>
-                    <button type="button" className="reaccion" onClick={() => marcar(a.id, 'VENDIDO')}>
-                      Vendido
-                    </button>
-                  </span>
-                ) : (
-                  a.vendedor && (
-                    <button
-                      type="button"
-                      className="reaccion"
-                      style={{ fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                      onClick={() => escribir(a.vendedor!.handle)}
-                    >
-                      <MessageCircle size={14} strokeWidth={1.75} aria-hidden="true" />
-                      Mensaje al vendedor
-                    </button>
-                  )
-                )}
-              </div>
+              {!a.esMio && a.vendedor && (
+                <button
+                  type="button"
+                  className="reaccion producto-d-mensaje"
+                  aria-label={`Mensaje a ${a.vendedor.nombre} por ${a.titulo}`}
+                  onClick={() => escribir(a.vendedor!.handle)}
+                >
+                  <MessageCircle size={18} strokeWidth={1.75} aria-hidden="true" />
+                </button>
+              )}
             </div>
+            {a.esMio && (
+              <div className="producto-d-mio">
+                <button
+                  type="button"
+                  className="reaccion"
+                  onClick={() =>
+                    marcar(a.id, a.estadoVenta === 'APARTADO' ? 'DISPONIBLE' : 'APARTADO')
+                  }
+                >
+                  {a.estadoVenta === 'APARTADO' ? 'Liberar' : 'Apartar'}
+                </button>
+                <button type="button" className="reaccion" onClick={() => marcar(a.id, 'VENDIDO')}>
+                  Vendido
+                </button>
+              </div>
+            )}
           </li>
         ))}
       </ul>

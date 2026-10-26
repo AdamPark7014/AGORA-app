@@ -1,7 +1,7 @@
 # RELEVO
 
 - **Último turno:** claude-code (sesión lateral de Ágora, en la compu de Adam)
-- **Fecha:** 2026-10-23
+- **Fecha:** 2026-10-26
 - **Rama:** main
 
 ## Rediseño D (aprobado por Adam el 23-10, «si confirmado», relayado por la sesión principal)
@@ -14,6 +14,34 @@ contrato). Reparto: API, web e iOS en esta sesión; Android en la sesión de mó
   `GET /perfil/:handle`. Pruebas en `comun/personas.test.ts` y `posts/vista-post.test.ts` (API 274+).
 - **Pendiente:** el seed de demo no tiene fotos ni videos, así que los clips salen vacíos en local y en
   las capturas.
+- **Web D construida (26-10, este commit; sin desplegar todavía).** Estilos de la D en
+  `apps/web/app/diseno-d.css` (cargado después de `globals.css`, que ya tiene los tokens). Hecho:
+  - Tarjeta de publicación: banda de comunidad (enlace al filtro), chips de reacción con número, pie con
+    comentarios + Comentar/Compartir/Guardar, fotos con esquinas dentro de la tarjeta, sin emojis
+    (Guardar y el corazón del doble toque son íconos). Avatares cuadrados redondeados en toda la web.
+  - Inicio (`feed/page.tsx` + `componentes/inicio-d.tsx`): encabezado con fecha, segmento
+    Campus / Mi carrera / Siguiendo (las demás comunidades quedan como chips), «Ahora en el campus»
+    (`/eventos/en-vivo?horas=3`), pregunta relámpago oscura (tu carrera contra el campus), compositor
+    plegado en el teléfono, fila de clips tras la 3.ª publicación y mini evento con «Voy» tras la 7.ª.
+    `INICIO_SEMESTRE` está en null a propósito: no hay fecha oficial del semestre; con ella sale «semana N».
+  - Navegación: píldora oscura flotante en el teléfono (Inicio, Clips, Publicar, Eventos, Campus→/mas);
+    Mensajes con contador pasó al encabezado. Menú izquierdo: Inicio, Clips, Mercado.
+  - `/clips` nuevo: visor vertical a pantalla completa (en el teléfono va en un portal a `<body>`: la
+    transición de página con transform dejaba el `position: fixed` en cero), pestañas Mi carrera/Campus,
+    Me late, comentarios, Enviar, Guardar, sonido. Probado con un clip sintético solo en la base local.
+  - Evento: portada por tipo (la API no guarda imagen), bloque de fecha, quién va con avatares, Cómo llegar
+    (Maps) y Aventones, organizador con Mensaje y barra oscura fija (Calendario .ics, Me interesa, Voy).
+  - Perfil: solo Seguir y Mensaje a la vista; Retar/Silenciar/Bloquear en «…» (reportar perfil no existe
+    en la API); «Lo siguen X e Y»; pestañas Publicaciones/Fotos/Información.
+  - Mercado: buscador, chips de categoría, cuadrícula de 2 columnas con precio sobre la foto e ícono de
+    categoría si no hay foto. Registro: buscador de carrera sobre las 52 (elige también la escuela) y
+    generación con botones; las e2e (`registro-y-feed`, `capturas`, `humo`) ya usan el buscador y los radios.
+  - Quitado: `componentes/eventos-en-vivo.tsx` (lo reemplaza «Ahora en el campus»).
+  - Verificado: tsc, eslint del repo, `pnpm test` 16/16 tareas, capturas teléfono claro/oscuro y escritorio
+    de inicio, clips, evento, perfil, mercado y registro. `format:check` falla igual sin estos cambios
+    (no hay configuración de Prettier; truena en `packages/config`).
+  - Falta de la D en web: registro paso a paso con barra de progreso, bienvenida con «Activar avisos»,
+    «N de tu generación ya están aquí» y vistas en clips (no hay datos en la API).
 
 ## Pasada de profesionalismo del 23-10 (en curso)
 
@@ -27,7 +55,7 @@ Reparto: esta sesión lleva **web e iOS**; la sesión de móvil lleva **Android*
 - **Mockups para que Adam elija** (https://claude.ai/artifact/FWFgnBnjxfAT9HTojpUDuU): feed A/B/C/D, clips a
   pantalla completa, evento, perfil, mercado, registro y bienvenida. A Adam le gustaron el feed B y los clips
   y pidió «más profesional, que no parezca copia de Instagram»; la D es la propuesta con identidad propia.
-  **No construir el rediseño hasta que lo confirme.**
+  Adam confirmó la D el 23-10 (ver la sección de arriba).
 - **iOS (este commit, sin compilar en local: lo compila `ios.yml`)**: «✓ Vas en este» / «✓ Vas a ir» con
   pista de VoiceOver, plurales en el perfil (`cuenta()`), y en el registro con correo personal la tarjeta
   «Vamos a confirmar <correo UDLAP>» con «Cambiar» (id `personal.cambiarUdlap`), con el error de buzón

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Bookmark } from 'lucide-react';
 
 import { api, ErrorApi } from '@/lib/api';
 
@@ -41,7 +42,12 @@ export function GuardarPost({ postId, inicial = false }: Props) {
       disabled={cargando}
       onClick={alternar}
     >
-      {guardado ? '🔖' : '🏷️'}
+      <Bookmark
+        size={18}
+        strokeWidth={1.75}
+        fill={guardado ? 'currentColor' : 'none'}
+        aria-hidden="true"
+      />
     </button>
   );
 }

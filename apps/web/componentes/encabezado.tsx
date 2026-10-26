@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Search } from 'lucide-react';
+import { MessageCircle, Search } from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { useSinNavegacion } from '@/lib/navegacion';
@@ -33,6 +33,7 @@ export function Encabezado() {
   const router = useRouter();
   const ruta = usePathname();
   const [yo, setYo] = useState<Yo | null>(null);
+  const [noLeidos, setNoLeidos] = useState(0);
   const publica = useSinNavegacion();
 
   useEffect(() => {
@@ -46,6 +47,9 @@ export function Encabezado() {
     sesion()
       .then(setYo)
       .catch(() => setYo(null));
+    api<{ total: number }>('/mensajes/no-leidos')
+      .then((d) => setNoLeidos(d.total))
+      .catch(() => undefined);
   }, [ruta, publica]);
 
   async function salir() {
@@ -83,6 +87,20 @@ export function Encabezado() {
             <Search size={20} strokeWidth={1.75} aria-hidden="true" />
           </Link>
           <ToggleTema />
+          {/* En el diseno D, Mensajes deja la barra inferior y vive aqui, a la
+              vista en cualquier pantalla. */}
+          <Link
+            href="/mensajes"
+            className="encabezado-mensajes"
+            aria-label={noLeidos > 0 ? `Mensajes, ${noLeidos} sin leer` : 'Mensajes'}
+          >
+            <MessageCircle size={20} strokeWidth={1.9} aria-hidden="true" />
+            {noLeidos > 0 && (
+              <span className="encabezado-globo" aria-hidden="true">
+                {noLeidos > 9 ? '9+' : noLeidos}
+              </span>
+            )}
+          </Link>
           <Campana />
           {yo.handle && (
             <Link
@@ -97,7 +115,7 @@ export function Encabezado() {
                 tamano="chico"
                 verificado={yo.esStaff}
               />
-              <span>@{yo.handle}</span>
+              <span className="encabezado-handle">@{yo.handle}</span>
             </Link>
           )}
           <button type="button" className="fantasma" onClick={salir}>

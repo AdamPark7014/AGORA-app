@@ -1,8 +1,8 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useId, useRef, useState } from 'react';
-import { NOMBRE_COMUNIDAD_CAMPUS_UDLAP, SLUG_COMUNIDAD_CAMPUS_UDLAP } from '@/lib/campus';
+import { Fragment, Suspense, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { SLUG_COMUNIDAD_CAMPUS_UDLAP } from '@/lib/campus';
 
 import { api, ErrorApi } from '@/lib/api';
 import { analytics } from '@/lib/analytics';
@@ -11,12 +11,20 @@ import { copy } from '@/lib/copy';
 import { useConsultaMedia } from '@/lib/pantalla';
 import type { Publicacion } from '@/lib/publicaciones';
 import { Avatar } from '@/componentes/avatar';
-import { EncabezadoPagina } from '@/componentes/encabezado-pagina';
 import { EstadoVacio } from '@/componentes/estado-vacio';
 import { EstadoError } from '@/componentes/estado-error';
 import { EsqueletoFeed } from '@/componentes/esqueleto';
 import { TarjetaPost } from '@/componentes/tarjeta-post';
 import { TiraTuDia } from '@/componentes/tu-dia-feed';
+import { PreguntaDelDia } from '@/componentes/pregunta-del-dia';
+import {
+  AhoraEnCampus,
+  EncabezadoInicio,
+  FilaClips,
+  MiniEvento,
+  SegmentoFeed,
+  type Segmento,
+} from '@/componentes/inicio-d';
 import { pingGamificacionSiNecesario, notificarInsigniasNuevas } from '@/lib/gamificacion';
 import type { BadgeCodigo } from '@agora/contracts';
 import { BarChart3, Image } from '@/componentes/iconos';
@@ -30,14 +38,6 @@ interface Comunidad {
   tipo: string;
   silenciada?: boolean;
 }
-
-/** Color de la etiqueta segun el tipo de comunidad: orienta de un vistazo. */
-const CLASE_COMUNIDAD: Record<string, string> = {
-  UNIVERSIDAD: 'etiqueta oro',
-  CARRERA: 'etiqueta naranja',
-  GENERACION: 'etiqueta aqua',
-  COLEGIO: 'etiqueta oro',
-};
 
 export default function Feed() {
   // useSearchParams exige Suspense en el App Router.
@@ -286,9 +286,28 @@ function FeedInterno() {
     }
   }
 
-  const tipoDe = (slug: string) => comunidades.find((c) => c.slug === slug)?.tipo ?? '';
-  const comunidadActiva = comunidades.find((c) => c.slug === comunidadSlug);
-  const comunidadesFiltro = comunidades.filter((c) => !c.silenciada && c.slug !== SLUG_COMUNIDAD_CAMPUS_UDLAP);
+  const miCarrera = comunidades.find((c) => c.tipo === 'CARRERA' && !c.silenciada);
+  // El segmento cubre Campus, Mi carrera y Siguiendo; las demas comunidades
+  // (generacion, colegio...) quedan como chips debajo.
+  const comunidadesFiltro = comunidades.filter(
+    (c) => !c.silenciada && c.slug !== SLUG_COMUNIDAD_CAMPUS_UDLAP && c.slug !== miCarrera?.slug,
+  );
+  const segmento: Segmento | null = soloSiguiendo
+    ? 'siguiendo'
+    : !comunidadSlug
+      ? 'campus'
+      : comunidadSlug === miCarrera?.slug
+        ? 'carrera'
+        : null;
+
+  function elegirSegmento(s: Segmento) {
+    if (s === 'siguiendo') seleccionarSiguiendo();
+    else seleccionarComunidad(s === 'carrera' && miCarrera ? miCarrera.slug : '');
+  }
+
+  // Clips y mini evento se intercalan entre publicaciones (docs/diseno-d.md §4).
+  const clipsTras = Math.min(2, publicaciones.length - 1);
+  const eventoTras = Math.min(6, publicaciones.length - 1);
 
   function seleccionarComunidad(slug: string) {
     setSoloSiguiendo(false);
@@ -313,18 +332,43 @@ function FeedInterno() {
 
   return (
     <main>
-      <EncabezadoPagina
-        titulo={copy.feed.titulo}
-        entradilla={
-          soloSiguiendo
-            ? copy.feed.entradilla.siguiendo
-            : comunidadSlug
-              ? copy.feed.entradilla.comunidad(comunidadActiva?.nombre ?? 'esta comunidad')
-              : copy.feed.entradilla.campus
-        }
-      />
+      <EncabezadoInicio titulo="Inicio" />
 
-      <form className="tarjeta tarjeta-compositor" id={compositorId} onSubmit={publicar}>
+      <SegmentoFeed activo={segmento} conCarrera={!!miCarrera} onElegir={elegirSegmento} />
+
+      {comunidadesFiltro.length > 0 && (
+        <div className="feed-canales" role="group" aria-label="Tus otras comunidades">
+          {comunidadesFiltro.map((c) => (
+            <button
+              key={c.slug}
+              type="button"
+              aria-pressed={!soloSiguiendo && comunidadSlug === c.slug}
+              className={`feed-canal${!soloSiguiendo && comunidadSlug === c.slug ? ' activo' : ''}`}
+              onClick={() => seleccionarComunidad(c.slug)}
+            >
+              {c.nombre}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <AhoraEnCampus />
+
+      {/* Con carril derecho, la pregunta y "Tu dia" viven ahi. */}
+      {conCarrilDerecho === false && (
+        <>
+          <PreguntaDelDia />
+          <TiraTuDia />
+        </>
+      )}
+
+      <form
+        className={`tarjeta tarjeta-compositor${
+          texto || adjuntos.length > 0 || conEncuesta ? ' compositor-abierto' : ''
+        }`}
+        id={compositorId}
+        onSubmit={publicar}
+      >
         {/* Cuadro de chat, no formulario: escribir debe sentirse como mandar
             un mensaje, no como llenar un tramite. */}
         <div className="redactor">
@@ -475,46 +519,11 @@ function FeedInterno() {
         <div aria-live="polite">{error && <p className="error">{error}</p>}</div>
       </form>
 
-      {conCarrilDerecho === false && <TiraTuDia />}
-
       {errorCarga && !cargando && (
         <EstadoError onReintentar={() => void cargarFeed(comunidadSlug, soloSiguiendo)}>
           {errorCarga}
         </EstadoError>
       )}
-
-      <div className="feed-canales feed-canales--animado" role="tablist" aria-label="Filtrar feed">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={!soloSiguiendo && !comunidadSlug}
-          className={`feed-canal${!soloSiguiendo && !comunidadSlug ? ' activo' : ''}`}
-          onClick={() => seleccionarComunidad('')}
-        >
-          {NOMBRE_COMUNIDAD_CAMPUS_UDLAP}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={soloSiguiendo}
-          className={`feed-canal${soloSiguiendo ? ' activo' : ''}`}
-          onClick={seleccionarSiguiendo}
-        >
-          Siguiendo
-        </button>
-        {comunidadesFiltro.map((c) => (
-          <button
-            key={c.slug}
-            type="button"
-            role="tab"
-            aria-selected={!soloSiguiendo && comunidadSlug === c.slug}
-            className={`feed-canal${!soloSiguiendo && comunidadSlug === c.slug ? ' activo' : ''}`}
-            onClick={() => seleccionarComunidad(c.slug)}
-          >
-            {c.nombre}
-          </button>
-        ))}
-      </div>
 
       {cargando && <EsqueletoFeed />}
 
@@ -548,18 +557,20 @@ function FeedInterno() {
       )}
 
       <ul className="lista">
-        {publicaciones.map((p) => (
-          <TarjetaPost
-            key={p.id}
-            post={p}
-            yo={yo}
-            claseComunidad={CLASE_COMUNIDAD[tipoDe(p.comunidad.slug)] ?? 'etiqueta'}
-            permitirRetirar
-            actualizar={(cambio) =>
-              setPublicaciones((previas) => previas.map((x) => (x.id === p.id ? cambio(x) : x)))
-            }
-            onEliminada={(id) => setPublicaciones((previas) => previas.filter((x) => x.id !== id))}
-          />
+        {publicaciones.map((p, i) => (
+          <Fragment key={p.id}>
+            <TarjetaPost
+              post={p}
+              yo={yo}
+              permitirRetirar
+              actualizar={(cambio) =>
+                setPublicaciones((previas) => previas.map((x) => (x.id === p.id ? cambio(x) : x)))
+              }
+              onEliminada={(id) => setPublicaciones((previas) => previas.filter((x) => x.id !== id))}
+            />
+            {i === clipsTras && <FilaClips />}
+            {i === eventoTras && <MiniEvento />}
+          </Fragment>
         ))}
       </ul>
 

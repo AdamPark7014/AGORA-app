@@ -23,6 +23,28 @@ interface Catalogo {
 const ANO_ACTUAL = new Date().getFullYear();
 const GENERACIONES = Array.from({ length: 10 }, (_, i) => ANO_ACTUAL + 1 - i);
 
+/** Sin acentos ni mayusculas: "ingenieria" encuentra "Ingeniería". */
+function normalizar(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+/** El nombre con la parte que coincide resaltada. */
+function Resaltado({ texto, busqueda }: { texto: string; busqueda: string }) {
+  const i = normalizar(texto).indexOf(normalizar(busqueda.trim()));
+  if (!busqueda.trim() || i < 0) return <>{texto}</>;
+  const fin = i + busqueda.trim().length;
+  return (
+    <>
+      {texto.slice(0, i)}
+      <mark>{texto.slice(i, fin)}</mark>
+      {texto.slice(fin)}
+    </>
+  );
+}
+
 export default function Registro() {
   const router = useRouter();
   const [catalogo, setCatalogo] = useState<Catalogo | null>(null);
@@ -30,6 +52,7 @@ export default function Registro() {
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [aceptaReglas, setAceptaReglas] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
   const [datos, setDatos] = useState({
     handle: '',
     nombre: '',
@@ -54,6 +77,17 @@ export default function Registro() {
   );
 
   const carreraNombre = escuela?.carreras.find((c) => c.slug === datos.carreraSlug)?.nombre;
+
+  // Buscador sobre las 52 carreras de todas las escuelas: elegir la carrera ya
+  // dice la escuela, y nadie tiene que saber en cual quedo la suya.
+  const resultados = useMemo(() => {
+    const q = normalizar(busqueda.trim());
+    if (!catalogo || q.length < 2) return [];
+    return catalogo.escuelas
+      .flatMap((e) => e.carreras.map((c) => ({ ...c, escuela: e })))
+      .filter((c) => normalizar(c.nombre).includes(q))
+      .slice(0, 6);
+  }, [catalogo, busqueda]);
   const colegioNombre = catalogo?.colegios.find((c) => c.slug === datos.colegioSlug)?.nombre;
 
   const previewComunidades = [
@@ -70,6 +104,10 @@ export default function Registro() {
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
     setError(null);
+    if (!datos.carreraSlug) {
+      setError('Elige tu carrera.');
+      return;
+    }
     setCargando(true);
     try {
       await api('/perfil', {
@@ -148,75 +186,95 @@ export default function Registro() {
           </label>
         </div>
 
-        <div className="filtros">
-          <label className="campo">
-            <span>Escuela</span>
-            <select
-              required
-              value={escuelaSlug}
-              onChange={(e) => {
-                setEscuelaSlug(e.target.value);
-                actualizar('carreraSlug', '');
-              }}
-            >
-              <option value="">Elige…</option>
-              {catalogo.escuelas.map((e) => (
-                <option key={e.slug} value={e.slug}>
-                  {e.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="campo">
-            <span>Carrera</span>
-            <select
-              required
-              disabled={!escuela}
-              value={datos.carreraSlug}
-              onChange={(e) => actualizar('carreraSlug', e.target.value)}
-            >
-              <option value="">Elige…</option>
-              {escuela?.carreras.map((c) => (
-                <option key={c.slug} value={c.slug}>
-                  {c.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="campo">
+          <span id="etiqueta-carrera">Carrera</span>
+          {carreraNombre && escuela ? (
+            <div className="carrera-elegida">
+              <span>
+                <strong>{carreraNombre}</strong>
+                <small>{escuela.nombre}</small>
+              </span>
+              <button
+                type="button"
+                className="fantasma"
+                onClick={() => {
+                  actualizar('carreraSlug', '');
+                  setEscuelaSlug('');
+                }}
+              >
+                Cambiar
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                type="search"
+                aria-label="Busca tu carrera"
+                aria-describedby="etiqueta-carrera"
+                placeholder="Escribe tu carrera, p. ej. Sistemas"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
+              {resultados.length > 0 && (
+                <ul className="carrera-resultados">
+                  {resultados.map((c) => (
+                    <li key={c.slug}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEscuelaSlug(c.escuela.slug);
+                          actualizar('carreraSlug', c.slug);
+                          setBusqueda('');
+                        }}
+                      >
+                        <strong>
+                          <Resaltado texto={c.nombre} busqueda={busqueda} />
+                        </strong>
+                        <small>{c.escuela.nombre}</small>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {busqueda.trim().length >= 2 && resultados.length === 0 && (
+                <small className="tenue">Ninguna carrera se llama así. Prueba con otra palabra.</small>
+              )}
+            </>
+          )}
         </div>
 
-        <div className="filtros">
-          <label className="campo">
-            <span>Generación</span>
-            <select
-              required
-              value={datos.generacion}
-              onChange={(e) => actualizar('generacion', e.target.value)}
-            >
-              {GENERACIONES.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
-          </label>
+        <fieldset className="campo generaciones">
+          <legend>Generación (año en que entraste)</legend>
+          <div className="generaciones-opciones">
+            {GENERACIONES.map((a) => (
+              <label key={a} className="generacion-opcion">
+                <input
+                  type="radio"
+                  name="generacion"
+                  value={a}
+                  checked={datos.generacion === String(a)}
+                  onChange={(e) => actualizar('generacion', e.target.value)}
+                />
+                <span>{a}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
-          <label className="campo">
-            <span>Colegio residencial (opcional)</span>
-            <select
-              value={datos.colegioSlug}
-              onChange={(e) => actualizar('colegioSlug', e.target.value)}
-            >
-              <option value="">No vivo en campus</option>
-              {catalogo.colegios.map((c) => (
-                <option key={c.slug} value={c.slug}>
-                  {c.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <label className="campo">
+          <span>Colegio residencial (opcional)</span>
+          <select
+            value={datos.colegioSlug}
+            onChange={(e) => actualizar('colegioSlug', e.target.value)}
+          >
+            <option value="">No vivo en campus</option>
+            {catalogo.colegios.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <label className="campo">
           <span>Bio (opcional, 280 caracteres)</span>

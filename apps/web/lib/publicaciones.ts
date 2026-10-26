@@ -61,6 +61,8 @@ export interface Publicacion {
   encuesta?: Encuesta | null;
   numComments?: number;
   numReactions?: number;
+  /** Cuantas de cada reaccion (feed, detalle, guardados); el diseno D las pinta con numero. */
+  reacciones?: Partial<Record<string, number>>;
   /** `undefined` si la ruta no lo manda: entonces no se puede reaccionar desde ahi. */
   miReaccion?: string | null;
   /** `undefined` si la ruta no lo manda: sin el, el boton de guardar mentiria. */
@@ -137,7 +139,12 @@ export async function reaccionarOptimista(
   const nueva = quita ? null : tipo;
   const delta = quita ? -1 : antes.miReaccion ? 0 : 1;
 
-  actualizar((p) => ({ ...p, miReaccion: nueva, numReactions: (p.numReactions ?? 0) + delta }));
+  actualizar((p) => ({
+    ...p,
+    miReaccion: nueva,
+    numReactions: (p.numReactions ?? 0) + delta,
+    reacciones: moverReaccion(p.reacciones, antes.miReaccion ?? null, nueva),
+  }));
 
   try {
     const { miReaccion } = await api<{ miReaccion: string | null }>(
@@ -147,9 +154,27 @@ export async function reaccionarOptimista(
     // El servidor manda: si su respuesta difiere de lo que pintamos, gana el.
     if (miReaccion !== nueva) actualizar((p) => ({ ...p, miReaccion }));
   } catch (e) {
-    actualizar((p) => ({ ...p, miReaccion: antes.miReaccion, numReactions: antes.numReactions }));
+    actualizar((p) => ({
+      ...p,
+      miReaccion: antes.miReaccion,
+      numReactions: antes.numReactions,
+      reacciones: antes.reacciones,
+    }));
     throw e;
   }
+}
+
+/** Quita uno a la reaccion vieja y suma uno a la nueva, sin bajar de cero. */
+function moverReaccion(
+  conteos: Publicacion['reacciones'],
+  vieja: string | null,
+  nueva: string | null,
+): Publicacion['reacciones'] {
+  if (!conteos) return conteos;
+  const siguiente = { ...conteos };
+  if (vieja) siguiente[vieja] = Math.max(0, (siguiente[vieja] ?? 0) - 1);
+  if (nueva) siguiente[nueva] = (siguiente[nueva] ?? 0) + 1;
+  return siguiente;
 }
 
 /** Vota en la encuesta y devuelve los conteos nuevos. */

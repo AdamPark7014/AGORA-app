@@ -12,6 +12,7 @@ import { ROOT_METADATA } from '@/lib/seo';
 import { RegistrarSW } from './registrar-sw';
 import { AvisosGlobales } from '@/componentes/avisos-globales';
 import './globals.css';
+import './diseno-d.css';
 
 const cuerpo = Outfit({
   subsets: ['latin'],

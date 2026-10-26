@@ -54,10 +54,10 @@ test('capturas de las pantallas principales', async ({ page }) => {
   await page.getByPlaceholder('adampozo').fill(handle);
   await page.getByPlaceholder('Adam', { exact: true }).fill('Ana');
   await page.getByPlaceholder('Del Pozo', { exact: true }).fill('Ramírez');
-  await page.locator('select').first().selectOption('ingenieria');
-  await page.locator('select').nth(1).selectOption('ing-sistemas-computacionales');
-  await page.locator('select').nth(2).selectOption('2024');
-  await page.locator('select').nth(3).selectOption('cain-murray');
+  await page.getByRole('searchbox', { name: 'Busca tu carrera' }).fill('sistemas comp');
+  await page.getByRole('button', { name: /Ingeniería en Sistemas Computacionales/ }).click();
+  await page.getByRole('radio', { name: '2024' }).check();
+  await page.getByLabel('Colegio residencial (opcional)').selectOption('cain-murray');
   await page.locator('form textarea').fill('5to semestre. Me late Verilog más de lo que debería.');
   // Casilla obligatoria de Términos y Reglas (App Store 1.2): sin ella el botón no se activa.
   await page.getByRole('checkbox', { name: /Acepto los Términos/ }).check();

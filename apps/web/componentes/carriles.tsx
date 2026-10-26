@@ -28,10 +28,11 @@ interface Comunidad {
 }
 
 const SECCIONES = [
-  { href: '/feed', icono: 'feed' as const, texto: 'Feed' },
+  { href: '/feed', icono: 'feed' as const, texto: 'Inicio' },
+  { href: '/clips', icono: 'clips' as const, texto: 'Clips' },
   { href: '/eventos', icono: 'eventos' as const, texto: 'Eventos' },
   { href: '/aventones', icono: 'aventones' as const, texto: 'Aventones' },
-  { href: '/marketplace', icono: 'marketplace' as const, texto: 'Marketplace' },
+  { href: '/marketplace', icono: 'marketplace' as const, texto: 'Mercado' },
   { href: '/anonimo', icono: 'anonimo' as const, texto: 'Sin nombre' },
   { href: '/mensajes', icono: 'mensajes' as const, texto: 'Mensajes' },
   { href: '/guardados', icono: 'guardados' as const, texto: 'Guardados' },
@@ -76,7 +77,14 @@ export function CarrilIzquierdo() {
         <ul className="menu">
           {SECCIONES.map((s) => (
             <li key={s.href}>
-              <Link href={s.href} aria-current={ruta === s.href ? 'page' : undefined}>
+              <Link
+                href={s.href}
+                aria-current={
+                  ruta === s.href || (s.href !== '/feed' && ruta.startsWith(`${s.href}/`))
+                    ? 'page'
+                    : undefined
+                }
+              >
                 <span className="menu-icono" aria-hidden="true">
                   <IconoNav nombre={s.icono} size={20} />
                 </span>

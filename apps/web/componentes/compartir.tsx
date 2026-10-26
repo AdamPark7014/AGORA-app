@@ -30,7 +30,7 @@ export function Compartir({ url, titulo }: { url: string; titulo?: string }) {
         aria-label="Compartir publicación"
         onClick={() => void compartir()}
       >
-        <Share2 size={16} strokeWidth={1.75} aria-hidden="true" />
+        <Share2 size={18} strokeWidth={1.75} aria-hidden="true" />
       </button>
       {aviso && <span className="tenue" style={{ fontSize: '0.78rem' }}>{aviso}</span>}
     </span>

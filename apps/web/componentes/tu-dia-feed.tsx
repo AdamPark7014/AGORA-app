@@ -9,9 +9,7 @@ import {
   type GamificacionExtendida,
 } from '@/lib/gamificacion';
 import { CampusTip } from './campus-tip';
-import { EventosEnVivo } from './eventos-en-vivo';
 import { LeaderboardRachas } from './leaderboard-rachas';
-import { PreguntaDelDia } from './pregunta-del-dia';
 import { RachaBadges } from './racha-badges';
 import { RetoSemanal } from './reto-semanal';
 import { RetosAmigos } from './retos-amigos';
@@ -29,14 +27,15 @@ import { RetosRankingSemanal } from './retos-ranking-semanal';
  * - Sin carril derecho, una sola tira compacta con el resumen que se abre
  *   para verlos. Se monta solo sin carril (no se oculta con CSS), asi que
  *   nunca hay dos copias pidiendo los mismos datos.
+ *
+ * Con el diseno D, "Ahora en el campus" y la pregunta relampago van en el
+ * propio feed (arriba de las publicaciones), asi que aqui ya no entran.
  */
 
-/** Los widgets en el orden en que se leen. La pregunta va aparte en el carril. */
-export function WidgetsTuDia({ conPregunta = false }: { conPregunta?: boolean }) {
+/** Los widgets en el orden en que se leen. */
+export function WidgetsTuDia() {
   return (
     <>
-      <EventosEnVivo />
-      {conPregunta && <PreguntaDelDia />}
       <RachaBadges />
       <RetoSemanal />
       <RetosAmigos />
@@ -95,14 +94,13 @@ export function TiraTuDia() {
 
   const partes: string[] = [];
   if (datos && datos.rachaActual > 0) {
-    partes.push(`🔥 ${datos.rachaActual} ${datos.rachaActual === 1 ? 'día' : 'días'}`);
+    partes.push(`Racha de ${datos.rachaActual} ${datos.rachaActual === 1 ? 'día' : 'días'}`);
   } else {
     partes.push('Tu racha');
   }
   partes.push(
     datos?.retoSemanal ? `Reto ${datos.retoSemanal.progreso}/${datos.retoSemanal.meta}` : 'Reto',
   );
-  partes.push('Pregunta del día');
 
   return (
     <details
@@ -116,7 +114,7 @@ export function TiraTuDia() {
       </summary>
       {abierto && (
         <div className="tu-dia-cuerpo">
-          <WidgetsTuDia conPregunta />
+          <WidgetsTuDia />
         </div>
       )}
     </details>

@@ -2,26 +2,33 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
 
-import { api } from '@/lib/api';
 import { useSinNavegacion } from '@/lib/navegacion';
 import { IconoNav } from './iconos';
 
 /**
- * Navegación de teléfono con FAB central para publicar.
+ * Navegación de teléfono del diseño D: píldora oscura flotante con Publicar en
+ * naranja al centro (docs/diseno-d.md §3). Mensajes vive en el encabezado y
+ * "Campus" junta lo demás (mercado, aventones, directorio, sin nombre).
  */
 const DESTINOS: Array<{
   href: string;
-  icono: 'feed' | 'eventos' | 'publicar' | 'mensajes' | 'mas';
+  icono: 'feed' | 'clips' | 'publicar' | 'eventos' | 'campus';
   texto: string;
   fab?: boolean;
+  /** Otras rutas en las que este destino se marca como actual. */
+  tambien?: string[];
 }> = [
-  { href: '/feed', icono: 'feed' as const, texto: 'Feed' },
-  { href: '/eventos', icono: 'eventos' as const, texto: 'Eventos' },
-  { href: '/feed#publicar', icono: 'publicar' as const, texto: 'Publicar', fab: true },
-  { href: '/mensajes', icono: 'mensajes' as const, texto: 'Mensajes' },
-  { href: '/mas', icono: 'mas' as const, texto: 'Más' },
+  { href: '/feed', icono: 'feed', texto: 'Inicio' },
+  { href: '/clips', icono: 'clips', texto: 'Clips' },
+  { href: '/feed#publicar', icono: 'publicar', texto: 'Publicar', fab: true },
+  { href: '/eventos', icono: 'eventos', texto: 'Eventos' },
+  {
+    href: '/mas',
+    icono: 'campus',
+    texto: 'Campus',
+    tambien: ['/marketplace', '/aventones', '/directorio', '/anonimo', '/retos', '/guardados'],
+  },
 ];
 
 function dispararPublicar() {
@@ -36,14 +43,6 @@ function dispararPublicar() {
 export function BarraInferior() {
   const ruta = usePathname();
   const sinNavegacion = useSinNavegacion();
-  const [noLeidos, setNoLeidos] = useState(0);
-
-  useEffect(() => {
-    if (sinNavegacion) return;
-    api<{ total: number }>('/mensajes/no-leidos')
-      .then((d) => setNoLeidos(d.total))
-      .catch(() => undefined);
-  }, [ruta, sinNavegacion]);
 
   // Sin sesion no hay a donde navegar, y pedir los no leidos solo gana un 401.
   if (sinNavegacion) return null;
@@ -53,7 +52,9 @@ export function BarraInferior() {
       {DESTINOS.map((d) => {
         const activo = d.fab
           ? false
-          : ruta === d.href || (d.href !== '/feed' && ruta.startsWith(d.href));
+          : ruta === d.href ||
+            (d.href !== '/feed' && ruta.startsWith(d.href)) ||
+            (d.tambien ?? []).some((r) => ruta.startsWith(r));
         return (
           <Link
             key={d.href}
@@ -70,13 +71,9 @@ export function BarraInferior() {
             }}
           >
             <span className="destino-icono" aria-hidden="true">
-              <IconoNav nombre={d.icono} size={d.fab ? 24 : 22} />
-              {d.href === '/mensajes' && noLeidos > 0 && (
-                <span className="destino-globo">{noLeidos > 9 ? '9+' : noLeidos}</span>
-              )}
+              <IconoNav nombre={d.icono} size={22} strokeWidth={d.fab ? 2.4 : 1.9} />
             </span>
             {!d.fab && <span className="destino-texto">{d.texto}</span>}
-            {activo && !d.fab && <span className="destino-indicador" aria-hidden="true" />}
           </Link>
         );
       })}

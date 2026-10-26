@@ -1,10 +1,10 @@
 /*
- * Sistema de diseno de Agora.
+ * Sistema de diseno de Agora: diseno D (aprobado por Adam el 23-10-2026).
  *
- * Base blanca, acento naranja UDLAP (Pantone 166 C). Se abandono el papel
- * calido de la version anterior: se veia acogedor pero no profesional, y una
- * red social se juzga en el primer segundo. Blanco limpio, bordes finos en vez
- * de sombras pesadas, y el naranja reservado para lo que se toca.
+ * Fondo calido, tarjetas blancas de esquinas amplias, tinta casi negra y el
+ * naranja UDLAP (Pantone 166 C) solo para lo que se toca. La guia completa,
+ * comun a web, Android e iOS, esta en docs/diseno-d.md: si esto se aparta de
+ * ella, se corrige esto.
  *
  * Se usan los colores de la UDLAP, nunca el escudo: los colores dan
  * pertenencia, el escudo daria una afiliacion que no existe.
@@ -16,26 +16,32 @@
   /* --- Marca --- */
   --naranja: #e35205; /* Pantone 166 C */
   --naranja-hondo: #c44404;
-  --naranja-suave: #fff1e9;
+  --naranja-suave: #fde8dc;
+  /* Texto sobre naranja-suave (banda de comunidad, chip activo). */
+  --naranja-tinta: #9a3503;
   --verde: #154734; /* Pantone 3435 C */
   --aqua: #008675; /* Pantone 327 C */
   --aqua-suave: #e6f4f1;
   --oro: #8b6f4e; /* Pantone 874 C */
   --oro-suave: #f6f0e8;
 
-  /* --- Superficies: blanco de verdad --- */
-  --fondo: #f7f8f9;
+  /* --- Superficies: fondo calido, tarjetas blancas --- */
+  --fondo: #f4f2ef;
   --superficie: #ffffff;
-  --superficie-2: #f2f3f5;
+  --superficie-2: #e9e5df;
   --fondo-elevado: var(--superficie);
-  --fondo-hover: var(--superficie-2);
-  --borde: #e3e5e8;
-  --borde-fuerte: #cfd2d6;
+  --fondo-hover: #f0ece7;
+  --borde: #e6e1db;
+  --borde-fuerte: #d6cfc7;
+  /* Tarjeta de la pregunta, barra de navegacion flotante, barra de acciones. */
+  --oscuro: #14110f;
+  --oscuro-texto: #ffffff;
+  --vivo: #16a34a;
 
-  /* --- Texto --- */
-  --texto: #0f1419;
-  --texto-medio: #536471;
-  --texto-tenue: #66727f;
+  /* --- Texto (contraste >= 4.5:1 sobre fondo y superficie) --- */
+  --texto: #14110f;
+  --texto-medio: #6b625b;
+  --texto-tenue: #736961;
 
   --acento: var(--naranja);
   --acento-texto: #ffffff;
@@ -62,8 +68,10 @@
   --tactil: 44px;
   --tactil-min: 36px;
 
-  --radio: 14px;
-  --radio-chico: 9px;
+  /* Tarjeta 20, boton 14, chip 12 (docs/diseno-d.md §2). */
+  --radio: 20px;
+  --radio-boton: 14px;
+  --radio-chico: 12px;
   /* Bordes finos en lugar de sombras: mas limpio y no ensucia el blanco. */
   --sombra: 0 1px 3px rgb(15 20 25 / 6%);
   --sombra-alta: 0 4px 16px rgb(15 20 25 / 12%);
@@ -71,8 +79,9 @@
   --sombra-tarjeta-hover: 0 8px 24px rgb(15 20 25 / 8%), 0 0 0 1px rgb(227 82 5 / 10%);
   --glow-naranja: 0 0 24px rgb(227 82 5 / 15%);
   --borde-sutil: rgb(227 82 5 / 8%);
-  --gradiente-naranja: linear-gradient(135deg, #e35205 0%, #ff7a3d 50%, #e35205 100%);
-  --gradiente-fondo: radial-gradient(ellipse 80% 50% at 50% -20%, rgb(227 82 5 / 6%), transparent 70%);
+  /* La D no usa degradados de relleno: el naranja va plano. */
+  --gradiente-naranja: var(--naranja);
+  --gradiente-fondo: none;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -81,22 +90,27 @@
     --naranja: #ff6b26;
     --naranja-hondo: #ff8547;
     --naranja-suave: #2a1509;
+    --naranja-tinta: #ffb385;
     --verde: #7fc9a8;
     --aqua: #3fbfa8;
     --aqua-suave: #0d2925;
     --oro: #c4a27a;
     --oro-suave: #241d14;
 
-    /* Gris neutro con tinte verde UDLAP: mas distintivo que gris puro. */
-    --fondo: #0d1210;
-    --superficie: #16191d;
-    --superficie-2: #1e2227;
-    --borde: #2a2f36;
-    --borde-fuerte: #3d434b;
+    /* Oscuro calido: el mismo tono del fondo claro llevado a la noche. */
+    --fondo: #0f0d0b;
+    --superficie: #1b1815;
+    --superficie-2: #24201c;
+    --fondo-hover: #221e1a;
+    --borde: #2e2925;
+    --borde-fuerte: #3d3631;
+    --oscuro: #24201c;
+    --oscuro-texto: #f4f2ef;
+    --vivo: #22c55e;
 
-    --texto: #e7e9ea;
-    --texto-medio: #9aa4af;
-    --texto-tenue: #7d8792;
+    --texto: #f4f2ef;
+    --texto-medio: #b3aaa1;
+    --texto-tenue: #a1978d;
 
     --acento-texto: #1a0a02;
     --peligro: #f26161;
@@ -106,7 +120,7 @@
     --sombra-tarjeta-hover: 0 8px 28px rgb(0 0 0 / 45%), 0 0 0 1px rgb(255 107 38 / 14%);
     --glow-naranja: 0 0 28px rgb(255 107 38 / 18%);
     --borde-sutil: rgb(255 107 38 / 12%);
-    --gradiente-fondo: radial-gradient(ellipse 80% 50% at 50% -20%, rgb(255 107 38 / 9%), transparent 70%);
+    --gradiente-fondo: none;
   }
 }
 
@@ -115,19 +129,24 @@
   --naranja: #ff6b26;
   --naranja-hondo: #ff8547;
   --naranja-suave: #2a1509;
+  --naranja-tinta: #ffb385;
   --verde: #7fc9a8;
   --aqua: #3fbfa8;
   --aqua-suave: #0d2925;
   --oro: #c4a27a;
   --oro-suave: #241d14;
-  --fondo: #0d1210;
-  --superficie: #16191d;
-  --superficie-2: #1e2227;
-  --borde: #2a2f36;
-  --borde-fuerte: #3d434b;
-  --texto: #e7e9ea;
-  --texto-medio: #9aa4af;
-  --texto-tenue: #7d8792;
+  --fondo: #0f0d0b;
+  --superficie: #1b1815;
+  --superficie-2: #24201c;
+  --fondo-hover: #221e1a;
+  --borde: #2e2925;
+  --borde-fuerte: #3d3631;
+  --oscuro: #24201c;
+  --oscuro-texto: #f4f2ef;
+  --vivo: #22c55e;
+  --texto: #f4f2ef;
+  --texto-medio: #b3aaa1;
+  --texto-tenue: #a1978d;
   --acento-texto: #1a0a02;
   --peligro: #f26161;
   --sombra: 0 1px 3px rgb(0 0 0 / 40%);
@@ -136,7 +155,7 @@
   --sombra-tarjeta-hover: 0 8px 28px rgb(0 0 0 / 45%), 0 0 0 1px rgb(255 107 38 / 14%);
   --glow-naranja: 0 0 28px rgb(255 107 38 / 18%);
   --borde-sutil: rgb(255 107 38 / 12%);
-  --gradiente-fondo: radial-gradient(ellipse 80% 50% at 50% -20%, rgb(255 107 38 / 9%), transparent 70%);
+  --gradiente-fondo: none;
 }
 
 * {
@@ -576,12 +595,12 @@ button {
      que exige WCAG 2.2 AA. */
   min-height: var(--tactil);
   padding: 10px 18px;
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   border: 1px solid transparent;
-  background: var(--gradiente-naranja);
+  background: var(--naranja);
   color: var(--acento-texto);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgb(227 82 5 / 25%), inset 0 1px 0 rgb(255 255 255 / 15%);
+  box-shadow: none;
   transition: background 120ms ease, border-color 120ms ease, transform 100ms ease, box-shadow 120ms ease;
 }
 
@@ -591,8 +610,7 @@ button:active:not(:disabled) {
 
 button:hover:not(:disabled) {
   background: var(--naranja-hondo);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgb(227 82 5 / 30%), inset 0 1px 0 rgb(255 255 255 / 15%);
+  box-shadow: none;
 }
 
 /* Un foco de 2 px con 3:1 contra el estado sin foco, en TODO lo enfocable.
@@ -1831,12 +1849,12 @@ button.peligro:disabled {
   font-size: var(--t-sm);
   min-height: var(--tactil);
   padding: 10px 18px;
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   border: 1px solid transparent;
-  background: var(--gradiente-naranja);
+  background: var(--naranja);
   color: var(--acento-texto);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgb(227 82 5 / 25%), inset 0 1px 0 rgb(255 255 255 / 15%);
+  box-shadow: none;
   transition:
     background 120ms ease,
     border-color 120ms ease,
@@ -2642,101 +2660,6 @@ button.enlace-texto:hover:not(:disabled) {
   margin: 8px 0 0;
   font-size: var(--t-xs);
   line-height: 1.4;
-}
-
-/* --- Eventos en vivo (feed) --------------------------------------------- */
-
-.eventos-en-vivo {
-  border-color: rgb(227 82 5 / 22%);
-  background: linear-gradient(145deg, var(--superficie), rgb(227 82 5 / 6%));
-}
-
-.eventos-en-vivo-titulo {
-  color: var(--naranja);
-}
-
-.eventos-en-vivo-sub {
-  margin: 4px 0 12px;
-  font-size: var(--t-xs);
-}
-
-.eventos-en-vivo-carril {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-}
-
-.evento-en-vivo-tarjeta {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 200px;
-  max-width: 240px;
-  padding: 12px 14px;
-  border-radius: var(--radio);
-  background: var(--fondo);
-  border: 1px solid var(--borde);
-  text-decoration: none;
-  color: inherit;
-  scroll-snap-align: start;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.evento-en-vivo-tarjeta:hover {
-  border-color: rgb(227 82 5 / 28%);
-  box-shadow: var(--sombra);
-}
-
-.evento-en-vivo-tarjeta--curso {
-  border-color: rgb(220 38 38 / 30%);
-  background: linear-gradient(145deg, var(--fondo), rgb(220 38 38 / 6%));
-}
-
-.evento-en-vivo-badge {
-  font-size: var(--t-xs);
-  font-weight: 700;
-  color: var(--naranja);
-}
-
-.evento-en-vivo-badge--curso {
-  color: var(--danger, #dc2626);
-}
-
-.evento-en-vivo-nombre {
-  font-size: var(--t-sm);
-  font-weight: 700;
-  line-height: 1.35;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.evento-en-vivo-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--t-xs);
-  color: var(--texto-medio);
-  min-width: 0;
-}
-
-.evento-en-vivo-lugar {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.evento-en-vivo-asistentes {
-  flex: none;
-  font-weight: 700;
-  color: var(--naranja);
 }
 
 /* --- Retos entre amigos (feed) ------------------------------------------ */
