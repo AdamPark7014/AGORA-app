@@ -98,17 +98,16 @@ final class CapturasTiendaUITests: XCTestCase {
 
     /// Mensajes cuelga del encabezado del inicio (diseño D): Inicio, de vuelta a su raíz, y el botón.
     private func irAMensajes() {
-        tocar(app.buttons["tab.0"])
+        // El encabezado es la primera fila de la lista. Inicio de nuevo estando en Inicio vuelve
+        // a la raíz y sube; tocar directo (no `tocar`): deslizar buscándolo lo alejaría.
+        let inicio = app.buttons["tab.0"]
+        tocar(inicio)
+        inicio.tap()
+        inicio.tap()
         let boton = app.buttons["inicio.mensajes"]
-        var intentos = 0
-        // El encabezado es la primera fila de la lista: si el inicio quedó desplazado, no existe
-        // en el árbol hasta volver arriba.
-        while !boton.waitForExistence(timeout: 2) && intentos < 8 {
-            let atras = app.navigationBars.buttons.element(boundBy: 0)
-            if atras.exists { atras.tap() } else { app.swipeDown() }
-            intentos += 1
-        }
-        tocar(boton)
+        XCTAssertTrue(boton.waitForExistence(timeout: 10), "El inicio no subió al encabezado")
+        sleep(1)
+        boton.tap()
     }
 
     /// Pestaña Campus, de vuelta a su inicio, y la fila `mas.<ruta>`.

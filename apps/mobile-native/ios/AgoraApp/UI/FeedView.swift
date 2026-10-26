@@ -7,6 +7,8 @@ import SwiftUI
 /// publicación y el mini evento tras la cuarta. La racha y los retos viven en Campus, no aquí.
 struct FeedView: View {
     var reloadKey: Int = 0
+    /// Cambia cuando se vuelve a tocar Inicio: la lista sube al encabezado.
+    var irArriba: Int = 0
     var avisosSinLeer: Int = 0
     var mensajesSinLeer: Int = 0
     var onPostTap: (String) -> Void = { _ in }
@@ -40,6 +42,19 @@ struct FeedView: View {
     private var indiceMiniEvento: Int { min(3, posts.count - 1) }
 
     var body: some View {
+        ScrollViewReader { lector in
+            lista
+                .onChange(of: irArriba) { _ in
+                    withAnimation(AgoraDesign.Animation.spring) {
+                        lector.scrollTo(Self.idEncabezado, anchor: .top)
+                    }
+                }
+        }
+    }
+
+    private static let idEncabezado = "inicio.encabezado"
+
+    private var lista: some View {
         List {
             if !network.isOnline {
                 fila(OfflineBanner(), arriba: 4, abajo: 0)
@@ -55,6 +70,7 @@ struct FeedView: View {
                 ),
                 lados: 18, arriba: 8, abajo: 8
             )
+            .id(Self.idEncabezado)
 
             // Registro con correo personal: recordatorio de confirmar la UDLAP, en una línea.
             fila(AvisoUdlapView(), lados: 18, arriba: 0, abajo: 0)

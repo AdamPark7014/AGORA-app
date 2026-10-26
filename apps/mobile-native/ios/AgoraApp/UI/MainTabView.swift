@@ -14,6 +14,8 @@ struct MainTabView: View {
     /// Mensajes directos sin leer (`GET mensajes/no-leidos`): globo en el encabezado del inicio.
     @State private var mensajesSinLeer = 0
     @State private var feedReloadKey = 0
+    /// Cambia al tocar Inicio estando en Inicio: el feed sube al encabezado.
+    @State private var inicioArriba = 0
     @State private var feedPath = NavigationPath()
     @State private var clipsPath = NavigationPath()
     @State private var eventosPath = NavigationPath()
@@ -27,6 +29,7 @@ struct MainTabView: View {
             NavigationStack(path: $feedPath) {
                 FeedView(
                     reloadKey: feedReloadKey,
+                    irArriba: inicioArriba,
                     avisosSinLeer: avisosSinLeer,
                     mensajesSinLeer: mensajesSinLeer,
                     onPostTap: { postId in feedPath.append(AppRoute.postDetail(postId)) },
@@ -119,7 +122,15 @@ struct MainTabView: View {
         // espacio no llega al contenido de cada pestaña y la barra tapaba lo último de las listas y
         // la barra de acciones del evento. Cada pantalla reserva su alto con `sinBarraNativa()`.
         .overlay(alignment: .bottom) {
-            AgoraAnimatedTabBar(selection: $tab)
+            AgoraAnimatedTabBar(selection: $tab) { repetida in
+                // Tocar la pestaña en la que ya estás: primero vuelve a su raíz, luego sube.
+                guard repetida == 0 else { return }
+                if feedPath.isEmpty {
+                    inicioArriba += 1
+                } else {
+                    feedPath = NavigationPath()
+                }
+            }
                 // Con el teclado abierto se queda abajo, detrás de él, en vez de subir con el campo.
                 .ignoresSafeArea(.keyboard, edges: .bottom)
         }
@@ -562,6 +573,8 @@ private struct AgoraTabItem: Identifiable {
 
 private struct AgoraAnimatedTabBar: View {
     @Binding var selection: Int
+    /// Toque en la pestaña que ya está activa.
+    var onRepetir: (Int) -> Void = { _ in }
 
     @State private var iconScales: [Int: CGFloat] = [0: 1, 1: 1, 2: 1, 3: 1, 4: 1]
 
@@ -603,7 +616,10 @@ private struct AgoraAnimatedTabBar: View {
         let scale = iconScales[item.id, default: 1]
 
         return Button {
-            guard selection != item.id else { return }
+            guard selection != item.id else {
+                onRepetir(item.id)
+                return
+            }
             Haptics.light()
             selection = item.id
         } label: {
