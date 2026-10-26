@@ -29,7 +29,13 @@ La única función de IA de Ágora era el filtro previo con omni-moderation de O
   (fija `ANTHROPIC_BASE_URL`: el shell de Claude Code trae el suyo).
 - Puerta: proyecto `agora` (Haiku, 5 USD/mes, 120 rpm, objetivo p95 3 s y 0.0003 USD) y filas en
   `IA-CLAUDE.md` §7/§8.
-- **Despliegue:** en curso en este turno (ver la siguiente sección si ya quedó).
+- **Desplegado el 26-10 (62d289d, rollback `prev-20261026-1502`):** `deploy/.env` del servidor lleva el token
+  (termina en …RDkY) y `MODERACION_OPCIONAL` quedó vacía: **la moderación previa está encendida en producción**
+  (respaldo del `.env` anterior en `deploy/.env.bak-20261026`, 600). Prueba dentro de `agora-api`: crítica →
+  publicar (1.35 s), dirección de otra persona → retirar `datos_personales` (0.98 s); `/uso` de la puerta lo
+  muestra como `agora-moderar-publicacion` sin alertas.
+- No cambia la app: no hace falta build 7 de iOS ni versión nueva de Android. La ficha de las tiendas ya puede
+  decir que hay filtro automático (no se tocó; decisión de Adam o de la sesión de tiendas).
 
 ## Android, diseño D (sesión de móvil, 26-10)
 

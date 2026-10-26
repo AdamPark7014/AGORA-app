@@ -89,5 +89,5 @@ con el id del usuario) para que coincida con esta tabla. Pedido a la sesión de 
 | Feed vacío en producción | 2.1 / 4.2 | Hace falta contenido real del equipo antes de enviar |
 | Nombre con la marca UDLAP | 5.2.1 (propiedad intelectual) | Aviso de no afiliación en descripción y app; plan B «Ágora · Red del campus» |
 | Términos con cero tolerancia al registrarse | 1.2 | Web y Android listos el 22-10; iOS pedido a la sesión de móvil |
-| Sin filtro automático de contenido | 1.2 («método para filtrar») | Se modera por reportes en < 24 h; con `OPENAI_API_KEY` en producción se activa el filtro previo que ya existe en el código |
+| Sin filtro automático de contenido | 1.2 («método para filtrar») | Resuelto el 26-10: filtro previo con Claude encendido en producción (retira las cinco líneas rojas, lo dudoso va a la cola humana), además de reportes en < 24 h |
 | Moderación de reportes en 24 h | 1.2 | Es un compromiso con Apple: alguien tiene que revisar la cola de moderación a diario |

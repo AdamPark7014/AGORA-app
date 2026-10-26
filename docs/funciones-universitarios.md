@@ -56,8 +56,8 @@ Esfuerzo: S = un día o menos, M = dos a cuatro días, L = una semana o más.
 
 ### Decisiones que son de Adam
 
-- **Moderación automática:** el código ya tiene el filtro previo (`moderarTexto` / `moderarImagen`), pero
-  producción no tiene `OPENAI_API_KEY`, así que hoy todo se publica y se modera solo por reportes. La moderación
-  de OpenAI no cobra; falta crear la llave y ponerla en `deploy/.env`.
+- **Moderación automática (resuelta el 26-10):** el filtro previo es Claude Haiku 5.5 por la puerta única
+  (`ia.zynoratek.com`, proyecto `agora`, tope 5 USD al mes) y está encendido en producción. Retira solo las cinco
+  líneas rojas; lo dudoso se publica y entra a la cola humana. Cuesta ~0.00006 USD por publicación.
 - **Contenido inicial:** producción tiene 0 publicaciones. Sin eventos y publicaciones reales del equipo, el
   primer estudiante (y el revisor de Apple) ve una red vacía.

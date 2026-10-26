@@ -61,8 +61,9 @@ Si los revisores publican algo de prueba, aparece en la plaza: se puede retirar 
 ## Reglas del texto
 
 - Español de México, tuteo, sin exclamaciones ni «gratis», «mejor», «#1», «nuevo» en título o descripción breve.
-- Nada que prometa lo que la app no hace. Ejemplo real: la ficha y las notas ya no dicen que un filtro
-  automático revisa cada publicación, porque producción no tiene `OPENAI_API_KEY`.
+- Nada que prometa lo que la app no hace. Ejemplo real: hasta el 26-10 la ficha y las notas no decían que un
+  filtro automático revisa cada publicación, porque producción no lo tenía. Desde el 26-10 sí lo tiene (Claude
+  por la puerta única: retira las cinco líneas rojas y manda lo dudoso a la cola), así que ya se puede decir.
 - Siempre el aviso de no afiliación a la UDLAP. El nombre «Ágora UDLAP» usa la marca de la universidad: si
   Apple o Google lo objetan (suplantación / propiedad intelectual), el plan B es «Ágora · Red del campus».
 - La sección de privacidad de la descripción, el aviso público, `PrivacyInfo.xcprivacy` y las respuestas de
