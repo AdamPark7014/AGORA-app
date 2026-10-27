@@ -19,16 +19,17 @@ object DeepLinkBus {
 }
 
 /**
- * Pestaña de MainShell pedida desde fuera (deep link `/eventos`). MainShell la
- * aplica y llama a [consumir]; si MainShell aún no existe, la toma al aparecer.
+ * Pestaña de MainShell pedida desde fuera (deep links `/eventos`, `/marketplace`,
+ * `/perfil/mio`). MainShell la aplica y llama a [consumir]; si MainShell aún no
+ * existe, la toma al aparecer.
  */
 object PestanaBus {
-    /** Índices de las pestañas de MainShell (barra del diseño D). */
+    /** Índices de las pestañas de MainShell (barra del Feed B, docs/diseno-d.md §0). */
     const val FEED = 0
-    const val CLIPS = 1
+    const val EVENTOS = 1
     const val PUBLICAR = 2
-    const val EVENTOS = 3
-    const val CAMPUS = 4
+    const val MERCADO = 3
+    const val PERFIL = 4
 
     private val _solicitada = MutableStateFlow<Int?>(null)
     val solicitada: StateFlow<Int?> = _solicitada.asStateFlow()

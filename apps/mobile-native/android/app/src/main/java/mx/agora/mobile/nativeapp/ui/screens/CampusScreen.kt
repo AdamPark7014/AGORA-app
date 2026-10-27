@@ -19,9 +19,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.PersonSearch
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.TheaterComedy
 import androidx.compose.material3.Icon
@@ -32,7 +34,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,8 +52,10 @@ private data class DestinoCampus(
 )
 
 /**
- * Pestaña Campus de la barra del diseño D: lo que antes vivía en «Más» y en la
- * barra (Mercado, Aventones, Directorio, Sin nombre) en una cuadrícula a un toque.
+ * Campus: se abre desde el menú ☰ de tu perfil (barra del Feed B, docs/diseno-d.md §0).
+ * Mercado, Aventones, Directorio, Sin nombre, Buscar y Guardados en una cuadrícula a un
+ * toque, «Tu día» (racha, retos y ranking, que salieron del inicio) y «Más» con avisos,
+ * ajustes y lo legal. Paridad con `MasView.swift` de iOS.
  */
 @Composable
 fun CampusScreen(
@@ -59,12 +65,18 @@ fun CampusScreen(
     onAnonimo: () -> Unit,
     onMas: () -> Unit,
     modifier: Modifier = Modifier,
+    onBuscar: () -> Unit = {},
+    onGuardados: () -> Unit = {},
+    /** «Tu día»: el carrusel de racha, retos y ranking. Sin él no sale la sección. */
+    tuDia: (@Composable () -> Unit)? = null,
 ) {
     val destinos = listOf(
         DestinoCampus("Mercado", "Compra y vende en el campus", Icons.Outlined.Storefront, onMarketplace),
         DestinoCampus("Aventones", "Comparte coche a Cholula", Icons.Outlined.DirectionsCar, onAventones),
         DestinoCampus("Directorio", "Busca gente por carrera", Icons.Outlined.PersonSearch, onDirectorio),
         DestinoCampus("Sin nombre", "Publica sin firmar", Icons.Outlined.TheaterComedy, onAnonimo),
+        DestinoCampus("Buscar", "Personas y publicaciones", Icons.Outlined.Search, onBuscar),
+        DestinoCampus("Guardados", "Para ver después", Icons.Outlined.BookmarkBorder, onGuardados),
     )
 
     LazyVerticalGrid(
@@ -81,6 +93,30 @@ fun CampusScreen(
     ) {
         items(destinos, key = { it.titulo }) { destino ->
             TarjetaDestino(destino)
+        }
+        if (tuDia != null) {
+            item(key = "tu-dia", span = { GridItemSpan(maxLineSpan) }) {
+                Column(verticalArrangement = Arrangement.spacedBy(AgoraSpacing.Xs)) {
+                    Text(
+                        "Tu día",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = AgoraColors.Texto,
+                        modifier = Modifier
+                            .padding(start = 4.dp, top = AgoraSpacing.Xs)
+                            .semantics { heading() },
+                    )
+                    // El carrusel trae su propio margen de 14 y se desliza de borde a borde:
+                    // se mide 14 más ancho de cada lado para no sumar el de la cuadrícula.
+                    Box(
+                        Modifier.layout { medible, limites ->
+                            val extra = AgoraSpacing.Tarjeta.roundToPx() * 2
+                            val ancho = limites.maxWidth + extra
+                            val pieza = medible.measure(limites.copy(minWidth = ancho, maxWidth = ancho))
+                            layout(limites.maxWidth, pieza.height) { pieza.place(-extra / 2, 0) }
+                        },
+                    ) { tuDia() }
+                }
+            }
         }
         // «Más» a lo ancho: guardados, avisos, mensajes, ajustes y lo legal.
         item(key = "mas", span = { GridItemSpan(maxLineSpan) }) {

@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsOff
@@ -142,6 +143,11 @@ fun PerfilAjenoScreen(
      * PERFIL). Si llega null se abre por [DeepLinkBus], que regresa al inicio al volver.
      */
     onPublicacion: ((String) -> Unit)? = null,
+    /**
+     * Tu perfil como pestaña (barra del Feed B): en vez de «Volver» va el menú ☰ que abre
+     * Campus (aventones, directorio, sin nombre, tu día, ajustes).
+     */
+    onCampus: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var perfil by remember { mutableStateOf<PerfilAjenoDto?>(null) }
@@ -663,7 +669,11 @@ fun PerfilAjenoScreen(
                     .padding(AgoraSpacing.Tarjeta),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                BotonSobrePortada(Icons.AutoMirrored.Outlined.ArrowBack, "Volver", onBack)
+                if (onCampus != null) {
+                    BotonSobrePortada(Icons.Outlined.Menu, "Campus: aventones, directorio y más", onCampus)
+                } else {
+                    BotonSobrePortada(Icons.AutoMirrored.Outlined.ArrowBack, "Volver", onBack)
+                }
                 val cargado = perfil
                 if (!cargando && error == null && cargado != null) {
                     Box {

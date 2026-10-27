@@ -43,6 +43,11 @@ fun PostVideoPlayer(
     isVisible: Boolean,
     modifier: Modifier = Modifier,
     portada: String? = null,
+    /**
+     * Si los controles aparecen solos al pausar o terminar. En el Feed B el video va de borde
+     * a borde y los controles taparían la foto: ahí solo salen al tocarlo.
+     */
+    controlesSolos: Boolean = true,
 ) {
     val context = LocalContext.current
     val resolvedUrl = remember(url) { ApiClient.resolveUrl(url) }
@@ -91,8 +96,12 @@ fun PostVideoPlayer(
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
-                    this.player = player
+                    // Antes de conectar el reproductor: al conectarlo, PlayerView ya decide
+                    // si enseña los controles.
+                    controllerAutoShow = controlesSolos
                     useController = true
+                    this.player = player
+                    if (!controlesSolos) hideController()
                     contentDescription = "Video de la publicación"
                 }
             },

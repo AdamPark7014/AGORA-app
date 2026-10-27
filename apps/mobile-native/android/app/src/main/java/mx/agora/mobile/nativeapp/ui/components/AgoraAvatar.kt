@@ -3,6 +3,7 @@ package mx.agora.mobile.nativeapp.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,7 +24,7 @@ import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 /**
  * Foto de perfil si hay; si no carga o no existe, iniciales blancas sobre un tono
  * propio de la persona. Diseño D: cuadrado redondeado (radio 14 a 40 dp, 28 a 88
- * dp en el perfil), no círculo.
+ * dp en el perfil), no círculo. [circular] en el inicio y la barra del Feed B.
  */
 @Composable
 fun AgoraAvatar(
@@ -31,9 +32,10 @@ fun AgoraAvatar(
     fotoUrl: String?,
     modifier: Modifier = Modifier,
     size: Dp = 40.dp,
+    circular: Boolean = false,
 ) {
     val url = ApiClient.resolveUrl(fotoUrl)
-    val forma = modifier.size(size).clip(RoundedCornerShape(size * 0.34f))
+    val forma = modifier.size(size).clip(if (circular) CircleShape else RoundedCornerShape(size * 0.34f))
     if (url == null) {
         Iniciales(nombre, forma, size)
         return

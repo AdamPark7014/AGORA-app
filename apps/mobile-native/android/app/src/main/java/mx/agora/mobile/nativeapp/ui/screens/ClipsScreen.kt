@@ -155,15 +155,8 @@ import kotlin.math.roundToInt
  * texto va en blanco y no con los tokens de tinta.
  */
 
-/** `oscuro` claro: el mismo que pinta MainShell alrededor de la barra flotante. */
+/** `oscuro` claro: el mismo que pinta MainShell detrás de los clips. */
 private val FondoClips = Color(0xFF14110F)
-
-/**
- * Alto de la barra flotante de MainShell sin el inset del sistema (8 arriba, 6 + 48 + 6
- * de la píldora y 10 abajo). Con él se calcula cuánto tapa la barra si esta pantalla
- * llega hasta el borde de la ventana.
- */
-private val AltoBarraFlotante = 78.dp
 
 /** Respiro entre el borde visible de abajo y la barra de progreso. */
 private val MargenInferior = 12.dp
@@ -189,6 +182,8 @@ fun ClipsScreen(
     onPostClick: (String) -> Unit,
     onVolver: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Clip con el que abre (la historia que se tocó en el inicio); null: el primero. */
+    clipInicial: String? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -209,7 +204,7 @@ fun ClipsScreen(
     var errorMas by remember { mutableStateOf<String?>(null) }
     var recarga by remember { mutableIntStateOf(0) }
     /** Clip a la vista: al volver del detalle o de un perfil se regresa a él. */
-    var clipVisto by rememberSaveable { mutableStateOf<String?>(null) }
+    var clipVisto by rememberSaveable { mutableStateOf(clipInicial) }
     val trabajoPagina = remember { mutableStateOf<Job?>(null) }
     // Una llamada a la vez por publicación: los dos endpoints son interruptores y dos
     // toques rápidos se cancelarían en el servidor.
@@ -400,13 +395,12 @@ fun ClipsScreen(
             .collect { toca -> if (toca) cargarMas() }
     }
 
-    // Cuánto de esta pantalla queda bajo la barra flotante. Hoy MainShell ya descuenta
-    // la barra con el padding del Scaffold y esto da cero; si un día los clips pasan
-    // por debajo de la barra, el texto y la barra de progreso suben solos.
+    // Los clips abren a pantalla completa, sin la barra de pestañas (Feed B): solo se
+    // reserva la barra de gestos del sistema si esta pantalla llega hasta el borde.
     var hastaElBorde by remember { mutableIntStateOf(0) }
     val navInferior = WindowInsets.navigationBars.getBottom(densidad)
     val reservaInferior = with(densidad) {
-        (AltoBarraFlotante.roundToPx() + navInferior - hastaElBorde).coerceAtLeast(0).toDp()
+        (navInferior - hastaElBorde).coerceAtLeast(0).toDp()
     } + MargenInferior
 
     Box(

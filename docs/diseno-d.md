@@ -27,6 +27,9 @@ navegación siguen el artboard `FeedB`**; lo que FeedB no define sale de `Main`.
   desde el menú de tu perfil.
 - **Colores del inicio:** fondo `#FFFFFF`, tinta `#0F1419`, secundario `#536471`, bordes `#EEF0F2`; en oscuro, los
   tonos de la D (`#0F0D0B`, `#F4F2EF`, `#B3AAA1`, `#2E2925`).
+- **Android (27-10, versión 7 de Play):** mismo inicio y misma barra que iOS (`FeedB.kt`, `MainShell.kt`). Clips ya
+  no es pestaña: se abre a pantalla completa desde una historia. Campus (con «Tu día») se abre desde el ☰ de Tu
+  perfil. Un video del inicio solo enseña sus controles al tocarlo.
 
 ## 1. Qué la hace propia (no quitar)
 

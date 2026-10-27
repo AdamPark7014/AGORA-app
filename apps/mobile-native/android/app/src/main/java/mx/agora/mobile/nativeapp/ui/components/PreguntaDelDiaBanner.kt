@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,14 +14,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -46,6 +41,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -54,11 +50,9 @@ import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.PreguntaApi
 import mx.agora.mobile.nativeapp.data.api.PreguntaHoyDto
 import mx.agora.mobile.nativeapp.data.api.ResponderPreguntaRequest
-import mx.agora.mobile.nativeapp.data.api.SemanaPreguntaDto
 import mx.agora.mobile.nativeapp.data.gamificacion.GamificacionEvents
-import mx.agora.mobile.nativeapp.ui.theme.AgoraCardShape
-import mx.agora.mobile.nativeapp.ui.theme.AgoraChipShape
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFonts
 import mx.agora.mobile.nativeapp.ui.util.HapticType
 import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.util.rememberHaptics
@@ -66,17 +60,14 @@ import java.time.Instant
 import kotlin.math.roundToInt
 
 /*
- * Pregunta relámpago del diseño D (docs/diseno-d.md §3): tarjeta `oscuro`, rayo
- * naranja, «cierra en m:ss» y los resultados como barras de porcentaje.
- *
- * `oscuro` es oscura en los dos temas, así que el texto va en blanco fijo y los
- * acentos toman los tonos de la paleta nocturna (igual que la web): con los
- * tokens del tema claro, `naranja-tinta` y `danger` no se leían sobre ella.
+ * Pregunta del día con el estilo del artboard Main (el Feed B no la define, docs/diseno-d.md
+ * §0): tarjeta naranja muy suave, «QUEDAN m:ss», opciones en cuadrícula de dos y, al contestar,
+ * barras de porcentaje (la mía en naranja) con tu carrera contra el campus. Misma lógica de
+ * antes; paridad con `PreguntaDelDiaBanner.swift`.
  */
-private val NaranjaSobreOscuro = Color(0xFFFFB385)
-private val RojoSobreOscuro = Color(0xFFF26161)
-private val TextoSobreOscuro = Color.White
-private val TextoSobreOscuroMedio = Color.White.copy(alpha = 0.75f)
+private val FormaPregunta = RoundedCornerShape(16.dp)
+private val FormaOpcion = RoundedCornerShape(8.dp)
+private val FormaBarra = RoundedCornerShape(10.dp)
 
 @Composable
 fun PreguntaDelDiaBanner(
@@ -126,7 +117,7 @@ fun PreguntaDelDiaBanner(
     }
 
     val bannerScale by animateFloatAsState(
-        targetValue = if (celebrando > 0) 1.03f else 1f,
+        targetValue = if (celebrando > 0) 1.02f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -138,25 +129,14 @@ fun PreguntaDelDiaBanner(
     val actual = pregunta ?: return
 
     if (esperando) {
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .clip(AgoraCardShape)
-                .background(AgoraColors.Oscuro)
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            CabezaRelampago(sello = null)
-            Text(
-                "Hoy cae a una hora sorpresa.",
-                style = MaterialTheme.typography.headlineSmall.copy(lineHeight = 25.sp),
-                color = TextoSobreOscuro,
-            )
+        TarjetaPregunta(modifier) {
+            CabezaPregunta(dato = null)
+            TituloPregunta("Hoy cae a una hora sorpresa.")
             Text(
                 "Te avisamos en cuanto salga. Contesta en los primeros 2 minutos y sales a tiempo; " +
                     "antes de contestar no ves lo que dijeron los demás.",
                 style = MaterialTheme.typography.bodySmall,
-                color = TextoSobreOscuroMedio,
+                color = AgoraColors.SecundarioFeed,
             )
         }
         return
@@ -185,69 +165,63 @@ fun PreguntaDelDiaBanner(
         }
     }
 
-    val aTiempo = actual.aTiempo
-    val sello: Pair<String, Color>? = when {
-        corriendo && hastaMs != null -> "cierra en ${mmss(hastaMs - ahora)}" to TextoSobreOscuro
-        actual.yaRespondi && aTiempo != null && actual.abreAt != null ->
-            if (aTiempo) "Contestaste a tiempo" to NaranjaSobreOscuro else "Contestaste tarde" to TextoSobreOscuro
+    // A la derecha de «PREGUNTA DEL DÍA»: la cuenta regresiva, las respuestas o la semana.
+    val semana = actual.semanaPregunta
+    val dato: Pair<String, Boolean>? = when {
+        corriendo && hastaMs != null -> "QUEDAN ${mmss(hastaMs - ahora)}" to true
+        actual.yaRespondi -> cuenta(actual.total, "respuesta", "respuestas") to false
+        semana != null -> "${semana.respondidas}/${semana.meta} esta semana" to false
         else -> null
     }
 
     Box(modifier = modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .scale(bannerScale)
-                .clip(AgoraCardShape)
-                .background(AgoraColors.Oscuro)
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            CabezaRelampago(sello = sello)
+        TarjetaPregunta(Modifier.scale(bannerScale)) {
+            CabezaPregunta(dato = dato)
+            TituloPregunta(actual.texto)
 
-            Text(
-                actual.texto,
-                style = MaterialTheme.typography.headlineSmall.copy(lineHeight = 25.sp),
-                color = TextoSobreOscuro,
-            )
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                actual.opciones.forEach { opcion ->
-                    OpcionRelampago(
-                        texto = opcion.texto,
-                        respondida = actual.yaRespondi,
-                        mia = actual.yaRespondi && opcion.indice == actual.miOpcion,
-                        porcentaje = if (actual.yaRespondi) porcentaje(opcion.votos ?: 0, actual.total) else 0,
-                        habilitada = !respondiendo,
-                        onResponder = { responder(opcion.indice) },
-                    )
+            if (actual.yaRespondi) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    actual.opciones.forEach { opcion ->
+                        BarraResultado(
+                            texto = opcion.texto,
+                            mia = opcion.indice == actual.miOpcion,
+                            porcentaje = porcentaje(opcion.votos ?: 0, actual.total),
+                        )
+                    }
                 }
-            }
-
-            if (!actual.yaRespondi) {
+                val pie = comparacion(actual)
+                    ?: if (actual.aTiempo == true && actual.abreAt != null) "Contestaste a tiempo" else null
+                pie?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = AgoraColors.SecundarioFeed)
+                }
+            } else {
+                // Dos columnas, como el artboard Main.
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    actual.opciones.chunked(2).forEach { fila ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            fila.forEach { opcion ->
+                                BotonOpcion(
+                                    texto = opcion.texto,
+                                    habilitada = !respondiendo,
+                                    onClick = { responder(opcion.indice) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (fila.size == 1) Box(Modifier.weight(1f))
+                        }
+                    }
+                }
                 if (errorRespuesta) {
                     Text(
                         "No se pudo enviar tu respuesta. Intenta de nuevo.",
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         style = MaterialTheme.typography.labelMedium,
-                        color = RojoSobreOscuro,
+                        color = AgoraColors.Danger,
                     )
                 }
-                Text(
-                    "Contesta para ver qué dijeron los demás.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextoSobreOscuroMedio,
-                )
-            } else {
-                PieResultados(actual)
-            }
-
-            actual.semanaPregunta?.let { semana ->
-                ProgresoSemanaPregunta(semana = semana)
             }
         }
 
-        // Encima de la tarjeta: sobre `oscuro` el confeti sí se ve.
         ConfettiOverlay(
             trigger = celebrando,
             modifier = Modifier.matchParentSize(),
@@ -255,213 +229,169 @@ fun PreguntaDelDiaBanner(
     }
 }
 
-/** Rayo + «PREGUNTA RELÁMPAGO» a la izquierda; a la derecha la cuenta regresiva o el sello. */
 @Composable
-private fun CabezaRelampago(sello: Pair<String, Color>?) {
+private fun TarjetaPregunta(modifier: Modifier, contenido: @Composable () -> Unit) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(FormaPregunta)
+            .background(AgoraColors.PreguntaFondo)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        contenido()
+    }
+}
+
+/** «PREGUNTA DEL DÍA» a la izquierda; a la derecha la cuenta regresiva (resaltada) u otro dato. */
+@Composable
+private fun CabezaPregunta(dato: Pair<String, Boolean>?) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(
+        Text(
+            "PREGUNTA DEL DÍA",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
+            color = AgoraColors.NaranjaOscuro,
+            maxLines = 1,
             modifier = Modifier
                 .weight(1f)
                 // En versalitas TalkBack podría deletrearlo: se lee en minúsculas.
                 .clearAndSetSemantics {
                     heading()
-                    contentDescription = "Pregunta relámpago"
+                    contentDescription = "Pregunta del día"
                 },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Icon(
-                Icons.Rounded.Bolt,
-                contentDescription = null,
-                tint = AgoraColors.Naranja,
-                modifier = Modifier.size(16.dp),
-            )
+        )
+        if (dato != null) {
             Text(
-                "PREGUNTA RELÁMPAGO",
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.7.sp,
-                ),
-                color = NaranjaSobreOscuro,
-                maxLines = 1,
-            )
-        }
-        if (sello != null) {
-            Text(
-                sello.first,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                dato.first,
                 // Cifras de ancho fijo: la cuenta regresiva no baila cada segundo.
-                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                color = sello.second,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = if (dato.second) FontWeight.Bold else FontWeight.Normal,
+                    fontFeatureSettings = "tnum",
+                ),
+                color = if (dato.second) AgoraColors.NaranjaOscuro else AgoraColors.SecundarioFeed,
                 maxLines = 1,
             )
         }
     }
 }
 
-/**
- * Una opción. Antes de contestar es un botón; después, la misma fila se vuelve
- * barra de porcentaje (la mía en naranja). Es el mismo composable en los dos
- * estados para que la barra crezca desde cero al contestar.
- */
 @Composable
-private fun OpcionRelampago(
+private fun TituloPregunta(texto: String) {
+    Text(
+        texto,
+        style = MaterialTheme.typography.headlineSmall.copy(
+            fontFamily = AgoraFonts.titulo,
+            fontSize = 18.sp,
+            lineHeight = 23.sp,
+        ),
+        color = AgoraColors.TintaFeed,
+    )
+}
+
+@Composable
+private fun BotonOpcion(
     texto: String,
-    respondida: Boolean,
-    mia: Boolean,
-    porcentaje: Int,
     habilitada: Boolean,
-    onResponder: () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    Box(
+        modifier = modifier
+            .heightIn(min = 44.dp)
+            .clip(FormaOpcion)
+            .background(AgoraColors.FondoFeed)
+            .border(1.dp, AgoraColors.PreguntaBorde, FormaOpcion)
+            .clickable(enabled = habilitada, role = Role.Button, onClickLabel = "Responder", onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            texto,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+            color = AgoraColors.TintaFeed,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/** Una opción ya contestada: barra de porcentaje que crece desde cero (la mía en naranja). */
+@Composable
+private fun BarraResultado(texto: String, mia: Boolean, porcentaje: Int) {
+    var mostrada by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { mostrada = true }
     val fraccion by animateFloatAsState(
-        targetValue = if (respondida) (porcentaje / 100f).coerceIn(0f, 1f) else 0f,
+        targetValue = if (mostrada) (porcentaje / 100f).coerceIn(0f, 1f) else 0f,
         animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
         label = "barraOpcion",
     )
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clip(AgoraChipShape)
-            .background(Color.White.copy(alpha = 0.08f))
-            .then(
-                if (respondida) {
-                    // TalkBack lee la opción como una sola unidad y marca la elegida.
-                    Modifier.semantics(mergeDescendants = true) { if (mia) selected = true }
-                } else {
-                    Modifier.clickable(
-                        enabled = habilitada,
-                        role = Role.Button,
-                        onClickLabel = "Responder",
-                        onClick = onResponder,
-                    )
-                },
-            ),
+            .heightIn(min = 40.dp)
+            .clip(FormaBarra)
+            .background(AgoraColors.FondoFeed.copy(alpha = 0.7f))
+            // TalkBack lee la opción como una sola unidad y marca la elegida.
+            .clearAndSetSemantics {
+                contentDescription = "$texto, $porcentaje por ciento"
+                if (mia) selected = true
+            },
         contentAlignment = Alignment.CenterStart,
     ) {
-        if (fraccion > 0f) {
-            Box(modifier = Modifier.matchParentSize()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(fraccion)
-                        .background(if (mia) AgoraColors.Naranja else Color.White.copy(alpha = 0.22f)),
-                )
-            }
+        Box(modifier = Modifier.matchParentSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraccion)
+                    .background(
+                        if (mia) AgoraColors.Naranja.copy(alpha = 0.3f) else AgoraColors.SecundarioFeed.copy(alpha = 0.14f),
+                    ),
+            )
         }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 12.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            val peso = if (mia) FontWeight.SemiBold else FontWeight.Normal
             Text(
                 if (mia) "$texto · tu respuesta" else texto,
                 modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontWeight = if (mia) FontWeight.Bold else FontWeight.Medium,
-                ),
-                color = TextoSobreOscuro,
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = peso),
+                color = AgoraColors.TintaFeed,
             )
-            if (respondida) {
-                Text(
-                    "$porcentaje %",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontFeatureSettings = "tnum",
-                    ),
-                    color = TextoSobreOscuro,
-                )
-            }
+            Text(
+                "$porcentaje %",
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = peso, fontFeatureSettings = "tnum"),
+                color = AgoraColors.TintaFeed,
+            )
         }
     }
 }
 
 /**
- * «<Tu carrera> votó X % <opción> · el campus Y %» (la opción que más eligió tu
- * carrera contra todo el campus), cuántos contestaron a tiempo y el total.
+ * «Sistemas votó 71 % Biblioteca · el campus 58 %»: la opción que más eligió tu carrera,
+ * comparada con todo el campus. Sin datos de carrera, cuántos contestaron a tiempo.
  */
-@Composable
-private fun PieResultados(actual: PreguntaHoyDto) {
-    val carrera = actual.miCarrera?.takeIf { it.total > 0 }
-    val comparacion = carrera?.let { c ->
-        val favorita = actual.opciones.maxByOrNull { c.votos[it.indice.toString()] ?: 0 }
-        favorita?.let {
-            "${c.nombre} votó ${porcentaje(c.votos[it.indice.toString()] ?: 0, c.total)} % ${it.texto} · " +
-                "el campus ${porcentaje(it.votos ?: 0, actual.total)} %"
+private fun comparacion(p: PreguntaHoyDto): String? {
+    val carrera = p.miCarrera?.takeIf { it.total > 0 }
+    if (carrera != null) {
+        val favorita = p.opciones.maxByOrNull { carrera.votos[it.indice.toString()] ?: 0 }
+        if (favorita != null) {
+            return "${carrera.nombre} votó ${porcentaje(carrera.votos[favorita.indice.toString()] ?: 0, carrera.total)} % " +
+                "${favorita.texto} · el campus ${porcentaje(favorita.votos ?: 0, p.total)} %"
         }
     }
-    val aTiempoHoy = actual.totalATiempo?.takeIf { actual.abreAt != null }?.let {
-        cuenta(it, "contestó a tiempo hoy", "contestaron a tiempo hoy")
+    val aTiempo = p.totalATiempo
+    if (aTiempo != null && p.abreAt != null) {
+        return cuenta(aTiempo, "contestó a tiempo", "contestaron a tiempo")
     }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            comparacion?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = TextoSobreOscuroMedio)
-            }
-            aTiempoHoy?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = TextoSobreOscuroMedio)
-            }
-        }
-        Text(
-            cuenta(actual.total, "respuesta", "respuestas"),
-            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-            color = NaranjaSobreOscuro,
-        )
-    }
-}
-
-@Composable
-private fun ProgresoSemanaPregunta(semana: SemanaPreguntaDto) {
-    val progreso = (semana.respondidas.toFloat() / semana.meta.coerceAtLeast(1)).coerceIn(0f, 1f)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clearAndSetSemantics {
-                contentDescription = "Esta semana contestaste ${semana.respondidas} de " +
-                    cuenta(semana.meta, "día", "días")
-            },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            "Esta semana: ${semana.respondidas}/${semana.meta} días",
-            style = MaterialTheme.typography.labelMedium,
-            color = TextoSobreOscuroMedio,
-        )
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(4.dp)
-                .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.15f)),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(progreso)
-                    .background(AgoraColors.Naranja),
-            )
-        }
-    }
+    return null
 }
 
 private fun porcentaje(votos: Int, total: Int): Int =

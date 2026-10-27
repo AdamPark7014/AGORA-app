@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -39,6 +40,8 @@ fun GuardarButton(
     onChanged: (Boolean) -> Unit = {},
     /** Si la pantalla tiene snackbar, pásalo aquí; si no, el aviso sale como Toast. */
     onError: ((String) -> Unit)? = null,
+    /** Color del ícono sin guardar (en el Feed B va en la tinta del inicio). */
+    colorSinGuardar: Color? = null,
 ) {
     val context = LocalContext.current
     var estado by remember(postId, guardado) { mutableStateOf(guardado) }
@@ -98,7 +101,11 @@ fun GuardarButton(
         Icon(
             imageVector = if (estado) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder,
             contentDescription = if (estado) "Quitar de guardados" else "Guardar publicación",
-            tint = if (estado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(0.6f),
+            tint = if (estado) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                colorSinGuardar ?: MaterialTheme.colorScheme.onSurface.copy(0.6f)
+            },
         )
     }
 }

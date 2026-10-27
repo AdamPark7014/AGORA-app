@@ -63,4 +63,16 @@ object AgoraColors {
     val ChipSelectedText get() = NaranjaTinta
     val SkeletonBase get() = par(0xFFE9E5DF, 0xFF24201C)
     val SkeletonHighlight get() = par(0xFFF4F2EF, 0xFF2E2925)
+
+    // Inicio y barra con el Feed B que eligió Adam (docs/diseno-d.md §0, 26-10-2026); en
+    // oscuro, los tonos de la D. Mismos valores que `AgoraDesign.Colors.*Feed` de iOS.
+    val FondoFeed get() = par(0xFFFFFFFF, 0xFF0F0D0B)
+    val TintaFeed get() = par(0xFF0F1419, 0xFFF4F2EF)
+    val SecundarioFeed get() = par(0xFF536471, 0xFFB3AAA1)
+    val BordeFeed get() = par(0xFFEEF0F2, 0xFF2E2925)
+    /** Pregunta del día (artboard Main): fondo naranja muy suave y borde de sus opciones. */
+    val PreguntaFondo get() = par(0xFFFFF1E9, 0xFF2A1509)
+    val PreguntaBorde get() = par(0xFFF3C7AD, 0xFF542E18)
+    /** Anillo de una historia ya vista y borde punteado de «Tu historia». */
+    val AnilloVisto get() = par(0xFFCFD2D6, 0xFF4A433D)
 }

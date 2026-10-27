@@ -57,10 +57,12 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CancellationException
@@ -130,6 +132,8 @@ fun PostCard(
     onComunidadClick: ((String) -> Unit)? = null,
     /** Solo en publicaciones propias: «Borrar» en el menú. La pantalla confirma, borra y la quita. */
     onBorrar: (() -> Unit)? = null,
+    /** [EstiloPost.FeedB] en el inicio (artboard FeedB); [EstiloPost.Tarjeta] en el resto de las listas. */
+    estilo: EstiloPost = EstiloPost.Tarjeta,
 ) {
     val context = LocalContext.current
     var menuAbierto by remember(post.id) { mutableStateOf(false) }
@@ -219,6 +223,85 @@ fun PostCard(
         }
     }
 
+    // «…» con Reportar, Borrar y Retirar: el mismo en los dos estilos.
+    val menu: @Composable () -> Unit = {
+        Box {
+            // Tamaño por defecto de IconButton: 48dp de área táctil.
+            IconButton(onClick = { menuAbierto = true }) {
+                Icon(
+                    Icons.Rounded.MoreHoriz,
+                    contentDescription = "Más opciones de la publicación",
+                    tint = if (estilo == EstiloPost.FeedB) AgoraColors.SecundarioFeed else AgoraColors.TextoMedio,
+                )
+            }
+            DropdownMenu(expanded = menuAbierto, onDismissRequest = { menuAbierto = false }) {
+                DropdownMenuItem(
+                    text = { Text("Reportar") },
+                    onClick = {
+                        menuAbierto = false
+                        reportando = true
+                    },
+                    leadingIcon = { Icon(Icons.Outlined.Flag, contentDescription = null) },
+                )
+                if (onBorrar != null) {
+                    DropdownMenuItem(
+                        text = { Text("Borrar", color = AgoraColors.Danger) },
+                        onClick = {
+                            menuAbierto = false
+                            onBorrar()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Delete, contentDescription = null, tint = AgoraColors.Danger)
+                        },
+                    )
+                }
+                if (onRetirar != null) {
+                    DropdownMenuItem(
+                        text = { Text("Retirar (moderación)") },
+                        onClick = {
+                            menuAbierto = false
+                            onRetirar()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.RemoveCircleOutline, contentDescription = null)
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    if (reportando) {
+        ReportarDialogo(
+            titulo = "Reportar publicación",
+            onMotivo = ::reportar,
+            onCerrar = { reportando = false },
+        )
+    }
+
+    if (estilo == EstiloPost.FeedB) {
+        PublicacionFeedB(
+            post = post,
+            tokenProvider = tokenProvider,
+            miReaccion = miReaccion,
+            totalReacciones = totalReacciones,
+            encuesta = encuesta,
+            votando = votando,
+            miVoto = miVoto,
+            errorVoto = errorVoto,
+            isActive = isActive,
+            onVotar = ::votar,
+            onReaccionar = ::reaccionar,
+            onPostClick = onPostClick,
+            onHashtagClick = onHashtagClick,
+            onAuthorClick = onAuthorClick,
+            onMentionClick = onMentionClick,
+            menu = menu,
+            modifier = modifier,
+        )
+        return
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         onClick = {
@@ -299,50 +382,7 @@ fun PostCard(
                         )
                     }
                 }
-                Box {
-                    // Tamaño por defecto de IconButton: 48dp de área táctil.
-                    IconButton(onClick = { menuAbierto = true }) {
-                        Icon(
-                            Icons.Rounded.MoreHoriz,
-                            contentDescription = "Más opciones de la publicación",
-                            tint = AgoraColors.TextoMedio,
-                        )
-                    }
-                    DropdownMenu(expanded = menuAbierto, onDismissRequest = { menuAbierto = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Reportar") },
-                            onClick = {
-                                menuAbierto = false
-                                reportando = true
-                            },
-                            leadingIcon = { Icon(Icons.Outlined.Flag, contentDescription = null) },
-                        )
-                        if (onBorrar != null) {
-                            DropdownMenuItem(
-                                text = { Text("Borrar", color = AgoraColors.Danger) },
-                                onClick = {
-                                    menuAbierto = false
-                                    onBorrar()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Outlined.Delete, contentDescription = null, tint = AgoraColors.Danger)
-                                },
-                            )
-                        }
-                        if (onRetirar != null) {
-                            DropdownMenuItem(
-                                text = { Text("Retirar (moderación)") },
-                                onClick = {
-                                    menuAbierto = false
-                                    onRetirar()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Outlined.RemoveCircleOutline, contentDescription = null)
-                                },
-                            )
-                        }
-                    }
-                }
+                menu()
             }
 
             if (post.texto.isNotBlank()) {
@@ -437,14 +477,15 @@ fun PostCard(
             }
         }
     }
+}
 
-    if (reportando) {
-        ReportarDialogo(
-            titulo = "Reportar publicación",
-            onMotivo = ::reportar,
-            onCerrar = { reportando = false },
-        )
-    }
+/** Cómo se pinta una publicación en una lista. */
+enum class EstiloPost {
+    /** Tarjeta del diseño D, con banda de comunidad y chips de reacción. */
+    Tarjeta,
+
+    /** A todo lo ancho, como el artboard FeedB (solo el inicio). */
+    FeedB,
 }
 
 /**
@@ -640,6 +681,10 @@ fun TextoConHashtags(
     onHashtagClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     onMentionClick: ((String) -> Unit)? = null,
+    /** Feed B: el @ de quien publicó va en negritas antes del texto, como pie de foto. */
+    autor: String? = null,
+    estilo: TextStyle = MaterialTheme.typography.bodyMedium,
+    color: Color = AgoraColors.Texto,
 ) {
     val alHashtag by rememberUpdatedState(onHashtagClick)
     val alMencion by rememberUpdatedState(onMentionClick)
@@ -648,8 +693,12 @@ fun TextoConHashtags(
     val estiloEnlace = TextLinkStyles(
         style = SpanStyle(color = AgoraColors.NaranjaTinta, fontWeight = FontWeight.SemiBold),
     )
-    val annotated = remember(texto, conMenciones, AgoraColors.oscuro) {
+    val annotated = remember(texto, conMenciones, autor, AgoraColors.oscuro) {
         buildAnnotatedString {
+            if (autor != null) {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(autor) }
+                append(" ")
+            }
             var ultimo = 0
             TOKEN_SOCIAL.findAll(texto).forEach { m ->
                 if (m.range.first > ultimo) append(texto.substring(ultimo, m.range.first))
@@ -685,7 +734,7 @@ fun TextoConHashtags(
 
     Text(
         text = annotated,
-        style = MaterialTheme.typography.bodyMedium.copy(color = AgoraColors.Texto),
+        style = estilo.copy(color = color),
         modifier = modifier,
     )
 }

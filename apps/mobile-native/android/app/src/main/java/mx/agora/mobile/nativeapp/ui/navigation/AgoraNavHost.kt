@@ -31,12 +31,14 @@ import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.SessionUser
 import mx.agora.mobile.nativeapp.data.api.YoResponse
 import mx.agora.mobile.nativeapp.ui.MainShell
+import mx.agora.mobile.nativeapp.ui.components.CarruselFeed
 import mx.agora.mobile.nativeapp.ui.components.udlapPorConfirmar
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.screens.AjustesScreen
 import mx.agora.mobile.nativeapp.ui.screens.ConfirmarUdlapScreen
 import mx.agora.mobile.nativeapp.ui.screens.AnonimoScreen
 import mx.agora.mobile.nativeapp.ui.screens.AventonesScreen
+import mx.agora.mobile.nativeapp.ui.screens.CampusScreen
 import mx.agora.mobile.nativeapp.ui.screens.BuscarScreen
 import mx.agora.mobile.nativeapp.ui.screens.ConexionesScreen
 import mx.agora.mobile.nativeapp.ui.screens.CreateAnuncioScreen
@@ -75,6 +77,7 @@ object AgoraRoutes {
     const val REGLAS = "reglas"
     const val MODERACION = "moderacion"
     const val MAS = "mas"
+    const val CAMPUS = "campus"
     const val DIRECTORIO = "directorio"
     const val GUARDADOS = "guardados"
     const val HASHTAG = "hashtag/{tag}"
@@ -152,20 +155,18 @@ fun AgoraNavHost(
                 onPestanaAtendida = { PestanaBus.consumir() },
                 onNavigateToPost = { id -> navController.navigate(AgoraRoutes.post(id)) },
                 onNavigateToMensajes = { navController.navigate(AgoraRoutes.MENSAJES) },
+                onNavigateToMensaje = { id -> navController.navigate(AgoraRoutes.mensaje(id)) },
                 onNavigateToPerfil = { handle -> navController.navigate(AgoraRoutes.perfil(handle)) },
-                onNavigateToMiPerfil = { navController.navigate(AgoraRoutes.PERFIL_YO) },
                 onNavigateToAvisos = { navController.navigate(AgoraRoutes.NOTIFICACIONES) },
-                onNavigateToMas = { navController.navigate(AgoraRoutes.MAS) },
+                onNavigateToAjustes = { navController.navigate(AgoraRoutes.AJUSTES) },
+                onNavigateToCampus = { navController.navigate(AgoraRoutes.CAMPUS) },
+                onNavigateToConexiones = { handle, tipo -> navController.navigate(AgoraRoutes.conexiones(handle, tipo)) },
                 onNavigateToHashtag = { tag -> navController.navigate(AgoraRoutes.hashtag(tag)) },
                 onNavigateToEvento = { id -> navController.navigate(AgoraRoutes.evento(id)) },
                 onNavigateToCreateEvento = { navController.navigate(AgoraRoutes.EVENTOS_CREAR) },
-                onNavigateToMarketplace = { navController.navigate(AgoraRoutes.MARKETPLACE) },
-                onNavigateToAventones = { navController.navigate(AgoraRoutes.AVENTONES) },
-                onNavigateToDirectorio = { navController.navigate(AgoraRoutes.DIRECTORIO) },
-                onNavigateToAnonimo = { navController.navigate(AgoraRoutes.ANONIMO) },
-                onNavigateUrl = { url ->
-                    DeepLinkParser.parse(url)?.let { navigateToDeepLinkRoute(navController, it) }
-                },
+                onNavigateToAnuncio = { id -> navController.navigate(AgoraRoutes.marketplaceDetalle(id)) },
+                onNavigateToCrearAnuncio = { navController.navigate(AgoraRoutes.MARKETPLACE_CREAR) },
+                onNavigateToReglas = { navController.navigate(AgoraRoutes.REGLAS) },
             )
         }
 
@@ -304,6 +305,29 @@ fun AgoraNavHost(
                     onPrivacidad = { navController.navigate(AgoraRoutes.PRIVACIDAD) },
                     onReglas = { navController.navigate(AgoraRoutes.REGLAS) },
                     onLogout = ::cerrarSesion,
+                )
+            }
+        }
+
+        // Campus (Feed B): se abre desde el menú ☰ de la pestaña Tu perfil.
+        composable(AgoraRoutes.CAMPUS) {
+            SecondaryScaffold(title = "Campus", onBack = { navController.popBackStack() }) { padding ->
+                CampusScreen(
+                    onMarketplace = { navController.navigate(AgoraRoutes.MARKETPLACE) },
+                    onAventones = { navController.navigate(AgoraRoutes.AVENTONES) },
+                    onDirectorio = { navController.navigate(AgoraRoutes.DIRECTORIO) },
+                    onAnonimo = { navController.navigate(AgoraRoutes.ANONIMO) },
+                    onMas = { navController.navigate(AgoraRoutes.MAS) },
+                    onBuscar = { navController.navigate(AgoraRoutes.BUSCAR) },
+                    onGuardados = { navController.navigate(AgoraRoutes.GUARDADOS) },
+                    tuDia = {
+                        CarruselFeed(
+                            tokenProvider = { auth.token() },
+                            onHashtagClick = { tag -> navController.navigate(AgoraRoutes.hashtag(tag)) },
+                            onPerfilClick = { handle -> navController.navigate(AgoraRoutes.perfil(handle)) },
+                        )
+                    },
+                    modifier = Modifier.padding(padding),
                 )
             }
         }
