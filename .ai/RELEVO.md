@@ -1,10 +1,10 @@
 # RELEVO
 
 - **Último turno:** claude-code (sesión de Ágora web/iOS, en la compu de Adam)
-- **Fecha:** 2026-10-26
+- **Fecha:** 2026-10-27
 - **Rama:** main
 
-## Videos de punta a punta (26-10, en curso)
+## Videos de punta a punta (26→27-10, hecho)
 
 Adam: «el tema de videos y así en udlagora falta». El servidor guardaba el video tal cual (HEVC .mov del iPhone,
 que Chrome/Firefox/muchos Android no reproducen), sin portada ni medidas.
@@ -13,6 +13,25 @@ que Chrome/Firefox/muchos Android no reproducen), sin portada ni medidas.
   la API instala ffmpeg; `/tmp` del contenedor sube a 320 MB. Anuncios devuelven `thumbUrl`.
 - Web: `VideoAdjunto` (portada, `playsInline`, aviso si el navegador no puede reproducirlo) en feed, detalle,
   perfil, guardados y mercado; portada en el visor de clips y en la fila de clips; tope de 60 MB al adjuntar.
+- `1921675`: el cliente S3 usa rutas de bucket (`forcePathStyle`); con MinIO **ninguna subida servía en
+  producción** (500 `ENOTFOUND agora-media.minio`), fotos incluidas.
+- **Producción** corre `1921675` (API y web, contenedor del 27-10 03:44 UTC, ffmpeg 8.1.3). Prueba con la cuenta
+  de revisión después del despliegue: .mov HEVC 1080×1920 → 201 en 2.3 s → MP4 H.264 720×1280 con portada WebP en
+  ~4 s, `Range` da 206, aparece en `feed?tipo=clips`; foto 201 con miniatura. Todo lo subido se borró (archivos,
+  filas): producción sigue con 0 publicaciones y 0 media. **Ojo:** Cloudflare guarda en caché `/media/…`; un
+  archivo borrado se sigue sirviendo desde el borde hasta que caduca (no hay token de Cloudflare para purgar).
+  La web en producción no se miró en navegador (pide sesión y Claude no teclea contraseñas en producción).
+- iOS `0278210`: las subidas tienen su propia sesión (60 s sin datos, 10 min en total) y los videos usan la
+  portada del servidor. **Build 9** en TestFlight (VALID, prueba interna) tras revisar las 20 capturas del
+  mismo commit contra FeedB, en claro y oscuro.
+- Android `b655d73`: `MediaDto.thumbUrl`; la portada va en la casilla del video, en el reproductor y en Clips
+  hasta el primer cuadro, y en las tarjetas de «Clips del campus». Visto en el emulador contra una API local
+  (Postgres 17 nativo, receta de `ios-capturas.yml`; Docker no arranca por el `sailor-ingest.sock`). AAB
+  **1.0.0 (6)** firmado por «Android · Play» (corrida 40567345675); copia completa y copia ligera para el
+  navegador en `Documents\AGORA-builds\`. Falta que Adam la suba a la prueba interna de Play. Siguiente
+  versionCode libre: **7**.
+- Android sigue con el inicio D (Feed D), no Feed B; eso es otro pendiente.
+- El contenido de bienvenida en producción sigue esperando la decisión de Adam (opción a o b).
 
 ## iOS build 8: el inicio y la barra siguen Feed B (26-10)
 
