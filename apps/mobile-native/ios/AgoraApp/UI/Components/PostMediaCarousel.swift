@@ -7,12 +7,14 @@ import UIKit
 struct ElementoMedia: Hashable {
     let url: URL
     let esVideo: Bool
+    /// Portada del video (la guarda la API al re-codificarlo) o miniatura de la foto.
+    var portada: URL? = nil
 
     static func desde(_ media: [MediaDto]) -> [ElementoMedia] {
         media.compactMap { (m: MediaDto) -> ElementoMedia? in
             guard let url = ApiClient.shared.resolveUrl(m.url) else { return nil }
             let video = m.esVideo ?? (m.mime?.hasPrefix("video/") ?? false)
-            return ElementoMedia(url: url, esVideo: video)
+            return ElementoMedia(url: url, esVideo: video, portada: ApiClient.shared.resolveUrl(m.thumbUrl))
         }
     }
 }
@@ -188,7 +190,7 @@ struct PostMediaGrid: View {
             .frame(width: max(0, ancho), height: max(0, alto))
             .overlay {
                 if elemento.esVideo {
-                    MiniaturaVideo(url: elemento.url)
+                    MiniaturaVideo(url: elemento.url, portada: elemento.portada)
                         .overlay {
                             Image(systemName: "play.fill")
                                 .font(.system(size: 14, weight: .bold))
@@ -242,9 +244,11 @@ struct PostMediaGrid: View {
     }
 }
 
-/// Primer cuadro de un video remoto como portada (la API no da miniatura). Se guarda en memoria.
+/// Portada de un video: la que guarda la API al re-codificarlo y, en videos de antes, el primer
+/// cuadro sacado del archivo (se guarda en memoria).
 struct MiniaturaVideo: View {
     let url: URL
+    var portada: URL? = nil
 
     @State private var imagen: UIImage?
 
@@ -264,6 +268,12 @@ struct MiniaturaVideo: View {
     }
 
     private func cargar() async {
+        if let portada,
+           let respuesta = try? await URLSession.shared.data(from: portada),
+           let deServidor = UIImage(data: respuesta.0) {
+            imagen = deServidor
+            return
+        }
         if let guardada = Self.cache.object(forKey: url as NSURL) {
             imagen = guardada
             return

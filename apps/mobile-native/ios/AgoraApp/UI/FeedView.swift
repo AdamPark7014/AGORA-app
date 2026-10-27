@@ -444,7 +444,9 @@ struct HistoriasClips: View {
     }
 
     private func circulo(_ clip: PostDto, visto: Bool) -> some View {
-        let video = clip.media?.first { $0.esVideo == true }.flatMap { ApiClient.shared.resolveUrl($0.url) }
+        let medio = clip.media?.first { $0.esVideo == true }
+        let video = medio.flatMap { ApiClient.shared.resolveUrl($0.url) }
+        let portada = medio.flatMap { ApiClient.shared.resolveUrl($0.thumbUrl) }
         return ZStack {
             if visto {
                 Circle().fill(Color(red: 207 / 255, green: 210 / 255, blue: 214 / 255))
@@ -456,7 +458,7 @@ struct HistoriasClips: View {
             }
             Group {
                 if let video {
-                    MiniaturaVideo(url: video)
+                    MiniaturaVideo(url: video, portada: portada)
                 } else {
                     AgoraDesign.Colors.bordeFeed
                 }

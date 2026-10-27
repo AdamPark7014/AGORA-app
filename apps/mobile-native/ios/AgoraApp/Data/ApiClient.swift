@@ -59,6 +59,9 @@ final class ApiClient {
     let baseURL: URL
 
     private let session: URLSession
+    /// Subidas de fotos y videos: un video de 60 MB con mala señal tarda más que los 60 s de las
+    /// demás peticiones y fallaba a medias. Aquí espera hasta 60 s sin datos y 10 min en total.
+    private let sesionSubidas: URLSession
 
     private init() {
         #if DEBUG
@@ -80,6 +83,11 @@ final class ApiClient {
         cfg.timeoutIntervalForRequest = 22
         cfg.timeoutIntervalForResource = 60
         self.session = URLSession(configuration: cfg)
+
+        let cfgSubidas = URLSessionConfiguration.default
+        cfgSubidas.timeoutIntervalForRequest = 60
+        cfgSubidas.timeoutIntervalForResource = 600
+        self.sesionSubidas = URLSession(configuration: cfgSubidas)
     }
 
     // MARK: Requests
@@ -152,7 +160,8 @@ final class ApiClient {
         body.append(fileData)
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
         req.httpBody = body
-        return try await perform(req)
+        let (data, _) = try await performConRespuesta(req, avisarSiExpira: true, subida: true)
+        return data
     }
 
     /// Convierte `/api/media/archivo/...` en URL absoluta para AsyncImage.
@@ -231,10 +240,11 @@ final class ApiClient {
     /// Ejecuta la petición y devuelve cuerpo + respuesta HTTP (cabeceras incluidas).
     private func performConRespuesta(
         _ req: URLRequest,
-        avisarSiExpira: Bool
+        avisarSiExpira: Bool,
+        subida: Bool = false
     ) async throws -> (Data, HTTPURLResponse) {
         do {
-            let (data, response) = try await session.data(for: req)
+            let (data, response) = try await (subida ? sesionSubidas : session).data(for: req)
             guard let http = response as? HTTPURLResponse else {
                 throw ApiError.http(-1, "Respuesta inválida")
             }
