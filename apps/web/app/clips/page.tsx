@@ -206,6 +206,7 @@ function Clip({
       <video
         ref={video}
         src={media.url}
+        poster={media.thumbUrl ?? undefined}
         loop
         playsInline
         muted={!conSonido}

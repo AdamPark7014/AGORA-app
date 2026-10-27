@@ -175,7 +175,8 @@ services:
       retries: 3
     read_only: true
     tmpfs:
-      - /tmp:rw,noexec,nosuid,size=128m
+      # 320 MB: aqui se re-codifican los videos (entrada de hasta 60 MB, salida y portada).
+      - /tmp:rw,noexec,nosuid,size=320m
     cap_drop:
       - ALL
     security_opt:

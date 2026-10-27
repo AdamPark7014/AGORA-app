@@ -185,6 +185,12 @@ function FeedInterno() {
       setError('Maximo 4 archivos por publicacion.');
       return;
     }
+    // Mismos topes que la API (src/media/almacen.ts): avisar antes de subir 200 MB para nada.
+    const esVideo = archivo.type.startsWith('video/');
+    if (archivo.size > (esVideo ? 60 : 8) * 1024 * 1024) {
+      setError(esVideo ? 'El video pasa de 60 MB. Recórtalo o grábalo más corto.' : 'La imagen pasa de 8 MB.');
+      return;
+    }
     setSubiendo(true);
     setError(null);
     try {

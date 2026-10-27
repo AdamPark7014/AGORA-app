@@ -38,6 +38,7 @@ import { Avatar } from './avatar';
 import { Compartir } from './compartir';
 import { GuardarPost } from './guardar-post';
 import { Lightbox } from './lightbox';
+import { VideoAdjunto } from './video-adjunto';
 import { TextoConMenciones } from './texto-con-menciones';
 import { TiempoRelativo } from './tiempo';
 
@@ -568,8 +569,7 @@ function Galeria({ media, onMeLate }: { media: Adjunto[]; onMeLate?: () => void 
       <div className={`galeria n${media.length}`}>
         {media.map((m) =>
           m.esVideo ? (
-            // eslint-disable-next-line jsx-a11y/media-has-caption
-            <video key={m.url} src={m.url} controls preload="metadata" />
+            <VideoAdjunto key={m.url} url={m.url} portada={m.thumbUrl} />
           ) : (
             <button
               key={m.url}

@@ -160,8 +160,14 @@ export function FilaClips() {
               className="clip-tarjeta"
               aria-label={`Clip de ${p.autor?.nombre ?? p.alias ?? 'alguien'} en ${p.comunidad.nombre}`}
             >
-              {/* Primer cuadro como portada: sin precarga del video entero. */}
-              <video src={`${video.url}#t=0.1`} muted playsInline preload="metadata" aria-hidden="true" />
+              {video.thumbUrl ? (
+                // Portada que guarda la API al re-codificar el video.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={video.thumbUrl} alt="" loading="lazy" aria-hidden="true" />
+              ) : (
+                // Videos de antes de las portadas: el primer cuadro, sin precargar el video entero.
+                <video src={`${video.url}#t=0.1`} muted playsInline preload="metadata" aria-hidden="true" />
+              )}
               <span className="clip-chip">{p.comunidad.nombre}</span>
               <span className="clip-play" aria-hidden="true">
                 <Play size={14} fill="currentColor" strokeWidth={0} />

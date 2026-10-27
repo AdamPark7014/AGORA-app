@@ -154,7 +154,7 @@ export class MarketplaceService {
         vendedor: {
           select: { profile: { select: { handle: true, nombre: true, apellidos: true, fotoUrl: true } } },
         },
-        imagenes: { select: { url: true, mime: true } },
+        imagenes: { select: { url: true, mime: true, thumbUrl: true } },
       },
     });
     if (!anuncio) throw new NotFoundException('Ese anuncio no existe.');
@@ -169,6 +169,8 @@ export class MarketplaceService {
       createdAt: anuncio.createdAt,
       imagenes: anuncio.imagenes.map((i) => ({
         url: i.url,
+        // Portada de los videos (la guarda la re-codificacion) y miniatura de las fotos.
+        thumbUrl: i.thumbUrl,
         esVideo: i.mime.startsWith('video/'),
       })),
       vendedor: anuncio.vendedor.profile

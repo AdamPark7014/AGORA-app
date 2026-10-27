@@ -12,6 +12,7 @@ import { TextoConMenciones } from '@/componentes/texto-con-menciones';
 import { ArrowLeft, MessageCircle } from '@/componentes/iconos';
 import { TiempoRelativo } from '@/componentes/tiempo';
 import { EstadoVacio } from '@/componentes/estado-vacio';
+import { VideoAdjunto } from '@/componentes/video-adjunto';
 import { Ghost } from 'lucide-react';
 
 interface Anuncio {
@@ -22,7 +23,7 @@ interface Anuncio {
   precioMxn: number;
   estadoVenta: string;
   createdAt: string;
-  imagenes: Array<{ url: string; esVideo: boolean }>;
+  imagenes: Array<{ url: string; esVideo: boolean; thumbUrl?: string | null }>;
   vendedor: { handle: string; nombre: string; fotoUrl: string | null } | null;
   esMio: boolean;
 }
@@ -105,8 +106,7 @@ export default function AnuncioDetalle({ params }: { params: Promise<{ id: strin
           <div className={`galeria n${Math.min(anuncio.imagenes.length, 4)}`} style={{ marginBottom: 16 }}>
             {anuncio.imagenes.map((m) =>
               m.esVideo ? (
-                // eslint-disable-next-line jsx-a11y/media-has-caption
-                <video key={m.url} src={m.url} controls preload="metadata" />
+                <VideoAdjunto key={m.url} url={m.url} portada={m.thumbUrl} />
               ) : (
                 <button key={m.url} type="button" className="galeria-enlace" onClick={() => setLightbox(m.url)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}

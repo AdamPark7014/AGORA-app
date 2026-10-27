@@ -7,6 +7,7 @@ import {
   Get,
   HttpException,
   HttpStatus,
+  Logger,
   NotFoundException,
   Param,
   Post,
@@ -47,10 +48,14 @@ import {
 } from './almacen.js';
 import { limpiarMetadatosVideo } from './metadatos-video.js';
 import { ImagenInvalida, procesarImagen } from './procesar.js';
+import { ffmpegDisponible, transcodificarVideo } from './transcodificar.js';
 
 @Controller('media')
 export class MediaController {
   private readonly almacen: Almacen = crearAlmacen();
+  private readonly log = new Logger(MediaController.name);
+  /** Un video a la vez: el servidor tiene 4 nucleos y tambien atiende la API. */
+  private colaVideos: Promise<void> = Promise.resolve();
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -125,7 +130,52 @@ export class MediaController {
       select: { id: true, url: true, thumbUrl: true, mime: true, ancho: true, alto: true },
     });
 
+    if (esVideo(mimeFinal)) this.prepararVideo(media.id, guardado.url, datos);
+
     return { ...media, esVideo: esVideo(media.mime) };
+  }
+
+  /**
+   * Despues de responder: re-codifica a H.264 MP4, guarda la portada y cambia la
+   * fila para que apunte al video nuevo; luego borra el original. Mientras tanto
+   * (o si no hay ffmpeg) sigue sirviendose el original, que en iOS se reproduce.
+   * Si la fila desaparecio en el camino (se borro la publicacion), se borran los
+   * archivos nuevos.
+   */
+  private prepararVideo(mediaId: string, urlOriginal: string, datos: Buffer): void {
+    this.colaVideos = this.colaVideos.then(async () => {
+      if (!(await ffmpegDisponible())) return;
+      const inicio = Date.now();
+      try {
+        const listo = await transcodificarVideo(datos);
+        const video = await this.almacen.guardar(listo.datos, 'video/mp4');
+        const portada = await this.almacen.guardar(listo.portada, 'image/webp');
+        try {
+          await this.prisma.media.update({
+            where: { id: mediaId },
+            data: {
+              url: video.url,
+              thumbUrl: portada.url,
+              mime: 'video/mp4',
+              bytes: video.bytes + portada.bytes,
+              ancho: listo.ancho,
+              alto: listo.alto,
+            },
+          });
+        } catch {
+          await this.almacen.borrar(video.url);
+          await this.almacen.borrar(portada.url);
+          return;
+        }
+        await this.almacen.borrar(urlOriginal);
+        this.log.log(
+          `video ${mediaId}: ${Math.round(datos.length / 1024)} KB -> ${Math.round(listo.datos.length / 1024)} KB ` +
+            `${listo.ancho}x${listo.alto} en ${Date.now() - inicio} ms`,
+        );
+      } catch (e) {
+        this.log.warn(`video ${mediaId}: se queda el original (${(e as Error).message})`);
+      }
+    });
   }
 
   /**

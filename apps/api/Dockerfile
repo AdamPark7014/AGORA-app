@@ -20,7 +20,8 @@ RUN pnpm --filter @agora/api... build
 
 # --- Ejecucion --------------------------------------------------------------
 FROM node:22-alpine AS runtime
-RUN corepack enable && addgroup -S agora && adduser -S agora -G agora
+# ffmpeg: los videos se re-codifican a H.264 MP4 con portada (src/media/transcodificar.ts).
+RUN corepack enable && apk add --no-cache ffmpeg && addgroup -S agora && adduser -S agora -G agora
 WORKDIR /repo
 ENV NODE_ENV=production
 

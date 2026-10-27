@@ -4,6 +4,16 @@
 - **Fecha:** 2026-10-26
 - **Rama:** main
 
+## Videos de punta a punta (26-10, en curso)
+
+Adam: «el tema de videos y así en udlagora falta». El servidor guardaba el video tal cual (HEVC .mov del iPhone,
+que Chrome/Firefox/muchos Android no reproducen), sin portada ni medidas.
+- API: `media/transcodificar.ts` re-codifica en segundo plano (cola de uno) a H.264+AAC MP4 faststart, lado mayor
+  ≤ 1280, sin metadatos, con portada WebP (`thumbUrl`) y medidas; cambia la fila y borra el original. La imagen de
+  la API instala ffmpeg; `/tmp` del contenedor sube a 320 MB. Anuncios devuelven `thumbUrl`.
+- Web: `VideoAdjunto` (portada, `playsInline`, aviso si el navegador no puede reproducirlo) en feed, detalle,
+  perfil, guardados y mercado; portada en el visor de clips y en la fila de clips; tope de 60 MB al adjuntar.
+
 ## iOS build 8: el inicio y la barra siguen Feed B (26-10)
 
 Adam: «elegí el feed B principalmente». La build 7 seguía FeedD; desde cfdf2db/4c33b7f el inicio y la barra
