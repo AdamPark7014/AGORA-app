@@ -1,10 +1,11 @@
 import SwiftUI
 
-// MARK: - Inicio (diseño D)
+// MARK: - Inicio (Feed B)
 
-/// Inicio del diseño D (docs/diseno-d.md §3–§4, artboard FeedD): encabezado con la marca, segmento,
-/// «Ahora en el campus», pregunta relámpago y publicaciones. La fila de clips va tras la primera
-/// publicación y el mini evento tras la cuarta. La racha y los retos viven en Campus, no aquí.
+/// Inicio con el Feed B que eligió Adam (artboard FeedB, 26-10-2026): «Ágora» en naranja con Avisos
+/// y Mensajes, la fila de historias (aquí, los clips del campus), y publicaciones a todo lo ancho
+/// con la foto de borde a borde. Lo que FeedB no define sale del artboard Main: los filtros en
+/// píldora (Para ti, Siguiendo, tu carrera, tu generación) y la pregunta del día.
 struct FeedView: View {
     var reloadKey: Int = 0
     /// Cambia cuando se vuelve a tocar Inicio: la lista sube al encabezado.
@@ -14,14 +15,11 @@ struct FeedView: View {
     var onPostTap: (String) -> Void = { _ in }
     var onAuthorTap: (String) -> Void = { _ in }
     var onHashtagTap: (String) -> Void = { _ in }
-    var onEventoTap: (String) -> Void = { _ in }
     var onClipsTap: (String?) -> Void = { _ in }
     var onAvisosTap: () -> Void = {}
     var onMensajesTap: () -> Void = {}
-    var onPerfilTap: () -> Void = {}
     var onPublicarTap: () -> Void = {}
     var onCrearEventoTap: () -> Void = {}
-    var onAventonesTap: () -> Void = {}
 
     @State private var posts: [PostDto] = []
     @State private var clips: [PostDto] = []
@@ -37,9 +35,6 @@ struct FeedView: View {
     private var feedTrigger: String {
         "\(reloadKey)|\(comunidadSlug ?? "")|\(siguiendo)"
     }
-
-    /// Después de cuál publicación va el mini evento: la cuarta, o la última si hay menos.
-    private var indiceMiniEvento: Int { min(3, posts.count - 1) }
 
     var body: some View {
         ScrollViewReader { lector in
@@ -57,7 +52,7 @@ struct FeedView: View {
     private var lista: some View {
         List {
             if !network.isOnline {
-                fila(OfflineBanner(), arriba: 4, abajo: 0)
+                fila(OfflineBanner(), lados: 16, arriba: 4, abajo: 0)
             }
 
             fila(
@@ -65,24 +60,23 @@ struct FeedView: View {
                     avisosSinLeer: avisosSinLeer,
                     mensajesSinLeer: mensajesSinLeer,
                     onAvisos: onAvisosTap,
-                    onMensajes: onMensajesTap,
-                    onPerfil: onPerfilTap
+                    onMensajes: onMensajesTap
                 ),
-                lados: 18, arriba: 8, abajo: 8
+                lados: 16, arriba: 4, abajo: 2
             )
             .id(Self.idEncabezado)
 
             // Registro con correo personal: recordatorio de confirmar la UDLAP, en una línea.
-            fila(AvisoUdlapView(), lados: 18, arriba: 0, abajo: 0)
-
-            fila(segmento, lados: 18, arriba: 4, abajo: 6)
+            fila(AvisoUdlapView(), lados: 16, arriba: 4, abajo: 0)
 
             fila(
-                EventosEnVivoBanner(onEventoTap: onEventoTap, onAventonesTap: onAventonesTap),
-                lados: 14, arriba: 6, abajo: 0
+                HistoriasClips(clips: clips, onTuHistoria: onPublicarTap, onClip: { id in onClipsTap(id) }),
+                lados: 0, arriba: 0, abajo: 0
             )
 
-            fila(PreguntaDelDiaBanner(), lados: 14, arriba: 6, abajo: 6)
+            fila(filtros, lados: 0, arriba: 0, abajo: 0)
+
+            fila(PreguntaDelDiaBanner(), lados: 12, arriba: 10, abajo: 6)
 
             contenido
         }
@@ -90,11 +84,14 @@ struct FeedView: View {
         // Las filas sin datos quedan en 0 pt en vez del alto mínimo de fila.
         .environment(\.defaultMinListRowHeight, 0)
         .scrollContentBackground(.hidden)
-        .background(AgoraDesign.Colors.fondo)
+        .background(AgoraDesign.Colors.fondoFeed)
         .animation(AgoraDesign.Animation.spring, value: posts.map(\.id))
         .toolbar(.hidden, for: .navigationBar)
-        .barraDeEstadoOpaca()
-        .refreshable { await traer(desde: nil, reemplazar: true) }
+        .barraDeEstadoOpaca(AgoraDesign.Colors.fondoFeed)
+        .refreshable {
+            await traer(desde: nil, reemplazar: true)
+            await cargarClips()
+        }
         .task(id: feedTrigger) { await traer(desde: nil, reemplazar: true) }
         .task { await cargarComunidades() }
         .task(id: reloadKey) { await cargarClips() }
@@ -131,8 +128,8 @@ struct FeedView: View {
                 fila(
                     AgoraEmptyState(
                         emoji: "",
-                        title: "Tu carrera aún no publica",
-                        subtitle: "Lo que publiques aquí lo ve toda tu carrera."
+                        title: "Todavía no hay nada aquí",
+                        subtitle: "Lo que publiques en esta comunidad lo ve toda tu gente."
                     ),
                     arriba: 6, abajo: 6
                 )
@@ -143,11 +140,11 @@ struct FeedView: View {
                         onClip: onPublicarTap,
                         onEvento: onCrearEventoTap
                     ),
-                    lados: 14, arriba: 6, abajo: 6
+                    lados: 12, arriba: 4, abajo: 6
                 )
             }
         } else {
-            ForEach(Array(posts.enumerated()), id: \.element.id) { indice, post in
+            ForEach(posts) { post in
                 fila(
                     PostCardView(
                         post: post,
@@ -159,22 +156,16 @@ struct FeedView: View {
                         onMencionTap: onAuthorTap,
                         onEliminado: { id in
                             posts.removeAll { $0.id == id }
-                        }
+                        },
+                        estilo: .feedB
                     )
                     .onAppear {
                         if post.id == posts.last?.id {
                             Task { await cargarMas() }
                         }
                     },
-                    lados: 14, arriba: 6, abajo: 6
+                    lados: 0, arriba: 0, abajo: 8
                 )
-
-                if indice == 0 && !clips.isEmpty {
-                    fila(FilaClips(clips: clips, onClipTap: onClipsTap), lados: 14, arriba: 12, abajo: 6)
-                }
-                if indice == indiceMiniEvento {
-                    fila(MiniEventoInicio(onEventoTap: onEventoTap), lados: 14, arriba: 12, abajo: 6)
-                }
             }
             if cargandoMas {
                 fila(
@@ -187,77 +178,83 @@ struct FeedView: View {
         }
     }
 
-    /// Fila de la lista sin separador ni fondo, con los márgenes del diseño D.
-    private func fila<V: View>(_ vista: V, lados: CGFloat = 14, arriba: CGFloat, abajo: CGFloat) -> some View {
+    /// Fila de la lista sin separador ni fondo, con los márgenes del diseño.
+    private func fila<V: View>(_ vista: V, lados: CGFloat = 16, arriba: CGFloat, abajo: CGFloat) -> some View {
         vista
             .listRowInsets(EdgeInsets(top: arriba, leading: lados, bottom: abajo, trailing: lados))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
     }
 
+    // MARK: Filtros (artboard Main)
+
     private var miCarrera: ComunidadDto? {
         comunidades.first { $0.slug.hasPrefix("carrera:") && !$0.estaSilenciada }
     }
 
-    /// Campus / Mi carrera / Siguiendo: fondo `superficie-2`, el activo en `superficie` con sombra leve.
-    private var segmento: some View {
-        HStack(spacing: 0) {
-            opcionSegmento("Campus", activo: !siguiendo && comunidadSlug == nil) {
-                siguiendo = false
-                comunidadSlug = nil
-            }
-            if let carrera = miCarrera {
-                opcionSegmento("Mi carrera", activo: !siguiendo && comunidadSlug == carrera.slug) {
-                    siguiendo = false
-                    comunidadSlug = carrera.slug
-                }
-            }
-            opcionSegmento("Siguiendo", activo: siguiendo) {
-                siguiendo = true
-                comunidadSlug = nil
-            }
-        }
-        .padding(4)
-        .background(
-            AgoraDesign.Colors.superficie2,
-            in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
-        )
+    private var miGeneracion: ComunidadDto? {
+        comunidades.first { $0.slug.hasPrefix("generacion:") && !$0.estaSilenciada }
     }
 
-    private func opcionSegmento(_ texto: String, activo: Bool, accion: @escaping () -> Void) -> some View {
-        Button(action: accion) {
-            Text(texto)
-                .font(.outfit(.subheadline, activo ? .bold : .medium))
-                .foregroundStyle(activo ? AgoraDesign.Colors.texto : AgoraDesign.Colors.textoMedio)
-                .frame(maxWidth: .infinity, minHeight: 38)
-                .background {
-                    if activo {
-                        RoundedRectangle(cornerRadius: 11, style: .continuous)
-                            .fill(AgoraDesign.Colors.superficie)
-                            .shadow(color: .black.opacity(0.12), radius: 1, y: 1)
+    /// Para ti / Siguiendo / tu carrera / tu generación, en píldoras como el artboard Main.
+    private var filtros: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                pildora("Para ti", activa: !siguiendo && comunidadSlug == nil) {
+                    siguiendo = false
+                    comunidadSlug = nil
+                }
+                pildora("Siguiendo", activa: siguiendo) {
+                    siguiendo = true
+                    comunidadSlug = nil
+                }
+                if let carrera = miCarrera {
+                    pildora(carrera.nombre, activa: !siguiendo && comunidadSlug == carrera.slug) {
+                        siguiendo = false
+                        comunidadSlug = carrera.slug
                     }
                 }
-                .contentShape(Rectangle())
+                if let generacion = miGeneracion {
+                    pildora(generacion.nombre.replacingOccurrences(of: "Generación ", with: "Gen "),
+                            activa: !siguiendo && comunidadSlug == generacion.slug) {
+                        siguiendo = false
+                        comunidadSlug = generacion.slug
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
         }
-        .buttonStyle(.agoraPlain)
-        .accessibilityAddTraits(activo ? .isSelected : [])
+        .overlay(alignment: .top) {
+            AgoraDesign.Colors.bordeFeed.frame(height: 1)
+        }
+        .overlay(alignment: .bottom) {
+            AgoraDesign.Colors.bordeFeed.frame(height: 1)
+        }
     }
 
-    /// «Lunes 26 de octubre», con la hora del campus. Sin semana del semestre: la API no la da.
-    static func fechaDeHoy(_ ahora: Date = Date()) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "es_MX")
-        f.timeZone = TimeZone(identifier: "America/Mexico_City")
-        f.dateFormat = "EEEE d 'de' MMMM"
-        let texto = f.string(from: ahora)
-        return texto.prefix(1).uppercased() + texto.dropFirst()
+    private func pildora(_ texto: String, activa: Bool, accion: @escaping () -> Void) -> some View {
+        Button(action: accion) {
+            Text(texto)
+                .font(.outfit(.footnote, activa ? .semibold : .medium))
+                .foregroundStyle(activa ? AgoraDesign.Colors.fondoFeed : AgoraDesign.Colors.tintaFeed)
+                .lineLimit(1)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 34)
+                .background(activa ? AgoraDesign.Colors.tintaFeed : AgoraDesign.Colors.bordeFeed, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.agoraPlain)
+        .accessibilityAddTraits(activa ? .isSelected : [])
     }
+
+    // MARK: Datos
 
     private func cargarComunidades() async {
         do {
             comunidades = try await AgoraApi.misComunidades()
         } catch {
-            // El segmento sigue funcionando sin «Mi carrera».
+            // Los filtros siguen funcionando sin tu carrera ni tu generación.
         }
     }
 
@@ -321,116 +318,165 @@ struct FeedView: View {
 
 // MARK: - Encabezado
 
-/// «Ágora» y la fecha; a la derecha Avisos, Mensajes y tu avatar con la racha
-/// (artboard «Inicio · encabezado con Avisos y aviso UDLAP en una línea»).
+/// «Ágora» en naranja y, a la derecha, Avisos (punto si hay nuevos) y Mensajes (artboard FeedB;
+/// el número de mensajes sin leer, del artboard Main).
 struct EncabezadoInicio: View {
     var avisosSinLeer: Int
     var mensajesSinLeer: Int
     var onAvisos: () -> Void
     var onMensajes: () -> Void
-    var onPerfil: () -> Void
-
-    @ObservedObject private var session = SessionStore.shared
-    @State private var racha = 0
-    @State private var fotoUrl: String?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Ágora")
-                    .font(.bricolage(30, relativeTo: .largeTitle))
-                    .tracking(-0.6)
-                    .foregroundStyle(AgoraDesign.Colors.texto)
-                    .accessibilityAddTraits(.isHeader)
-                Text(FeedView.fechaDeHoy())
-                    .font(.outfit(.footnote))
-                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
-            }
+        HStack(spacing: 4) {
+            Text("Ágora")
+                .font(.bricolage(26, relativeTo: .largeTitle, extra: false))
+                .foregroundStyle(AgoraDesign.Colors.naranja)
+                .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
-            HStack(spacing: 6) {
-                botonIcono(
-                    "bell",
-                    etiqueta: avisosSinLeer > 0 ? "Avisos, \(avisosSinLeer) sin leer" : "Avisos",
-                    cuenta: avisosSinLeer,
-                    id: "inicio.avisos",
-                    accion: onAvisos
-                )
-                botonIcono(
-                    "paperplane",
-                    etiqueta: mensajesSinLeer > 0 ? "Mensajes, \(mensajesSinLeer) sin leer" : "Mensajes",
-                    cuenta: mensajesSinLeer,
-                    id: "inicio.mensajes",
-                    accion: onMensajes
-                )
-                Button(action: onPerfil) {
-                    AvatarD(nombre: nombre, fotoUrl: fotoUrl, tamano: 44)
-                        .overlay(alignment: .bottomTrailing) {
-                            if racha > 0 {
-                                HStack(spacing: 1) {
-                                    Image(systemName: "flame.fill")
-                                        .font(.system(size: 9, weight: .bold))
-                                        .foregroundStyle(Color(red: 1, green: 138 / 255, blue: 76 / 255))
-                                    Text("\(racha)")
-                                        .font(.outfit(.caption2, .bold))
-                                        .foregroundStyle(.white)
-                                }
-                                .padding(.leading, 3)
-                                .padding(.trailing, 5)
-                                .padding(.vertical, 1)
-                                .background(Color(red: 20 / 255, green: 17 / 255, blue: 15 / 255), in: Capsule())
-                                .overlay(Capsule().stroke(AgoraDesign.Colors.fondo, lineWidth: 2))
-                                .offset(x: 6, y: 6)
-                            }
+            Button(action: onAvisos) {
+                Image(systemName: "bell")
+                    .font(.system(size: 21, weight: .regular))
+                    .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                    .frame(width: 44, height: 44)
+                    .overlay(alignment: .topTrailing) {
+                        if avisosSinLeer > 0 {
+                            Circle()
+                                .fill(AgoraDesign.Colors.naranja)
+                                .frame(width: 8, height: 8)
+                                .offset(x: -10, y: 10)
                         }
+                    }
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.agoraPlain)
+            .accessibilityLabel(avisosSinLeer > 0 ? "Avisos, \(avisosSinLeer) nuevos" : "Avisos")
+            .accessibilityIdentifier("inicio.avisos")
+
+            Button(action: onMensajes) {
+                Image(systemName: "paperplane")
+                    .font(.system(size: 21, weight: .regular))
+                    .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                    .frame(width: 44, height: 44)
+                    .overlay(alignment: .topTrailing) {
+                        if mensajesSinLeer > 0 {
+                            Text(mensajesSinLeer > 9 ? "9+" : "\(mensajesSinLeer)")
+                                .font(.outfit(.caption2, .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 4)
+                                .frame(minWidth: 16, minHeight: 16)
+                                .background(AgoraDesign.Colors.naranja, in: Capsule())
+                                .offset(x: -4, y: 6)
+                        }
+                    }
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.agoraPlain)
+            .accessibilityLabel(mensajesSinLeer > 0 ? "Mensajes, \(mensajesSinLeer) sin leer" : "Mensajes")
+            .accessibilityIdentifier("inicio.mensajes")
+        }
+    }
+}
+
+// MARK: - Historias
+
+/// Fila de historias del artboard FeedB. Ágora no tiene historias que caduquen: cada círculo es un
+/// clip reciente del campus (anillo naranja si no lo has visto) y «Tu historia» lleva a publicar.
+struct HistoriasClips: View {
+    let clips: [PostDto]
+    var onTuHistoria: () -> Void
+    var onClip: (String) -> Void
+
+    /// Ids de clips ya vistos en este teléfono, separados por coma (solo para el anillo).
+    @AppStorage("agora.clipsVistos") private var vistosTexto = ""
+
+    private var vistos: Set<String> {
+        Set(vistosTexto.split(separator: ",").map(String.init))
+    }
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 14) {
+                Button(action: onTuHistoria) {
+                    VStack(spacing: 4) {
+                        Circle()
+                            .strokeBorder(Color(red: 207 / 255, green: 210 / 255, blue: 214 / 255),
+                                          style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
+                            .frame(width: 60, height: 60)
+                            .overlay {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 22, weight: .regular))
+                                    .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
+                            }
+                        Text("Tu historia")
+                            .font(.outfit(.caption2))
+                            .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
+                            .lineLimit(1)
+                    }
+                    .frame(width: 64)
                 }
                 .buttonStyle(.agoraPlain)
-                .accessibilityLabel(racha > 0 ? "Tu perfil, racha de \(racha) días" : "Tu perfil")
-                .accessibilityIdentifier("inicio.perfil")
-            }
-        }
-        .task { await cargar() }
-    }
+                .accessibilityLabel("Subir un clip")
+                .accessibilityIdentifier("inicio.historia.nueva")
 
-    private var nombre: String {
-        session.currentUser?.nombre ?? session.currentUser?.handle ?? "?"
-    }
-
-    private func botonIcono(_ icono: String, etiqueta: String, cuenta: Int, id: String, accion: @escaping () -> Void) -> some View {
-        Button(action: accion) {
-            Image(systemName: icono)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(AgoraDesign.Colors.texto)
-                .frame(width: 44, height: 44)
-                .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
-                        .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
-                }
-                .overlay(alignment: .topTrailing) {
-                    if cuenta > 0 {
-                        Text(cuenta > 9 ? "9+" : "\(cuenta)")
-                            .font(.outfit(.caption2, .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 5)
-                            .frame(minWidth: 18, minHeight: 18)
-                            .background(AgoraDesign.Colors.naranja, in: Capsule())
-                            .overlay(Capsule().stroke(AgoraDesign.Colors.fondo, lineWidth: 2))
-                            .offset(x: 5, y: -5)
+                ForEach(Array(clips.prefix(12).enumerated()), id: \.element.id) { indice, clip in
+                    Button {
+                        marcarVisto(clip.id)
+                        onClip(clip.id)
+                    } label: {
+                        VStack(spacing: 4) {
+                            circulo(clip, visto: vistos.contains(clip.id))
+                            Text(etiqueta(clip))
+                                .font(.outfit(.caption2))
+                                .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                                .lineLimit(1)
+                        }
+                        .frame(width: 64)
                     }
+                    .buttonStyle(.agoraPlain)
+                    .accessibilityLabel("Clip de \(clip.autor?.nombre ?? "alguien") en \(clip.comunidad.nombre)")
+                    .accessibilityIdentifier("inicio.historia.\(indice)")
                 }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+            .padding(.bottom, 12)
         }
-        .buttonStyle(.agoraPlain)
-        .accessibilityLabel(etiqueta)
-        .accessibilityIdentifier(id)
     }
 
-    private func cargar() async {
-        if let perfil = try? await AgoraApi.perfilMio() {
-            fotoUrl = perfil.fotoUrl
+    private func circulo(_ clip: PostDto, visto: Bool) -> some View {
+        let video = clip.media?.first { $0.esVideo == true }.flatMap { ApiClient.shared.resolveUrl($0.url) }
+        return ZStack {
+            if visto {
+                Circle().fill(Color(red: 207 / 255, green: 210 / 255, blue: 214 / 255))
+            } else {
+                Circle().fill(AngularGradient(
+                    colors: [AgoraDesign.Colors.naranja, Color(red: 1, green: 179 / 255, blue: 133 / 255), AgoraDesign.Colors.naranja],
+                    center: .center
+                ))
+            }
+            Group {
+                if let video {
+                    MiniaturaVideo(url: video)
+                } else {
+                    AgoraDesign.Colors.bordeFeed
+                }
+            }
+            .frame(width: 52, height: 52)
+            .clipShape(Circle())
+            .overlay { Circle().stroke(AgoraDesign.Colors.fondoFeed, lineWidth: 2) }
         }
-        if let gamificacion = try? await AgoraApi.gamificacionMio() {
-            racha = gamificacion.rachaActual
-        }
+        .frame(width: 60, height: 60)
+    }
+
+    /// El nombre de pila de quien lo subió (como el artboard, una palabra bajo el círculo).
+    private func etiqueta(_ clip: PostDto) -> String {
+        clip.autor?.nombre?.split(separator: " ").first.map(String.init) ?? clip.comunidad.nombre
+    }
+
+    private func marcarVisto(_ id: String) {
+        guard !vistos.contains(id) else { return }
+        let lista = ([id] + vistosTexto.split(separator: ",").map(String.init)).prefix(100)
+        vistosTexto = lista.joined(separator: ",")
     }
 }
 
@@ -455,11 +501,11 @@ struct InicioVacioTarjeta: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Tu campus apenas empieza")
                     .font(.bricolage(24, relativeTo: .title2))
-                    .foregroundStyle(AgoraDesign.Colors.texto)
+                    .foregroundStyle(AgoraDesign.Colors.tintaFeed)
                     .accessibilityAddTraits(.isHeader)
                 Text("Todavía no hay publicaciones aquí. Lo primero que subas lo ve toda la UDLAP.")
                     .font(.outfit(.body))
-                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                    .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -490,141 +536,27 @@ struct InicioVacioTarjeta: View {
         .padding(.horizontal, 18)
         .padding(.top, 22)
         .padding(.bottom, 18)
-        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
+        .background(AgoraDesign.Colors.fondoFeed, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous)
+                .stroke(AgoraDesign.Colors.bordeFeed, lineWidth: 1)
+        }
     }
 
     private func botonSecundario(_ texto: String, icono: String, accion: @escaping () -> Void) -> some View {
         Button(action: accion) {
             Label(texto, systemImage: icono)
                 .font(.outfit(.subheadline, .semibold))
-                .foregroundStyle(AgoraDesign.Colors.texto)
+                .foregroundStyle(AgoraDesign.Colors.tintaFeed)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
                 .frame(maxWidth: .infinity, minHeight: 50)
-                .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+                .background(AgoraDesign.Colors.fondoFeed, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
-                        .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+                        .stroke(AgoraDesign.Colors.bordeFeed, lineWidth: 1)
                 }
         }
         .buttonStyle(.agoraPlain)
-    }
-}
-
-// MARK: - Mini evento
-
-/// «Tu generación va» / «Van N» (docs/diseno-d.md §3): el próximo evento al que aún no vas,
-/// con bloque de fecha naranja y «Voy». Sin evento próximo no sale.
-struct MiniEventoInicio: View {
-    var onEventoTap: (String) -> Void
-
-    @State private var evento: EventoDto?
-    @State private var voy = false
-    @State private var enviando = false
-
-    var body: some View {
-        VStack(spacing: 0) {
-            if let evento {
-                tarjeta(evento)
-            }
-        }
-        .task { await cargar() }
-    }
-
-    private func tarjeta(_ evento: EventoDto) -> some View {
-        let partes = FormatUtils.partesFecha(evento.inicioAt)
-        return HStack(spacing: 12) {
-            Button {
-                onEventoTap(evento.id)
-            } label: {
-                HStack(spacing: 12) {
-                    VStack(spacing: 0) {
-                        Text(partes?.dia ?? "")
-                            .font(.outfit(.caption2, .bold))
-                            .tracking(0.6)
-                        Text(partes?.numero ?? "")
-                            .font(.bricolage(30, relativeTo: .title))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(width: 64, height: 72)
-                    .background(AgoraDesign.Colors.naranja, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(Self.etiqueta(evento).uppercased())
-                            .font(.outfit(.caption2, .bold))
-                            .tracking(0.5)
-                            .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
-                            .lineLimit(1)
-                        Text(evento.titulo)
-                            .font(.outfit(.callout, .semibold))
-                            .foregroundStyle(AgoraDesign.Colors.texto)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                        Text([partes?.hora, evento.lugar].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.outfit(.caption))
-                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.agoraPlain)
-
-            Button {
-                Task { await irAlEvento(evento) }
-            } label: {
-                Text(voy ? "Vas" : "Voy")
-                    .font(.outfit(.subheadline, .bold))
-                    .foregroundStyle(voy ? AgoraDesign.Colors.texto : AgoraDesign.Colors.fondo)
-                    .padding(.horizontal, 16)
-                    .frame(minHeight: 44)
-                    .background(
-                        voy ? AgoraDesign.Colors.superficie2 : AgoraDesign.Colors.texto,
-                        in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
-                    )
-            }
-            .buttonStyle(.agoraPlain)
-            .disabled(voy || enviando)
-            .accessibilityLabel(voy ? "Vas a \(evento.titulo)" : "Voy a \(evento.titulo)")
-        }
-        .padding(14)
-        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
-    }
-
-    /// Solo lo que la API dice (`GET /eventos` ya filtra por tus comunidades), como en Android.
-    static func etiqueta(_ evento: EventoDto) -> String {
-        let van = evento.vanAIr ?? 0
-        if evento.comunidad?.slug.hasPrefix("generacion:") == true && van > 0 {
-            return "Tu generación va · \(van)"
-        }
-        let primero = evento.asistentes?.first?.nombre?
-            .split(separator: " ").first.map(String.init)
-        if let primero, van > 1 { return "Van \(primero) y \(van - 1) más" }
-        if let primero { return "Va \(primero)" }
-        if van == 1 { return "Va 1 persona" }
-        if van > 1 { return "Van \(van)" }
-        return evento.comunidad?.nombre ?? "Próximo evento"
-    }
-
-    private func cargar() async {
-        guard evento == nil else { return }
-        let ahora = Date()
-        let resp = try? await AgoraApi.eventosProximos()
-        evento = resp?.eventos?.first { e in
-            e.miRespuesta != "VOY" && (FormatUtils.parseISO(e.inicioAt) ?? .distantPast) > ahora
-        }
-    }
-
-    private func irAlEvento(_ evento: EventoDto) async {
-        enviando = true
-        defer { enviando = false }
-        do {
-            try await AgoraApi.responderEvento(id: evento.id, respuesta: "VOY")
-            Haptics.success()
-            voy = true
-        } catch {
-            // Sin red o el evento se llenó: el botón se queda en «Voy» para reintentar.
-        }
     }
 }

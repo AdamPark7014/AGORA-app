@@ -30,6 +30,8 @@ struct VisorImagenesItem: Identifiable {
 struct PostMediaCarousel: View {
     let media: [MediaDto]
     var altura: CGFloat = 220
+    /// Esquinas del carrusel: 0 en el feed B, donde la foto va de borde a borde.
+    var radio: CGFloat = AgoraDesign.Radii.small
     /// Toque simple en una foto. `nil` → abre el visor a pantalla completa.
     var onToque: (() -> Void)?
     /// Doble toque en una foto (p. ej. reaccionar con 🧡).
@@ -69,7 +71,7 @@ struct PostMediaCarousel: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: lista.isEmpty ? 0 : altura)
-        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small))
+        .clipShape(RoundedRectangle(cornerRadius: radio))
         .fullScreenCover(item: $visor) { item in
             VisorImagenes(urls: item.urls, inicial: item.inicial)
         }

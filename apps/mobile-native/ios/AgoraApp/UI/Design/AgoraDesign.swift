@@ -22,6 +22,16 @@ enum AgoraDesign {
         /// Punto de «Ahora en el campus».
         static let vivo = dinamico(claro: (22, 163, 74), oscuro: (34, 197, 94))
 
+        /// Inicio y barra con el Feed B que eligió Adam (artboard FeedB, 26-10): blanco con tinta
+        /// azul negra y bordes finos; en oscuro, los mismos tonos cálidos de la D.
+        static let fondoFeed = dinamico(claro: (255, 255, 255), oscuro: (15, 13, 11))
+        static let tintaFeed = dinamico(claro: (15, 20, 25), oscuro: (244, 242, 239))
+        static let secundarioFeed = dinamico(claro: (83, 100, 113), oscuro: (179, 170, 161))
+        static let bordeFeed = dinamico(claro: (238, 240, 242), oscuro: (46, 41, 37))
+        /// Pregunta del día como en el artboard Main (naranja muy suave con borde durazno).
+        static let preguntaFondo = dinamico(claro: (255, 241, 233), oscuro: (42, 21, 9))
+        static let preguntaBorde = dinamico(claro: (243, 199, 173), oscuro: (84, 46, 24))
+
         static let texto = dinamico(claro: (20, 17, 15), oscuro: (244, 242, 239))
         static let textoMedio = dinamico(claro: (107, 98, 91), oscuro: (179, 170, 161))
         static let textoMuted = dinamico(claro: (115, 105, 97), oscuro: (161, 151, 141))
@@ -319,14 +329,14 @@ extension Font {
 extension View {
     /// Pantallas sin barra de navegación (Inicio, Campus): una franja del fondo detrás de la hora
     /// y la batería, para que lo que se desplaza no pase por debajo de ellas.
-    func barraDeEstadoOpaca() -> some View {
+    func barraDeEstadoOpaca(_ color: Color = AgoraDesign.Colors.fondo) -> some View {
         // La lista se extiende bajo la barra de estado: un recubrimiento de alto cero no tapaba nada.
         // Un inset de alto cero con fondo de estilo sí cubre la zona de la hora (el fondo se
         // extiende a la zona segura de arriba).
         safeAreaInset(edge: .top, spacing: 0) {
             Color.clear
                 .frame(height: 0)
-                .background(AgoraDesign.Colors.fondo, ignoresSafeAreaEdges: .top)
+                .background(color, ignoresSafeAreaEdges: .top)
         }
     }
 

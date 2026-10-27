@@ -1,16 +1,14 @@
 import SwiftUI
 
-/// Pregunta relámpago del diseño D (docs/diseno-d.md §3): tarjeta oscura con rayo naranja,
-/// «cierra en m:ss», opciones como barras de porcentaje (la mía en naranja) y abajo tu carrera
-/// contra el campus. Misma lógica que antes; paridad con `PreguntaDelDiaBanner.kt`.
+/// Pregunta del día con el estilo del artboard Main (Feed B no la define): tarjeta naranja muy
+/// suave, «QUEDAN m:ss», opciones en cuadrícula de dos y, al contestar, barras de porcentaje (la
+/// mía en naranja) con tu carrera contra el campus. Misma lógica que antes; paridad con
+/// `PreguntaDelDiaBanner.kt`.
 struct PreguntaDelDiaBanner: View {
     @State private var pregunta: PreguntaHoyDto?
     @State private var respondiendo = false
     @State private var celebrando = false
     @State private var confettiTrigger = 0
-
-    /// Naranja claro sobre la tarjeta oscura (mismo en claro y oscuro).
-    private static let naranjaClaro = Color(red: 1, green: 179 / 255, blue: 133 / 255)
 
     var body: some View {
         // VStack y no Group: los modificadores de un Group se aplican a cada hijo,
@@ -41,134 +39,141 @@ struct PreguntaDelDiaBanner: View {
         }
     }
 
-    private func cabeza<Pildora: View>(@ViewBuilder pildora: () -> Pildora) -> some View {
-        HStack {
-            Label {
-                Text("PREGUNTA RELÁMPAGO")
-                    .font(.outfit(.caption, .bold))
-                    .tracking(0.7)
-            } icon: {
-                Image(systemName: "bolt.fill")
-                    .font(.outfit(.caption))
-            }
-            .foregroundStyle(Self.naranjaClaro)
-            .accessibilityAddTraits(.isHeader)
+    private func cabeza<Derecha: View>(@ViewBuilder derecha: () -> Derecha) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("PREGUNTA DEL DÍA")
+                .font(.outfit(.caption, .bold))
+                .tracking(0.5)
+                .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
+                .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
-            pildora()
+            derecha()
         }
     }
 
-    private func pildora(_ texto: String, resaltada: Bool = false) -> some View {
+    private func dato(_ texto: String, resaltado: Bool = false) -> some View {
         Text(texto)
-            .font(.outfit(.caption).monospacedDigit())
-            .foregroundStyle(resaltada ? Self.naranjaClaro : .white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color.white.opacity(0.12), in: Capsule())
+            .font(.outfit(.caption, resaltado ? .bold : .regular).monospacedDigit())
+            .foregroundStyle(resaltado ? AgoraDesign.Colors.naranjaOscuro : AgoraDesign.Colors.secundarioFeed)
+    }
+
+    private func tarjeta<Contenido: View>(@ViewBuilder _ contenido: () -> Contenido) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            contenido()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(AgoraDesign.Colors.preguntaFondo, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var tarjetaEsperando: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        tarjeta {
             cabeza { EmptyView() }
             Text("Hoy cae a una hora sorpresa.")
-                .font(.outfit(.title3, .bold))
-                .foregroundStyle(.white)
+                .font(.bricolage(18, relativeTo: .headline, extra: false))
+                .foregroundStyle(AgoraDesign.Colors.tintaFeed)
             Text("Te avisamos en cuanto salga. Contesta en los primeros 2 minutos y sales a tiempo; antes de contestar no ves lo que dijeron los demás.")
                 .font(.outfit(.footnote))
-                .foregroundStyle(Color.white.opacity(0.75))
+                .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(18)
-        .background(AgoraDesign.Colors.oscuro, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
     }
 
     @ViewBuilder
     private func bannerContent(_ actual: PreguntaHoyDto) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        tarjeta {
             cabeza {
                 if !actual.yaRespondi, let hasta = Self.fecha(actual.aTiempoHasta), hasta > Date() {
                     // Cuenta regresiva de la ventana "a tiempo"; al terminar desaparece sola.
                     TimelineView(.periodic(from: .now, by: 1)) { contexto in
                         let falta = hasta.timeIntervalSince(contexto.date)
                         if falta > 0 {
-                            pildora("cierra en \(Self.mmss(falta))")
+                            dato("QUEDAN \(Self.mmss(falta))", resaltado: true)
                         }
                     }
-                } else if actual.yaRespondi, let aTiempo = actual.aTiempo, actual.abreAt != nil {
-                    pildora(aTiempo ? "Contestaste a tiempo" : "Contestaste tarde", resaltada: aTiempo)
+                } else if actual.yaRespondi {
+                    let total = actual.total ?? 0
+                    dato("\(total) \(total == 1 ? "respuesta" : "respuestas")")
                 } else if let semana = actual.semanaPregunta {
-                    pildora("\(semana.respondidas)/\(semana.meta) esta semana")
+                    dato("\(semana.respondidas)/\(semana.meta) esta semana")
                 }
             }
 
             Text(actual.texto)
-                .font(.outfit(.title3, .bold))
-                .foregroundStyle(.white)
+                .font(.bricolage(18, relativeTo: .headline, extra: false))
+                .foregroundStyle(AgoraDesign.Colors.tintaFeed)
                 .fixedSize(horizontal: false, vertical: true)
 
-            VStack(spacing: 8) {
-                ForEach(actual.opciones ?? []) { opcion in
-                    opcionView(actual, opcion: opcion)
+            if actual.yaRespondi {
+                VStack(spacing: 6) {
+                    ForEach(actual.opciones ?? []) { opcion in
+                        barra(actual, opcion: opcion)
+                    }
                 }
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(actual.yaRespondi ? (Self.comparacion(actual) ?? "") : "Contesta para ver qué dijeron los demás.")
+                Text(Self.comparacion(actual) ?? (actual.aTiempo == true ? "Contestaste a tiempo" : ""))
                     .font(.outfit(.footnote))
-                    .foregroundStyle(Color.white.opacity(0.75))
-                Spacer(minLength: 0)
-                if actual.yaRespondi {
-                    let total = actual.total ?? 0
-                    Text("\(total) \(total == 1 ? "respuesta" : "respuestas")")
-                        .font(.outfit(.footnote, .semibold))
-                        .foregroundStyle(Self.naranjaClaro)
-                }
-            }
-        }
-        .padding(18)
-        .background(AgoraDesign.Colors.oscuro, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
-    }
-
-    private func opcionView(_ actual: PreguntaHoyDto, opcion: PreguntaOpcionDto) -> some View {
-        let mia = opcion.indice == actual.miOpcion
-        let total = max(actual.total ?? 0, 1)
-        let pct = actual.yaRespondi ? (opcion.votos ?? 0) * 100 / total : 0
-
-        return Button {
-            Task { await responder(actual: actual, opcion: opcion.indice) }
-        } label: {
-            HStack(spacing: 8) {
-                Text(mia ? "\(opcion.texto) · tu respuesta" : opcion.texto)
-                    .fontWeight(mia ? .bold : .medium)
-                    .multilineTextAlignment(.leading)
-                Spacer(minLength: 8)
-                if actual.yaRespondi {
-                    Text("\(pct) %")
-                        .fontWeight(.bold)
-                        .monospacedDigit()
-                }
-            }
-            .font(.outfit(.subheadline))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .background(alignment: .leading) {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Color.white.opacity(0.08)
-                        if actual.yaRespondi {
-                            (mia ? AgoraDesign.Colors.naranja : Color.white.opacity(0.22))
-                                .frame(width: geo.size.width * CGFloat(pct) / 100)
-                        }
+                    .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
+            } else {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                    ForEach(actual.opciones ?? []) { opcion in
+                        boton(actual, opcion: opcion)
                     }
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous))
-            .contentShape(Rectangle())
+        }
+    }
+
+    private func boton(_ actual: PreguntaHoyDto, opcion: PreguntaOpcionDto) -> some View {
+        Button {
+            Task { await responder(actual: actual, opcion: opcion.indice) }
+        } label: {
+            Text(opcion.texto)
+                .font(.outfit(.subheadline, .medium))
+                .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 8)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(AgoraDesign.Colors.fondoFeed, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous)
+                        .stroke(AgoraDesign.Colors.preguntaBorde, lineWidth: 1)
+                }
+                .contentShape(Rectangle())
         }
         .buttonStyle(.agoraPlain)
-        .disabled(respondiendo || actual.yaRespondi)
-        .accessibilityLabel(actual.yaRespondi ? "\(opcion.texto), \(pct) por ciento" : opcion.texto)
+        .disabled(respondiendo)
+        .accessibilityLabel(opcion.texto)
+    }
+
+    private func barra(_ actual: PreguntaHoyDto, opcion: PreguntaOpcionDto) -> some View {
+        let mia = opcion.indice == actual.miOpcion
+        let total = max(actual.total ?? 0, 1)
+        let pct = (opcion.votos ?? 0) * 100 / total
+        return HStack(spacing: 8) {
+            Text(mia ? "\(opcion.texto) · tu respuesta" : opcion.texto)
+                .fontWeight(mia ? .semibold : .regular)
+                .multilineTextAlignment(.leading)
+            Spacer(minLength: 8)
+            Text("\(pct) %")
+                .fontWeight(mia ? .semibold : .regular)
+                .monospacedDigit()
+        }
+        .font(.outfit(.subheadline))
+        .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, minHeight: 40)
+        .background(alignment: .leading) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    AgoraDesign.Colors.fondoFeed.opacity(0.7)
+                    (mia ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.secundarioFeed.opacity(0.14))
+                        .frame(width: geo.size.width * CGFloat(pct) / 100)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(opcion.texto), \(pct) por ciento")
         .accessibilityAddTraits(mia ? .isSelected : [])
     }
 

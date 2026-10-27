@@ -9,6 +9,9 @@ struct TextoConHashtags: View {
     var onBackgroundTap: (() -> Void)?
     /// Toque en una @mención (handle en minúsculas, sin arroba).
     var onMencionTap: ((String) -> Void)?
+    /// Pie de foto del feed B: el @ del autor en negritas antes del texto.
+    var autor: String? = nil
+    var fuente: Font = .outfit(.body)
 
     /// Mismo patrón que `TOKEN` en `packages/shared/src/texto-social.ts`.
     private static let patron: NSRegularExpression? = try? NSRegularExpression(
@@ -20,7 +23,7 @@ struct TextoConHashtags: View {
 
     var body: some View {
         Text(attributed)
-            .font(.outfit(.body))
+            .font(fuente)
             .foregroundStyle(AgoraDesign.Colors.texto)
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -46,8 +49,14 @@ struct TextoConHashtags: View {
 
     private var attributed: AttributedString {
         var result = AttributedString()
+        if let autor, !autor.isEmpty {
+            var nombre = AttributedString(autor + " ")
+            nombre.font = .outfit(.subheadline, .bold)
+            result.append(nombre)
+        }
         guard let patron = Self.patron else {
-            return AttributedString(texto)
+            result.append(AttributedString(texto))
+            return result
         }
         let nsTexto = texto as NSString
         let coincidencias = patron.matches(
@@ -69,7 +78,7 @@ struct TextoConHashtags: View {
             let valor = esMencion ? String(token.dropFirst()).lowercased() : String(token.dropFirst())
             var fragmento = AttributedString(token)
             fragmento.foregroundColor = AgoraDesign.Colors.naranja
-            fragmento.font = .body.bold()
+            fragmento.font = .outfit(.body, .semibold)
             if !esMencion || onMencionTap != nil {
                 fragmento.link = enlace(tipo: esMencion ? "mencion" : "hashtag", valor: valor)
             }

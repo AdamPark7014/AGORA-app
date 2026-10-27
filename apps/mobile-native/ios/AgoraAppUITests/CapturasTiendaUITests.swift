@@ -57,23 +57,28 @@ final class CapturasTiendaUITests: XCTestCase {
         tocar(app.buttons["tab.0"])
         let autores = ["Renata", "Diego", "Sofía", "Ximena", "Paula"]
         _ = esperarAlguno(autores, timeout: 25)
-        // Lo primero que se ve al abrir: fecha, segmento, «Ahora en el campus» y la pregunta.
-        capturar("inicio", tema: tema, esperando: ["Mi carrera", "Siguiendo"])
+        // Lo primero que se ve al abrir (Feed B): encabezado, historias, filtros y la pregunta.
+        capturar("inicio", tema: tema, esperando: ["Para ti", "Siguiendo"])
         bajarALasPublicaciones()
         capturar("feed", tema: tema, esperando: autores)
 
-        // Clips: segunda pestaña del diseño D, con los videos del seed.
-        tocar(app.buttons["tab.1"])
+        // Clips: se abren desde la fila de historias del inicio.
+        let inicio = app.buttons["tab.0"]
+        inicio.tap()
+        let historia = app.buttons["inicio.historia.0"]
+        XCTAssertTrue(historia.waitForExistence(timeout: 15), "No hay historias (clips) en el inicio")
+        sleep(1)
+        historia.tap()
         capturar("clips", tema: tema, esperando: ["Recta", "cascarita", "brazo robótico"])
 
-        tocar(app.buttons["tab.3"])
+        tocar(app.buttons["tab.1"])
         tocarTexto("Fiesta de fin de parciales")
         capturar("evento", tema: tema, esperando: ["quedar a dormir", "bocinas y alberca"])
 
         irAMas("aventones")
         capturar("aventones", tema: tema, esperando: ["Angelópolis", "Cholula centro", "Plaza Crystal"])
 
-        irAMas("marketplace")
+        tocar(app.buttons["tab.3"])
         capturar("mercado", tema: tema, esperando: ["Laptop", "Stewart", "Escritorio"])
 
         // Campus: accesos, «Tu día» y tu cuenta (artboard por aprobar del 26-10).
@@ -114,17 +119,16 @@ final class CapturasTiendaUITests: XCTestCase {
         boton.tap()
     }
 
-    /// Pestaña Campus, de vuelta a su inicio, y la fila `mas.<ruta>` (sin ruta, solo el inicio).
+    /// Campus se abre desde el menú de «Tu perfil» (Feed B): la pestaña, otra vez para volver a su
+    /// raíz, el menú y, si se pide, la fila `mas.<ruta>`.
     private func irAMas(_ ruta: String?) {
-        tocar(app.buttons["tab.4"])
-        let fila = app.buttons["mas.\(ruta ?? "marketplace")"]
-        var intentos = 0
-        while !fila.waitForExistence(timeout: 2) && intentos < 6 {
-            let atras = app.navigationBars.buttons.element(boundBy: 0)
-            if atras.exists { atras.tap() }
-            intentos += 1
+        let perfil = app.buttons["tab.4"]
+        tocar(perfil)
+        perfil.tap()
+        tocar(app.buttons["perfil.campus"])
+        if let ruta {
+            tocar(app.buttons["mas.\(ruta)"])
         }
-        if ruta != nil { tocar(fila) }
     }
 
     /// Toca el texto o, si SwiftUI lo fundió en la etiqueta de un botón, el botón.
@@ -290,15 +294,9 @@ final class CapturasTiendaUITests: XCTestCase {
         if saltar.waitForExistence(timeout: 10) { saltar.tap() }
     }
 
-    /// Más → «Cerrar sesión», para que el registro empiece en la puerta.
+    /// Campus → «Cerrar sesión», para que el registro empiece en la puerta.
     private func cerrarSesion() {
-        tocar(app.buttons["tab.4"])
-        var intentos = 0
-        while !app.buttons["mas.ajustes"].waitForExistence(timeout: 2) && intentos < 6 {
-            let atras = app.navigationBars.buttons.element(boundBy: 0)
-            if atras.exists { atras.tap() }
-            intentos += 1
-        }
+        irAMas(nil)
         let salir = app.buttons["Cerrar sesión"]
         hastaVer(salir)
         if salir.exists { salir.tap() }

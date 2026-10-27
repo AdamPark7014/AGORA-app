@@ -19,8 +19,8 @@ private let accesosCampus: [AccesoCampus] = [
     AccesoCampus(ruta: "guardados", icono: "bookmark", titulo: "Guardados", nota: "Para ver después"),
 ]
 
-/// Pestaña Campus (antes «Más»), artboard «Campus · accesos y "Tu día"»: los accesos del campus,
-/// la racha y los retos que salieron del inicio, y tu cuenta. Paridad con `MasScreen.kt`.
+/// Campus (antes «Más»), artboard «Campus · accesos y "Tu día"»: los accesos del campus, la racha y
+/// los retos, y tu cuenta. Con el Feed B se abre desde el menú de tu perfil. Paridad con `MasScreen.kt`.
 struct MasView: View {
     let onNavigate: (String) -> Void
     let onTerminos: () -> Void
@@ -127,8 +127,9 @@ struct MasView: View {
             .padding(.bottom, 16)
         }
         .background(AgoraDesign.Colors.fondo)
-        .toolbar(.hidden, for: .navigationBar)
-        .barraDeEstadoOpaca()
+        // Se abre desde el menú de tu perfil: barra con «atrás», el título grande va en la pantalla.
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func titulo(_ texto: String) -> some View {

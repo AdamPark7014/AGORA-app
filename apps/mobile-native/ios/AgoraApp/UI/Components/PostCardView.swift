@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct PostCardView: View {
     let post: PostDto
@@ -9,6 +10,8 @@ struct PostCardView: View {
     var onMencionTap: ((String) -> Void)?
     /// La publicación se borró o se retiró: el contenedor puede quitarla de la lista.
     var onEliminado: ((String) -> Void)?
+    /// `.feedB` en el inicio (artboard FeedB); `.tarjeta` en el resto de las listas.
+    var estilo: EstiloPublicacion = .tarjeta
 
     @ObservedObject private var session = SessionStore.shared
 
@@ -50,8 +53,54 @@ struct PostCardView: View {
                     .padding(AgoraDesign.Spacing.sm + 2)
                     .background(AgoraDesign.Colors.superficie)
                     .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
+            } else if estilo == .feedB {
+                tarjetaB
             } else {
                 tarjeta
+            }
+        }
+        .confirmationDialog("¿Por qué la reportas?", isPresented: $eligiendoMotivo, titleVisibility: .visible) {
+            ForEach(motivosReporte) { motivo in
+                Button(motivo.etiqueta) {
+                    Task { await reportar(motivo.id) }
+                }
+            }
+            Button("Cancelar", role: .cancel) {}
+        }
+        .confirmationDialog("¿Borrar esta publicación?", isPresented: $confirmandoBorrar, titleVisibility: .visible) {
+            Button("Borrar", role: .destructive) {
+                Task { await borrar() }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("No se puede deshacer.")
+        }
+        .alert("Retirar publicación", isPresented: $retirando) {
+            TextField("Motivo (lo verá el autor)", text: $motivoRetiro)
+            Button("Retirar", role: .destructive) {
+                Task { await retirar() }
+            }
+            Button("Cancelar", role: .cancel) {
+                motivoRetiro = ""
+            }
+        } message: {
+            Text("Escribe el motivo: mínimo 3 caracteres.")
+        }
+        .alert(
+            avisoReporte ?? "",
+            isPresented: Binding(
+                get: { avisoReporte != nil },
+                set: { if !$0 { avisoReporte = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        }
+        .sheet(isPresented: $editando) {
+            EditarPublicacionSheet(postId: post.id, textoInicial: texto) { nuevo, aviso in
+                textoEditado = nuevo
+                if let aviso, !aviso.isEmpty {
+                    avisoReporte = aviso
+                }
             }
         }
         .onAppear {
@@ -182,50 +231,6 @@ struct PostCardView: View {
             .padding(.top, 12)
             .padding(.bottom, 4)
         }
-        .confirmationDialog("¿Por qué la reportas?", isPresented: $eligiendoMotivo, titleVisibility: .visible) {
-            ForEach(motivosReporte) { motivo in
-                Button(motivo.etiqueta) {
-                    Task { await reportar(motivo.id) }
-                }
-            }
-            Button("Cancelar", role: .cancel) {}
-        }
-        .confirmationDialog("¿Borrar esta publicación?", isPresented: $confirmandoBorrar, titleVisibility: .visible) {
-            Button("Borrar", role: .destructive) {
-                Task { await borrar() }
-            }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("No se puede deshacer.")
-        }
-        .alert("Retirar publicación", isPresented: $retirando) {
-            TextField("Motivo (lo verá el autor)", text: $motivoRetiro)
-            Button("Retirar", role: .destructive) {
-                Task { await retirar() }
-            }
-            Button("Cancelar", role: .cancel) {
-                motivoRetiro = ""
-            }
-        } message: {
-            Text("Escribe el motivo: mínimo 3 caracteres.")
-        }
-        .alert(
-            avisoReporte ?? "",
-            isPresented: Binding(
-                get: { avisoReporte != nil },
-                set: { if !$0 { avisoReporte = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) {}
-        }
-        .sheet(isPresented: $editando) {
-            EditarPublicacionSheet(postId: post.id, textoInicial: texto) { nuevo, aviso in
-                textoEditado = nuevo
-                if let aviso, !aviso.isEmpty {
-                    avisoReporte = aviso
-                }
-            }
-        }
         .background(AgoraDesign.Colors.superficie)
         .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
         .overlay {
@@ -233,6 +238,255 @@ struct PostCardView: View {
                 .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
         }
     }
+
+    // MARK: - Feed B
+
+    /// Feed B (artboard FeedB, elegido por Adam el 26-10): a todo lo ancho y sin tarjeta. Autor con
+    /// su comunidad, la foto de borde a borde con «1/3», corazón con número, comentar, compartir y
+    /// guardar, el texto como pie con el @ en negritas y «Ver los N comentarios · hace…».
+    /// Sin foto, el texto va arriba en grande (artboard Main, para publicaciones de texto).
+    private var tarjetaB: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Button {
+                    onAuthorTap?()
+                } label: {
+                    HStack(spacing: 10) {
+                        avatarCircular
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(nombreB)
+                                .font(.outfit(.subheadline, .bold))
+                                .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                                .lineLimit(1)
+                            Text(post.comunidad.nombre)
+                                .font(.outfit(.caption))
+                                .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+                .buttonStyle(.agoraPlain)
+                .disabled(onAuthorTap == nil || esAnonimo)
+                Spacer(minLength: 0)
+                menuOpciones
+            }
+            .padding(.leading, 16)
+            .padding(.trailing, 4)
+            .padding(.vertical, 6)
+
+            if let media = post.media, !media.isEmpty {
+                ZStack {
+                    PostMediaCarousel(
+                        media: media,
+                        altura: Self.alturaFotoB,
+                        radio: 0,
+                        onDobleToque: {
+                            heartTrigger += 1
+                            Task { await reaccionar("ME_LATE") }
+                        }
+                    )
+                    if heartTrigger > 0 {
+                        FloatingHeartOverlay()
+                            .id(heartTrigger)
+                            .allowsHitTesting(false)
+                    }
+                }
+            } else if !texto.isEmpty {
+                textoB(conAutor: false)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 4)
+            }
+
+            if let encuesta {
+                EncuestaBloque(
+                    encuesta: encuesta,
+                    onVotar: { opcionId in Task { await votar(opcionId: opcionId) } },
+                    votando: votando
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            }
+
+            accionesB
+                .padding(.horizontal, 8)
+                .padding(.top, 2)
+
+            if let media = post.media, !media.isEmpty, !texto.isEmpty {
+                textoB(conAutor: true)
+                    .padding(.horizontal, 16)
+            }
+
+            Button {
+                onTap?()
+            } label: {
+                Text(pieB)
+                    .font(.outfit(.footnote))
+                    .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
+                    .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+            }
+            .buttonStyle(.agoraPlain)
+            .disabled(onTap == nil)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 10)
+        }
+        .background(AgoraDesign.Colors.fondoFeed)
+    }
+
+    /// 330 de alto en el artboard de 390: misma proporción en cualquier iPhone.
+    private static var alturaFotoB: CGFloat { UIScreen.main.bounds.width * 330 / 390 }
+
+    /// El artboard muestra el @ (isa.ruiz), no el nombre completo.
+    private var nombreB: String {
+        if esAnonimo { return post.alias ?? "Sin nombre" }
+        return post.autor?.handle ?? post.autor?.nombre ?? "Usuario"
+    }
+
+    private var pieB: String {
+        let comentarios = post.numComments ?? 0
+        let hace = FormatUtils.haceCuanto(post.createdAt)
+        switch comentarios {
+        case 0: return hace
+        case 1: return "Ver el comentario · \(hace)"
+        default: return "Ver los \(comentarios) comentarios · \(hace)"
+        }
+    }
+
+    @ViewBuilder
+    private func textoB(conAutor: Bool) -> some View {
+        if let onHashtagTap {
+            TextoConHashtags(
+                texto: texto,
+                onHashtagTap: onHashtagTap,
+                onBackgroundTap: onTap,
+                onMencionTap: onMencionTap,
+                autor: conAutor ? nombreB : nil,
+                fuente: conAutor ? .outfit(.subheadline) : .outfit(.body)
+            )
+        } else {
+            Text(conAutor ? "\(nombreB) \(texto)" : texto)
+                .font(conAutor ? .outfit(.subheadline) : .outfit(.body))
+                .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// Corazón = «Me late» con el total de reacciones; las otras tres, con pulsación larga.
+    private var accionesB: some View {
+        let reaccione = miReaccion != nil
+        let comentarios = post.numComments ?? 0
+        return HStack(spacing: 2) {
+            Button {
+                Task { await reaccionar("ME_LATE") }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: reaccione ? "heart.fill" : "heart")
+                        .font(.system(size: 22, weight: .regular))
+                        .foregroundStyle(reaccione ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.tintaFeed)
+                    if totalReacciones > 0 {
+                        Text("\(totalReacciones)")
+                            .font(.outfit(.subheadline, .semibold))
+                            .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.agoraPlain)
+            .contextMenu {
+                ForEach(Self.reaccionesB) { opcion in
+                    Button {
+                        Task { await reaccionar(opcion.tipo) }
+                    } label: {
+                        Label(opcion.etiqueta, systemImage: miReaccion == opcion.tipo ? "checkmark" : opcion.icono)
+                    }
+                }
+            }
+            .accessibilityLabel(totalReacciones > 0 ? "Me late, \(totalReacciones)" : "Me late")
+            .accessibilityHint("Mantén presionado para Me río, Apoyo o No mames")
+            .accessibilityAddTraits(reaccione ? .isSelected : [])
+
+            Button {
+                onTap?()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "bubble.left")
+                        .font(.system(size: 21, weight: .regular))
+                    if comentarios > 0 {
+                        Text("\(comentarios)")
+                            .font(.outfit(.subheadline, .semibold))
+                    }
+                }
+                .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                .padding(.horizontal, 8)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.agoraPlain)
+            .disabled(onTap == nil)
+            .accessibilityLabel(comentarios > 0 ? "Comentar, \(comentarios)" : "Comentar")
+
+            if let url = EnlacesWeb.publicacion(post.id) {
+                ShareLink(item: url) {
+                    Image(systemName: "paperplane")
+                        .font(.system(size: 21, weight: .regular))
+                        .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                        .padding(.horizontal, 8)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Compartir")
+            }
+
+            Spacer(minLength: 0)
+
+            GuardarButton(postId: post.id, guardado: post.miGuardado ?? false)
+                .frame(width: 44, height: 44)
+        }
+    }
+
+    private static let reaccionesB: [OpcionReaccionB] = [
+        OpcionReaccionB(tipo: "ME_LATE", etiqueta: "Me late", icono: "heart"),
+        OpcionReaccionB(tipo: "ME_RIO", etiqueta: "Me río", icono: "face.smiling"),
+        OpcionReaccionB(tipo: "APOYO", etiqueta: "Apoyo", icono: "hands.clap"),
+        OpcionReaccionB(tipo: "NO_MAMES", etiqueta: "No mames", icono: "exclamationmark.bubble"),
+    ]
+
+    @ViewBuilder
+    private var avatarCircular: some View {
+        if !esAnonimo, let url = ApiClient.shared.resolveUrl(post.autor?.fotoUrl) {
+            AsyncImage(url: url) { phase in
+                if case .success(let image) = phase {
+                    image.resizable().scaledToFill()
+                } else {
+                    inicialCircular
+                }
+            }
+            .frame(width: 36, height: 36)
+            .clipShape(Circle())
+        } else {
+            inicialCircular
+        }
+    }
+
+    private var inicialCircular: some View {
+        Circle()
+            .fill(esAnonimo ? AgoraDesign.Colors.superficie2 : AgoraDesign.Colors.naranjaSuave)
+            .frame(width: 36, height: 36)
+            .overlay {
+                if esAnonimo {
+                    Image(systemName: "theatermasks")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                } else {
+                    Text(String((post.autor?.nombre ?? "?").prefix(1)).uppercased())
+                        .font(.outfit(.subheadline, .bold))
+                        .foregroundStyle(AgoraDesign.Colors.naranja)
+                }
+            }
+    }
+
+    // MARK: - Tarjeta
 
     /// La comunidad manda (docs/diseno-d.md §1): dónde se dijo algo va antes que quién.
     private var bandaComunidad: some View {
@@ -482,4 +736,17 @@ private struct FloatingHeartOverlay: View {
                 }
             }
     }
+}
+
+/// Cómo se pinta una publicación: tarjeta (guardados, hashtags, detalle) o feed B (inicio).
+enum EstiloPublicacion {
+    case tarjeta
+    case feedB
+}
+
+private struct OpcionReaccionB: Identifiable {
+    let tipo: String
+    let etiqueta: String
+    let icono: String
+    var id: String { tipo }
 }

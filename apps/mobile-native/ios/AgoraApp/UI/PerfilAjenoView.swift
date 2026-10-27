@@ -11,6 +11,8 @@ struct PerfilAjenoView: View {
     var onSiguiendo: (String) -> Void = { _ in }
     var onEventoTap: (String) -> Void = { _ in }
     var onAventonesTap: () -> Void = {}
+    /// Solo en «Tu perfil» (pestaña): el menú abre Campus (aventones, directorio, tu día, ajustes).
+    var onCampus: (() -> Void)? = nil
 
     @State private var perfil: PerfilAjenoDto?
     @State private var gamificacion: GamificacionDto?
@@ -57,6 +59,15 @@ struct PerfilAjenoView: View {
         .navigationTitle("@\(handle)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                if esMio, let onCampus {
+                    Button(action: onCampus) {
+                        Image(systemName: "line.3.horizontal")
+                    }
+                    .accessibilityLabel("Campus y ajustes")
+                    .accessibilityIdentifier("perfil.campus")
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 if let url = EnlacesWeb.perfil(handle) {
                     ShareLink(item: url) {

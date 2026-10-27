@@ -5,6 +5,29 @@ Mockups: https://claude.ai/artifact/FWFgnBnjxfAT9HTojpUDuU (artboards `FeedD`, `
 pero con identidad propia de Ágora para que «no parezca copia de Instagram». Esta guía es la fuente para web,
 Android e iOS: si una plataforma se aparta, se corrige la plataforma, no la guía.
 
+## 0. Cambio del 26-10-2026: el inicio sigue Feed B
+
+Adam, revisando el canvas: «elegí el feed B principalmente». Desde la build 7 de iOS, **el inicio y la barra de
+navegación siguen el artboard `FeedB`**; lo que FeedB no define sale de `Main`. El resto de las pantallas
+(Evento, Perfil, Mercado, Registro, Bienvenida, Clips) siguen sus artboards de abajo.
+
+- **Encabezado:** «Ágora» en Bricolage 700 naranja; a la derecha Avisos (punto si hay nuevos) y Mensajes (número,
+  de Main). Sin fecha, sin avatar (va en la barra).
+- **Historias:** fila de círculos de 60 con anillo naranja. Ágora no tiene historias que caduquen: cada círculo es
+  un clip reciente (anillo gris si ya lo viste) y «Tu historia» lleva a publicar. Sin «Clips del campus» aparte.
+- **Filtros (de Main):** píldoras Para ti / Siguiendo / tu carrera / tu generación.
+- **Pregunta del día (de Main):** tarjeta naranja muy suave, opciones 2×2, barras al contestar.
+- **Publicación:** a todo lo ancho, sin tarjeta ni banda de comunidad. Avatar redondo 36, @ y comunidad, foto de
+  borde a borde (330/390 del ancho) con «1/3», corazón con el total de reacciones (las otras tres con pulsación
+  larga), comentar con número, compartir, guardar a la derecha, pie «@ texto» y «Ver los N comentarios · hace…».
+  Sin foto, el texto va arriba en grande (Main).
+- **Fuera del inicio:** «Ahora en el campus», el mini evento y la fila de clips (ni FeedB ni Main los tienen).
+- **Barra:** blanca con borde arriba (no flotante): Inicio, Eventos, Publicar (rectángulo con borde), Mercado y
+  Tu perfil (tu foto). Campus (aventones, directorio, sin nombre, buscar, guardados, tu día, ajustes) se abre
+  desde el menú de tu perfil.
+- **Colores del inicio:** fondo `#FFFFFF`, tinta `#0F1419`, secundario `#536471`, bordes `#EEF0F2`; en oscuro, los
+  tonos de la D (`#0F0D0B`, `#F4F2EF`, `#B3AAA1`, `#2E2925`).
+
 ## 1. Qué la hace propia (no quitar)
 
 1. **Lo del campus arriba:** fecha y semana del semestre, «Ahora en el campus» en vivo, la pregunta relámpago

@@ -1,8 +1,9 @@
 import SwiftUI
 import UIKit
 
-/// Tabs principales del diseño D (docs/diseno-d.md §3): Inicio, Clips, Publicar, Eventos y Campus,
-/// como `MainShell.kt` en Android. Avisos, Mensajes y tu perfil se abren desde el encabezado del inicio.
+/// Pestañas del Feed B que eligió Adam (artboard FeedB, 26-10-2026): Inicio, Eventos, Publicar,
+/// Mercado y Tu perfil. Avisos y Mensajes van en el encabezado del inicio; los clips, en la fila de
+/// historias; Campus (aventones, directorio, sin nombre, tu día, ajustes), en el menú de tu perfil.
 struct MainTabView: View {
     @EnvironmentObject var session: SessionStore
     @ObservedObject private var deepLinkBus = DeepLinkBus.shared
@@ -17,9 +18,12 @@ struct MainTabView: View {
     /// Cambia al tocar Inicio estando en Inicio: el feed sube al encabezado.
     @State private var inicioArriba = 0
     @State private var feedPath = NavigationPath()
-    @State private var clipsPath = NavigationPath()
     @State private var eventosPath = NavigationPath()
+    @State private var mercadoPath = NavigationPath()
+    /// Pila de «Tu perfil» (y de Campus, que se abre desde su menú).
     @State private var masPath = NavigationPath()
+    /// Foto de tu perfil para la pestaña (`GET perfil/yo`).
+    @State private var miFoto: String?
     /// `TabView` y no un contenedor propio: con `ZStack` las pestañas ocultas seguían en el árbol de
     /// accesibilidad (VoiceOver las leía y las pruebas tocaban lo que no se veía). La barra nativa se
     /// oculta en cada pestaña y en cada pantalla empujada (`sinBarraNativa`): con el SDK de iOS 26
@@ -35,28 +39,18 @@ struct MainTabView: View {
                     onPostTap: { postId in feedPath.append(AppRoute.postDetail(postId)) },
                     onAuthorTap: { handle in feedPath.append(AppRoute.perfil(handle)) },
                     onHashtagTap: { tag in feedPath.append(AppRoute.hashtag(tag)) },
-                    onEventoTap: { id in feedPath.append(AppRoute.eventoDetalle(id)) },
                     onClipsTap: { id in feedPath.append(AppRoute.clips(id)) },
                     onAvisosTap: {
                         avisosSinLeer = 0
                         feedPath.append(AppRoute.notificaciones)
                     },
                     onMensajesTap: { feedPath.append(AppRoute.mensajes) },
-                    // Tu perfil con el diseño D (portada, cifras, pestañas); sin handle, el menú propio.
-                    onPerfilTap: {
-                        if let handle = session.currentUser?.handle {
-                            feedPath.append(AppRoute.perfil(handle))
-                        } else {
-                            feedPath.append(AppRoute.perfilYo)
-                        }
-                    },
                     onPublicarTap: { tab = 2 },
                     onCrearEventoTap: {
-                        tab = 3
+                        tab = 1
                         eventosPath = NavigationPath()
                         eventosPath.append(AppRoute.createEvento)
-                    },
-                    onAventonesTap: { feedPath.append(AppRoute.aventones) }
+                    }
                 )
                 .sinBarraNativa()
                 .navigationDestination(for: AppRoute.self) { route in
@@ -65,17 +59,14 @@ struct MainTabView: View {
             }
             .tag(0)
 
-            NavigationStack(path: $clipsPath) {
-                ClipsView(
-                    enPestana: true,
-                    visible: tab == 1 && clipsPath.isEmpty,
-                    onPostTap: { id in clipsPath.append(AppRoute.postDetail(id)) },
-                    onAuthorTap: { handle in clipsPath.append(AppRoute.perfil(handle)) },
-                    onGrabar: { tab = 2 }
+            NavigationStack(path: $eventosPath) {
+                EventosView(
+                    onEventoTap: { id in eventosPath.append(AppRoute.eventoDetalle(id)) },
+                    onCreateTap: { eventosPath.append(AppRoute.createEvento) }
                 )
                 .sinBarraNativa()
                 .navigationDestination(for: AppRoute.self) { route in
-                    hubDestination(route, path: $clipsPath).sinBarraNativa()
+                    hubDestination(route, path: $eventosPath).sinBarraNativa()
                 }
             }
             .tag(1)
@@ -89,27 +80,37 @@ struct MainTabView: View {
             }
             .tag(2)
 
-            NavigationStack(path: $eventosPath) {
-                EventosView(
-                    onEventoTap: { id in eventosPath.append(AppRoute.eventoDetalle(id)) },
-                    onCreateTap: { eventosPath.append(AppRoute.createEvento) }
+            NavigationStack(path: $mercadoPath) {
+                MarketplaceListView(
+                    onAnuncio: { id in mercadoPath.append(AppRoute.marketplaceDetalle(id)) },
+                    onCrear: { mercadoPath.append(AppRoute.marketplaceCrear) }
                 )
                 .sinBarraNativa()
                 .navigationDestination(for: AppRoute.self) { route in
-                    hubDestination(route, path: $eventosPath).sinBarraNativa()
+                    hubDestination(route, path: $mercadoPath).sinBarraNativa()
                 }
             }
             .tag(3)
 
             NavigationStack(path: $masPath) {
-                MasView(
-                    onNavigate: { ruta in navegarDesdeMas(ruta) },
-                    onTerminos: { masPath.append(AppRoute.terminos) },
-                    onReglas: { masPath.append(AppRoute.reglas) },
-                    onPrivacidad: { masPath.append(AppRoute.privacidad) },
-                    onLogout: { AuthRepository.shared.logout() },
-                    mensajesSinLeer: mensajesSinLeer
-                )
+                Group {
+                    if let handle = session.currentUser?.handle {
+                        PerfilAjenoView(
+                            handle: handle,
+                            miHandle: handle,
+                            onMensaje: { conversacionId in masPath.append(AppRoute.mensajeDetalle(conversacionId)) },
+                            onAjustes: { masPath.append(AppRoute.ajustes) },
+                            onPostTap: { id in masPath.append(AppRoute.postDetail(id)) },
+                            onSeguidores: { h in masPath.append(AppRoute.seguidores(h)) },
+                            onSiguiendo: { h in masPath.append(AppRoute.siguiendo(h)) },
+                            onEventoTap: { id in masPath.append(AppRoute.eventoDetalle(id)) },
+                            onAventonesTap: { masPath.append(AppRoute.aventones) },
+                            onCampus: { masPath.append(AppRoute.campus) }
+                        )
+                    } else {
+                        campus
+                    }
+                }
                 .sinBarraNativa()
                 .navigationDestination(for: AppRoute.self) { route in
                     hubDestination(route, path: $masPath).sinBarraNativa()
@@ -122,13 +123,19 @@ struct MainTabView: View {
         // espacio no llega al contenido de cada pestaña y la barra tapaba lo último de las listas y
         // la barra de acciones del evento. Cada pantalla reserva su alto con `sinBarraNativa()`.
         .overlay(alignment: .bottom) {
-            AgoraAnimatedTabBar(selection: $tab) { repetida in
-                // Tocar la pestaña en la que ya estás: primero vuelve a su raíz, luego sube.
-                guard repetida == 0 else { return }
-                if feedPath.isEmpty {
-                    inicioArriba += 1
-                } else {
-                    feedPath = NavigationPath()
+            AgoraAnimatedTabBar(
+                selection: $tab,
+                nombre: session.currentUser?.nombre ?? session.currentUser?.handle ?? "?",
+                foto: miFoto
+            ) { repetida in
+                // Tocar la pestaña en la que ya estás: vuelve a su raíz; en Inicio, además sube.
+                switch repetida {
+                case 0:
+                    if feedPath.isEmpty { inicioArriba += 1 } else { feedPath = NavigationPath() }
+                case 1: eventosPath = NavigationPath()
+                case 3: mercadoPath = NavigationPath()
+                case 4: masPath = NavigationPath()
+                default: break
                 }
             }
                 // Con el teclado abierto se queda abajo, detrás de él, en vez de subir con el campo.
@@ -163,6 +170,7 @@ struct MainTabView: View {
             deepLinkBus.consume()
         }
         .task {
+            miFoto = (try? await AgoraApi.perfilMio())?.fotoUrl
             PushRegistration.shared.registerIfNeeded()
             await actualizarBadge()
             await actualizarMensajesSinLeer()
@@ -172,6 +180,18 @@ struct MainTabView: View {
                 deepLinkBus.consume()
             }
         }
+    }
+
+    /// Campus: accesos, «Tu día» y tu cuenta. Se abre desde el menú de tu perfil.
+    private var campus: some View {
+        MasView(
+            onNavigate: { ruta in navegarDesdeMas(ruta) },
+            onTerminos: { masPath.append(AppRoute.terminos) },
+            onReglas: { masPath.append(AppRoute.reglas) },
+            onPrivacidad: { masPath.append(AppRoute.privacidad) },
+            onLogout: { AuthRepository.shared.logout() },
+            mensajesSinLeer: mensajesSinLeer
+        )
     }
 
     private func navegarDesdeMas(_ ruta: String) {
@@ -191,17 +211,15 @@ struct MainTabView: View {
         case "ajustes":
             masPath.append(AppRoute.ajustes)
         case "marketplace":
-            masPath.append(AppRoute.marketplace)
+            // Mercado tiene su propia pestaña en el Feed B.
+            tab = 3
         case "aventones":
             masPath.append(AppRoute.aventones)
         case "anonimo":
             masPath.append(AppRoute.anonimo)
         case "perfil-yo":
-            if let handle = session.currentUser?.handle {
-                masPath.append(AppRoute.perfil(handle))
-            } else {
-                masPath.append(AppRoute.perfilYo)
-            }
+            // Campus cuelga de «Tu perfil»: volver a su raíz es volver a tu perfil.
+            masPath = NavigationPath()
         case "moderacion":
             masPath.append(AppRoute.moderacion)
         default:
@@ -231,14 +249,14 @@ struct MainTabView: View {
 
         if route.hasPrefix("evento/") {
             let id = String(route.dropFirst("evento/".count))
-            tab = 3
+            tab = 1
             eventosPath = NavigationPath()
             eventosPath.append(AppRoute.eventoDetalle(id))
             return
         }
 
         if route == "eventos/crear" {
-            tab = 3
+            tab = 1
             eventosPath = NavigationPath()
             eventosPath.append(AppRoute.createEvento)
             return
@@ -308,18 +326,16 @@ struct MainTabView: View {
         }
 
         if route == "marketplace" {
-            tab = 4
-            masPath = NavigationPath()
-            masPath.append(AppRoute.marketplace)
+            tab = 3
+            mercadoPath = NavigationPath()
             return
         }
 
         if route.hasPrefix("marketplace/") {
             let id = String(route.dropFirst("marketplace/".count))
-            tab = 4
-            masPath = NavigationPath()
-            masPath.append(AppRoute.marketplace)
-            masPath.append(AppRoute.marketplaceDetalle(id))
+            tab = 3
+            mercadoPath = NavigationPath()
+            mercadoPath.append(AppRoute.marketplaceDetalle(id))
             return
         }
 
@@ -391,7 +407,7 @@ struct MainTabView: View {
                 onPerfil: { handle in path.wrappedValue.append(AppRoute.perfil(handle)) },
                 onPublicacion: { id in path.wrappedValue.append(AppRoute.postDetail(id)) },
                 onEvento: { id in
-                    tab = 3
+                    tab = 1
                     eventosPath = NavigationPath()
                     eventosPath.append(AppRoute.eventoDetalle(id))
                 },
@@ -500,14 +516,18 @@ struct MainTabView: View {
         case .moderacion:
             ModeracionView()
         case .clips(let desde):
+            // Se abre desde las historias del inicio: al cambiar de pestaña el video se pausa.
             ClipsView(
                 desde: desde,
+                visible: tab == 0,
                 onPostTap: { id in path.wrappedValue.append(AppRoute.postDetail(id)) },
                 onAuthorTap: { handle in path.wrappedValue.append(AppRoute.perfil(handle)) },
                 onGrabar: { tab = 2 }
             )
         case .notificaciones:
             NotificacionesView()
+        case .campus:
+            campus
         }
     }
 
@@ -559,6 +579,8 @@ enum AppRoute: Hashable {
     case clips(String?)
     /// Avisos: desde el encabezado del inicio.
     case notificaciones
+    /// Campus: desde el menú de tu perfil.
+    case campus
 }
 
 // MARK: - Tab bar animado (paridad con `MainShell.kt`)
@@ -571,50 +593,40 @@ private struct AgoraTabItem: Identifiable {
     let iconActivo: String
 }
 
+/// Barra del Feed B: blanca con borde arriba, íconos de línea que se rellenan al activarse,
+/// Publicar como rectángulo con borde y tu foto en «Tu perfil». Los identificadores `tab.<n>`
+/// se quedan: las pruebas de UI los usan.
 private struct AgoraAnimatedTabBar: View {
     @Binding var selection: Int
+    var nombre: String = "?"
+    var foto: String?
     /// Toque en la pestaña que ya está activa.
     var onRepetir: (Int) -> Void = { _ in }
 
-    @State private var iconScales: [Int: CGFloat] = [0: 1, 1: 1, 2: 1, 3: 1, 4: 1]
-
-    /// Los cinco destinos del diseño D. Los identificadores `tab.<n>` se quedan: las pruebas de UI los usan.
     private let tabs: [AgoraTabItem] = [
         AgoraTabItem(id: 0, label: "Inicio", icon: "house", iconActivo: "house.fill"),
-        AgoraTabItem(id: 1, label: "Clips", icon: "play.rectangle", iconActivo: "play.rectangle.fill"),
+        AgoraTabItem(id: 1, label: "Eventos", icon: "calendar", iconActivo: "calendar"),
         AgoraTabItem(id: 2, label: "Publicar", icon: "plus", iconActivo: "plus"),
-        AgoraTabItem(id: 3, label: "Eventos", icon: "calendar", iconActivo: "calendar"),
-        AgoraTabItem(id: 4, label: "Campus", icon: "square.grid.2x2", iconActivo: "square.grid.2x2.fill"),
+        AgoraTabItem(id: 3, label: "Mercado", icon: "bag", iconActivo: "bag.fill"),
+        AgoraTabItem(id: 4, label: "Tu perfil", icon: "person", iconActivo: "person"),
     ]
 
-    /// Íconos inactivos sobre la píldora oscura (mismo tono en claro y oscuro).
-    private let tonoInactivo = Color(red: 189 / 255, green: 182 / 255, blue: 173 / 255)
-
-    /// Píldora oscura flotante con Publicar en naranja (docs/diseno-d.md §3).
     var body: some View {
         HStack(spacing: 0) {
             ForEach(tabs) { item in
                 tabButton(item)
             }
         }
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(6)
-        .background(
-            AgoraDesign.Colors.oscuro,
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-        )
-        .shadow(color: .black.opacity(0.22), radius: 14, y: 8)
-        .padding(.horizontal, 14)
-        .padding(.bottom, 4)
-        .onChange(of: selection) { newTab in
-            bounceIcon(for: newTab)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .background(AgoraDesign.Colors.fondoFeed.ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) {
+            AgoraDesign.Colors.bordeFeed.frame(height: 1)
         }
     }
 
     private func tabButton(_ item: AgoraTabItem) -> some View {
         let selected = selection == item.id
-        let scale = iconScales[item.id, default: 1]
-
         return Button {
             guard selection != item.id else {
                 onRepetir(item.id)
@@ -623,45 +635,42 @@ private struct AgoraAnimatedTabBar: View {
             Haptics.light()
             selection = item.id
         } label: {
-            ZStack {
-                if item.id == 2 {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(AgoraDesign.Colors.naranja)
-                        .frame(width: 52, height: 48)
-                } else if selected {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color.white.opacity(0.12))
-                        .frame(height: 48)
-                        .transition(.scale.combined(with: .opacity))
-                }
-
-                // Activo relleno, inactivo de línea (artboard FeedD).
-                Image(systemName: selected ? item.iconActivo : item.icon)
-                    .font(.system(size: item.id == 2 ? 20 : 19, weight: item.id == 2 ? .bold : .semibold))
-                    .foregroundStyle(item.id == 2 || selected ? .white : tonoInactivo)
-                    .scaleEffect(scale)
-            }
-            // Alto fijo, no mínimo: dentro de `safeAreaInset` las figuras sin alto crecen hasta
-            // llenar la pantalla (TestFlight 1.0.0 (5) salió con la barra estirada).
-            .frame(maxWidth: .infinity)
-            .frame(height: 48)
-            .contentShape(Rectangle())
+            icono(item, selected: selected)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.agoraPlain)
         .accessibilityLabel(item.label)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityIdentifier("tab.\(item.id)")
-        .animation(AgoraDesign.Animation.spring, value: selected)
     }
 
-    private func bounceIcon(for tab: Int) {
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.45)) {
-            iconScales[tab] = 1.15
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
-                iconScales[tab] = 1.0
-            }
+    @ViewBuilder
+    private func icono(_ item: AgoraTabItem, selected: Bool) -> some View {
+        switch item.id {
+        case 2:
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(AgoraDesign.Colors.tintaFeed, lineWidth: 2)
+                .frame(width: 46, height: 34)
+                .overlay {
+                    Image(systemName: "plus")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                }
+        case 4:
+            AvatarD(nombre: nombre, fotoUrl: foto, tamano: 28)
+                .clipShape(Circle())
+                .padding(2)
+                .overlay {
+                    if selected {
+                        Circle().stroke(AgoraDesign.Colors.tintaFeed, lineWidth: 2)
+                    }
+                }
+        default:
+            Image(systemName: selected ? item.iconActivo : item.icon)
+                .font(.system(size: 22, weight: selected ? .semibold : .regular))
+                .foregroundStyle(AgoraDesign.Colors.tintaFeed)
         }
     }
 }
@@ -675,8 +684,8 @@ private extension View {
 }
 
 private struct EspacioBarraFlotante: ViewModifier {
-    /// Alto de la barra flotante (48 de botones + 12 de relleno + 4 de margen) y un respiro.
-    static let alto: CGFloat = 72
+    /// Alto de la barra del Feed B (44 de botones + 16 de relleno).
+    static let alto: CGFloat = 60
 
     @State private var tecladoVisible = false
 
