@@ -280,6 +280,7 @@ struct PostCardView: View {
                         media: media,
                         altura: Self.alturaFotoB,
                         radio: 0,
+                        puntos: false,
                         onDobleToque: {
                             heartTrigger += 1
                             Task { await reaccionar("ME_LATE") }

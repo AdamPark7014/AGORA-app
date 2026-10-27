@@ -32,6 +32,8 @@ struct PostMediaCarousel: View {
     var altura: CGFloat = 220
     /// Esquinas del carrusel: 0 en el feed B, donde la foto va de borde a borde.
     var radio: CGFloat = AgoraDesign.Radii.small
+    /// Puntos de página abajo; el feed B solo lleva el «1/3» de arriba.
+    var puntos = true
     /// Toque simple en una foto. `nil` → abre el visor a pantalla completa.
     var onToque: (() -> Void)?
     /// Doble toque en una foto (p. ej. reaccionar con 🧡).
@@ -54,7 +56,7 @@ struct PostMediaCarousel: View {
                             .tag(indice)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .always))
+                .tabViewStyle(.page(indexDisplayMode: puntos ? .always : .never))
                 .indexViewStyle(.page(backgroundDisplayMode: .always))
                 .overlay(alignment: .topTrailing) {
                     Text("\(min(pagina + 1, lista.count))/\(lista.count)")

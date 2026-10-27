@@ -55,7 +55,8 @@ final class CapturasTiendaUITests: XCTestCase {
     private func recorrido(tema: String) {
         cerrarAlertasDelSistema()
         tocar(app.buttons["tab.0"])
-        let autores = ["Renata", "Diego", "Sofía", "Ximena", "Paula"]
+        // El Feed B muestra el @ de cada quien, no el nombre.
+        let autores = ["renata.mv", "diego.tr", "sofia.mtz", "ximena.oc", "paula.ort", "isa.ruiz"]
         _ = esperarAlguno(autores, timeout: 25)
         // Lo primero que se ve al abrir (Feed B): encabezado, historias, filtros y la pregunta.
         capturar("inicio", tema: tema, esperando: ["Para ti", "Siguiendo"])
