@@ -4,6 +4,29 @@
 - **Fecha:** 2026-10-27
 - **Rama:** main
 
+## Android con Feed B (27-10)
+
+Pedido de Adam, relayado: Feed B para Ágora en general, así que Android deja el inicio D. `43951ea`:
+- Inicio (`FeedScreen.kt` + `components/FeedB.kt`): «Ágora» en naranja con Avisos (punto) y Mensajes (número);
+  historias = clips del campus (anillo naranja o gris si ya lo viste, portada del servidor o un cuadro sacado con
+  `MediaMetadataRetriever`); píldoras Para ti / Siguiendo / carrera / generación y pregunta del día del artboard
+  Main (`PreguntaDelDiaBanner.kt` ya no es la tarjeta negra); publicaciones `EstiloPost.FeedB` a todo lo ancho
+  (avatar redondo 36, @ y comunidad, foto 330/390 con «1/3», corazón con total y las otras tres reacciones con
+  pulsación larga, comentar, compartir, guardar, pie «@ texto» y «Ver los N comentarios · hace…»); inicio vacío
+  con «Tu campus apenas empieza».
+- Barra blanca (`MainShell.kt`): Inicio, Eventos, Publicar, Mercado y Tu perfil (tu foto). Tocar Inicio otra
+  vez sube la lista. Clips ya no es pestaña: se abre a pantalla completa desde una historia (`clipInicial`).
+  Tu perfil es `PerfilAjenoScreen` con ☰ → ruta `campus` (cuadrícula + Buscar, Guardados y «Tu día»). Deep
+  links `/marketplace` y `/perfil/mio` abren sus pestañas (`PestanaBus`: FEED 0, EVENTOS 1, PUBLICAR 2, MERCADO 3,
+  PERFIL 4).
+- Fuera del inicio, como iOS: «Ahora en el campus», mini evento y fila de clips; `InicioD.kt` quedó en
+  `AnclarEnLaLista.kt`.
+- Visto en el emulador contra la API local con seed (Postgres 17 nativo): inicio, feed, clips, evento, aventones,
+  mercado, campus, mensajes, perfil e inicio vacío, en claro y oscuro; `testDebugUnitTest` en verde.
+- **AAB 1.0.0 (7)** por «Android · Play» (corrida 40577594964): reemplaza al 6, que nunca se subió. Copia
+  completa y ligera (para el navegador) en `Documents\AGORA-builds\`. Falta que Adam la suba a la prueba
+  interna de Play. Siguiente versionCode libre: **8**.
+
 ## Videos de punta a punta (26→27-10, hecho)
 
 Adam: «el tema de videos y así en udlagora falta». El servidor guardaba el video tal cual (HEVC .mov del iPhone,
@@ -28,9 +51,7 @@ que Chrome/Firefox/muchos Android no reproducen), sin portada ni medidas.
   hasta el primer cuadro, y en las tarjetas de «Clips del campus». Visto en el emulador contra una API local
   (Postgres 17 nativo, receta de `ios-capturas.yml`; Docker no arranca por el `sailor-ingest.sock`). AAB
   **1.0.0 (6)** firmado por «Android · Play» (corrida 40567345675); copia completa y copia ligera para el
-  navegador en `Documents\AGORA-builds\`. Falta que Adam la suba a la prueba interna de Play. Siguiente
-  versionCode libre: **7**.
-- Android sigue con el inicio D (Feed D), no Feed B; eso es otro pendiente.
+  navegador en `Documents\AGORA-builds\`. Quedó superado por el 7 (Feed B, arriba).
 - El contenido de bienvenida en producción sigue esperando la decisión de Adam (opción a o b).
 
 ## iOS build 8: el inicio y la barra siguen Feed B (26-10)
