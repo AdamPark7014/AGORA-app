@@ -4,6 +4,22 @@
 - **Fecha:** 2026-10-26
 - **Rama:** main
 
+## iOS build 8: el inicio y la barra siguen Feed B (26-10)
+
+Adam: «elegí el feed B principalmente». La build 7 seguía FeedD; desde cfdf2db/4c33b7f el inicio y la barra
+siguen el artboard `FeedB` y, donde B no dice nada, `Main` (regla nueva en `docs/diseno-d.md` §0).
+- Inicio blanco: «Ágora» naranja con campana (punto) y avión (número); historias en círculo = clips recientes
+  (anillo gris si ya lo viste; «Tu historia» → Publicar); píldoras Para ti / Siguiendo / carrera / generación
+  y pregunta del día naranja suave (de Main); publicaciones a todo lo ancho (`PostCardView(estilo: .feedB)`):
+  avatar redondo, @ y comunidad, foto de borde a borde con «1/3», corazón con total (las otras reacciones con
+  pulsación larga), comentar, compartir, guardar, pie «@ texto» y «Ver los N comentarios · hace…».
+- Fuera del inicio: «Ahora en el campus» (se borró `EventosEnVivoBanner`), fila de clips y mini evento.
+- Barra blanca con borde: Inicio, Eventos, Publicar, Mercado, Tu perfil (foto). Campus se abre desde el menú ☰
+  de tu perfil (`AppRoute.campus`); Clips desde las historias.
+- **Build 8 (1.0.0) en TestFlight** desde 4c33b7f (corrida 40443406844), con las 20 capturas de ese commit
+  revisadas contra FeedB en claro y oscuro (ios-capturas 40441496383). ASC: VALID, READY_FOR_BETA_TESTING.
+- Android sigue en FeedD (lista en las notas compartidas); no se tocó.
+
 ## iOS: diseño D completo, como el mockup — build 7 en TestFlight (26-10)
 
 Adam vio la build 6 y dijo que «no tiene el formato acordado ni remotamente» y que faltan los videos.
