@@ -4,7 +4,7 @@
 - **Fecha:** 2026-10-26
 - **Rama:** main
 
-## iOS: diseño D completo, como el mockup (26-10, en curso)
+## iOS: diseño D completo, como el mockup — build 7 en TestFlight (26-10)
 
 Adam vio la build 6 y dijo que «no tiene el formato acordado ni remotamente» y que faltan los videos.
 Diferencias encontradas contra el canvas FWFgnBnjxfAT9HTojpUDuU: producción vacía (0 publicaciones), barra sin
@@ -25,7 +25,17 @@ evento y sin las fuentes de la D (iOS usaba la del sistema). Lista completa en l
 - ios-capturas: +clips y una segunda pasada que vacía la base y captura `inicio-vacio` (claro y oscuro).
 - Por aprobar por Adam (mockups en la fila «Por aprobar · 26 de octubre» del canvas): encabezado con Avisos,
   aviso UDLAP en una línea, inicio vacío y Campus con «Tu día». Ya están construidos así; se ajustan si dice otra cosa.
-- Falta: CI en verde, revisar capturas contra los artboards, build 7. El contenido de producción lo decide Adam.
+- Después: tocar Inicio estando en Inicio vuelve a la raíz y sube; cuadrícula con medidas fijas (la foto se
+  salía y tapaba las reacciones); franja de fondo detrás de la hora en Inicio y Campus; el avatar y «Mi perfil»
+  abren el perfil D propio; Moderación en Campus para quien modera; captura de Campus en CI.
+- **Build 7 (1.0.0) en TestFlight** desde 3e426e4 (corrida 40428063666), después de revisar las 20 capturas
+  con sesión de ese commit (ios-capturas 40426256437, claro y oscuro, inicio vacío incluido). ASC: VALID,
+  IN_BETA_TESTING, grupo interno «Equipo Ágora» con todos los builds.
+- Pendiente de Adam: el visto bueno de los 3 artboards «Por aprobar» y el contenido de producción (sigue
+  vacía: opción a, su equipo publica; opción b, cuenta oficial de bienvenida). La API no se redesplegó (el
+  cambio de `media/archivo` solo aplica al almacén local; producción usa MinIO).
+- Sin datos en la API (no se inventan): semana del semestre, generación del autor en la tarjeta, «Seguir» y
+  evento ligado en Clips, «comparten <comunidad>» en el perfil, duración y vistas de clips.
 
 ## Moderación previa con Claude por la puerta única (26-10)
 
