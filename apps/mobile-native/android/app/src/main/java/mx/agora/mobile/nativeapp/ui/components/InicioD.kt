@@ -367,13 +367,16 @@ fun FilaClips(
 }
 
 /**
- * La API no da miniatura del video y sacar un cuadro aquí costaría bajarlo: de
- * portada va una foto de la misma publicación si la trae; si no, fondo `oscuro`
- * con el ▶. Las vistas no salen porque la API no las da.
+ * De portada va la que guarda la API al re-codificar el video; en clips de antes,
+ * una foto de la misma publicación si la trae, y si no, fondo `oscuro` con el ▶.
+ * Las vistas no salen porque la API no las da.
  */
 @Composable
 private fun TarjetaClip(post: PostDto, onClick: () -> Unit) {
-    val portada = post.media.firstOrNull { !it.esVideoMedia() }?.let { ApiClient.resolveUrl(it.url) }
+    val portada = (
+        post.media.firstOrNull { it.esVideoMedia() }?.thumbUrl
+            ?: post.media.firstOrNull { !it.esVideoMedia() }?.url
+        )?.let { ApiClient.resolveUrl(it) }
     val autor = post.autor?.nombre?.takeIf { it.isNotBlank() }
         ?: post.autor?.handle?.let { "@$it" }
         ?: "alguien"

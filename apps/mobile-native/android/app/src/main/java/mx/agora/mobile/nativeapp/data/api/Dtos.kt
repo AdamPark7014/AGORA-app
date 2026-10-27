@@ -116,6 +116,8 @@ data class MediaDto(
     val url: String,
     val mime: String? = null,
     val esVideo: Boolean = false,
+    /** Portada del video (la guarda la API al re-codificarlo) o miniatura de la foto. */
+    val thumbUrl: String? = null,
 )
 
 @JsonClass(generateAdapter = true)

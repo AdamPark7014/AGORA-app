@@ -76,6 +76,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -113,6 +114,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -673,12 +675,16 @@ private fun PaginaClip(
     onAutor: (String) -> Unit,
 ) {
     val url = remember(post.id) { post.videoUrl()?.let { ApiClient.resolveUrl(it) } }
+    val portada = remember(post.id) {
+        post.media.firstOrNull { it.esVideoMedia() }?.thumbUrl?.let { ApiClient.resolveUrl(it) }
+    }
     val progreso = remember(post.id) { mutableFloatStateOf(0f) }
 
     Box(Modifier.fillMaxSize()) {
         if (url != null) {
             VideoClip(
                 url = url,
+                portada = portada,
                 activo = activo,
                 enPrimerPlano = enPrimerPlano,
                 progreso = progreso,
@@ -775,6 +781,7 @@ private fun PaginaClip(
 @Composable
 private fun VideoClip(
     url: String,
+    portada: String?,
     activo: Boolean,
     enPrimerPlano: Boolean,
     progreso: MutableFloatState,
@@ -802,6 +809,7 @@ private fun VideoClip(
     var pausado by remember(player) { mutableStateOf(false) }
     var errorVideo by remember(player) { mutableStateOf(false) }
     var cargandoVideo by remember(player) { mutableStateOf(player.playbackState == Player.STATE_BUFFERING) }
+    var primerCuadro by remember(player) { mutableStateOf(false) }
 
     DisposableEffect(player) {
         val escucha = object : Player.Listener {
@@ -811,6 +819,10 @@ private fun VideoClip(
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 cargandoVideo = playbackState == Player.STATE_BUFFERING
+            }
+
+            override fun onRenderedFirstFrame() {
+                primerCuadro = true
             }
 
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -871,6 +883,16 @@ private fun VideoClip(
             onRelease = { vista -> vista.player = null },
             modifier = Modifier.fillMaxSize(),
         )
+
+        // La portada de la API mientras llega el primer cuadro (en red lenta tarda).
+        if (portada != null && !primerCuadro) {
+            AsyncImage(
+                model = portada,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
 
         // Capa de toque encima de la vista nativa: así el PlayerView nunca se queda con el
         // gesto y el deslizamiento vertical sigue llegando al pager.

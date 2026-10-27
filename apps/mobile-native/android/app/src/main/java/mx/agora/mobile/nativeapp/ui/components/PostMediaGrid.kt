@@ -220,6 +220,7 @@ fun PostMediaGrid(
         videos.getOrNull(indice)?.let { video ->
             VisorVideo(
                 url = video.url,
+                portada = video.thumbUrl,
                 // Id propio: el de la casilla sigue registrado mientras el visor está abierto.
                 reproductorId = "$postId:visor:$indice",
                 onCerrar = { visorVideo = null },
@@ -253,6 +254,7 @@ private fun CasillaMedia(
             postId = reproductorId,
             url = pieza.url,
             isVisible = reproducir,
+            portada = pieza.thumbUrl,
             modifier = base.background(Color.Black),
         )
         esVideo -> Box(
@@ -262,6 +264,14 @@ private fun CasillaMedia(
                 .semantics { contentDescription = descripcion },
             contentAlignment = Alignment.Center,
         ) {
+            pieza.thumbUrl?.let { portada ->
+                AsyncImage(
+                    model = ApiClient.resolveUrl(portada),
+                    contentDescription = null,
+                    modifier = Modifier.matchParentSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -342,6 +352,7 @@ private fun CasillaMedia(
 @Composable
 private fun VisorVideo(
     url: String,
+    portada: String?,
     reproductorId: String,
     onCerrar: () -> Unit,
 ) {
@@ -362,6 +373,7 @@ private fun VisorVideo(
                 url = url,
                 isVisible = true,
                 modifier = Modifier.fillMaxSize(),
+                portada = portada,
             )
             IconButton(
                 onClick = onCerrar,
