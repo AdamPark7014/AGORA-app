@@ -320,11 +320,13 @@ extension View {
     /// Pantallas sin barra de navegación (Inicio, Campus): una franja del fondo detrás de la hora
     /// y la batería, para que lo que se desplaza no pase por debajo de ellas.
     func barraDeEstadoOpaca() -> some View {
-        overlay(alignment: .top) {
-            AgoraDesign.Colors.fondo
+        // La lista se extiende bajo la barra de estado: un recubrimiento de alto cero no tapaba nada.
+        // Un inset de alto cero con fondo de estilo sí cubre la zona de la hora (el fondo se
+        // extiende a la zona segura de arriba).
+        safeAreaInset(edge: .top, spacing: 0) {
+            Color.clear
                 .frame(height: 0)
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
+                .background(AgoraDesign.Colors.fondo, ignoresSafeAreaEdges: .top)
         }
     }
 
