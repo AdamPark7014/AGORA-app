@@ -232,6 +232,10 @@ export class AlmacenS3 implements Almacen {
     return new S3Client({
       endpoint: this.config.endpoint,
       region: this.config.region,
+      // Rutas `minio:9000/agora-media/<archivo>` y no `agora-media.minio:9000`: el SDK usa el
+      // nombre virtual por omision y en el Hetzner ese host no existe, asi que toda subida
+      // (fotos incluidas) daba 500 «ENOTFOUND agora-media.minio» (26-10-2026). R2 acepta las dos.
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE !== 'false',
       credentials: {
         accessKeyId: this.config.accessKeyId,
         secretAccessKey: this.config.secretAccessKey,
