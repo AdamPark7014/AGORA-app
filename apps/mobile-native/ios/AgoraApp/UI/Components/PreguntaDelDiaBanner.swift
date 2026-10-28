@@ -1,14 +1,16 @@
 import SwiftUI
 
-/// Pregunta del día con el estilo del artboard Main (Feed B no la define): tarjeta naranja muy
-/// suave, «QUEDAN m:ss», opciones en cuadrícula de dos y, al contestar, barras de porcentaje (la
-/// mía en naranja) con tu carrera contra el campus. Misma lógica que antes; paridad con
-/// `PreguntaDelDiaBanner.kt`.
+/// Pregunta del día como el «boleto» de B «Cholula» (docs/diseno-cholula.md §3, artboard WowB-Inicio):
+/// tarjeta `superficie` de radio 18 con sombra; a la izquierda la pregunta y las opciones 2×2, a la derecha
+/// un talón Talavera de 88 con borde punteado y muescas, «QUEDAN» + m:ss + «a tiempo». Al contestar,
+/// barras (la mía en naranja) y el revelado de tu carrera contra el campus (`pregunta/hoy` → `miCarrera`).
+/// Antes de la hora sorpresa, el mismo boleto con «HOY» y un reloj. Paridad con `PreguntaDelDiaBanner.kt`.
 struct PreguntaDelDiaBanner: View {
     @State private var pregunta: PreguntaHoyDto?
     @State private var respondiendo = false
     @State private var celebrando = false
     @State private var confettiTrigger = 0
+    @Environment(\.colorScheme) private var esquema
 
     var body: some View {
         // VStack y no Group: los modificadores de un Group se aplican a cada hijo,
@@ -16,12 +18,20 @@ struct PreguntaDelDiaBanner: View {
         VStack(spacing: 0) {
             if let pregunta {
                 if Self.esperando(pregunta) {
-                    tarjetaEsperando
+                    boleto {
+                        izquierdaEsperando
+                    } talon: {
+                        talonHoy
+                    }
                 } else {
                     ZStack {
-                        bannerContent(pregunta)
-                            .scaleEffect(celebrando ? 1.02 : 1)
-                            .animation(AgoraDesign.Animation.spring, value: celebrando)
+                        boleto {
+                            izquierda(pregunta)
+                        } talon: {
+                            talon(pregunta)
+                        }
+                        .scaleEffect(celebrando ? 1.02 : 1)
+                        .animation(AgoraDesign.Animation.spring, value: celebrando)
 
                         ConfettiView(trigger: confettiTrigger)
                     }
@@ -39,39 +49,84 @@ struct PreguntaDelDiaBanner: View {
         }
     }
 
-    private func cabeza<Derecha: View>(@ViewBuilder derecha: () -> Derecha) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("PREGUNTA DEL DÍA")
-                .font(.outfit(.caption, .bold))
-                .tracking(0.5)
-                .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
-                .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 8)
-            derecha()
+    // MARK: Boleto
+
+    private func boleto<Izquierda: View, Talon: View>(
+        @ViewBuilder _ izquierda: () -> Izquierda,
+        @ViewBuilder talon: () -> Talon
+    ) -> some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("PREGUNTA DEL DÍA")
+                    .font(.outfit(.caption2, .bold))
+                    .tracking(1.1)
+                    .foregroundStyle(AgoraDesign.Colors.naranjaTinta)
+                    .accessibilityAddTraits(.isHeader)
+                izquierda()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+
+            VStack(spacing: 2) {
+                talon()
+            }
+            .foregroundStyle(.white)
+            .frame(width: 88)
+            .frame(maxHeight: .infinity)
+            .background(AgoraDesign.Colors.talavera)
+            .overlay(alignment: .leading) {
+                LineaPunteada()
+                    .stroke(Color.white.opacity(0.55), style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
+                    .frame(width: 2)
+            }
+            .overlay(alignment: .topLeading) { muesca.offset(x: -9, y: -9) }
+            .overlay(alignment: .bottomLeading) { muesca.offset(x: -9, y: 9) }
+            .accessibilityElement(children: .combine)
         }
+        .fixedSize(horizontal: false, vertical: true)
+        .background(AgoraDesign.Colors.superficie)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .shadow(color: .black.opacity(esquema == .dark ? 0.5 : 0.10), radius: 9, y: 6)
     }
 
-    private func dato(_ texto: String, resaltado: Bool = false) -> some View {
+    /// Medio círculo del color del fondo en el corte del talón, arriba y abajo.
+    private var muesca: some View {
+        Circle()
+            .fill(AgoraDesign.Colors.fondoFeed)
+            .frame(width: 18, height: 18)
+            .accessibilityHidden(true)
+    }
+
+    private func etiquetaTalon(_ texto: String) -> some View {
         Text(texto)
-            .font(.outfit(.caption, resaltado ? .bold : .regular).monospacedDigit())
-            .foregroundStyle(resaltado ? AgoraDesign.Colors.naranjaOscuro : AgoraDesign.Colors.secundarioFeed)
+            .font(.outfit(.caption2, .bold))
+            .tracking(1.2)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
     }
 
-    private func tarjeta<Contenido: View>(@ViewBuilder _ contenido: () -> Contenido) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            contenido()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(AgoraDesign.Colors.preguntaFondo, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    private func cifraTalon(_ texto: String) -> some View {
+        Text(texto)
+            .font(.bricolage(28, relativeTo: .title).monospacedDigit())
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
     }
 
-    private var tarjetaEsperando: some View {
-        tarjeta {
-            cabeza { EmptyView() }
-            Text("Hoy cae a una hora sorpresa.")
-                .font(.bricolage(18, relativeTo: .headline, extra: false))
+    private func pieTalon(_ texto: String) -> some View {
+        Text(texto)
+            .font(.outfit(.caption))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+    }
+
+    // MARK: Esperando la hora sorpresa
+
+    private var izquierdaEsperando: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Hoy cae a una hora sorpresa")
+                .font(.bricolage(19, relativeTo: .headline))
                 .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                .fixedSize(horizontal: false, vertical: true)
             Text("Te avisamos en cuanto salga. Contesta en los primeros 2 minutos y sales a tiempo; antes de contestar no ves lo que dijeron los demás.")
                 .font(.outfit(.footnote))
                 .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
@@ -79,47 +134,76 @@ struct PreguntaDelDiaBanner: View {
         }
     }
 
+    private var talonHoy: some View {
+        Group {
+            etiquetaTalon("HOY")
+            Image(systemName: "clock")
+                .font(.system(size: 26, weight: .semibold))
+                .padding(.vertical, 4)
+                .accessibilityHidden(true)
+            pieTalon("sorpresa")
+        }
+    }
+
+    // MARK: Abierta
+
     @ViewBuilder
-    private func bannerContent(_ actual: PreguntaHoyDto) -> some View {
-        tarjeta {
-            cabeza {
-                if !actual.yaRespondi, let hasta = Self.fecha(actual.aTiempoHasta), hasta > Date() {
-                    // Cuenta regresiva de la ventana "a tiempo"; al terminar desaparece sola.
-                    TimelineView(.periodic(from: .now, by: 1)) { contexto in
-                        let falta = hasta.timeIntervalSince(contexto.date)
-                        if falta > 0 {
-                            dato("QUEDAN \(Self.mmss(falta))", resaltado: true)
-                        }
-                    }
-                } else if actual.yaRespondi {
-                    let total = actual.total ?? 0
-                    dato("\(total) \(total == 1 ? "respuesta" : "respuestas")")
-                } else if let semana = actual.semanaPregunta {
-                    dato("\(semana.respondidas)/\(semana.meta) esta semana")
+    private func izquierda(_ actual: PreguntaHoyDto) -> some View {
+        Text(actual.texto)
+            .font(.bricolage(19, relativeTo: .headline))
+            .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+            .fixedSize(horizontal: false, vertical: true)
+
+        if actual.yaRespondi {
+            VStack(spacing: 6) {
+                ForEach(actual.opciones ?? []) { opcion in
+                    barra(actual, opcion: opcion)
                 }
             }
-
-            Text(actual.texto)
-                .font(.bricolage(18, relativeTo: .headline, extra: false))
-                .foregroundStyle(AgoraDesign.Colors.tintaFeed)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if actual.yaRespondi {
-                VStack(spacing: 6) {
-                    ForEach(actual.opciones ?? []) { opcion in
-                        barra(actual, opcion: opcion)
-                    }
-                }
-                Text(Self.comparacion(actual) ?? (actual.aTiempo == true ? "Contestaste a tiempo" : ""))
-                    .font(.outfit(.footnote))
+            if let texto = Self.comparacion(actual) ?? (actual.aTiempo == true ? "Contestaste a tiempo" : nil) {
+                Text(texto)
+                    .font(.outfit(.footnote, .medium))
                     .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
-            } else {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                    ForEach(actual.opciones ?? []) { opcion in
-                        boton(actual, opcion: opcion)
-                    }
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)], spacing: 6) {
+                ForEach(actual.opciones ?? []) { opcion in
+                    boton(actual, opcion: opcion)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func talon(_ actual: PreguntaHoyDto) -> some View {
+        if !actual.yaRespondi, let hasta = Self.fecha(actual.aTiempoHasta), hasta > Date() {
+            // Cuenta regresiva de la ventana «a tiempo»; al terminar el talón vuelve a «HOY».
+            TimelineView(.periodic(from: .now, by: 1)) { contexto in
+                let falta = hasta.timeIntervalSince(contexto.date)
+                if falta > 0 {
+                    VStack(spacing: 2) {
+                        etiquetaTalon("QUEDAN")
+                        cifraTalon(Self.mmss(falta))
+                        pieTalon("a tiempo")
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Quedan \(Self.mmss(falta)) para contestar a tiempo")
+                } else {
+                    VStack(spacing: 2) { talonHoy }
+                }
+            }
+        } else if actual.yaRespondi {
+            let total = actual.total ?? 0
+            etiquetaTalon(actual.aTiempo == true ? "A TIEMPO" : "LISTO")
+            cifraTalon("\(total)")
+            pieTalon(total == 1 ? "respuesta" : "respuestas")
+        } else if let semana = actual.semanaPregunta {
+            etiquetaTalon("SEMANA")
+            cifraTalon("\(semana.respondidas)/\(semana.meta)")
+            pieTalon("contestadas")
+        } else {
+            talonHoy
         }
     }
 
@@ -128,15 +212,15 @@ struct PreguntaDelDiaBanner: View {
             Task { await responder(actual: actual, opcion: opcion.indice) }
         } label: {
             Text(opcion.texto)
-                .font(.outfit(.subheadline, .medium))
+                .font(.outfit(.footnote, .semibold))
                 .foregroundStyle(AgoraDesign.Colors.tintaFeed)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 8)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(AgoraDesign.Colors.fondoFeed, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous))
+                .padding(.horizontal, 6)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(AgoraDesign.Colors.fondoFeed, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous)
-                        .stroke(AgoraDesign.Colors.preguntaBorde, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(AgoraDesign.Colors.bordeFeed, lineWidth: 1)
                 }
                 .contentShape(Rectangle())
         }
@@ -150,32 +234,35 @@ struct PreguntaDelDiaBanner: View {
         let total = max(actual.total ?? 0, 1)
         let pct = (opcion.votos ?? 0) * 100 / total
         return HStack(spacing: 8) {
-            Text(mia ? "\(opcion.texto) · tu respuesta" : opcion.texto)
+            Text(opcion.texto)
                 .fontWeight(mia ? .semibold : .regular)
                 .multilineTextAlignment(.leading)
-            Spacer(minLength: 8)
+                .lineLimit(2)
+            Spacer(minLength: 6)
             Text("\(pct) %")
-                .fontWeight(mia ? .semibold : .regular)
+                .fontWeight(mia ? .bold : .regular)
                 .monospacedDigit()
         }
-        .font(.outfit(.subheadline))
-        .foregroundStyle(AgoraDesign.Colors.tintaFeed)
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, minHeight: 40)
+        .font(.outfit(.footnote))
+        .foregroundStyle(mia ? AgoraDesign.Colors.naranjaTinta : AgoraDesign.Colors.tintaFeed)
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, minHeight: 36)
         .background(alignment: .leading) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    AgoraDesign.Colors.fondoFeed.opacity(0.7)
-                    (mia ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.secundarioFeed.opacity(0.14))
+                    AgoraDesign.Colors.fondoFeed
+                    (mia ? AgoraDesign.Colors.naranja.opacity(0.28) : AgoraDesign.Colors.secundarioFeed.opacity(0.14))
                         .frame(width: geo.size.width * CGFloat(pct) / 100)
                 }
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(opcion.texto), \(pct) por ciento")
+        .accessibilityLabel(mia ? "\(opcion.texto), \(pct) por ciento, tu respuesta" : "\(opcion.texto), \(pct) por ciento")
         .accessibilityAddTraits(mia ? .isSelected : [])
     }
+
+    // MARK: Lógica (igual que antes)
 
     private static func esperando(_ p: PreguntaHoyDto) -> Bool {
         p.abierta == false && fecha(p.abreAt) != nil
@@ -203,7 +290,8 @@ struct PreguntaDelDiaBanner: View {
            }) {
             let deCarrera = (carrera.votos[String(favorita.indice)] ?? 0) * 100 / carrera.total
             let delCampus = (favorita.votos ?? 0) * 100 / max(p.total ?? 0, 1)
-            return "\(carrera.nombre) votó \(deCarrera) % \(favorita.texto) · el campus \(delCampus) %"
+            let nombre = NombreSello.corto(nombre: carrera.nombre, slug: "carrera:")
+            return "\(nombre) votó \(deCarrera) % \(favorita.texto) · el campus \(delCampus) %"
         }
         if let aTiempo = p.totalATiempo, p.abreAt != nil {
             return "\(aTiempo) contestaron a tiempo"
@@ -234,5 +322,15 @@ struct PreguntaDelDiaBanner: View {
         } catch {
             // Silencioso si falla.
         }
+    }
+}
+
+/// Línea vertical al borde izquierdo del talón (se traza punteada).
+private struct LineaPunteada: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: r.midX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.midX, y: r.maxY))
+        return p
     }
 }

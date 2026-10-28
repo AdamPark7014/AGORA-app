@@ -62,12 +62,15 @@ struct FeedView: View {
                     onAvisos: onAvisosTap,
                     onMensajes: onMensajesTap
                 ),
-                lados: 16, arriba: 4, abajo: 2
+                lados: 0, arriba: 0, abajo: 0
             )
             .id(Self.idEncabezado)
 
+            // B «Cholula»: franja de azulejo bajo el encabezado.
+            fila(FranjaTalavera(), lados: 0, arriba: 0, abajo: 0)
+
             // Registro con correo personal: recordatorio de confirmar la UDLAP, en una línea.
-            fila(AvisoUdlapView(), lados: 16, arriba: 4, abajo: 0)
+            fila(AvisoUdlapView(), lados: 16, arriba: 8, abajo: 0)
 
             fila(
                 HistoriasClips(clips: clips, onTuHistoria: onPublicarTap, onClip: { id in onClipsTap(id) }),
@@ -76,7 +79,7 @@ struct FeedView: View {
 
             fila(filtros, lados: 0, arriba: 0, abajo: 0)
 
-            fila(PreguntaDelDiaBanner(), lados: 12, arriba: 10, abajo: 6)
+            fila(PreguntaDelDiaBanner(), lados: 12, arriba: 0, abajo: 14)
 
             contenido
         }
@@ -196,7 +199,12 @@ struct FeedView: View {
         comunidades.first { $0.slug.hasPrefix("generacion:") && !$0.estaSilenciada }
     }
 
-    /// Para ti / Siguiendo / tu carrera / tu generación, en píldoras como el artboard Main.
+    private var miColegio: ComunidadDto? {
+        comunidades.first { $0.slug.hasPrefix("colegio:") && !$0.estaSilenciada }
+    }
+
+    /// Para ti / Siguiendo / tu carrera / tu generación / tu colegio, en píldoras de radio 10 con el
+    /// cuadrito del color de cada comunidad (B «Cholula»).
     private var filtros: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -208,41 +216,43 @@ struct FeedView: View {
                     siguiendo = true
                     comunidadSlug = nil
                 }
-                if let carrera = miCarrera {
-                    pildora(carrera.nombre, activa: !siguiendo && comunidadSlug == carrera.slug) {
+                ForEach([miCarrera, miGeneracion, miColegio].compactMap { $0 }, id: \.slug) { comunidad in
+                    pildora(NombreSello.corto(nombre: comunidad.nombre, slug: comunidad.slug),
+                            color: ColorComunidad.de(slug: comunidad.slug).fondo,
+                            activa: !siguiendo && comunidadSlug == comunidad.slug) {
                         siguiendo = false
-                        comunidadSlug = carrera.slug
-                    }
-                }
-                if let generacion = miGeneracion {
-                    pildora(generacion.nombre.replacingOccurrences(of: "Generación ", with: "Gen "),
-                            activa: !siguiendo && comunidadSlug == generacion.slug) {
-                        siguiendo = false
-                        comunidadSlug = generacion.slug
+                        comunidadSlug = comunidad.slug
                     }
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-        }
-        .overlay(alignment: .top) {
-            AgoraDesign.Colors.bordeFeed.frame(height: 1)
-        }
-        .overlay(alignment: .bottom) {
-            AgoraDesign.Colors.bordeFeed.frame(height: 1)
+            .padding(.bottom, 12)
         }
     }
 
-    private func pildora(_ texto: String, activa: Bool, accion: @escaping () -> Void) -> some View {
+    private func pildora(_ texto: String, color: Color? = nil, activa: Bool, accion: @escaping () -> Void) -> some View {
         Button(action: accion) {
-            Text(texto)
-                .font(.outfit(.footnote, activa ? .semibold : .medium))
-                .foregroundStyle(activa ? AgoraDesign.Colors.fondoFeed : AgoraDesign.Colors.tintaFeed)
-                .lineLimit(1)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 34)
-                .background(activa ? AgoraDesign.Colors.tintaFeed : AgoraDesign.Colors.bordeFeed, in: Capsule())
-                .contentShape(Capsule())
+            HStack(spacing: 6) {
+                if let color {
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(color)
+                        .frame(width: 8, height: 8)
+                        .accessibilityHidden(true)
+                }
+                Text(texto)
+                    .font(.outfit(.footnote, .semibold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(activa ? AgoraDesign.Colors.fondoFeed : AgoraDesign.Colors.tintaFeed)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 34)
+            .background(activa ? AgoraDesign.Colors.tintaFeed : AgoraDesign.Colors.superficie,
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(activa ? AgoraDesign.Colors.tintaFeed : AgoraDesign.Colors.bordeFeed, lineWidth: 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.agoraPlain)
         .accessibilityAddTraits(activa ? .isSelected : [])
@@ -326,12 +336,34 @@ struct EncabezadoInicio: View {
     var onAvisos: () -> Void
     var onMensajes: () -> Void
 
+    /// «Miércoles 28 de octubre» (sin «semana N» hasta que la API dé la semana del semestre).
+    private static func fechaDeHoy() -> String {
+        let formato = DateFormatter()
+        formato.locale = Locale(identifier: "es_MX")
+        formato.dateFormat = "EEEE d 'de' MMMM"
+        let texto = formato.string(from: Date())
+        return texto.prefix(1).uppercased() + texto.dropFirst()
+    }
+
     var body: some View {
         HStack(spacing: 4) {
-            Text("Ágora")
-                .font(.bricolage(26, relativeTo: .largeTitle, extra: false))
-                .foregroundStyle(AgoraDesign.Colors.naranja)
-                .accessibilityAddTraits(.isHeader)
+            // B «Cholula»: terrazas naranjas + «Ágora» en tinta y la fecha debajo.
+            HStack(spacing: 10) {
+                Terrazas(niveles: 3)
+                    .fill(AgoraDesign.Colors.naranja)
+                    .frame(width: 30, height: 20)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Ágora")
+                        .font(.bricolage(28, relativeTo: .largeTitle))
+                        .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(Self.fechaDeHoy())
+                        .font(.outfit(.caption, .medium))
+                        .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
+                        .lineLimit(1)
+                }
+            }
             Spacer(minLength: 8)
             Button(action: onAvisos) {
                 Image(systemName: "bell")
@@ -374,6 +406,10 @@ struct EncabezadoInicio: View {
             .accessibilityLabel(mensajesSinLeer > 0 ? "Mensajes, \(mensajesSinLeer) sin leer" : "Mensajes")
             .accessibilityIdentifier("inicio.mensajes")
         }
+        .padding(.leading, 16)
+        .padding(.trailing, 8)
+        .padding(.top, 8)
+        .padding(.bottom, 10)
     }
 }
 
@@ -395,24 +431,23 @@ struct HistoriasClips: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
                 Button(action: onTuHistoria) {
-                    VStack(spacing: 4) {
-                        Circle()
-                            .strokeBorder(Color(red: 207 / 255, green: 210 / 255, blue: 214 / 255),
-                                          style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
-                            .frame(width: 60, height: 60)
+                    VStack(spacing: 5) {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(AgoraDesign.Colors.bordeFeed, style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
+                            .frame(width: 64, height: 64)
                             .overlay {
                                 Image(systemName: "plus")
                                     .font(.system(size: 22, weight: .regular))
                                     .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
                             }
                         Text("Tu historia")
-                            .font(.outfit(.caption2))
+                            .font(.outfit(.caption2, .medium))
                             .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
                             .lineLimit(1)
                     }
-                    .frame(width: 64)
+                    .frame(width: 74)
                 }
                 .buttonStyle(.agoraPlain)
                 .accessibilityLabel("Subir un clip")
@@ -423,14 +458,14 @@ struct HistoriasClips: View {
                         marcarVisto(clip.id)
                         onClip(clip.id)
                     } label: {
-                        VStack(spacing: 4) {
-                            circulo(clip, visto: vistos.contains(clip.id))
+                        VStack(spacing: 5) {
+                            cuadro(clip, visto: vistos.contains(clip.id))
                             Text(etiqueta(clip))
-                                .font(.outfit(.caption2))
+                                .font(.outfit(.caption2, .medium))
                                 .foregroundStyle(AgoraDesign.Colors.tintaFeed)
                                 .lineLimit(1)
                         }
-                        .frame(width: 64)
+                        .frame(width: 74)
                     }
                     .buttonStyle(.agoraPlain)
                     .accessibilityLabel("Clip de \(clip.autor?.nombre ?? "alguien") en \(clip.comunidad.nombre)")
@@ -438,36 +473,42 @@ struct HistoriasClips: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 6)
+            .padding(.top, 14)
             .padding(.bottom, 12)
         }
     }
 
-    private func circulo(_ clip: PostDto, visto: Bool) -> some View {
+    /// B «Cholula»: cuadrado de 64 radio 18 con la portada, anillo de 4 en el color de la comunidad
+    /// (3 en `borde` si ya se vio, separado por 2 del fondo) y terrazas del mismo color abajo al centro.
+    private func cuadro(_ clip: PostDto, visto: Bool) -> some View {
         let medio = clip.media?.first { $0.esVideo == true }
         let video = medio.flatMap { ApiClient.shared.resolveUrl($0.url) }
         let portada = medio.flatMap { ApiClient.shared.resolveUrl($0.thumbUrl) }
-        return ZStack {
-            if visto {
-                Circle().fill(Color(red: 207 / 255, green: 210 / 255, blue: 214 / 255))
+        let color = ColorComunidad.de(slug: clip.comunidad.slug).fondo
+        let forma = RoundedRectangle(cornerRadius: 18, style: .continuous)
+        return Group {
+            if let video {
+                MiniaturaVideo(url: video, portada: portada)
             } else {
-                Circle().fill(AngularGradient(
-                    colors: [AgoraDesign.Colors.naranja, Color(red: 1, green: 179 / 255, blue: 133 / 255), AgoraDesign.Colors.naranja],
-                    center: .center
-                ))
+                AgoraDesign.Colors.bordeFeed
             }
-            Group {
-                if let video {
-                    MiniaturaVideo(url: video, portada: portada)
-                } else {
-                    AgoraDesign.Colors.bordeFeed
-                }
-            }
-            .frame(width: 52, height: 52)
-            .clipShape(Circle())
-            .overlay { Circle().stroke(AgoraDesign.Colors.fondoFeed, lineWidth: 2) }
         }
-        .frame(width: 60, height: 60)
+        .frame(width: 64, height: 64)
+        .clipShape(forma)
+        .overlay(alignment: .bottom) {
+            Terrazas(niveles: 2)
+                .fill(color)
+                .frame(width: 34, height: 9)
+        }
+        .padding(2)
+        .overlay {
+            // Separado 2 del fondo, aro de 3 en el color (2 en `borde` si se vio), igual que Android.
+            let grueso: CGFloat = visto ? 2 : 3
+            RoundedRectangle(cornerRadius: 20 + grueso, style: .continuous)
+                .strokeBorder(visto ? AgoraDesign.Colors.bordeFeed : color, lineWidth: grueso)
+                .padding(-grueso)
+        }
+        .padding(3)
     }
 
     /// El nombre de pila de quien lo subió (como el artboard, una palabra bajo el círculo).

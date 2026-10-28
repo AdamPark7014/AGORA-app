@@ -253,12 +253,12 @@ struct PostCardView: View {
                 } label: {
                     HStack(spacing: 10) {
                         avatarCircular
-                        VStack(alignment: .leading, spacing: 1) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(nombreB)
                                 .font(.outfit(.subheadline, .bold))
                                 .foregroundStyle(AgoraDesign.Colors.tintaFeed)
                                 .lineLimit(1)
-                            Text(post.comunidad.nombre)
+                            Text(FormatUtils.haceCuanto(post.createdAt))
                                 .font(.outfit(.caption))
                                 .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
                                 .lineLimit(1)
@@ -268,6 +268,9 @@ struct PostCardView: View {
                 .buttonStyle(.agoraPlain)
                 .disabled(onAuthorTap == nil || esAnonimo)
                 Spacer(minLength: 0)
+                // B «Cholula»: el sello de la comunidad, en su color (docs/diseno-cholula.md §3).
+                Sello(comunidad: post.comunidad, alto: 24)
+                    .accessibilityLabel("En \(post.comunidad.nombre)")
                 menuOpciones
             }
             .padding(.leading, 16)
@@ -292,6 +295,9 @@ struct PostCardView: View {
                             .allowsHitTesting(false)
                     }
                 }
+            } else if esTipografica {
+                tarjetaTipografica
+                    .padding(.horizontal, 12)
             } else if !texto.isEmpty {
                 textoB(conAutor: false)
                     .padding(.horizontal, 16)
@@ -308,29 +314,109 @@ struct PostCardView: View {
                 .padding(.top, 8)
             }
 
-            accionesB
-                .padding(.horizontal, 8)
-                .padding(.top, 2)
+            if esTipografica {
+                reaccionesChips
+                    .padding(.top, 10)
+                    .padding(.bottom, 12)
+            } else {
+                accionesB
+                    .padding(.horizontal, 8)
+                    .padding(.top, 2)
 
-            if let media = post.media, !media.isEmpty, !texto.isEmpty {
-                textoB(conAutor: true)
-                    .padding(.horizontal, 16)
-            }
+                if let media = post.media, !media.isEmpty, !texto.isEmpty {
+                    textoB(conAutor: true)
+                        .padding(.horizontal, 16)
+                }
 
-            Button {
-                onTap?()
-            } label: {
-                Text(pieB)
-                    .font(.outfit(.footnote))
-                    .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
-                    .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                Button {
+                    onTap?()
+                } label: {
+                    Text(pieB)
+                        .font(.outfit(.footnote))
+                        .foregroundStyle(AgoraDesign.Colors.secundarioFeed)
+                        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                }
+                .buttonStyle(.agoraPlain)
+                .disabled(onTap == nil)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
             }
-            .buttonStyle(.agoraPlain)
-            .disabled(onTap == nil)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 10)
         }
         .background(AgoraDesign.Colors.fondoFeed)
+    }
+
+    /// Publicación solo de texto (sin fotos ni encuesta): tarjeta tipográfica en el color de su comunidad.
+    private var esTipografica: Bool {
+        (post.media ?? []).isEmpty && encuesta == nil && !texto.isEmpty
+    }
+
+    /// B «Cholula» (docs/diseno-cholula.md §3): radio 22 en el color de la comunidad, texto Bricolage 800 26
+    /// blanco, esquina de Talavera arriba a la derecha y «Ver las N respuestas» abajo.
+    private var tarjetaTipografica: some View {
+        let color = ColorComunidad.de(slug: post.comunidad.slug)
+        let respuestas = post.numComments ?? 0
+        return Button {
+            onTap?()
+        } label: {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(texto)
+                    .font(.bricolage(26, relativeTo: .title2))
+                    .foregroundStyle(color.tinta)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(8)
+                    .padding(.trailing, 44)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(respuestas == 0 ? "Responder" : respuestas == 1 ? "Ver la respuesta" : "Ver las \(respuestas) respuestas")
+                    .font(.outfit(.footnote, .semibold))
+                    .foregroundStyle(color.tinta == .white ? AgoraDesign.Colors.sobreColorSuave : color.tinta.opacity(0.8))
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 22)
+            .padding(.bottom, 18)
+            .background(color.fondo)
+            .overlay(alignment: .topTrailing) {
+                Talavera()
+                    .frame(width: 86, height: 86)
+                    .clipShape(EsquinaRedonda(radio: 28))
+                    .opacity(0.9)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        }
+        .buttonStyle(.agoraPlain)
+        .disabled(onTap == nil)
+        .accessibilityHint("Abre la publicación")
+    }
+
+    /// Reacciones de la publicación tipográfica como chips con su número («Me late 18», «Apoyo 9»).
+    private var reaccionesChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Self.reaccionesB) { opcion in
+                    let mia = miReaccion == opcion.tipo
+                    let numero = conteos[opcion.tipo] ?? 0
+                    Button {
+                        Task { await reaccionar(opcion.tipo) }
+                    } label: {
+                        Text(numero > 0 ? "\(opcion.etiqueta) \(numero)" : opcion.etiqueta)
+                            .font(.outfit(.footnote, .semibold))
+                            .foregroundStyle(mia ? AgoraDesign.Colors.naranjaTinta : AgoraDesign.Colors.texto)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 34)
+                            .background(mia ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie,
+                                        in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(mia ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.borde, lineWidth: 1)
+                            }
+                    }
+                    .buttonStyle(.agoraPlain)
+                    .accessibilityLabel(numero > 0 ? "\(opcion.etiqueta), \(numero)" : opcion.etiqueta)
+                    .accessibilityAddTraits(mia ? .isSelected : [])
+                }
+            }
+            .padding(.horizontal, 16)
+        }
     }
 
     /// 330 de alto en el artboard de 390: misma proporción en cualquier iPhone.
@@ -342,13 +428,13 @@ struct PostCardView: View {
         return post.autor?.handle ?? post.autor?.nombre ?? "Usuario"
     }
 
+    /// La hora ya va bajo el nombre (B «Cholula»): el pie solo lleva a los comentarios.
     private var pieB: String {
         let comentarios = post.numComments ?? 0
-        let hace = FormatUtils.haceCuanto(post.createdAt)
         switch comentarios {
-        case 0: return hace
-        case 1: return "Ver el comentario · \(hace)"
-        default: return "Ver los \(comentarios) comentarios · \(hace)"
+        case 0: return "Comentar"
+        case 1: return "Ver el comentario"
+        default: return "Ver los \(comentarios) comentarios"
         }
     }
 

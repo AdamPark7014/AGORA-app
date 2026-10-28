@@ -25,6 +25,11 @@ enum NombreSello {
     private static let prefijosCarrera = ["Licenciatura en ", "Ingeniería en ", "Ingeniería ", "Lic. en ", "Licenciatura "]
 
     static func de(nombre: String, slug: String?) -> String {
+        corto(nombre: nombre, slug: slug).uppercased()
+    }
+
+    /// El mismo nombre corto sin pasar a mayúsculas («Sistemas», «Gen 2024»): píldoras y el revelado.
+    static func corto(nombre: String, slug: String?) -> String {
         let s = slug ?? ""
         let n = nombre.trimmingCharacters(in: .whitespaces)
         let corto: String
@@ -41,7 +46,7 @@ enum NombreSello {
         } else {
             corto = n
         }
-        return corto.uppercased()
+        return corto
     }
 }
 
@@ -162,5 +167,23 @@ struct FranjaTalavera: View {
             .frame(height: alto)
             .frame(maxWidth: .infinity)
             .clipped()
+    }
+}
+
+/// Rectángulo con solo la esquina inferior izquierda redonda (esquina de Talavera de la publicación
+/// tipográfica). `UnevenRoundedRectangle` es de iOS 17 y la app corre desde iOS 16.
+struct EsquinaRedonda: Shape {
+    var radio: CGFloat
+
+    func path(in r: CGRect) -> Path {
+        let k = min(radio, r.width / 2, r.height / 2)
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX + k, y: r.maxY))
+        p.addQuadCurve(to: CGPoint(x: r.minX, y: r.maxY - k), control: CGPoint(x: r.minX, y: r.maxY))
+        p.closeSubpath()
+        return p
     }
 }
