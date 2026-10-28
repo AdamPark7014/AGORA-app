@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -55,8 +56,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -115,22 +120,40 @@ fun EncabezadoInicioB(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 2.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            "Ágora",
-            style = MaterialTheme.typography.headlineLarge.copy(
-                fontFamily = AgoraFonts.titulo,
-                fontWeight = FontWeight.Bold,
-                fontSize = 26.sp,
-                lineHeight = 30.sp,
-            ),
-            color = AgoraColors.Naranja,
-            modifier = Modifier
-                .weight(1f)
-                .semantics { heading() },
-        )
+        // B «Cholula»: las terrazas de la pirámide, «Ágora» en tinta y la fecha (sin «semana 12»: no hay API).
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Terrazas(
+                color = AgoraColors.Naranja,
+                modifier = Modifier
+                    .width(30.dp)
+                    .height(20.dp),
+            )
+            Column {
+                Text(
+                    "Ágora",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontFamily = AgoraFonts.titulo,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 28.sp,
+                        lineHeight = 30.sp,
+                    ),
+                    color = AgoraColors.TintaFeed,
+                    modifier = Modifier.semantics { heading() },
+                )
+                Text(
+                    remember { fechaDeHoy() },
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                    color = AgoraColors.SecundarioFeed,
+                )
+            }
+        }
         BotonEncabezadoB(
             icono = Icons.Outlined.Notifications,
             descripcion = if (avisosSinLeer > 0) "Avisos, $avisosSinLeer nuevos" else "Avisos",
@@ -199,6 +222,13 @@ private fun BotonEncabezadoB(
     }
 }
 
+private val formatoFecha = java.time.format.DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", java.util.Locale("es", "MX"))
+
+/** «Miércoles 28 de octubre» en la hora del centro de México. */
+private fun fechaDeHoy(): String =
+    formatoFecha.format(java.time.ZonedDateTime.now(java.time.ZoneId.of("America/Mexico_City")))
+        .replaceFirstChar { it.titlecase(java.util.Locale("es", "MX")) }
+
 /** Preferencias donde se guardan los clips ya vistos (solo para pintar el anillo en gris). */
 private const val PREFS_CLIPS = "agora_clips_vistos"
 private const val CLAVE_VISTOS = "ids"
@@ -235,8 +265,8 @@ fun HistoriasClips(
         modifier = modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Historia(
@@ -248,12 +278,15 @@ fun HistoriasClips(
             val borde = AgoraColors.AnilloVisto
             Box(
                 modifier = Modifier
-                    .size(60.dp)
+                    .size(72.dp)
+                    .padding(4.dp)
                     .drawBehind {
                         val grosor = 2.dp.toPx()
-                        drawCircle(
+                        drawRoundRect(
                             color = borde,
-                            radius = size.minDimension / 2 - grosor / 2,
+                            topLeft = Offset(grosor / 2, grosor / 2),
+                            size = Size(size.width - grosor, size.height - grosor),
+                            cornerRadius = CornerRadius(18.dp.toPx()),
                             style = Stroke(
                                 width = grosor,
                                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx())),
@@ -279,25 +312,33 @@ fun HistoriasClips(
                     onClip(clip.id)
                 },
             ) {
-                val anillo = if (visto) {
-                    Brush.linearGradient(listOf(AgoraColors.AnilloVisto, AgoraColors.AnilloVisto))
-                } else {
-                    Brush.sweepGradient(listOf(AgoraColors.Naranja, Color(0xFFFFB385), AgoraColors.Naranja))
-                }
+                // B «Cholula»: terraza con el anillo del color de la comunidad (gris si ya se vio).
+                val anillo = if (visto) AgoraColors.AnilloVisto else colorComunidad(clip.comunidad.slug)
                 Box(
                     modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .background(anillo),
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(anillo)
+                        .padding(if (visto) 2.dp else 3.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(AgoraColors.FondoFeed)
+                        .padding(2.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     MiniaturaVideo(
                         url = medio?.url,
                         portada = medio?.thumbUrl,
                         modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, AgoraColors.FondoFeed, CircleShape),
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(18.dp)),
+                    )
+                    Terrazas(
+                        color = anillo,
+                        niveles = 2,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .width(34.dp)
+                            .height(9.dp),
                     )
                 }
             }
@@ -315,7 +356,7 @@ private fun Historia(
 ) {
     Column(
         modifier = Modifier
-            .widthIn(min = 64.dp, max = 64.dp)
+            .widthIn(min = 72.dp, max = 72.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(role = Role.Button, onClick = onClick)
             .clearAndSetSemantics {
@@ -386,19 +427,33 @@ private fun cuadroDe(url: String): Bitmap? = runCatching {
     }
 }.getOrNull()
 
-/** Píldora de filtro del artboard Main: la activa en tinta, las demás en el gris del borde. */
+/**
+ * Píldora de filtro (B «Cholula»): radio 10, la activa en tinta y las demás en superficie con
+ * borde; [color] pone el cuadrito de la comunidad.
+ */
 @Composable
-fun PildoraFiltro(texto: String, activa: Boolean, onClick: () -> Unit) {
-    Box(
+fun PildoraFiltro(texto: String, activa: Boolean, color: Color? = null, onClick: () -> Unit) {
+    val forma = RoundedCornerShape(10.dp)
+    Row(
         modifier = Modifier
             .heightIn(min = 34.dp)
-            .clip(RoundedCornerShape(50))
-            .background(if (activa) AgoraColors.TintaFeed else AgoraColors.BordeFeed)
+            .clip(forma)
+            .background(if (activa) AgoraColors.TintaFeed else AgoraColors.Superficie)
+            .border(1.dp, if (activa) AgoraColors.TintaFeed else AgoraColors.BordeFeed, forma)
             .clickable(role = Role.Tab, onClick = onClick)
             .semantics { selected = activa }
             .padding(horizontal = 14.dp),
-        contentAlignment = Alignment.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        if (color != null) {
+            Box(
+                Modifier
+                    .size(8.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(color),
+            )
+        }
         Text(
             texto,
             style = MaterialTheme.typography.labelLarge.copy(
@@ -534,6 +589,7 @@ internal fun PublicacionFeedB(
     tokenProvider: () -> String?,
     miReaccion: String?,
     totalReacciones: Int,
+    reacciones: mx.agora.mobile.nativeapp.data.api.ReaccionesDto?,
     encuesta: EncuestaDto?,
     votando: Boolean,
     miVoto: String?,
@@ -593,7 +649,7 @@ internal fun PublicacionFeedB(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        post.comunidad.nombre,
+                        if (post.estado == "EN_REVISION") "${haceCuanto(post.createdAt)} · en revisión" else haceCuanto(post.createdAt),
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
                         color = AgoraColors.SecundarioFeed,
                         maxLines = 1,
@@ -601,6 +657,8 @@ internal fun PublicacionFeedB(
                     )
                 }
             }
+            // B «Cholula»: la comunidad va en su sello, con su color.
+            SelloComunidad(nombre = post.comunidad.nombre, slug = post.comunidad.slug, modifier = Modifier.padding(start = 6.dp))
             menu()
         }
 
@@ -610,6 +668,14 @@ internal fun PublicacionFeedB(
                 postId = post.id,
                 isActive = isActive,
                 onDobleToque = { if (miReaccion == null) onReaccionar(ME_LATE) },
+            )
+        } else if (texto.isNotEmpty() && encuesta == null) {
+            PublicacionTipografica(
+                post = post,
+                texto = texto,
+                onPostClick = onPostClick,
+                onHashtagClick = onHashtagClick,
+                onMentionClick = onMentionClick,
             )
         } else if (texto.isNotEmpty()) {
             TextoConHashtags(
@@ -636,16 +702,26 @@ internal fun PublicacionFeedB(
             )
         }
 
-        AccionesFeedB(
-            post = post,
-            tokenProvider = tokenProvider,
-            miReaccion = miReaccion,
-            totalReacciones = totalReacciones,
-            onReaccionar = onReaccionar,
-            onComentar = onPostClick,
-            onCompartir = { compartirEnlace(context, EnlacesWeb.publicacion(post.id)) },
-            modifier = Modifier.padding(horizontal = 8.dp),
-        )
+        if (post.media.isEmpty() && encuesta == null && texto.isNotEmpty()) {
+            // La tipográfica lleva las reacciones como chips con su número (artboard WowB-Inicio).
+            ReaccionesChips(
+                miReaccion = miReaccion,
+                reacciones = reacciones,
+                onReaccionar = onReaccionar,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp),
+            )
+        } else {
+            AccionesFeedB(
+                post = post,
+                tokenProvider = tokenProvider,
+                miReaccion = miReaccion,
+                totalReacciones = totalReacciones,
+                onReaccionar = onReaccionar,
+                onComentar = onPostClick,
+                onCompartir = { compartirEnlace(context, EnlacesWeb.publicacion(post.id)) },
+                modifier = Modifier.padding(horizontal = 8.dp),
+            )
+        }
 
         if (post.media.isNotEmpty() && texto.isNotEmpty()) {
             TextoConHashtags(
@@ -659,36 +735,102 @@ internal fun PublicacionFeedB(
             )
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 36.dp)
-                .clickable(role = Role.Button, onClickLabel = "Ver la publicación", onClick = onPostClick)
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Text(
-                pieFeedB(post),
-                style = MaterialTheme.typography.bodySmall,
-                color = AgoraColors.SecundarioFeed,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+        // El tiempo ya va arriba: el pie solo lleva a los comentarios.
+        pieFeedB(post)?.let { pie ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 36.dp)
+                    .clickable(role = Role.Button, onClickLabel = "Ver la publicación", onClick = onPostClick)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Text(
+                    pie,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AgoraColors.SecundarioFeed,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(10.dp))
     }
 }
 
 private const val ME_LATE = "ME_LATE"
 
-private fun pieFeedB(post: PostDto): String {
-    val hace = haceCuanto(post.createdAt)
-    val base = when (post.numComments) {
-        0 -> hace
-        1 -> "Ver el comentario · $hace"
-        else -> "Ver los ${post.numComments} comentarios · $hace"
+private fun pieFeedB(post: PostDto): String? = when (post.numComments) {
+    0 -> null
+    1 -> "Ver el comentario"
+    else -> "Ver los ${post.numComments} comentarios"
+}
+
+/**
+ * Publicación sin foto ni encuesta (B «Cholula», WowB-Inicio): tarjeta en el color de la comunidad,
+ * texto grande en Bricolage, esquina de Talavera y las respuestas abajo.
+ */
+@Composable
+private fun PublicacionTipografica(
+    post: PostDto,
+    texto: String,
+    onPostClick: () -> Unit,
+    onHashtagClick: (String) -> Unit,
+    onMentionClick: ((String) -> Unit)?,
+) {
+    val fondo = colorComunidad(post.comunidad.slug)
+    val tinta = textoSobreComunidad(post.comunidad.slug)
+    val claro = tinta == Color.White
+    val tam = when {
+        texto.length <= 90 -> 26.sp
+        texto.length <= 180 -> 21.sp
+        else -> 17.sp
     }
-    return if (post.estado == "EN_REVISION") "$base · en revisión" else base
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 12.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(fondo)
+            .clickable(onClickLabel = "Ver la publicación", role = Role.Button, onClick = onPostClick),
+    ) {
+        Talavera(
+            fondo = Color.White,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 10.dp, y = (-10).dp)
+                .size(96.dp)
+                .clip(RoundedCornerShape(bottomStart = 28.dp))
+                .alpha(if (claro) 0.9f else 0.55f),
+        )
+        Column(
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            TextoConHashtags(
+                texto = texto,
+                onHashtagClick = onHashtagClick,
+                onMentionClick = onMentionClick,
+                estilo = MaterialTheme.typography.headlineSmall.copy(
+                    fontFamily = AgoraFonts.titulo,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = tam,
+                    lineHeight = tam * 1.1f,
+                ),
+                color = tinta,
+                colorEnlace = if (claro) Color(0xFFC9D6FF) else AgoraColors.SobreMaiz,
+                maxLines = 9,
+                modifier = Modifier.padding(end = 56.dp),
+            )
+            if (post.numComments > 0) {
+                Text(
+                    if (post.numComments == 1) "Ver la respuesta" else "Ver las ${post.numComments} respuestas",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (claro) Color(0xFFC9D6FF) else AgoraColors.SobreMaiz,
+                )
+            }
+        }
+    }
 }
 
 /** Corazón = «Me late» con el total de reacciones; las otras tres, con pulsación larga. */

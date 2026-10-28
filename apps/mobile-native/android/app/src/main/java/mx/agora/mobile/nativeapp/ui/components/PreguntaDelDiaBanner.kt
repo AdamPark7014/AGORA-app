@@ -11,12 +11,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,7 +38,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -65,8 +77,8 @@ import kotlin.math.roundToInt
  * barras de porcentaje (la mía en naranja) con tu carrera contra el campus. Misma lógica de
  * antes; paridad con `PreguntaDelDiaBanner.swift`.
  */
-private val FormaPregunta = RoundedCornerShape(16.dp)
-private val FormaOpcion = RoundedCornerShape(8.dp)
+private val FormaPregunta = RoundedCornerShape(18.dp)
+private val FormaOpcion = RoundedCornerShape(10.dp)
 private val FormaBarra = RoundedCornerShape(10.dp)
 
 @Composable
@@ -129,7 +141,7 @@ fun PreguntaDelDiaBanner(
     val actual = pregunta ?: return
 
     if (esperando) {
-        TarjetaPregunta(modifier) {
+        TarjetaPregunta(modifier, TalonBoleto("HOY", null, "sorpresa", conReloj = true)) {
             CabezaPregunta(dato = null)
             TituloPregunta("Hoy cae a una hora sorpresa.")
             Text(
@@ -165,18 +177,22 @@ fun PreguntaDelDiaBanner(
         }
     }
 
-    // A la derecha de «PREGUNTA DEL DÍA»: la cuenta regresiva, las respuestas o la semana.
+    // El talón del boleto (B «Cholula»): la cuenta regresiva, las respuestas o la semana.
     val semana = actual.semanaPregunta
-    val dato: Pair<String, Boolean>? = when {
-        corriendo && hastaMs != null -> "QUEDAN ${mmss(hastaMs - ahora)}" to true
-        actual.yaRespondi -> cuenta(actual.total, "respuesta", "respuestas") to false
-        semana != null -> "${semana.respondidas}/${semana.meta} esta semana" to false
-        else -> null
+    val talon = when {
+        corriendo && hastaMs != null -> TalonBoleto("QUEDAN", mmss(hastaMs - ahora), "a tiempo")
+        actual.yaRespondi -> TalonBoleto(
+            "RESPUESTAS",
+            actual.total.toString(),
+            if (actual.aTiempo == true && actual.abreAt != null) "a tiempo" else "hoy",
+        )
+        semana != null -> TalonBoleto("SEMANA", "${semana.respondidas}/${semana.meta}", "contestadas")
+        else -> TalonBoleto("HOY", null, "abierta", conReloj = true)
     }
 
     Box(modifier = modifier.fillMaxWidth()) {
-        TarjetaPregunta(Modifier.scale(bannerScale)) {
-            CabezaPregunta(dato = dato)
+        TarjetaPregunta(Modifier.scale(bannerScale), talon) {
+            CabezaPregunta(dato = null)
             TituloPregunta(actual.texto)
 
             if (actual.yaRespondi) {
@@ -229,17 +245,91 @@ fun PreguntaDelDiaBanner(
     }
 }
 
+/** Lo que dice el talón azul del boleto: arriba, el dato grande y abajo. */
+private data class TalonBoleto(
+    val arriba: String,
+    val grande: String?,
+    val abajo: String,
+    val conReloj: Boolean = false,
+)
+
+/**
+ * Boleto de la pregunta (B «Cholula», docs/diseno-cholula.md §3): a la izquierda la pregunta y sus
+ * opciones; a la derecha un talón Talavera con borde punteado y muescas del color del fondo.
+ */
 @Composable
-private fun TarjetaPregunta(modifier: Modifier, contenido: @Composable () -> Unit) {
-    Column(
+private fun TarjetaPregunta(modifier: Modifier, talon: TalonBoleto, contenido: @Composable () -> Unit) {
+    val fondo = AgoraColors.FondoFeed
+    Row(
         modifier = modifier
             .fillMaxWidth()
+            .shadow(6.dp, FormaPregunta, ambientColor = Color.Black.copy(alpha = 0.12f), spotColor = Color.Black.copy(alpha = 0.12f))
             .clip(FormaPregunta)
-            .background(AgoraColors.PreguntaFondo)
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .background(AgoraColors.Superficie)
+            .height(IntrinsicSize.Min),
     ) {
-        contenido()
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            contenido()
+        }
+        Box(
+            modifier = Modifier
+                .width(88.dp)
+                .fillMaxHeight()
+                .background(AgoraColors.Talavera)
+                .drawBehind {
+                    // Borde punteado del talón y las dos muescas del boleto.
+                    val grosor = 2.dp.toPx()
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.55f),
+                        start = Offset(grosor / 2, 0f),
+                        end = Offset(grosor / 2, size.height),
+                        strokeWidth = grosor,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx())),
+                    )
+                    drawCircle(fondo, radius = 9.dp.toPx(), center = Offset(0f, 0f))
+                    drawCircle(fondo, radius = 9.dp.toPx(), center = Offset(0f, size.height))
+                }
+                .clearAndSetSemantics {
+                    contentDescription = listOfNotNull(talon.arriba.lowercase(), talon.grande, talon.abajo).joinToString(" ")
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    talon.arriba,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.2.sp),
+                    color = Color.White,
+                    maxLines = 1,
+                )
+                if (talon.conReloj) {
+                    Icon(Icons.Outlined.Schedule, contentDescription = null, tint = Color.White, modifier = Modifier.size(30.dp))
+                } else if (talon.grande != null) {
+                    Text(
+                        talon.grande,
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontFamily = AgoraFonts.titulo,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 28.sp,
+                            lineHeight = 30.sp,
+                            fontFeatureSettings = "tnum",
+                        ),
+                        color = Color.White,
+                        maxLines = 1,
+                    )
+                }
+                Text(
+                    talon.abajo,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 11.sp),
+                    color = Color.White,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 
@@ -253,8 +343,8 @@ private fun CabezaPregunta(dato: Pair<String, Boolean>?) {
     ) {
         Text(
             "PREGUNTA DEL DÍA",
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
-            color = AgoraColors.NaranjaOscuro,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 1.1.sp),
+            color = AgoraColors.NaranjaTinta,
             maxLines = 1,
             modifier = Modifier
                 .weight(1f)
@@ -383,7 +473,7 @@ private fun comparacion(p: PreguntaHoyDto): String? {
     if (carrera != null) {
         val favorita = p.opciones.maxByOrNull { carrera.votos[it.indice.toString()] ?: 0 }
         if (favorita != null) {
-            return "${carrera.nombre} votó ${porcentaje(carrera.votos[favorita.indice.toString()] ?: 0, carrera.total)} % " +
+            return "${nombreCortoComunidad(carrera.nombre, "carrera:")} votó ${porcentaje(carrera.votos[favorita.indice.toString()] ?: 0, carrera.total)} % " +
                 "${favorita.texto} · el campus ${porcentaje(favorita.votos ?: 0, p.total)} %"
         }
     }

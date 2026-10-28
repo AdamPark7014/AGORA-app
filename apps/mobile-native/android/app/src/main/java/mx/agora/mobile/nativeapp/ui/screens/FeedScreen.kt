@@ -56,6 +56,9 @@ import mx.agora.mobile.nativeapp.ui.components.PildoraFiltro
 import mx.agora.mobile.nativeapp.ui.components.PostCard
 import mx.agora.mobile.nativeapp.ui.components.PreguntaDelDiaBanner
 import mx.agora.mobile.nativeapp.ui.components.RetirarPostDialogo
+import mx.agora.mobile.nativeapp.ui.components.nombreCortoComunidad
+import mx.agora.mobile.nativeapp.ui.components.colorComunidad
+import mx.agora.mobile.nativeapp.ui.components.Talavera
 import mx.agora.mobile.nativeapp.ui.components.esVideoMedia
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
@@ -302,6 +305,9 @@ fun FeedScreen(
     val miGeneracion = comunidades.firstOrNull {
         (it.tipo == "GENERACION" || it.slug.startsWith("generacion:")) && !it.silenciada
     }
+    val miColegio = comunidades.firstOrNull {
+        (it.tipo == "COLEGIO" || it.slug.startsWith("colegio:")) && !it.silenciada
+    }
 
     AgoraPullToRefreshBox(
         isRefreshing = refrescando,
@@ -320,12 +326,20 @@ fun FeedScreen(
             contentPadding = PaddingValues(bottom = AgoraSpacing.Lg),
         ) {
             item(key = "cabeza") {
-                EncabezadoInicioB(
-                    avisosSinLeer = avisosSinLeer,
-                    mensajesSinLeer = mensajesSinLeer,
-                    onAvisos = onAvisos,
-                    onMensajes = onMensajes,
-                )
+                Column {
+                    EncabezadoInicioB(
+                        avisosSinLeer = avisosSinLeer,
+                        mensajesSinLeer = mensajesSinLeer,
+                        onAvisos = onAvisos,
+                        onMensajes = onMensajes,
+                    )
+                    // B «Cholula»: franja de azulejo de Talavera bajo el encabezado.
+                    Talavera(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp),
+                    )
+                }
             }
 
             if (sinConexion) {
@@ -344,17 +358,11 @@ fun FeedScreen(
 
             item(key = "filtros") {
                 Column {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(AgoraColors.BordeFeed),
-                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                            .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         PildoraFiltro("Para ti", activa = !siguiendo && comunidadSlug == null) {
@@ -365,35 +373,25 @@ fun FeedScreen(
                             siguiendo = true
                             comunidadSlug = null
                         }
-                        miCarrera?.let { carrera ->
-                            PildoraFiltro(carrera.nombre, activa = !siguiendo && comunidadSlug == carrera.slug) {
-                                siguiendo = false
-                                comunidadSlug = carrera.slug
-                            }
-                        }
-                        miGeneracion?.let { generacion ->
+                        // B «Cholula»: cada comunidad con el cuadrito de su color.
+                        listOfNotNull(miCarrera, miGeneracion, miColegio).forEach { c ->
                             PildoraFiltro(
-                                generacion.nombre.replace("Generación ", "Gen "),
-                                activa = !siguiendo && comunidadSlug == generacion.slug,
+                                nombreCortoComunidad(c.nombre, c.slug),
+                                activa = !siguiendo && comunidadSlug == c.slug,
+                                color = colorComunidad(c.slug),
                             ) {
                                 siguiendo = false
-                                comunidadSlug = generacion.slug
+                                comunidadSlug = c.slug
                             }
                         }
                     }
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(AgoraColors.BordeFeed),
-                    )
                 }
             }
 
             item(key = "pregunta") {
                 PreguntaDelDiaBanner(
                     tokenProvider = tokenProvider,
-                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 6.dp),
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 14.dp),
                 )
             }
 

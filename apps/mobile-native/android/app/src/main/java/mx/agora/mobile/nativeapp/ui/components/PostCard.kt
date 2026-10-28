@@ -285,6 +285,7 @@ fun PostCard(
             tokenProvider = tokenProvider,
             miReaccion = miReaccion,
             totalReacciones = totalReacciones,
+            reacciones = reacciones,
             encuesta = encuesta,
             votando = votando,
             miVoto = miVoto,
@@ -685,15 +686,18 @@ fun TextoConHashtags(
     autor: String? = null,
     estilo: TextStyle = MaterialTheme.typography.bodyMedium,
     color: Color = AgoraColors.Texto,
+    /** Color de #hashtags y @menciones (sobre un color de comunidad, uno claro). */
+    colorEnlace: Color = AgoraColors.NaranjaTinta,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     val alHashtag by rememberUpdatedState(onHashtagClick)
     val alMencion by rememberUpdatedState(onMentionClick)
     val conMenciones = onMentionClick != null
     // `naranja-tinta`: el naranja de marca no llega a 4.5:1 como texto sobre blanco.
     val estiloEnlace = TextLinkStyles(
-        style = SpanStyle(color = AgoraColors.NaranjaTinta, fontWeight = FontWeight.SemiBold),
+        style = SpanStyle(color = colorEnlace, fontWeight = FontWeight.SemiBold),
     )
-    val annotated = remember(texto, conMenciones, autor, AgoraColors.oscuro) {
+    val annotated = remember(texto, conMenciones, autor, colorEnlace, AgoraColors.oscuro) {
         buildAnnotatedString {
             if (autor != null) {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(autor) }
@@ -735,6 +739,8 @@ fun TextoConHashtags(
     Text(
         text = annotated,
         style = estilo.copy(color = color),
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier,
     )
 }
