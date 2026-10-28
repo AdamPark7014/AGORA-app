@@ -4,19 +4,27 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -28,45 +36,53 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import java.util.Calendar
-import java.util.TimeZone
+import androidx.compose.ui.unit.sp
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.api.ApiClient
 import mx.agora.mobile.nativeapp.data.api.EventoDto
 import mx.agora.mobile.nativeapp.data.api.EventosApi
 import mx.agora.mobile.nativeapp.data.api.PersonaResumenDto
-import mx.agora.mobile.nativeapp.data.api.ResponderEventoRequest
-import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
 import mx.agora.mobile.nativeapp.ui.components.AgoraEmptyState
 import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
-import mx.agora.mobile.nativeapp.ui.components.AgoraEstadoDesplazable
 import mx.agora.mobile.nativeapp.ui.components.AvataresApilados
-import mx.agora.mobile.nativeapp.ui.components.BloqueFecha
-import mx.agora.mobile.nativeapp.ui.components.BotonTinta
-import mx.agora.mobile.nativeapp.ui.components.ChipD
+import mx.agora.mobile.nativeapp.ui.components.PildoraFiltro
+import mx.agora.mobile.nativeapp.ui.components.Talavera
+import mx.agora.mobile.nativeapp.ui.components.Terrazas
 import mx.agora.mobile.nativeapp.ui.copy.AgoraCopy
-import mx.agora.mobile.nativeapp.ui.theme.AgoraButtonShape
-import mx.agora.mobile.nativeapp.ui.theme.AgoraCardShape
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFonts
 import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
 import mx.agora.mobile.nativeapp.ui.util.AgoraPullToRefreshBox
 import mx.agora.mobile.nativeapp.ui.util.cuenta
 import mx.agora.mobile.nativeapp.ui.util.formatearFecha
 import mx.agora.mobile.nativeapp.ui.util.formatearHora
 import mx.agora.mobile.nativeapp.ui.util.formatearPrecio
-import mx.agora.mobile.nativeapp.ui.util.isoAMilis
 import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 
 /** Mismo orden y etiquetas que el filtro de la web (`apps/web/app/eventos`). */
@@ -121,24 +137,29 @@ internal fun textoQuienVa(vanAIr: Int, asistentes: List<PersonaResumenDto>, yoVo
     }
 }
 
-/**
- * El bloque de fecha no lleva mes: si el evento cae en otro mes se escribe la
- * fecha completa en la línea de la hora para que «SÁB 22» no engañe. Con
- * java.util, como Calendario.kt: minSdk 24 sin desugaring.
- */
-private fun cuandoCorto(iso: String): String {
-    val inicio = isoAMilis(iso) ?: return formatearFecha(iso)
-    val zona = TimeZone.getTimeZone("America/Mexico_City")
-    val evento = Calendar.getInstance(zona).apply { timeInMillis = inicio }
-    val hoy = Calendar.getInstance(zona)
-    val mismoMes = evento.get(Calendar.YEAR) == hoy.get(Calendar.YEAR) &&
-        evento.get(Calendar.MONTH) == hoy.get(Calendar.MONTH)
-    return if (mismoMes) formatearHora(iso) else formatearFecha(iso)
+/** Fondo y tinta de un cartel por tipo (docs/diseno-cholula.md §4). */
+private data class ColoresCartel(val fondo: Color, val tinta: Color)
+
+private fun coloresCartel(tipo: String?): ColoresCartel = when (tipo) {
+    "FIESTA" -> ColoresCartel(AgoraColors.Adobe, Color.White)
+    "DEPORTIVO" -> ColoresCartel(AgoraColors.Talavera, Color.White)
+    "CULTURAL" -> ColoresCartel(AgoraColors.Jade, Color.White)
+    "ACADEMICO" -> ColoresCartel(AgoraColors.Maiz, AgoraColors.SobreMaiz)
+    else -> ColoresCartel(AgoraColors.Superficie2, AgoraColors.Texto)
 }
 
+private val zonaMx = ZoneId.of("America/Mexico_City")
+private val esMx = Locale("es", "MX")
+
+/** «Octubre»: el mes en curso (sin «semana N» hasta que exista la API del semestre). */
+private fun mesActual(): String =
+    DateTimeFormatter.ofPattern("LLLL", esMx).format(ZonedDateTime.now(zonaMx))
+        .replaceFirstChar { it.titlecase(esMx) }
+
 /**
- * Pestaña Eventos. Vive dentro de MainShell, que ya pinta «Eventos» arriba y la
- * barra flotante abajo: aquí no hay título propio ni botón flotante.
+ * Pestaña Eventos de B «Cholula»: «Cartelera». El próximo evento es un cartel grande (con
+ * cuenta regresiva si es hoy) y los demás van en rejilla de dos, cada uno del color de su
+ * tipo. El «Voy» se da en el detalle del evento.
  */
 @Composable
 fun EventosScreen(
@@ -151,14 +172,8 @@ fun EventosScreen(
     var refrescando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var tipo by remember { mutableStateOf<String?>(null) }
-    /** Evento con un «Voy» en camino: evita el doble toque. */
-    var respondiendo by remember { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
-    fun avisar(mensaje: String) {
-        scope.launch { snackbar.showSnackbar(mensaje) }
-    }
 
     fun cargar(refresh: Boolean = false) {
         scope.launch {
@@ -169,34 +184,11 @@ fun EventosScreen(
             } catch (e: Exception) {
                 val mensaje = mensajeDe(e)
                 error = mensaje
-                // Con la lista ya en pantalla el estado de error no se ve: se avisa aparte.
-                if (eventos.isNotEmpty()) avisar(mensaje)
+                // Con la cartelera ya en pantalla el estado de error no se ve: se avisa aparte.
+                if (eventos.isNotEmpty()) scope.launch { snackbar.showSnackbar(mensaje) }
             } finally {
                 cargando = false
                 refrescando = false
-            }
-        }
-    }
-
-    fun responderVoy(evento: EventoDto) {
-        if (respondiendo != null) return
-        scope.launch {
-            respondiendo = evento.id
-            try {
-                val resp = ApiClient.api<EventosApi>(tokenProvider).responder(
-                    evento.id,
-                    ResponderEventoRequest("VOY"),
-                )
-                AgoraAnalytics.eventoAsistencia(
-                    tokenProvider,
-                    mapOf("eventoId" to evento.id, "respuesta" to "VOY"),
-                )
-                avisar(if (resp.miRespuesta == "VOY") "¡Te apuntaste! Nos vemos ahí." else "Listo, ya no vas a ir.")
-                cargar(refresh = true)
-            } catch (e: Exception) {
-                avisar(ApiClient.mensajeDelServidor(e) ?: mensajeDe(e))
-            } finally {
-                respondiendo = null
             }
         }
     }
@@ -209,77 +201,82 @@ fun EventosScreen(
             onRefresh = { cargar(refresh = true) },
             modifier = Modifier.fillMaxSize(),
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = AgoraSpacing.Pantalla),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(filtrosTipo, key = { it.first ?: "todos" }) { (valor, etiqueta) ->
-                        ChipD(
-                            texto = etiqueta,
-                            activo = tipo == valor,
-                            onClick = { tipo = valor },
-                        )
-                    }
-                }
-
-                Box(modifier = Modifier.weight(1f)) {
-                    when {
-                        cargando && eventos.isEmpty() -> {
-                            CircularProgressIndicator(
-                                color = AgoraColors.Naranja,
-                                modifier = Modifier.align(Alignment.Center),
+            // Vacío y error también van en la lista para que el jalón de refrescar funcione.
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = AgoraSpacing.Lg),
+            ) {
+                item(key = "encabezado") { EncabezadoCartelera(onCrearClick) }
+                item(key = "filtros") {
+                    LazyRow(
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(filtrosTipo, key = { it.first ?: "todos" }) { (valor, etiqueta) ->
+                            PildoraFiltro(
+                                texto = etiqueta,
+                                activa = tipo == valor,
+                                color = valor?.let { coloresCartel(it).fondo },
+                                bordeCuadro = valor == "ORGANIZACION" || valor == "OTRO",
+                                onClick = { tipo = valor },
                             )
                         }
-                        // Vacío y error van en algo desplazable para que el jalón de refrescar funcione.
-                        error != null && eventos.isEmpty() -> {
-                            AgoraEstadoDesplazable {
-                                AgoraErrorState(
-                                    message = error!!,
-                                    onRetry = { cargar() },
-                                )
-                            }
+                    }
+                }
+                when {
+                    cargando && eventos.isEmpty() -> item(key = "cargando") {
+                        Box(Modifier.fillMaxWidth().padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = AgoraColors.Naranja)
                         }
-                        eventos.isEmpty() -> {
-                            AgoraEstadoDesplazable {
-                                AgoraEmptyState(
-                                    state = AgoraCopy.emptyEventos,
-                                    ctaLabel = "Crea el primero",
-                                    onCta = onCrearClick,
-                                    secondaryCtaLabel = AgoraCopy.cta.reintentar,
-                                    onSecondaryCta = { cargar() },
-                                )
-                            }
-                        }
-                        else -> {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(
-                                    start = AgoraSpacing.Tarjeta,
-                                    end = AgoraSpacing.Tarjeta,
-                                    top = 6.dp,
-                                    bottom = AgoraSpacing.Lg,
-                                ),
-                                verticalArrangement = Arrangement.spacedBy(AgoraSpacing.EntreTarjetas),
-                            ) {
-                                items(eventos, key = { it.id }) { evento ->
-                                    EventoCard(
-                                        evento = evento,
-                                        ocupado = respondiendo == evento.id,
-                                        onClick = { onEventoClick(evento.id) },
-                                        onVoy = { responderVoy(evento) },
-                                    )
-                                }
-                            }
-                            // Al cambiar de filtro la lista anterior sigue: que se note que carga.
-                            if (cargando) {
+                    }
+                    error != null && eventos.isEmpty() -> item(key = "error") {
+                        AgoraErrorState(message = error!!, onRetry = { cargar() })
+                    }
+                    eventos.isEmpty() -> item(key = "vacio") {
+                        AgoraEmptyState(
+                            state = AgoraCopy.emptyEventos,
+                            ctaLabel = "Crea el primero",
+                            onCta = onCrearClick,
+                            secondaryCtaLabel = AgoraCopy.cta.reintentar,
+                            onSecondaryCta = { cargar() },
+                        )
+                    }
+                    else -> {
+                        if (cargando) {
+                            // Al cambiar de filtro la cartelera anterior sigue: que se note que carga.
+                            item(key = "barra") {
                                 LinearProgressIndicator(
                                     color = AgoraColors.Naranja,
                                     trackColor = AgoraColors.Superficie2,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .align(Alignment.TopCenter),
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
                                 )
+                            }
+                        }
+                        val primero = eventos.first()
+                        item(key = primero.id) {
+                            Cartel(
+                                evento = primero,
+                                grande = true,
+                                onClick = { onEventoClick(primero.id) },
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                            )
+                        }
+                        items(eventos.drop(1).chunked(2), key = { fila -> fila.first().id }) { fila ->
+                            Row(
+                                modifier = Modifier
+                                    .padding(start = 12.dp, end = 12.dp, top = 10.dp)
+                                    .height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                fila.forEach { evento ->
+                                    Cartel(
+                                        evento = evento,
+                                        grande = false,
+                                        onClick = { onEventoClick(evento.id) },
+                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    )
+                                }
+                                if (fila.size == 1) Spacer(Modifier.weight(1f))
                             }
                         }
                     }
@@ -296,128 +293,235 @@ fun EventosScreen(
     }
 }
 
-/**
- * Tarjeta de evento de la D: bloque de fecha naranja a la izquierda, título,
- * «hora · lugar», quién va y mi respuesta con el «Voy» rápido.
- */
+/** «Cartelera» con el mes y el «+» relleno para crear evento (artboard WowB-Eventos). */
 @Composable
-private fun EventoCard(
-    evento: EventoDto,
-    onClick: () -> Unit,
-    onVoy: () -> Unit,
-    ocupado: Boolean = false,
-) {
-    val yaVoy = evento.miRespuesta == "VOY"
-    val meInteresa = evento.miRespuesta == "ME_INTERESA"
-    val lleno = evento.cupo != null && evento.vanAIr >= evento.cupo
-    val tipoTexto = filtrosTipo.firstOrNull { it.first == evento.tipo }?.second ?: evento.tipo
-
+private fun EncabezadoCartelera(onCrear: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(AgoraCardShape)
-            .background(AgoraColors.Superficie)
-            .clickable(onClickLabel = "Ver evento", role = Role.Button, onClick = onClick)
-            .padding(14.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(start = 16.dp, end = 10.dp, top = 16.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.Bottom,
     ) {
-        BloqueFecha(inicioIso = evento.inicioAt, ancho = 56.dp, alto = 64.dp)
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                listOfNotNull(tipoTexto, evento.comunidad?.nombre).joinToString(" · "),
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                color = AgoraColors.NaranjaTinta,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                evento.titulo,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                "Cartelera",
+                fontFamily = AgoraFonts.titulo,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 32.sp,
+                lineHeight = 34.sp,
+                letterSpacing = (-0.6).sp,
                 color = AgoraColors.Texto,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics { heading() },
             )
-            Text(
-                listOfNotNull(cuandoCorto(evento.inicioAt), evento.lugar?.takeIf { it.isNotBlank() }).joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall,
-                color = AgoraColors.TextoMedio,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            // Cupo y costo siguen a la vista: deciden si vale la pena abrir el evento.
-            listOfNotNull(textoCupo(evento.cupo, evento.vanAIr), textoCosto(evento.costoMxn))
-                .takeIf { it.isNotEmpty() }
-                ?.let {
+            Text(mesActual(), style = MaterialTheme.typography.bodyMedium, color = AgoraColors.TextoMedio)
+        }
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(AgoraColors.Boton)
+                .semantics { contentDescription = "Crear evento" }
+                .clickable(role = Role.Button, onClick = onCrear),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = null, tint = AgoraColors.SobreBoton, modifier = Modifier.size(22.dp))
+        }
+    }
+}
+
+/**
+ * Un cartel: número del día gigante, día (y hora en el grande), título y lugar. El grande es
+ * el próximo evento; si es hoy y aún no empieza lleva la cuenta regresiva, y dice cuántos van.
+ */
+@Composable
+private fun Cartel(evento: EventoDto, grande: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colores = coloresCartel(evento.tipo)
+    val inicio = runCatching { Instant.parse(evento.inicioAt).atZone(zonaMx) }.getOrNull()
+    val ahora = ZonedDateTime.now(zonaMx)
+    val dia = inicio?.let { DateTimeFormatter.ofPattern("EEE", esMx).format(it).trimEnd('.').uppercase(esMx) }.orEmpty()
+    val hora = formatearHora(evento.inicioAt)
+    val etiquetaDia = when {
+        inicio == null -> ""
+        grande -> "$dia · $hora"
+        inicio.year == ahora.year && inicio.month == ahora.month -> dia
+        else -> "$dia · " + DateTimeFormatter.ofPattern("MMM", esMx).format(inicio).trimEnd('.').uppercase(esMx)
+    }
+    val detalle = listOfNotNull(
+        evento.lugar?.takeIf { it.isNotBlank() },
+        if (grande) textoCosto(evento.costoMxn) else hora,
+    ).joinToString(" · ")
+    val esHoyPorEmpezar = inicio != null && inicio.toLocalDate() == ahora.toLocalDate() && inicio.isAfter(ahora)
+    val forma = RoundedCornerShape(20.dp)
+    val numeroTam = if (grande) 110 else 70
+
+    // Alto mínimo del artboard; un título largo lo hace crecer en vez de cortarse.
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = if (grande) 250.dp else 200.dp)
+            .clip(forma)
+            .background(colores.fondo)
+            .clickable(onClickLabel = "Ver evento", role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = listOfNotNull(
+                    evento.titulo,
+                    formatearFecha(evento.inicioAt),
+                    evento.lugar?.takeIf { it.isNotBlank() },
+                    evento.vanAIr.takeIf { it > 0 }?.let { if (it == 1) "1 va" else "$it van" },
+                ).joinToString(", ")
+            },
+    ) {
+        MotivoCartel(evento.tipo, grande)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = if (grande) 250.dp else 200.dp)
+                .padding(16.dp)
+                .clearAndSetSemantics {},
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    inicio?.dayOfMonth?.toString().orEmpty(),
+                    color = colores.tinta,
+                    style = TextStyle(
+                        fontFamily = AgoraFonts.titulo,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = numeroTam.sp,
+                        lineHeight = (numeroTam * 0.82).sp,
+                        letterSpacing = (-3).sp,
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both),
+                    ),
+                    maxLines = 1,
+                    modifier = Modifier.alignByBaseline(),
+                )
+                Text(
+                    etiquetaDia,
+                    color = colores.tinta,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.4.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.alignByBaseline(),
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (grande && esHoyPorEmpezar && inicio != null) CuentaRegresiva(inicio.toInstant(), colores.tinta)
+                Text(
+                    evento.titulo,
+                    color = colores.tinta,
+                    fontFamily = AgoraFonts.titulo,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = if (grande) 24.sp else 17.sp,
+                    lineHeight = if (grande) 26.sp else 18.sp,
+                    maxLines = if (grande) 2 else 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (detalle.isNotEmpty()) {
                     Text(
-                        it.joinToString(" · "),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = AgoraColors.TextoMedio,
+                        detalle,
+                        color = colores.tinta.copy(alpha = 0.92f),
+                        fontSize = 12.sp,
+                        lineHeight = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (evento.asistentes.isNotEmpty()) {
-                    AvataresApilados(evento.asistentes.map { it.nombre to it.fotoUrl }, tamano = 26.dp)
-                }
-                Text(
-                    if (meInteresa) {
-                        "Te interesa · " + textoQuienVa(evento.vanAIr, evento.asistentes, yoVoy = false)
-                    } else {
-                        textoQuienVa(evento.vanAIr, evento.asistentes, yoVoy = yaVoy)
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = AgoraColors.TextoMedio,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                if (yaVoy) {
-                    // Tocar quita la respuesta (el API la alterna); el lector lo dice.
+                if (grande && evento.vanAIr > 0) {
                     Row(
-                        modifier = Modifier
-                            .heightIn(min = 44.dp)
-                            .clip(AgoraButtonShape)
-                            .background(AgoraColors.NaranjaSuave)
-                            .clickable(enabled = !ocupado, role = Role.Button, onClick = onVoy)
-                            .semantics { contentDescription = "Vas a ir. Toca para quitar tu respuesta." }
-                            .padding(horizontal = 12.dp),
+                        modifier = Modifier.padding(top = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Icon(
-                            Icons.Outlined.Check,
-                            contentDescription = null,
-                            tint = AgoraColors.NaranjaTinta,
-                            modifier = Modifier.size(16.dp),
-                        )
+                        if (evento.asistentes.isNotEmpty()) {
+                            AvataresApilados(
+                                evento.asistentes.map { it.nombre to it.fotoUrl },
+                                tamano = 24.dp,
+                                borde = colores.fondo,
+                            )
+                        }
                         Text(
-                            if (ocupado) "Un momento…" else "Vas",
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                            color = AgoraColors.NaranjaTinta,
+                            if (evento.vanAIr == 1) "1 va" else "${evento.vanAIr} van",
+                            color = colores.tinta,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
-                } else {
-                    BotonTinta(
-                        texto = when {
-                            lleno -> "Sin lugares"
-                            ocupado -> "Apuntándote…"
-                            else -> "Voy"
-                        },
-                        onClick = onVoy,
-                        enabled = !lleno && !ocupado,
-                    )
                 }
             }
         }
     }
 }
+
+/** Motivo de cada tipo: terrazas en fiesta y cultural, franja de azulejo en deportivo, nada en académico. */
+@Composable
+private fun BoxScope.MotivoCartel(tipo: String?, grande: Boolean) {
+    when (tipo) {
+        "FIESTA" -> Terrazas(
+            Color.White.copy(alpha = 0.25f),
+            Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 14.dp, y = 6.dp)
+                .size(if (grande) 210.dp else 120.dp, if (grande) 120.dp else 68.dp),
+            niveles = 4,
+        )
+        "DEPORTIVO" -> Talavera(
+            Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .height(18.dp),
+            lado = 18.dp,
+        )
+        "CULTURAL" -> Terrazas(
+            Color.White.copy(alpha = 0.25f),
+            Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 8.dp, y = 10.dp)
+                .size(90.dp, 50.dp),
+        )
+        "ACADEMICO" -> Unit
+        else -> Terrazas(
+            AgoraColors.Naranja,
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 12.dp, end = 10.dp)
+                .size(40.dp, 22.dp),
+        )
+    }
+}
+
+/** «EMPIEZA EN 2:14:08» con el punto, solo para el evento de hoy que aún no empieza. */
+@Composable
+private fun CuentaRegresiva(inicio: Instant, tinta: Color) {
+    val falta by produceState(initialValue = segundosHasta(inicio), inicio) {
+        while (value > 0) {
+            delay(1_000)
+            value = segundosHasta(inicio)
+        }
+    }
+    Row(
+        modifier = Modifier
+            .padding(bottom = 4.dp)
+            .height(26.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(tinta.copy(alpha = 0.18f))
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.size(7.dp).clip(CircleShape).background(tinta))
+        Text(
+            "EMPIEZA EN %d:%02d:%02d".format(falta / 3600, (falta % 3600) / 60, falta % 60),
+            color = tinta,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            style = TextStyle(letterSpacing = 1.sp, fontFeatureSettings = "tnum"),
+        )
+    }
+}
+
+private fun segundosHasta(inicio: Instant): Long =
+    (Duration.between(Instant.now(), inicio).seconds).coerceAtLeast(0)

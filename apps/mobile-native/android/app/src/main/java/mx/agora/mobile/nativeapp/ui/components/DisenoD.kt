@@ -402,6 +402,7 @@ fun AvataresApilados(
     personas: List<Pair<String, String?>>,
     modifier: Modifier = Modifier,
     tamano: Dp = 32.dp,
+    borde: Color = AgoraColors.Superficie,
 ) {
     Row(modifier = modifier.clearAndSetSemantics {}) {
         personas.take(3).forEachIndexed { i, (nombre, foto) ->
@@ -412,7 +413,7 @@ fun AvataresApilados(
                 // Encimados 10 dp, como en el mockup.
                 modifier = Modifier
                     .offset(x = (-10 * i).dp)
-                    .border(2.dp, AgoraColors.Superficie, RoundedCornerShape(tamano * 0.34f)),
+                    .border(2.dp, borde, RoundedCornerShape(tamano * 0.34f)),
             )
         }
     }

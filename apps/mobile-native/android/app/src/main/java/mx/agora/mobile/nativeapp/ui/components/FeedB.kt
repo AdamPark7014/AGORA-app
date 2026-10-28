@@ -432,7 +432,7 @@ private fun cuadroDe(url: String): Bitmap? = runCatching {
  * borde; [color] pone el cuadrito de la comunidad.
  */
 @Composable
-fun PildoraFiltro(texto: String, activa: Boolean, color: Color? = null, onClick: () -> Unit) {
+fun PildoraFiltro(texto: String, activa: Boolean, color: Color? = null, bordeCuadro: Boolean = false, onClick: () -> Unit) {
     val forma = RoundedCornerShape(10.dp)
     Row(
         modifier = Modifier
@@ -451,7 +451,8 @@ fun PildoraFiltro(texto: String, activa: Boolean, color: Color? = null, onClick:
                 Modifier
                     .size(8.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(color),
+                    .background(color)
+                    .then(if (bordeCuadro) Modifier.border(1.dp, AgoraColors.BordeFeed, RoundedCornerShape(2.dp)) else Modifier),
             )
         }
         Text(

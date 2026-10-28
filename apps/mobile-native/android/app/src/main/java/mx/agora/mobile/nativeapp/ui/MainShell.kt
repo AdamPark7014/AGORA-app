@@ -267,9 +267,7 @@ fun MainShell(
                         }
                     }
                     PestanaBus.EVENTOS -> Column {
-                        EncabezadoPestana("Eventos") {
-                            BotonCrear(descripcion = "Crear evento", onClick = onNavigateToCreateEvento)
-                        }
+                        // «Cartelera» trae su propio encabezado (B «Cholula»).
                         EventosScreen(
                             tokenProvider = { auth.token() },
                             onEventoClick = onNavigateToEvento,
@@ -336,23 +334,6 @@ fun MainShell(
                 }
             }
         }
-    }
-}
-
-/** «+» del encabezado de una pestaña (crear evento): cuadrado de 44 con borde, como los del inicio. */
-@Composable
-private fun BotonCrear(descripcion: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(44.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(AgoraColors.Superficie)
-            .border(1.dp, AgoraColors.Borde, RoundedCornerShape(14.dp))
-            .semantics { contentDescription = descripcion }
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(Icons.Filled.Add, contentDescription = null, tint = AgoraColors.Texto, modifier = Modifier.size(22.dp))
     }
 }
 

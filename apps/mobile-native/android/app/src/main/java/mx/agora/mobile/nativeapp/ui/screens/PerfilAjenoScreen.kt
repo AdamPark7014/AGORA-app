@@ -1,6 +1,14 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
 import androidx.compose.foundation.background
+import mx.agora.mobile.nativeapp.ui.components.Terrazas
+import mx.agora.mobile.nativeapp.ui.components.Talavera
+import mx.agora.mobile.nativeapp.ui.components.SelloComunidad
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -106,7 +114,6 @@ import mx.agora.mobile.nativeapp.ui.components.AgoraErrorState
 import mx.agora.mobile.nativeapp.ui.components.AvataresApilados
 import mx.agora.mobile.nativeapp.ui.components.BotonBorde
 import mx.agora.mobile.nativeapp.ui.components.BotonTinta
-import mx.agora.mobile.nativeapp.ui.components.GamificacionPublicSection
 import mx.agora.mobile.nativeapp.ui.components.PostMediaGrid
 import mx.agora.mobile.nativeapp.ui.components.TituloSeccion
 import mx.agora.mobile.nativeapp.ui.components.esVideoMedia
@@ -169,8 +176,8 @@ fun PerfilAjenoScreen(
     var enviandoReto by remember { mutableStateOf(false) }
     var errorReto by remember { mutableStateOf<String?>(null) }
     var menuAbierto by remember { mutableStateOf(false) }
-    /** 0 = Publicaciones, 1 = Fotos. */
-    var pestana by remember { mutableIntStateOf(0) }
+    /** 0 = Publicaciones, 1 = Fotos; -1 = la persona no ha elegido (abre en Fotos si hay). */
+    var pestana by remember { mutableIntStateOf(-1) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val abrirPublicacion: (String) -> Unit = onPublicacion ?: { id -> DeepLinkBus.emit(AgoraRoutes.post(id)) }
@@ -218,8 +225,10 @@ fun PerfilAjenoScreen(
                     cursor = null
                     errorPublicaciones = null
                 }
+                // La tuya trae además la pregunta de la semana (privada); la de otros, solo lo público.
                 runCatching {
-                    gamificacion = ApiClient.api<GamificacionApi>(tokenProvider).porHandle(handle)
+                    val api = ApiClient.api<GamificacionApi>(tokenProvider)
+                    gamificacion = if (esMio) api.mio() else api.porHandle(handle)
                 }
                 if (miHandle != null && miHandle != handle && !datos.restringido) {
                     puedeRetar = runCatching {
@@ -475,7 +484,7 @@ fun PerfilAjenoScreen(
                         publicaciones.flatMap { pub -> pub.media.filter { !it.esVideoMedia() }.map { pub.id to it } }
                     }
                     val pestanas = if (fotos.isEmpty()) listOf("Publicaciones") else listOf("Publicaciones", "Fotos")
-                    val pestanaActiva = pestana.coerceIn(0, pestanas.lastIndex)
+                    val pestanaActiva = if (pestana < 0) pestanas.lastIndex else pestana.coerceIn(0, pestanas.lastIndex)
 
                     fun abrirLista(tipo: String): (() -> Unit)? =
                         if (p.restringido) null else ({ onConexiones(tipo) })
@@ -488,7 +497,6 @@ fun PerfilAjenoScreen(
                         p.siguiendo?.let {
                             add(cifraSiguiendo(it, onClick = abrirLista(TipoConexion.SIGUIENDO)))
                         }
-                        gamificacion?.rachaActual?.takeIf { it > 0 }?.let { add(cifraRacha(it)) }
                     }
 
                     LazyColumn(
@@ -541,13 +549,14 @@ fun PerfilAjenoScreen(
                                 DatosPerfilD(
                                     nombre = nombreCompleto,
                                     verificado = p.verificado,
-                                    linea = listOfNotNull("@${p.handle}", p.carrera, p.generacion?.let { "Gen $it" }, p.ciudadOrigen),
-                                    lineaSecundaria = listOfNotNull(p.escuela, p.colegio?.let { "Colegio $it" }),
+                                    linea = listOfNotNull("@${p.handle}", p.ciudadOrigen),
+                                    lineaSecundaria = listOfNotNull(p.escuela),
                                     bio = p.bio,
                                     instagram = p.instagram,
                                     intereses = p.intereses,
                                     busco = p.busco,
                                 )
+                                SellosComunidadPerfil(p.carrera, p.generacion, p.colegio)
                                 if (p.suspendido) {
                                     Text(
                                         "Esta cuenta está suspendida.",
@@ -564,9 +573,9 @@ fun PerfilAjenoScreen(
                                         color = AgoraColors.TextoMedio,
                                     )
                                 }
+                                SellosLogros(gamificacion, conSemana = esMio)
                                 CifrasPerfil(cifras)
                                 LoSiguen(p.seguidoresEnComun, p.numSeguidoresEnComun)
-                                GamificacionPublicSection(gamificacion = gamificacion)
                             }
                         }
 
@@ -744,8 +753,9 @@ fun PerfilAjenoScreen(
 internal val AltoPortadaPerfil = 150.dp
 
 /**
- * Portada (o un bloque `superficie-2` del mismo alto, sin degradado) con el avatar
- * de 88 montado sobre su borde inferior y [acciones] a la derecha del avatar.
+ * Portada (la foto que haya subido o, si no, azulejo de Talavera, B «Cholula») con el avatar
+ * de 88 en su marco de 92 montado sobre el borde inferior, las terrazas debajo y [acciones]
+ * a la derecha.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -764,7 +774,9 @@ internal fun CabeceraPortadaPerfil(
                 .height(AltoPortadaPerfil)
                 .background(AgoraColors.Superficie2),
         ) {
-            if (portada != null) {
+            if (portada == null) {
+                Talavera(Modifier.matchParentSize(), fondo = AgoraColors.Talavera, trazo = AzulejoPortada)
+            } else {
                 AsyncImage(
                     model = portada,
                     contentDescription = null,
@@ -781,14 +793,17 @@ internal fun CabeceraPortadaPerfil(
             horizontalArrangement = Arrangement.spacedBy(AgoraSpacing.Sm),
         ) {
             // Marco de 4 dp en `fondo`: separa el avatar de la portada en los dos temas.
-            Box(
-                modifier = Modifier
-                    .size(96.dp)
-                    .clip(RoundedCornerShape(AgoraRadii.AvatarPerfil + 4.dp))
-                    .background(AgoraColors.Fondo)
-                    .padding(4.dp),
-            ) {
-                AgoraAvatar(nombre = nombre, fotoUrl = fotoUrl, size = 88.dp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(96.dp)
+                        .clip(RoundedCornerShape(AgoraRadii.AvatarPerfil + 4.dp))
+                        .background(AgoraColors.Fondo)
+                        .padding(4.dp),
+                ) {
+                    AgoraAvatar(nombre = nombre, fotoUrl = fotoUrl, size = 88.dp)
+                }
+                Terrazas(AgoraColors.Naranja, Modifier.offset(y = (-6).dp).size(70.dp, 14.dp))
             }
             // FlowRow: con letra grande «Siguiendo» y «Mensaje» no caben junto al avatar.
             FlowRow(
@@ -941,13 +956,7 @@ internal fun cifraRacha(dias: Int): CifraPerfil =
 @Composable
 internal fun CifrasPerfil(cifras: List<CifraPerfil>, modifier: Modifier = Modifier) {
     if (cifras.isEmpty()) return
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(AgoraColors.Superficie)
-            .padding(4.dp),
-    ) {
+    Row(modifier = modifier.fillMaxWidth()) {
         cifras.forEach { cifra ->
             val abrir = cifra.onClick
             Column(
@@ -983,8 +992,8 @@ internal fun CifrasPerfil(cifras: List<CifraPerfil>, modifier: Modifier = Modifi
                         cifra.valor.toString(),
                         fontFamily = AgoraFonts.titulo,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 20.sp,
-                        lineHeight = 24.sp,
+                        fontSize = 22.sp,
+                        lineHeight = 26.sp,
                         color = AgoraColors.Texto,
                         modifier = Modifier.clearAndSetSemantics {},
                     )
@@ -1146,19 +1155,19 @@ private fun CuadriculaFotos(
     }
 }
 
-/** Volver y «…» sobre la portada: `superficie` translúcida, se lee sobre foto y sin ella. */
+/** Volver y «…» sobre la portada: negro translúcido con ícono blanco, se lee sobre el azulejo y sobre fotos. */
 @Composable
 private fun BotonSobrePortada(icono: ImageVector, descripcion: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(44.dp)
-            .clip(AgoraButtonShape)
-            .background(AgoraColors.Superficie.copy(alpha = 0.92f))
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.Black.copy(alpha = 0.35f))
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = descripcion },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icono, contentDescription = null, tint = AgoraColors.Texto, modifier = Modifier.size(22.dp))
+        Icon(icono, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -1286,6 +1295,106 @@ internal fun PublicacionPerfilCard(
             "${cuenta(pub.numReactions, "reacción", "reacciones")} · ${cuenta(pub.numComments, "comentario", "comentarios")}",
             style = MaterialTheme.typography.bodySmall,
             color = AgoraColors.TextoMedio,
+        )
+    }
+}
+
+/** Azul del dibujo del azulejo sobre la portada Talavera (azul sobre azul, como el artboard). */
+private val AzulejoPortada = Color(0xFF3557B8)
+
+/** Sellos de sus comunidades (carrera, generación y colegio), cada uno en su color fijo. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SellosComunidadPerfil(carrera: String?, generacion: Int?, colegio: String?) {
+    val carreraLimpia = carrera?.takeIf { it.isNotBlank() }
+    val colegioLimpio = colegio?.takeIf { it.isNotBlank() }
+    if (carreraLimpia == null && generacion == null && colegioLimpio == null) return
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.clearAndSetSemantics {
+            contentDescription = listOfNotNull(
+                carreraLimpia,
+                generacion?.let { "Generación $it" },
+                colegioLimpio?.let { "Colegio $it" },
+            ).joinToString(", ")
+        },
+    ) {
+        carreraLimpia?.let { SelloComunidad(it, "carrera:", alto = 30.dp) }
+        generacion?.let { SelloComunidad("Generación $it", "generacion:", alto = 30.dp) }
+        colegioLimpio?.let { SelloComunidad(it, "colegio:", alto = 30.dp) }
+    }
+}
+
+/**
+ * «Sellos»: racha (adobe), la pregunta de la semana si es tu perfil (Talavera), duelos ganados
+ * (maíz) y las insignias que ya tenga (jade). Sin datos, no aparece.
+ */
+@Composable
+private fun SellosLogros(gamificacion: GamificacionDto?, conSemana: Boolean) {
+    val g = gamificacion ?: return
+    val racha = g.rachaActual
+    val semana = g.semanaPregunta?.takeIf { conSemana && it.respondidas > 0 }
+    val duelos = g.duelosGanados ?: 0
+    if (racha <= 0 && semana == null && duelos <= 0 && g.badges.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 6.dp)) {
+        Text(
+            "Sellos",
+            fontFamily = AgoraFonts.titulo,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 17.sp,
+            color = AgoraColors.Texto,
+            modifier = Modifier.semantics { heading() },
+        )
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (racha > 0) {
+                SelloRedondo("$racha", if (racha == 1) "día de racha" else "días de racha", AgoraColors.Adobe)
+            }
+            semana?.let { SelloRedondo("${it.respondidas}/${it.meta}", "preguntas esta semana", AgoraColors.Talavera) }
+            if (duelos > 0) {
+                SelloRedondo("$duelos", if (duelos == 1) "duelo ganado" else "duelos ganados", AgoraColors.Maiz, AgoraColors.SobreMaiz)
+            }
+            g.badges.forEach { SelloRedondo(it.emoji, it.etiqueta, AgoraColors.Jade) }
+        }
+    }
+}
+
+/** Sello redondo de 92: cifra en Bricolage y texto corto, con un aro claro por dentro. */
+@Composable
+private fun SelloRedondo(cifra: String, texto: String, color: Color, tinta: Color = Color.White) {
+    Column(
+        modifier = Modifier
+            .size(92.dp)
+            .clip(CircleShape)
+            .background(color)
+            .padding(5.dp)
+            .border(1.dp, tinta.copy(alpha = 0.7f), CircleShape)
+            .padding(horizontal = 8.dp)
+            .clearAndSetSemantics { contentDescription = "$cifra $texto" },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            cifra,
+            fontFamily = AgoraFonts.titulo,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 26.sp,
+            lineHeight = 28.sp,
+            color = tinta,
+            maxLines = 1,
+        )
+        Text(
+            texto,
+            fontSize = 10.sp,
+            lineHeight = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = tinta,
+            textAlign = TextAlign.Center,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

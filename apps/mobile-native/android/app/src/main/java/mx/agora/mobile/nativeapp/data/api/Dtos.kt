@@ -1003,6 +1003,8 @@ data class GamificacionDto(
     val comparacionCampus: ComparacionCampusDto? = null,
     val retoSemanal: RetoSemanalDto? = null,
     val duelosGanados: Int? = null,
+    /** Días con la pregunta contestada esta semana (solo en `gamificacion/mio`). */
+    val semanaPregunta: SemanaPreguntaDto? = null,
 )
 
 @JsonClass(generateAdapter = true)
