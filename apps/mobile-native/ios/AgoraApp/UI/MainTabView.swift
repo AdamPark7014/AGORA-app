@@ -638,6 +638,16 @@ private struct AgoraAnimatedTabBar: View {
             icono(item, selected: selected)
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
+                // B «Cholula»: la pestaña activa lleva las terrazas naranjas abajo (Publicar no).
+                .overlay(alignment: .bottom) {
+                    if selected && item.id != 2 {
+                        Terrazas(niveles: 2)
+                            .fill(AgoraDesign.Colors.naranja)
+                            .frame(width: 22, height: 6)
+                            .offset(y: 4)
+                            .accessibilityHidden(true)
+                    }
+                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.agoraPlain)
@@ -650,13 +660,13 @@ private struct AgoraAnimatedTabBar: View {
     private func icono(_ item: AgoraTabItem, selected: Bool) -> some View {
         switch item.id {
         case 2:
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(AgoraDesign.Colors.tintaFeed, lineWidth: 2)
-                .frame(width: 46, height: 34)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(AgoraDesign.Colors.boton)
+                .frame(width: 52, height: 38)
                 .overlay {
                     Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(AgoraDesign.Colors.tintaFeed)
+                        .font(.system(size: 19, weight: .bold))
+                        .foregroundStyle(AgoraDesign.Colors.sobreBoton)
                 }
         case 4:
             AvatarD(nombre: nombre, fotoUrl: foto, tamano: 28)

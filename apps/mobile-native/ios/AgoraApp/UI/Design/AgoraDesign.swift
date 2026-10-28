@@ -1,50 +1,72 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Colors: diseño D (docs/diseno-d.md §2), los mismos tokens que la web y Android
+// MARK: - Colors: B «Cholula» (docs/diseno-cholula.md §1, 28-10-2026), cantera de día y obsidiana de
+// noche. Los nombres de la D se conservan para que todas las pantallas tomen la paleta sin tocarlas;
+// los mismos valores que Android.
 
 enum AgoraDesign {
     enum Colors {
         static let naranja = dinamico(claro: (227, 82, 5), oscuro: (255, 107, 38))
-        static let naranjaSuave = dinamico(claro: (253, 232, 220), oscuro: (42, 21, 9))
+        static let naranjaSuave = dinamico(claro: (251, 230, 217), oscuro: (46, 26, 15))
         static let naranjaOscuro = dinamico(claro: (196, 68, 4), oscuro: (255, 133, 71))
-        /// Texto sobre `naranjaSuave`: banda de comunidad y chip de reacción activo.
+        /// Texto sobre `naranjaSuave`: etiquetas y «PREGUNTA DEL DÍA».
         static let naranjaTinta = dinamico(claro: (154, 53, 3), oscuro: (255, 179, 133))
+        /// Botón primario (Publicar, Vender…): el naranja de marca no llega a 4.5:1 con blanco encima.
+        static let boton = dinamico(claro: (184, 60, 11), oscuro: (255, 122, 61))
+        static let sobreBoton = dinamico(claro: (255, 255, 255), oscuro: (26, 14, 7))
 
-        /// Fondo cálido, no gris frío.
-        static let fondo = dinamico(claro: (244, 242, 239), oscuro: (15, 13, 11))
-        static let superficie = dinamico(claro: (255, 255, 255), oscuro: (27, 24, 21))
-        static let superficieElevada = dinamico(claro: (255, 255, 255), oscuro: (36, 32, 28))
-        /// Segmentos y chips inactivos.
-        static let superficie2 = dinamico(claro: (233, 229, 223), oscuro: (36, 32, 28))
-        /// Tarjeta de la pregunta relámpago y barras oscuras.
-        static let oscuro = dinamico(claro: (20, 17, 15), oscuro: (36, 32, 28))
-        /// Punto de «Ahora en el campus».
-        static let vivo = dinamico(claro: (22, 163, 74), oscuro: (34, 197, 94))
+        /// Cantera de día, obsidiana de noche.
+        static let fondo = dinamico(claro: (246, 240, 231), oscuro: (20, 16, 13))
+        static let superficie = dinamico(claro: (255, 255, 255), oscuro: (30, 24, 20))
+        static let superficieElevada = dinamico(claro: (255, 255, 255), oscuro: (42, 34, 28))
+        /// Chips inactivos y el cartel neutro.
+        static let superficie2 = dinamico(claro: (237, 228, 214), oscuro: (42, 34, 28))
+        /// Barras oscuras (acciones del evento).
+        static let oscuro = dinamico(claro: (27, 20, 15), oscuro: (42, 34, 28))
+        /// En vivo y «a tiempo».
+        static let vivo = dinamico(claro: (21, 128, 61), oscuro: (34, 197, 94))
 
-        /// Inicio y barra con el Feed B que eligió Adam (artboard FeedB, 26-10): blanco con tinta
-        /// azul negra y bordes finos; en oscuro, los mismos tonos cálidos de la D.
-        static let fondoFeed = dinamico(claro: (255, 255, 255), oscuro: (15, 13, 11))
-        static let tintaFeed = dinamico(claro: (15, 20, 25), oscuro: (244, 242, 239))
-        static let secundarioFeed = dinamico(claro: (83, 100, 113), oscuro: (179, 170, 161))
-        static let bordeFeed = dinamico(claro: (238, 240, 242), oscuro: (46, 41, 37))
-        /// Pregunta del día como en el artboard Main (naranja muy suave con borde durazno).
-        static let preguntaFondo = dinamico(claro: (255, 241, 233), oscuro: (42, 21, 9))
-        static let preguntaBorde = dinamico(claro: (243, 199, 173), oscuro: (84, 46, 24))
+        /// Inicio y barra: la estructura de Feed B con la paleta de B «Cholula» (el inicio ya es cantera).
+        static let fondoFeed = fondo
+        static let tintaFeed = texto
+        static let secundarioFeed = textoMedio
+        static let bordeFeed = borde
+        static let preguntaFondo = naranjaSuave
+        static let preguntaBorde = borde
 
-        static let texto = dinamico(claro: (20, 17, 15), oscuro: (244, 242, 239))
-        static let textoMedio = dinamico(claro: (107, 98, 91), oscuro: (179, 170, 161))
-        static let textoMuted = dinamico(claro: (115, 105, 97), oscuro: (161, 151, 141))
+        static let texto = dinamico(claro: (27, 20, 15), oscuro: (246, 240, 231))
+        static let textoMedio = dinamico(claro: (107, 93, 80), oscuro: (194, 180, 164))
+        static let textoMuted = dinamico(claro: (107, 93, 80), oscuro: (194, 180, 164))
 
-        static let borde = dinamico(claro: (230, 225, 219), oscuro: (46, 41, 37))
-        static let bordeSutil = dinamico(claro: (240, 236, 231), oscuro: (38, 34, 30))
+        static let borde = dinamico(claro: (226, 214, 197), oscuro: (58, 47, 39))
+        static let bordeSutil = dinamico(claro: (237, 228, 214), oscuro: (42, 34, 28))
+
+        // Talavera poblana, adobe, jade y maíz: iguales en los dos modos; llevan texto blanco salvo el maíz.
+        static let talavera = fijo((30, 58, 138))
+        /// Azul Talavera como texto: en obsidiana se aclara para leerse.
+        static let talaveraTexto = dinamico(claro: (30, 58, 138), oscuro: (169, 192, 255))
+        static let talaveraSuave = dinamico(claro: (227, 234, 251), oscuro: (26, 35, 64))
+        /// Trazo del azulejo sobre blanco y su versión sobre el azul de la portada.
+        static let azulejo = fijo((35, 71, 166))
+        static let azulejoClaro = fijo((53, 87, 184))
+        /// Hashtags y «Ver las N respuestas» sobre una publicación tipográfica.
+        static let sobreColorSuave = fijo((201, 214, 255))
+        static let adobe = fijo((181, 64, 15))
+        static let jade = fijo((15, 118, 110))
+        static let maiz = fijo((224, 168, 46))
+        static let sobreMaiz = fijo((27, 20, 15))
 
         static let success = dinamico(claro: (46, 125, 79), oscuro: (127, 201, 168))
         static let danger = dinamico(claro: (198, 40, 40), oscuro: (242, 97, 97))
         static let dangerSuave = dinamico(claro: (253, 236, 234), oscuro: (58, 24, 24))
 
-        static let skeletonBase = dinamico(claro: (233, 229, 223), oscuro: (36, 32, 28))
-        static let skeletonHighlight = dinamico(claro: (244, 242, 239), oscuro: (46, 41, 37))
+        static let skeletonBase = dinamico(claro: (237, 228, 214), oscuro: (42, 34, 28))
+        static let skeletonHighlight = dinamico(claro: (246, 240, 231), oscuro: (58, 47, 39))
+
+        private static func fijo(_ rgb: (Int, Int, Int)) -> Color {
+            Color(uiColor(rgb))
+        }
 
         /// Color que cambia solo con el modo claro/oscuro del sistema (o el que
         /// fije el usuario en Ajustes → Apariencia).
