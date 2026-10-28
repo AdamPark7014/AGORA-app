@@ -244,7 +244,7 @@ private struct CartelEvento: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(FormatUtils.partesFecha(evento.inicioAt)?.numero ?? "")
-                        .font(.bricolage(grande ? 110 : 70, relativeTo: .largeTitle))
+                        .font(.bricolage(grande ? 96 : 66, relativeTo: .largeTitle))
                         .tracking(-3)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
@@ -262,6 +262,7 @@ private struct CartelEvento: View {
                         .font(.bricolage(grande ? 24 : 17, relativeTo: grande ? .title2 : .headline))
                         .lineLimit(grande ? 2 : 3)
                         .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                     if !detalle.isEmpty {
                         Text(detalle)
                             .font(.outfit(.caption, .medium))
@@ -272,13 +273,20 @@ private struct CartelEvento: View {
                         quienVa
                     }
                 }
+                // El número gigante cede alto antes que el título.
+                .layoutPriority(1)
             }
             .foregroundStyle(colores.tinta)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .padding(16)
             .frame(height: grande ? 250 : 200)
-            .background(colores.fondo)
-            .background(alignment: .topLeading) { motivo }
+            // El motivo va sobre el color del cartel y debajo del texto.
+            .background {
+                ZStack(alignment: .topLeading) {
+                    colores.fondo
+                    motivo
+                }
+            }
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }

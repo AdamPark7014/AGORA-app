@@ -339,6 +339,10 @@ final class CapturasTiendaUITests: XCTestCase {
     private func cerrarSesion() {
         irAMas(nil)
         let salir = app.buttons["Cerrar sesión"]
+        // Campus acaba de entrar: medir si se puede tocar a media animación falla con «Activation
+        // point invalid» (corrida 40751767664).
+        _ = salir.waitForExistence(timeout: 10)
+        sleep(1)
         hastaVer(salir)
         if salir.exists { salir.tap() }
         XCTAssertTrue(app.buttons["login.crearCuenta"].waitForExistence(timeout: 15), "No volvió a la puerta")
