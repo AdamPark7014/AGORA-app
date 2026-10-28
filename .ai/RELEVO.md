@@ -34,7 +34,10 @@ oscuro:
   no en versalitas; el «Voy» rápido de Eventos pasa al detalle.
 - **AAB 1.0.0 (8)** de `6e3a905` (corrida 40765225122, firmado con la llave de subida, sin subir a Play):
   `C:\Users\adpoz\Documents\AGORA-builds\agora-1.0.0-8.aab` + `-mapping.txt`, y `agora-1.0.0-8-play.aab` (5.5 MB,
-  sin mapa, re-firmado) para subir a mano. El siguiente versionCode es 9. iOS 1.0.0 (10) lo sube la sesión de iOS.
+  sin mapa, re-firmado) para subir a mano. El siguiente versionCode es 9.
+- **iOS 1.0.0 (10)** de `cb1a15c` (corrida 40768191959, tras ios-capturas en verde de `521ce28`): en App Store
+  Connect `VALID`, `IN_BETA_TESTING`, sin cifrado no exento; «Equipo Ágora» (interno, todos los builds) la recibe.
+  Siguiente build de iOS: 11.
 
 ## Cuenta oficial @agora y bienvenida en producción (28-10)
 
