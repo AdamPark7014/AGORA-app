@@ -259,11 +259,6 @@ private struct ClipPagina: View {
             // Por encima de la barra flotante (64 pt) y del indicador de inicio (34 pt).
             .padding(.bottom, 112)
         }
-        .overlay(alignment: .topLeading) {
-            selloRedondo
-                .padding(.top, 64)
-                .padding(.leading, 16)
-        }
         .onAppear {
             miReaccion = post.miReaccion
             conteos = post.reacciones ?? [:]
@@ -295,6 +290,9 @@ private struct ClipPagina: View {
 
     private var info: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // Abajo y no en la esquina de arriba (como el artboard): ahí tapaba el botón de volver.
+            selloRedondo
+                .padding(.bottom, 4)
             if let autor = post.autor {
                 Button(action: onAutor) {
                     HStack(spacing: 10) {
