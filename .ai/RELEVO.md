@@ -4,6 +4,38 @@
 - **Fecha:** 2026-10-28
 - **Rama:** main
 
+## B «Cholula» construida en Android (28-10)
+
+Decisión de Adam (relayada): la variante B · Cholula de la ronda «capa wow» como base, con el momento de la pregunta
+de A, y solo lo que la API ya da. Contrato común en `docs/diseno-cholula.md` (tokens, catálogo de comunidades,
+piezas, pantallas y §5 con lo que queda fuera hasta que exista la API). iOS lo hizo la sesión de la ronda wow en
+paralelo (`f6d9914`…`521ce28`); Android, por fases, cada una revisada en el emulador contra los `WowB-*` en claro y
+oscuro:
+- `1e1c27d` sistema: cantera/obsidiana, Talavera, adobe, jade, maíz, `Boton`/`SobreBoton`; `components/Cholula.kt`
+  (azulejo `Talavera`, `Terrazas`, `Sello`, `SelloComunidad`, `colorComunidad`, `nombreCortoComunidad`,
+  `FranjaTalavera`, `BotonCabeza`, `EtiquetaPrecio`); barra con Publicar relleno y terrazas en la pestaña activa.
+- `2d0f94e` inicio: pirámide + fecha, franja, historias en terraza con el color de su comunidad, píldoras con
+  cuadrito, la pregunta como boleto (talón Talavera con cuenta regresiva y el revelado de tu carrera), sellos de
+  comunidad y publicaciones de solo texto como tarjeta tipográfica.
+- `8aa1680` «Cartelera» (cartel grande con cuenta regresiva si es hoy, rejilla por tipo) y perfil (portada de
+  azulejo, avatar con terrazas, sellos de carrera/generación/colegio, «Sellos» redondos con racha, preguntas de la
+  semana de `gamificacion/mio`, duelos e insignias).
+- `660d24e` registro «Sube a tu campus» (pirámide correo → carrera → colegio → avisos; el permiso de avisos se pide
+  en el último escalón) y botones B (primario `boton` radio 12).
+- `6e3a905` el resto: cabeza B en `SecondaryScaffold`, Mercado «El tianguis del campus», Mensajes «Sin leer/Antes»,
+  Avisos con sello por tipo y agrupados en el cliente (`agruparAvisos`, con prueba), Aventones como boletos, Campus,
+  Ajustes «Cantera / Obsidiana / Sistema», entrada con la pirámide, vacíos punteados, sin conexión, clip con sello
+  redondo y avance en escalones.
+- Verificación local: Postgres propio en `scratchpad/pg-android` **con `-o "-p 55441"`** (sin el puerto choca con
+  el servicio de Postgres de Windows y sale «Permission denied»), `api-local.sh solo-api`, AVD `agora-capturas`.
+  Cuenta nueva de registro: `prueba.registro@udlap.mx` (código maestro de desarrollo) solo en la base local.
+- Desviaciones del canvas: fotos con la fila de corazón del Feed B (chips solo en las tipográficas); «Siguiendo» se
+  queda; perfil conserva Publicaciones/Fotos (abre en Fotos si hay); campos de la entrada con etiqueta Material,
+  no en versalitas; el «Voy» rápido de Eventos pasa al detalle.
+- **AAB 1.0.0 (8)** de `6e3a905` (corrida 40765225122, firmado con la llave de subida, sin subir a Play):
+  `C:\Users\adpoz\Documents\AGORA-builds\agora-1.0.0-8.aab` + `-mapping.txt`, y `agora-1.0.0-8-play.aab` (5.5 MB,
+  sin mapa, re-firmado) para subir a mano. El siguiente versionCode es 9. iOS 1.0.0 (10) lo sube la sesión de iOS.
+
 ## Cuenta oficial @agora y bienvenida en producción (28-10)
 
 Adam eligió la opción b («b · Cuenta oficial»): la cuenta del equipo publica la bienvenida para que el inicio de
