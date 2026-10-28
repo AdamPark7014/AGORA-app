@@ -1,8 +1,30 @@
 # RELEVO
 
 - **Último turno:** claude-code (sesión de Ágora web/iOS, en la compu de Adam)
-- **Fecha:** 2026-10-27
+- **Fecha:** 2026-10-28
 - **Rama:** main
+
+## Cuenta oficial @agora y bienvenida en producción (28-10)
+
+Adam eligió la opción b («b · Cuenta oficial»): la cuenta del equipo publica la bienvenida para que el inicio de
+una cuenta nueva no salga vacío, sin hacerse pasar por estudiantes. `a4c36a3`:
+- `scripts/bienvenida/`: `generar.py` dibuja con la marca la bienvenida, «Qué hay en Ágora» (3 fotos), las cinco
+  líneas rojas, la foto de perfil y un clip de 9 s a 1080×1920 (todo dentro de la zona segura de Clips);
+  `crear-cuenta-oficial.mjs` crea `@agora` («Ágora», solo la plaza del campus, bio que dice que es del equipo y
+  que Ágora no está afiliada a la UDLAP); `publicar.py` publica por la API y no repite nada si @agora ya publicó.
+- **Producción (28-10 ~11:00 MX):** @agora creada; en la plaza, de arriba abajo: bienvenida, clip (720×1280 con
+  portada), encuesta «¿Qué vas a usar primero en Ágora?», «Qué hay en Ágora» y las reglas, todas PUBLICADO por el
+  filtro; evento en línea «Semana de bienvenida en Ágora» del 29-10 al 7-11. Comprobado con @revision_tiendas:
+  su feed trae las 5, el clip sale como historia con portada, el evento en Eventos y los 12 archivos se sirven.
+  No se borró nada.
+- Correo y contraseña de @agora **solo** en `C:\dev\secrets\agora-store\cuenta-oficial.txt`. El correo es un
+  @udlap.mx que nadie recibe (nadie puede entrar con código). Sin rol de staff: no lleva insignia de verificada.
+- Visto en Android (emulador, copia local vacía con los mismos guiones y una cuenta nueva), claro y oscuro.
+  `ios-capturas.yml` tiene una tercera pasada que repite la bienvenida y captura `inicio-bienvenida` y
+  `inicio-bienvenida-2`: corrida 40732562585 en verde, revisada en claro y oscuro. En CI no hay ffmpeg, así que
+  ahí el clip no lleva portada del servidor (iOS saca un cuadro); en producción sí la lleva.
+- Detalle de la app que se nota con un evento en línea: el detalle muestra «Cómo llegar» y la tarjeta de
+  aventones aunque el lugar sea «En Ágora (en línea)».
 
 ## Android con Feed B (27-10)
 
