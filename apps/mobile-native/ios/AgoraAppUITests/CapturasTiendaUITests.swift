@@ -263,6 +263,29 @@ final class CapturasTiendaUITests: XCTestCase {
         XCTAssertTrue(faltantes.isEmpty, "Sin el estado vacío: \(faltantes.joined(separator: ", "))")
     }
 
+    /// Tercera pasada: la base sin contenido más la bienvenida de la cuenta oficial @agora
+    /// (scripts/bienvenida), que es lo que ve una cuenta nueva en producción desde el 28-10-2026.
+    func test4_inicioBienvenida() throws {
+        try XCTSkipIf(entorno["AGORA_INICIO_BIENVENIDA"] != "1", "Solo en la tercera pasada, con la bienvenida publicada.")
+        entrarComoDemo()
+        saltarBienvenida()
+        cerrarAlertasDelSistema()
+        XCTAssertTrue(pestanaFeed.waitForExistence(timeout: 30), "No llegó al inicio")
+        tocar(app.buttons["tab.0"])
+        capturar("inicio-bienvenida", tema: "claro", esperando: ["agora"])
+        app.swipeUp()
+        capturar("inicio-bienvenida-2", tema: "claro", esperando: ["agora"])
+
+        app.terminate()
+        app.launchArguments += ["-agora.apariencia", "oscuro"]
+        app.launch()
+        XCTAssertTrue(pestanaFeed.waitForExistence(timeout: 30), "No volvió al inicio en oscuro")
+        capturar("inicio-bienvenida", tema: "oscuro", esperando: ["agora"])
+        app.swipeUp()
+        capturar("inicio-bienvenida-2", tema: "oscuro", esperando: ["agora"])
+        XCTAssertTrue(faltantes.isEmpty, "Sin la bienvenida de @agora: \(faltantes.joined(separator: ", "))")
+    }
+
     // MARK: Piezas
 
     /// Los enlaces de un `Text` no salen como elementos propios: se toca la

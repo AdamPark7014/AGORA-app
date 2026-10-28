@@ -19,6 +19,7 @@ on:
       - 'packages/db/prisma/demo-seed.ts'
       - 'packages/db/prisma/demo-media/**'
       - 'apps/api/src/media/**'
+      - 'scripts/bienvenida/**'
 
 concurrency:
   group: ios-capturas-${{ github.ref }}
@@ -161,13 +162,41 @@ jobs:
             DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
             2>&1 | tee xcodebuild-capturas-vacio.log | grep -E "Test Case .*(passed|failed|skipped)|error:|\*\* TEST (SUCCEEDED|FAILED)"
 
-      - name: Veinte capturas de 1320x2868
+      # Lo que ve una cuenta nueva en producción desde el 28-10-2026: la base vacía más la
+      # bienvenida de la cuenta oficial @agora, publicada con los mismos guiones que allá.
+      - name: Inicio con la bienvenida de @agora (tercera pasada)
+        working-directory: apps/mobile-native/ios
+        env:
+          TEST_RUNNER_AGORA_CAPTURAS: ${{ github.workspace }}/capturas-ios
+          TEST_RUNNER_AGORA_API_URL: http://127.0.0.1:4200/api
+          TEST_RUNNER_AGORA_INICIO_BIENVENIDA: '1'
+        run: |
+          set -o pipefail
+          clave=$(python3 -c 'import secrets; print(secrets.token_urlsafe(18))')
+          echo "::add-mask::$clave"
+          correo=agora.oficial.ci@udlap.mx
+          printf 'CORREO: %s\nCONTRASEÑA: %s\n' "$correo" "$clave" > "$RUNNER_TEMP/cuenta-oficial.txt"
+          printf '%s\t%s' "$correo" "$clave" \
+            | AGORA_API_DIR="$GITHUB_WORKSPACE/apps/api" node "$GITHUB_WORKSPACE/scripts/bienvenida/crear-cuenta-oficial.mjs"
+          python3 "$GITHUB_WORKSPACE/scripts/bienvenida/publicar.py" --api http://127.0.0.1:4200/api \
+            --cuenta "$RUNNER_TEMP/cuenta-oficial.txt" --espera-clip 30
+          xcodebuild test \
+            -project AgoraApp.xcodeproj \
+            -scheme AgoraApp \
+            -destination "id=$DEV" \
+            -only-testing:AgoraAppUITests/CapturasTiendaUITests/test4_inicioBienvenida \
+            -resultBundlePath "$RUNNER_TEMP/capturas-bienvenida.xcresult" \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- AGORA_CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
+            2>&1 | tee xcodebuild-capturas-bienvenida.log | grep -E "Test Case .*(passed|failed|skipped)|error:|\*\* TEST (SUCCEEDED|FAILED)"
+
+      - name: Capturas de 1320x2868
         if: always()
         run: |
           cd "$GITHUB_WORKSPACE/capturas-ios" || { echo "::error::No hay capturas"; exit 1; }
           fallo=0
           for tema in claro oscuro; do
-            for nombre in inicio feed clips evento aventones mercado campus mensajes perfil inicio-vacio; do
+            for nombre in inicio feed clips evento aventones mercado campus mensajes perfil inicio-vacio inicio-bienvenida inicio-bienvenida-2; do
               f="$tema/$nombre.png"
               if [ ! -f "$f" ]; then echo "::error::Falta $f"; fallo=1; continue; fi
               w=$(sips -g pixelWidth "$f" | awk '/pixelWidth/{print $2}')
@@ -187,6 +216,7 @@ jobs:
             capturas-ios
             apps/mobile-native/ios/xcodebuild-capturas.log
             apps/mobile-native/ios/xcodebuild-capturas-vacio.log
+            apps/mobile-native/ios/xcodebuild-capturas-bienvenida.log
             ${{ runner.temp }}/api.log
           if-no-files-found: warn
 
@@ -197,4 +227,5 @@ jobs:
           path: |
             ${{ runner.temp }}/capturas.xcresult
             ${{ runner.temp }}/capturas-vacio.xcresult
+            ${{ runner.temp }}/capturas-bienvenida.xcresult
           if-no-files-found: ignore

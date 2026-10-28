@@ -58,6 +58,18 @@ la contraseña viven **solo** en `C:\dev\secrets\agora-store\cuenta-revision.txt
 público). En App Store Connect ya están puestos por API; en Play Console los pega Adam en «Acceso a la app».
 Si los revisores publican algo de prueba, aparece en la plaza: se puede retirar desde moderación.
 
+## Cuenta oficial @agora y contenido de bienvenida
+
+Opción b de Adam (28-10): la cuenta del equipo, `@agora` («Ágora»), publica la bienvenida para que el inicio
+de una cuenta nueva no salga vacío, sin hacerse pasar por estudiantes. En la plaza del campus quedan la
+bienvenida, un clip, una encuesta, «Qué hay en Ágora» (tres fotos) y las cinco líneas rojas, además del evento
+en línea «Semana de bienvenida en Ágora» (29-10 al 7-11). Todo sale de `scripts/bienvenida/`: `generar.py`
+dibuja las fotos y el clip con la marca, `crear-cuenta-oficial.mjs` crea la cuenta y `publicar.py` publica por
+la API (no repite nada si @agora ya publicó). El correo es un @udlap.mx que nadie recibe, así que solo se entra
+con la contraseña; los dos viven **solo** en `C:\dev\secrets\agora-store\cuenta-oficial.txt`. La cuenta no tiene
+rol de staff, así que no lleva insignia de verificada. `ios-capturas.yml` repite esta bienvenida en CI y captura
+el inicio que ve una cuenta nueva (`inicio-bienvenida`).
+
 ## Reglas del texto
 
 - Español de México, tuteo, sin exclamaciones ni «gratis», «mejor», «#1», «nuevo» en título o descripción breve.
