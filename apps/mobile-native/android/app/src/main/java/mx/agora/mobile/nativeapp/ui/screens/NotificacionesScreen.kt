@@ -1,5 +1,18 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import mx.agora.mobile.nativeapp.ui.util.haceCuanto
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
+import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.components.Sello
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -139,12 +152,11 @@ fun NotificacionesScreen(
                 }
             }
             else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(notificaciones, key = { it.id }) { n ->
-                        NotificacionCard(n, onNavigateUrl)
+                // B «Cholula» (WowB-Avisos): sello por tipo y los del mismo tipo sobre lo mismo, juntos.
+                val grupos = agruparAvisos(notificaciones)
+                LazyColumn(contentPadding = PaddingValues(bottom = 12.dp)) {
+                    items(grupos, key = { it.id }) { grupo ->
+                        FilaAviso(grupo, onNavigateUrl)
                     }
                     if (cursor != null) {
                         item(key = "mas") {
@@ -172,43 +184,130 @@ fun NotificacionesScreen(
     }
 }
 
+/**
+ * Avisos del mismo tipo sobre la misma cosa (misma publicación o conversación; seguidores, el mismo
+ * día), con quiénes fueron. Uno solo se queda con su texto original. Paridad con `GrupoAvisos` de iOS.
+ */
+internal class GrupoAvisos(val avisos: List<NotificacionDto>) {
+    private val principal get() = avisos.first()
+    val id: String get() = principal.id
+    val tipo: String get() = principal.tipo
+    val createdAt: String get() = principal.createdAt
+    val url: String? get() = principal.url
+    val leida: Boolean get() = avisos.all { it.leida }
+
+    /** Nombres de pila distintos, del más reciente al más viejo. */
+    private val nombres: List<String>
+        get() = avisos.mapNotNull { it.actor?.nombre?.trim()?.substringBefore(' ')?.takeIf { n -> n.isNotBlank() } }.distinct()
+
+    /** «Diego», «Diego e Isa», «Diego, Isa y 3 más». */
+    private val quienes: String?
+        get() {
+            val lista = nombres
+            val primero = lista.firstOrNull() ?: return null
+            if (lista.size == 1) return primero
+            val segundo = lista[1]
+            if (lista.size == 2) {
+                val y = if (segundo.lowercase().startsWith("i") || segundo.lowercase().startsWith("hi")) "e" else "y"
+                return "$primero $y $segundo"
+            }
+            return "$primero, $segundo y ${lista.size - 2} más"
+        }
+
+    /** Texto del grupo; si no hay varias personas, el del aviso tal cual llegó. */
+    val texto: String
+        get() {
+            val q = quienes
+            if (nombres.size < 2 || q == null) return principal.texto
+            return when (tipo) {
+                "REACCION" -> "A $q les gustó tu publicación"
+                "COMENTARIO" -> "$q comentaron tu publicación"
+                "MENCION" -> "$q te mencionaron"
+                "SEGUIDOR" -> "$q empezaron a seguirte"
+                "MENSAJE" -> "$q te escribieron"
+                else -> principal.texto
+            }
+        }
+}
+
+private val tiposAgrupables = setOf("REACCION", "COMENTARIO", "MENCION", "SEGUIDOR", "MENSAJE")
+
+/** Conserva el orden de llegada: el grupo va donde está su aviso más reciente. */
+internal fun agruparAvisos(avisos: List<NotificacionDto>): List<GrupoAvisos> {
+    val porLlave = LinkedHashMap<String, MutableList<NotificacionDto>>()
+    avisos.forEach { aviso ->
+        val llave = if (aviso.tipo in tiposAgrupables) {
+            val sobre = if (aviso.tipo == "SEGUIDOR") aviso.createdAt.take(10) else (aviso.url ?: aviso.id)
+            "${aviso.tipo}|$sobre"
+        } else {
+            aviso.id
+        }
+        porLlave.getOrPut(llave) { mutableListOf() }.add(aviso)
+    }
+    return porLlave.values.map { GrupoAvisos(it) }
+}
+
+/** Sello por tipo: texto corto en mayúsculas, fondo y tinta (mismo catálogo que iOS). */
+internal fun selloAviso(tipo: String): Triple<String, Color, Color> = when (tipo) {
+    "REACCION" -> Triple("LATE", AgoraColors.Adobe, Color.White)
+    "COMENTARIO" -> Triple("COMENTA", AgoraColors.Talavera, Color.White)
+    "MENCION" -> Triple("TE NOMBRA", AgoraColors.Talavera, Color.White)
+    "MENSAJE" -> Triple("MENSAJE", AgoraColors.Jade, Color.White)
+    "EVENTO_NUEVO", "EVENTO_RECORDATORIO" -> Triple("EVENTO", AgoraColors.Jade, Color.White)
+    "AVENTON_APARTADO", "AVENTON_CANCELADO", "AVENTON_RECORDATORIO" -> Triple("AVENTÓN", AgoraColors.Maiz, AgoraColors.SobreMaiz)
+    "SEGUIDOR" -> Triple("TE SIGUE", AgoraColors.Adobe, Color.White)
+    "INSIGNIA" -> Triple("SELLO", AgoraColors.Maiz, AgoraColors.SobreMaiz)
+    "RETO" -> Triple("RETO", AgoraColors.Adobe, Color.White)
+    else -> Triple("AVISO", AgoraColors.Texto, AgoraColors.Fondo)
+}
+
+/** Fila de aviso (WowB-Avisos): sello a la izquierda, texto con «· hace cuánto» y raya abajo. */
 @Composable
-private fun NotificacionCard(n: NotificacionDto, onNavigateUrl: (String) -> Unit) {
-    val tieneUrl = !n.url.isNullOrBlank()
-    Card(
+private fun FilaAviso(grupo: GrupoAvisos, onNavigateUrl: (String) -> Unit) {
+    val (sello, fondo, tinta) = selloAviso(grupo.tipo)
+    val url = grupo.url?.takeIf { it.isNotBlank() }
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            // TalkBack lee la tarjeta entera y si ya se leyó (antes solo lo decía el color).
+            .background(if (grupo.leida) Color.Transparent else AgoraColors.NaranjaSuave.copy(alpha = 0.45f))
+            // TalkBack lee la fila entera y si ya se leyó (antes solo lo decía el color).
             .semantics(mergeDescendants = true) {
-                stateDescription = if (n.leida) "Leída" else "No leída"
+                stateDescription = if (grupo.leida) "Leído" else "No leído"
             }
             .then(
-                if (tieneUrl) {
-                    Modifier.clickable(role = Role.Button, onClickLabel = "Abrir") { onNavigateUrl(n.url!!) }
+                if (url != null) {
+                    Modifier.clickable(role = Role.Button, onClickLabel = "Abrir") { onNavigateUrl(url) }
                 } else {
                     Modifier
                 },
             ),
-        colors = CardDefaults.cardColors(
-            containerColor = if (n.leida) {
-                MaterialTheme.colorScheme.surface
-            } else {
-                MaterialTheme.colorScheme.primaryContainer
-            },
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(Modifier.width(76.dp), contentAlignment = Alignment.CenterStart) {
+                Sello(texto = sello, fondo = fondo, color = tinta, alto = 22.dp)
+            }
             Text(
-                n.texto,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (n.leida) FontWeight.Normal else FontWeight.SemiBold,
-            )
-            Text(
-                formatearFecha(n.createdAt),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = if (grupo.leida) FontWeight.Normal else FontWeight.SemiBold)) {
+                        append(grupo.texto)
+                    }
+                    withStyle(SpanStyle(color = AgoraColors.TextoMedio)) { append(" · ${haceCuanto(grupo.createdAt)}") }
+                },
+                fontSize = 14.sp,
+                lineHeight = 19.sp,
+                color = AgoraColors.Texto,
+                modifier = Modifier.weight(1f),
             )
         }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(AgoraColors.Borde),
+        )
     }
 }

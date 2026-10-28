@@ -1,5 +1,10 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFonts
+import mx.agora.mobile.nativeapp.ui.components.Terrazas
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,6 +54,8 @@ private data class DestinoCampus(
     val nota: String,
     val icono: ImageVector,
     val abrir: () -> Unit,
+    /** Color del cuadro del ícono y de las terrazas (B «Cholula»). */
+    val color: Color = AgoraColors.Texto,
 )
 
 /**
@@ -71,12 +78,12 @@ fun CampusScreen(
     tuDia: (@Composable () -> Unit)? = null,
 ) {
     val destinos = listOf(
-        DestinoCampus("Mercado", "Compra y vende en el campus", Icons.Outlined.Storefront, onMarketplace),
-        DestinoCampus("Aventones", "Comparte coche a Cholula", Icons.Outlined.DirectionsCar, onAventones),
-        DestinoCampus("Directorio", "Busca gente por carrera", Icons.Outlined.PersonSearch, onDirectorio),
-        DestinoCampus("Sin nombre", "Publica sin firmar", Icons.Outlined.TheaterComedy, onAnonimo),
-        DestinoCampus("Buscar", "Personas y publicaciones", Icons.Outlined.Search, onBuscar),
-        DestinoCampus("Guardados", "Para ver después", Icons.Outlined.BookmarkBorder, onGuardados),
+        DestinoCampus("Mercado", "El tianguis del campus", Icons.Outlined.Storefront, onMarketplace, AgoraColors.Adobe),
+        DestinoCampus("Aventones", "A Cholula y a Puebla", Icons.Outlined.DirectionsCar, onAventones, AgoraColors.Jade),
+        DestinoCampus("Directorio", "Gente por carrera", Icons.Outlined.PersonSearch, onDirectorio, AgoraColors.Talavera),
+        DestinoCampus("Sin nombre", "Publica sin firmar", Icons.Outlined.TheaterComedy, onAnonimo, AgoraColors.Maiz),
+        DestinoCampus("Buscar", "Personas y publicaciones", Icons.Outlined.Search, onBuscar, AgoraColors.Talavera),
+        DestinoCampus("Guardados", "Para ver después", Icons.Outlined.BookmarkBorder, onGuardados, AgoraColors.Adobe),
     )
 
     LazyVerticalGrid(
@@ -121,52 +128,66 @@ fun CampusScreen(
         // «Más» a lo ancho: guardados, avisos, mensajes, ajustes y lo legal.
         item(key = "mas", span = { GridItemSpan(maxLineSpan) }) {
             TarjetaDestino(
-                DestinoCampus("Más", "Buscar, guardados, avisos y ajustes", Icons.Outlined.MoreHoriz, onMas),
+                DestinoCampus("Más", "Buscar, guardados, avisos y ajustes", Icons.Outlined.MoreHoriz, onMas, AgoraColors.Jade),
                 ancha = true,
             )
         }
     }
 }
 
+/** Acceso del campus (B «Cholula»): cuadro de ícono en su color, terrazas tenues en la esquina y nombre en Bricolage. */
 @Composable
 private fun TarjetaDestino(destino: DestinoCampus, ancha: Boolean = false) {
+    val tintaIcono = if (destino.color == AgoraColors.Maiz) AgoraColors.SobreMaiz else Color.White
+    val forma = RoundedCornerShape(18.dp)
     val contenido: @Composable () -> Unit = {
         Box(
             modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(AgoraColors.NaranjaSuave),
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(destino.color),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(destino.icono, contentDescription = null, tint = AgoraColors.NaranjaTinta, modifier = Modifier.size(24.dp))
+            Icon(destino.icono, contentDescription = null, tint = tintaIcono, modifier = Modifier.size(21.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 destino.titulo,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                fontFamily = AgoraFonts.titulo,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 16.sp,
                 color = AgoraColors.Texto,
             )
             Text(destino.nota, style = MaterialTheme.typography.bodySmall, color = AgoraColors.TextoMedio)
         }
     }
-    val base = Modifier
-        .fillMaxWidth()
-        .clip(AgoraCardShape)
-        .background(AgoraColors.Superficie)
-        .border(1.dp, AgoraColors.Borde, AgoraCardShape)
-        .clickable(role = Role.Button, onClick = destino.abrir)
-        .semantics(mergeDescendants = true) {}
-        .padding(16.dp)
-    if (ancha) {
-        Row(
-            modifier = base,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) { contenido() }
-    } else {
-        Column(
-            modifier = base.heightIn(min = 132.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) { contenido() }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(forma)
+            .background(AgoraColors.Superficie)
+            .border(1.dp, AgoraColors.Borde, forma)
+            .clickable(role = Role.Button, onClick = destino.abrir)
+            .semantics(mergeDescendants = true) {},
+    ) {
+        Terrazas(
+            destino.color.copy(alpha = 0.18f),
+            Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 6.dp, y = 4.dp)
+                .size(90.dp, 48.dp),
+        )
+        if (ancha) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) { contenido() }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 118.dp).padding(14.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) { contenido() }
+        }
     }
 }

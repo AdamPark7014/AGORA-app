@@ -71,9 +71,11 @@ fun EncabezadoPestana(
     subtitulo: String? = null,
     acciones: @Composable RowScope.() -> Unit = {},
 ) {
-    // B «Cholula»: las terrazas de la pirámide a la izquierda del título (docs/diseno-cholula.md §3).
+    // B «Cholula»: las terrazas de la pirámide a la izquierda del título y la franja de
+    // Talavera debajo (docs/diseno-cholula.md §3).
+    Column(modifier = modifier.fillMaxWidth()) {
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .padding(start = 14.dp, end = AgoraSpacing.Pantalla - 4.dp, top = 14.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -97,6 +99,8 @@ fun EncabezadoPestana(
             }
         }
         acciones()
+    }
+    FranjaTalavera()
     }
 }
 

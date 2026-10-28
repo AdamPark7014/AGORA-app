@@ -1,5 +1,14 @@
 package mx.agora.mobile.nativeapp.ui.components
 
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFonts
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,35 +97,41 @@ fun AgoraEmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(AgoraSpacing.Xs),
     ) {
-        // El ícono es decoración: TalkBack no lo lee.
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(if (isError) AgoraColors.DangerSuave else AgoraColors.NaranjaSuave)
-                .clearAndSetSemantics {},
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                iconoDeVacio(emoji),
-                contentDescription = null,
-                tint = if (isError) AgoraColors.Danger else AgoraColors.NaranjaTinta,
-                modifier = Modifier.size(30.dp),
-            )
+        // Decoración: TalkBack no la lee. B «Cholula»: escalones punteados, el de arriba en naranja.
+        if (isError) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(AgoraColors.DangerSuave)
+                    .clearAndSetSemantics {},
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    iconoDeVacio(emoji),
+                    contentDescription = null,
+                    tint = AgoraColors.Danger,
+                    modifier = Modifier.size(30.dp),
+                )
+            }
+        } else {
+            EscalonesVacios(Modifier.padding(bottom = 10.dp))
         }
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium,
+            fontFamily = AgoraFonts.titulo,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 24.sp,
+            lineHeight = 28.sp,
             textAlign = TextAlign.Center,
             color = if (isError) AgoraColors.Danger else AgoraColors.Texto,
             modifier = Modifier.semantics { heading() },
         )
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            // Sin alpha: al 85 % bajaba del contraste mínimo.
-            color = if (isError) AgoraColors.Danger else AgoraColors.TextMuted,
+            color = if (isError) AgoraColors.Danger else AgoraColors.TextoMedio,
         )
         if (ctaLabel != null && onCta != null) {
             Spacer(Modifier.height(AgoraSpacing.Xs))
@@ -131,6 +146,34 @@ fun AgoraEmptyState(
                 text = secondaryCtaLabel,
                 onClick = onSecondaryCta,
                 modifier = Modifier.fillMaxWidth(0.75f),
+            )
+        }
+    }
+}
+
+/** Cuatro escalones punteados que se abren hacia abajo; el de arriba, naranja: «el primer escalón». */
+@Composable
+private fun EscalonesVacios(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.clearAndSetSemantics {},
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        listOf(60, 110, 160, 210).forEachIndexed { i, ancho ->
+            val color = if (i == 0) AgoraColors.Naranja else AgoraColors.Borde
+            Box(
+                Modifier
+                    .size(ancho.dp, 26.dp)
+                    .drawBehind {
+                        val g = 2.dp.toPx()
+                        drawRoundRect(
+                            color = color,
+                            topLeft = Offset(g / 2, g / 2),
+                            size = Size(size.width - g, size.height - g),
+                            cornerRadius = CornerRadius(6.dp.toPx()),
+                            style = Stroke(width = g, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx()))),
+                        )
+                    },
             )
         }
     }

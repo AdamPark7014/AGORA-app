@@ -1,5 +1,33 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.ui.semantics.Role
+import mx.agora.mobile.nativeapp.ui.util.formatearHora
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFonts
+import mx.agora.mobile.nativeapp.ui.components.PildoraFiltro
+import mx.agora.mobile.nativeapp.ui.components.BotonCabeza
+import mx.agora.mobile.nativeapp.ui.components.AgoraAvatar
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -236,26 +264,17 @@ fun AventonesScreen(
                 ) {
                     filtrosSentido.forEach { (valor, etiqueta) ->
                         val lectura = lecturaSentido[valor]
-                        FilterChip(
-                            selected = sentido == valor,
-                            onClick = { sentido = valor },
-                            label = { Text(etiqueta, maxLines = 1) },
-                            modifier = if (lectura != null) {
-                                Modifier.semantics { contentDescription = lectura }
-                            } else {
-                                Modifier
-                            },
-                        )
+                        Box(if (lectura != null) Modifier.semantics { contentDescription = lectura } else Modifier) {
+                            PildoraFiltro(texto = etiqueta, activa = sentido == valor, onClick = { sentido = valor })
+                        }
                     }
                 }
-                Button(
+                BotonCabeza(
+                    "Ofrecer",
                     onClick = { abrirNuevo() },
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                        .semantics { contentDescription = "Ofrecer un aventón" },
-                ) {
-                    Text("+ Ofrecer", maxLines = 1, softWrap = false)
-                }
+                    modifier = Modifier.padding(start = 8.dp),
+                    descripcion = "Ofrecer un aventón",
+                )
             }
 
             AgoraPullToRefreshBox(
@@ -286,8 +305,8 @@ fun AventonesScreen(
                     }
                     else -> {
                         LazyColumn(
-                            contentPadding = PaddingValues(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             items(aventones, key = { it.id }) { aventon ->
                                 AventonCard(
@@ -506,6 +525,26 @@ private data class NuevoAventon(
     val nota: String,
 )
 
+/** Talón por sentido: al campus Talavera, desde el campus adobe, otro maíz (como iOS). */
+private fun colorTalon(sentido: String): Pair<Color, Color> = when (sentido) {
+    "A_CAMPUS" -> AgoraColors.Talavera to Color.White
+    "DESDE_CAMPUS" -> AgoraColors.Adobe to Color.White
+    else -> AgoraColors.Maiz to AgoraColors.SobreMaiz
+}
+
+/** «MAR 27 OCT · 7:00» con la hora del campus. */
+private fun fechaBoleto(iso: String): String = runCatching {
+    val zona = java.time.ZoneId.of("America/Mexico_City")
+    val f = java.time.Instant.parse(iso).atZone(zona)
+    val es = java.util.Locale("es", "MX")
+    val dia = java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", es).format(f).replace(".", "").uppercase(es)
+    "$dia · ${formatearHora(iso)}"
+}.getOrDefault(formatearFecha(iso))
+
+/**
+ * Aventón como boleto (WowB-Aventones): fecha, «origen → destino» en Bricolage, quién maneja, barras
+ * de lugares y el talón de color con el precio y lo que toca (apartar, soltar, lleno o tuyo).
+ */
 @Composable
 private fun AventonCard(
     aventon: AventonDto,
@@ -516,88 +555,181 @@ private fun AventonCard(
     contactando: Boolean = false,
     onContactar: (handle: String) -> Unit = {},
 ) {
-    val lleno = aventon.ocupados >= aventon.lugares
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = AgoraColors.Superficie),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    val libres = (aventon.lugares - aventon.ocupados).coerceAtLeast(0)
+    val (fondoTalon, tintaTalon) = colorTalon(aventon.sentido)
+    val forma = RoundedCornerShape(16.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .shadow(6.dp, forma)
+            .clip(forma)
+            .background(AgoraColors.Superficie),
     ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("${aventon.origen} → ${aventon.destino}", style = MaterialTheme.typography.titleMedium)
-            // «Gratis» en vez de «$0» y lugares libres en vez de «2/3 lugares».
-            val libres = (aventon.lugares - aventon.ocupados).coerceAtLeast(0)
-            val textoLugares = if (libres == 0) {
-                "Sin lugares"
-            } else {
-                "${cuenta(libres, "lugar libre", "lugares libres")} de ${aventon.lugares}"
-            }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Text(
-                "${formatearFecha(aventon.salidaAt)} · ${formatearCuota(aventon.cuotaMxn)} · $textoLugares",
-                style = MaterialTheme.typography.bodySmall,
+                fechaBoleto(aventon.salidaAt),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.1.sp,
                 color = AgoraColors.TextoMedio,
             )
-            aventon.nota?.takeIf { it.isNotBlank() }?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                buildAnnotatedString {
+                    append(aventon.origen)
+                    append("\n")
+                    withStyle(SpanStyle(color = AgoraColors.NaranjaTinta)) { append("→ ") }
+                    append(aventon.destino)
+                },
+                fontFamily = AgoraFonts.titulo,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 20.sp,
+                lineHeight = 22.sp,
+                color = AgoraColors.Texto,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                aventon.conductor?.let { conductor ->
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(enabled = conductor.handle != null, role = Role.Button) {
+                                conductor.handle?.let(onPerfilClick)
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AgoraAvatar(nombre = conductor.nombre ?: conductor.handle ?: "?", fotoUrl = conductor.fotoUrl, size = 26.dp)
+                        Text(
+                            conductor.handle ?: conductor.nombre ?: "Conductor",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = AgoraColors.TextoMedio,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                } ?: Spacer(Modifier.weight(1f))
+                BarrasLugares(aventon.lugares, aventon.ocupados, fondoTalon)
             }
-            aventon.conductor?.let { conductor ->
-                TextButton(
-                    onClick = { conductor.handle?.let(onPerfilClick) },
-                    // Sin handle no hay perfil que abrir.
-                    enabled = conductor.handle != null,
-                ) {
-                    Text(conductor.nombre ?: conductor.handle ?: "Conductor")
-                }
+            aventon.nota?.takeIf { it.isNotBlank() }?.let {
+                Text(it, fontSize = 13.sp, color = AgoraColors.Texto, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
             val handleConductor = aventon.conductor?.handle
             if (!aventon.esMio && handleConductor != null) {
-                OutlinedButton(
-                    onClick = { onContactar(handleConductor) },
-                    enabled = !contactando,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (contactando) "Abriendo chat…" else "Contactar")
-                }
-            }
-            if (!aventon.esMio) {
-                when {
-                    // Quien ya apartó siempre puede soltar su lugar, aunque el aventón se haya llenado.
-                    // Texto corto como en iOS; el lector sí dice que tocar suelta el lugar.
-                    aventon.voyYo -> OutlinedButton(
-                        onClick = onApartar,
-                        enabled = !ocupado,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(
-                                if (ocupado) {
-                                    Modifier
-                                } else {
-                                    Modifier.semantics {
-                                        contentDescription = "Vas en este aventón. Toca para soltar tu lugar."
-                                    }
-                                },
-                            ),
-                    ) {
-                        Text(if (ocupado) "Un momento…" else "✓ Vas en este")
-                    }
-                    lleno -> Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
-                        Text("Sin lugares")
-                    }
-                    else -> Button(onClick = onApartar, enabled = !ocupado, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (ocupado) "Apartando…" else "Apartar lugar")
-                    }
-                }
+                Text(
+                    if (contactando) "Abriendo chat…" else "Contactar",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AgoraColors.Texto,
+                    modifier = Modifier
+                        .heightIn(min = 36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AgoraColors.Superficie2)
+                        .clickable(enabled = !contactando, role = Role.Button) { onContactar(handleConductor) }
+                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                )
             }
             if (aventon.esMio) {
-                OutlinedButton(
-                    onClick = onCancelar,
-                    enabled = !ocupado,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) {
-                    Text("Cancelar aventón")
-                }
+                Text(
+                    "Cancelar aventón",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .heightIn(min = 36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(enabled = !ocupado, role = Role.Button, onClick = onCancelar)
+                        .padding(vertical = 9.dp),
+                )
             }
         }
+        TalonAventon(aventon, libres, ocupado, fondoTalon, tintaTalon, onApartar)
+    }
+}
+
+/** Barras de lugar, cada vez más altas; las libres en el color del talón. */
+@Composable
+private fun BarrasLugares(lugares: Int, ocupados: Int, color: Color) {
+    val total = lugares.coerceIn(1, 6)
+    Row(
+        modifier = Modifier.clearAndSetSemantics {
+            contentDescription = cuenta((lugares - ocupados).coerceAtLeast(0), "lugar libre", "lugares libres")
+        },
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        repeat(total) { i ->
+            Box(
+                Modifier
+                    .width(12.dp)
+                    .height((6 + i * 3).dp)
+                    .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                    .background(if (i >= ocupados) color else AgoraColors.Borde),
+            )
+        }
+    }
+}
+
+/** Talón de 84 con el precio y lo que toca: apartar, soltar tu lugar, lleno o tuyo. */
+@Composable
+private fun TalonAventon(
+    aventon: AventonDto,
+    libres: Int,
+    ocupado: Boolean,
+    fondo: Color,
+    tinta: Color,
+    onApartar: () -> Unit,
+) {
+    val accion = when {
+        aventon.esMio -> "Tuyo"
+        ocupado -> "Un momento…"
+        aventon.voyYo -> "Vas ✓"
+        libres > 0 -> "Apartar"
+        else -> "Lleno"
+    }
+    val tocable = !aventon.esMio && !ocupado && (aventon.voyYo || libres > 0)
+    Column(
+        modifier = Modifier
+            .width(84.dp)
+            .fillMaxHeight()
+            .background(fondo)
+            .drawBehind {
+                val muesca = 8.dp.toPx()
+                drawLine(
+                    color = Color.White.copy(alpha = 0.55f),
+                    start = Offset(1.dp.toPx(), muesca + 4.dp.toPx()),
+                    end = Offset(1.dp.toPx(), size.height - muesca - 4.dp.toPx()),
+                    strokeWidth = 2.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx())),
+                )
+            }
+            .clickable(enabled = tocable, role = Role.Button, onClick = onApartar)
+            .semantics {
+                contentDescription = when {
+                    aventon.voyYo -> "Vas en este aventón. Toca para soltar tu lugar."
+                    aventon.esMio -> "Tu aventón"
+                    libres > 0 -> "Apartar un lugar por ${formatearCuota(aventon.cuotaMxn)}"
+                    else -> "Sin lugares"
+                }
+            }
+            .padding(horizontal = 6.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+    ) {
+        Text(
+            formatearCuota(aventon.cuotaMxn),
+            fontFamily = AgoraFonts.titulo,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 20.sp,
+            color = tinta,
+            maxLines = 1,
+        )
+        Text(accion, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = tinta, maxLines = 1)
     }
 }

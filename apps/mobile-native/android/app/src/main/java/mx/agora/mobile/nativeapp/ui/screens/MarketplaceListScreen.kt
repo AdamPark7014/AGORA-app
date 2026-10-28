@@ -1,5 +1,9 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import mx.agora.mobile.nativeapp.ui.components.EtiquetaPrecio
+import java.util.Locale
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.foundation.selection.selectable
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -230,20 +234,20 @@ fun MarketplaceListScreen(
                 onValor = { busqueda = it },
                 modifier = Modifier.weight(1f),
             )
-            BotonVender(onClick = onCrearClick)
         }
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = AgoraSpacing.Pantalla),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                .padding(horizontal = AgoraSpacing.Pantalla, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             categorias.forEach { (valor, etiqueta) ->
-                ChipD(
-                    texto = etiqueta,
-                    activo = categoria == valor,
+                SelloCategoria(
+                    etiqueta = etiqueta,
+                    valor = valor,
+                    elegido = categoria == valor,
                     onClick = { categoria = valor },
                 )
             }
@@ -289,7 +293,7 @@ fun MarketplaceListScreen(
                             bottom = AgoraSpacing.Lg,
                         ),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         items(anuncios, key = { it.id }) { anuncio ->
                             AnuncioCard(anuncio = anuncio, onClick = { onAnuncioClick(anuncio.id) })
@@ -404,43 +408,66 @@ private fun CampoBusqueda(
     }
 }
 
-/** «Vender» en naranja, como Publicar: es la acción principal del mercado. */
+/** Color del sello de cada categoría (B «Cholula»); «Todo» va en tinta. Mismo catálogo que iOS. */
+private fun colorCategoria(valor: String): Pair<Color, Color> = when (valor) {
+    "" -> AgoraColors.Texto to AgoraColors.Fondo
+    "LIBROS", "CUARTO" -> AgoraColors.Talavera to Color.White
+    "ELECTRONICA", "SERVICIOS" -> AgoraColors.Jade to Color.White
+    "MUEBLES" -> AgoraColors.Maiz to AgoraColors.SobreMaiz
+    else -> AgoraColors.Adobe to Color.White
+}
+
+/** Sello de categoría: relleno de su color si está elegida; si no, superficie con el cuadrito. */
 @Composable
-private fun BotonVender(onClick: () -> Unit) {
-    val tinta = MaterialTheme.colorScheme.onPrimary
+private fun SelloCategoria(etiqueta: String, valor: String, elegido: Boolean, onClick: () -> Unit) {
+    val (color, tinta) = colorCategoria(valor)
+    val forma = RoundedCornerShape(8.dp)
     Row(
         modifier = Modifier
-            .height(46.dp)
-            .clip(AgoraButtonShape)
-            .background(AgoraColors.Naranja)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics(mergeDescendants = true) { contentDescription = "Vender algo" }
-            .padding(start = 12.dp, end = 16.dp),
+            .heightIn(min = 32.dp)
+            .clip(forma)
+            .background(if (elegido) color else AgoraColors.Superficie)
+            .then(if (elegido) Modifier else Modifier.border(1.dp, AgoraColors.Borde, forma))
+            .selectable(selected = elegido, role = Role.Tab, onClick = onClick)
+            .semantics { contentDescription = etiqueta }
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(Icons.Outlined.Add, contentDescription = null, tint = tinta, modifier = Modifier.size(18.dp))
+        if (!elegido) {
+            Box(
+                Modifier
+                    .size(8.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(color),
+            )
+        }
         Text(
-            "Vender",
-            color = tinta,
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            etiqueta.uppercase(Locale("es", "MX")),
+            color = if (elegido) tinta else AgoraColors.Texto,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            letterSpacing = 0.5.sp,
+            modifier = Modifier.clearAndSetSemantics {},
         )
     }
 }
 
+/** Tarjeta del tianguis (WowB-Mercado): foto de radio 16 con la etiqueta de precio girada, título y quién vende. */
 @Composable
 private fun AnuncioCard(anuncio: AnuncioDto, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(AgoraFotoShape)
-            .background(AgoraColors.Superficie)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClickLabel = "Ver anuncio", role = Role.Button, onClick = onClick),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
+                .clip(RoundedCornerShape(16.dp))
                 .background(AgoraColors.Superficie2),
         ) {
             // El ícono va debajo de la foto: si no hay foto o no carga, queda él y no un hueco gris.
@@ -461,19 +488,11 @@ private fun AnuncioCard(anuncio: AnuncioDto, onClick: () -> Unit) {
                     contentScale = ContentScale.Crop,
                 )
             }
-            // Pastilla oscura translúcida: se lee igual sobre cualquier foto y en los dos temas.
-            Text(
+            EtiquetaPrecio(
                 formatearCuota(anuncio.precioMxn),
-                color = Color.White,
-                fontFamily = AgoraFonts.titulo,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 14.sp,
-                maxLines = 1,
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(8.dp)
-                    .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(10.dp))
-                    .padding(horizontal = 9.dp, vertical = 4.dp),
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 8.dp, bottom = 10.dp),
             )
             // «Disponible» es lo normal en el mercado: solo se marca lo que no lo está.
             if (anuncio.estadoVenta != ESTADO_DISPONIBLE) {
@@ -486,13 +505,13 @@ private fun AnuncioCard(anuncio: AnuncioDto, onClick: () -> Unit) {
             }
         }
         Column(
-            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 12.dp),
+            modifier = Modifier.padding(horizontal = 2.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             // Dos líneas fijas: así las tarjetas de una misma fila quedan parejas.
             Text(
                 anuncio.titulo,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = AgoraColors.Texto,
                 maxLines = 2,
                 minLines = 2,

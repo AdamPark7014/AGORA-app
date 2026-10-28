@@ -1,5 +1,12 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.heading
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
 import android.Manifest
 import android.app.Activity
 import android.content.Context
@@ -549,15 +556,45 @@ private fun AjustesScreenContent(
                 ) {
                     Text("@$handle", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
 
-                    Text("Apariencia", style = MaterialTheme.typography.labelLarge)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ModoTema.entries.forEach { modo ->
-                            FilterChip(
-                                selected = modoTema == modo,
-                                onClick = { cambiarTema(modo) },
-                                label = { Text(modo.etiqueta) },
-                            )
-                        }
+                    // B «Cholula» (WowB-Ajustes): Cantera / Obsidiana / Sistema en una caja, el elegido en tinta.
+                    Text(
+                        "APARIENCIA",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                        color = AgoraColors.TextoMedio,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(AgoraColors.Superficie)
+                            .border(1.dp, AgoraColors.Borde, RoundedCornerShape(16.dp))
+                            .padding(8.dp)
+                            .selectableGroup(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        listOf(ModoTema.CLARO to "Cantera", ModoTema.OSCURO to "Obsidiana", ModoTema.SISTEMA to "Sistema")
+                            .forEach { (modo, nombre) ->
+                                val elegido = modoTema == modo
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 44.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (elegido) AgoraColors.Texto else Color.Transparent)
+                                        .selectable(selected = elegido, role = Role.RadioButton, onClick = { cambiarTema(modo) }),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        nombre,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (elegido) AgoraColors.Fondo else AgoraColors.Texto,
+                                    )
+                                }
+                            }
                     }
 
                     Text("Foto de perfil", style = MaterialTheme.typography.labelLarge)

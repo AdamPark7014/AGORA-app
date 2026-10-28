@@ -1,5 +1,15 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
+import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
+import mx.agora.mobile.nativeapp.ui.components.Terrazas
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -143,12 +153,21 @@ fun MensajesListScreen(
                 }
             }
             else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(conversaciones, key = { it.id }) { conv ->
-                        ConversacionRow(conv, onClick = { onConversacionClick(conv.id) })
+                // B «Cholula» (WowB-Mensajes): «Sin leer» y «Antes» separados por terrazas.
+                val sinLeer = conversaciones.filter { it.noLeidos > 0 }
+                val antes = conversaciones.filter { it.noLeidos == 0 }
+                LazyColumn(contentPadding = PaddingValues(bottom = 12.dp)) {
+                    if (sinLeer.isNotEmpty()) {
+                        item(key = "sin-leer") { DivisorMensajes("SIN LEER") }
+                        items(sinLeer, key = { it.id }) { conv ->
+                            ConversacionRow(conv, onClick = { onConversacionClick(conv.id) })
+                        }
+                    }
+                    if (antes.isNotEmpty()) {
+                        item(key = "antes") { DivisorMensajes(if (sinLeer.isEmpty()) "TUS CONVERSACIONES" else "ANTES") }
+                        items(antes, key = { it.id }) { conv ->
+                            ConversacionRow(conv, onClick = { onConversacionClick(conv.id) })
+                        }
                     }
                 }
             }
@@ -156,26 +175,49 @@ fun MensajesListScreen(
     }
 }
 
+/** Divisor de la bandeja: terrazas naranjas y el texto en versalitas. */
+@Composable
+private fun DivisorMensajes(texto: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp)
+            .semantics { heading() },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Terrazas(AgoraColors.Naranja, Modifier.width(18.dp).height(10.dp), niveles = 2)
+        Text(
+            texto,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+            color = AgoraColors.TextoMedio,
+        )
+    }
+}
+
+/**
+ * Fila de la bandeja (WowB-Mensajes): avatar con aro naranja si hay nuevos, nombre, último texto
+ * y la cuenta de no leídos en un cuadro `boton`. Sin tarjeta: filas sobre el fondo.
+ */
 @Composable
 private fun ConversacionRow(conv: ConversacionDto, onClick: () -> Unit) {
     val nueva = conv.noLeidos > 0
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClickLabel = "Abrir conversación", role = Role.Button, onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = if (nueva) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            .clickable(onClickLabel = "Abrir conversación", role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .border(2.dp, if (nueva) AgoraColors.Naranja else AgoraColors.Borde, CircleShape)
+                .padding(4.dp),
+            contentAlignment = Alignment.Center,
         ) {
             val foto = ApiClient.resolveUrl(conv.con?.fotoUrl)
             if (foto != null) {
@@ -192,59 +234,56 @@ private fun ConversacionRow(conv: ConversacionDto, onClick: () -> Unit) {
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                        .background(AgoraColors.Superficie2),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(iniciales(conv.con?.nombre), fontWeight = FontWeight.Bold, color = AgoraColors.Texto)
+                }
+            }
+        }
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(
+                conv.con?.nombre ?: "Alguien",
+                fontSize = 15.sp,
+                fontWeight = if (nueva) FontWeight.Bold else FontWeight.SemiBold,
+                color = AgoraColors.Texto,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                buildString {
+                    if (conv.mioElUltimo) append("Tú: ")
+                    append(conv.ultimoTexto ?: "Sin mensajes")
+                },
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (nueva) AgoraColors.Texto else AgoraColors.TextoMedio,
+            )
+        }
+
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(haceCuanto(conv.ultimoAt), fontSize = 12.sp, color = AgoraColors.TextoMedio)
+            if (nueva) {
+                Box(
+                    modifier = Modifier
+                        .heightIn(min = 20.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(AgoraColors.Boton)
+                        .padding(horizontal = 6.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        iniciales(conv.con?.nombre),
+                        if (conv.noLeidos > 9) "9+" else conv.noLeidos.toString(),
+                        fontSize = 11.sp,
+                        color = AgoraColors.SobreBoton,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        // Un número suelto no dice nada al lector; aquí va la cuenta real.
+                        modifier = Modifier.semantics {
+                            contentDescription = cuenta(conv.noLeidos, "mensaje sin leer", "mensajes sin leer")
+                        },
                     )
-                }
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    conv.con?.nombre ?: "Alguien",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = if (nueva) FontWeight.Bold else FontWeight.SemiBold,
-                )
-                Text(
-                    buildString {
-                        if (conv.mioElUltimo) append("Tú: ")
-                        append(conv.ultimoTexto ?: "Sin mensajes")
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    fontWeight = if (nueva) FontWeight.SemiBold else FontWeight.Normal,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (nueva) 0.9f else 0.65f),
-                )
-            }
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    haceCuanto(conv.ultimoAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-                if (conv.noLeidos > 0) {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 6.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                    ) {
-                        Text(
-                            if (conv.noLeidos > 9) "9+" else conv.noLeidos.toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontWeight = FontWeight.Bold,
-                            // Un número suelto no dice nada al lector; aquí va la cuenta real.
-                            modifier = Modifier.semantics {
-                                contentDescription = cuenta(conv.noLeidos, "mensaje sin leer", "mensajes sin leer")
-                            },
-                        )
-                    }
                 }
             }
         }

@@ -1,5 +1,14 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFonts
+import mx.agora.mobile.nativeapp.ui.components.Terrazas
+import mx.agora.mobile.nativeapp.ui.components.Talavera
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clipToBounds
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.BorderStroke
@@ -50,7 +59,6 @@ import kotlinx.coroutines.launch
 import mx.agora.mobile.nativeapp.data.AuthRepository
 import mx.agora.mobile.nativeapp.data.SessionUser
 import mx.agora.mobile.nativeapp.ui.analytics.AgoraAnalytics
-import mx.agora.mobile.nativeapp.ui.components.AgoraIsotipo
 import mx.agora.mobile.nativeapp.ui.components.AgoraPieLegal
 import mx.agora.mobile.nativeapp.ui.components.AgoraPrimaryButton
 import mx.agora.mobile.nativeapp.ui.components.CampoContrasena
@@ -282,26 +290,17 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .heightIn(min = alto)
-                .padding(AgoraSpacing.Lg),
+                .heightIn(min = alto),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Spacer(Modifier.height(AgoraSpacing.Md))
+            // B «Cholula» (WowB-Entrada): azulejo con la pirámide y «Ágora»; más bajo pasado el primer paso.
+            HeroEntrada(grande = paso == PASO_ENTRAR)
 
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 6.dp)) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    AgoraIsotipo(size = 76.dp)
-                    Spacer(Modifier.height(AgoraSpacing.Xs))
-                    Text(
-                        "Ágora",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = AgoraColors.Texto,
-                    )
-                    Spacer(Modifier.height(AgoraSpacing.Xxs))
                     val titulo = when (paso) {
                         PASO_PEDIR -> if (motivo == MOTIVO_OLVIDE) AgoraCopy.login.pedir.tituloOlvide else AgoraCopy.login.pedir.tituloRegistro
                         PASO_CODIGO, PASO_CODIGO_PERSONAL -> copy.tituloCodigo
@@ -624,8 +623,38 @@ fun LoginScreen(
                 }
             }
 
-            AgoraPieLegal(modifier = Modifier.padding(top = AgoraSpacing.Lg))
+            AgoraPieLegal(modifier = Modifier.padding(top = AgoraSpacing.Lg, bottom = AgoraSpacing.Lg))
         }
+    }
+}
+
+/** Azulejo de Talavera de orilla a orilla con la pirámide escalonada del color del fondo y «Ágora» en ella. */
+@Composable
+private fun HeroEntrada(grande: Boolean) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(if (grande) 300.dp else 190.dp)
+            .clipToBounds(),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Talavera(Modifier.matchParentSize(), fondo = AgoraColors.Talavera, trazo = Color(0xFF3557B8))
+        Terrazas(
+            AgoraColors.Fondo,
+            Modifier.size(330.dp, if (grande) 150.dp else 100.dp),
+            niveles = 5,
+        )
+        Text(
+            "Ágora",
+            fontFamily = AgoraFonts.titulo,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = if (grande) 52.sp else 40.sp,
+            letterSpacing = (-1.4).sp,
+            color = AgoraColors.Texto,
+            modifier = Modifier
+                .padding(bottom = if (grande) 62.dp else 38.dp)
+                .semantics { heading() },
+        )
     }
 }
 

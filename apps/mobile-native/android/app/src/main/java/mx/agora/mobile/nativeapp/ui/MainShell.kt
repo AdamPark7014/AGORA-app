@@ -1,5 +1,6 @@
 package mx.agora.mobile.nativeapp.ui
 
+import mx.agora.mobile.nativeapp.ui.components.BotonCabeza
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -275,7 +276,9 @@ fun MainShell(
                         )
                     }
                     PestanaBus.MERCADO -> Column {
-                        EncabezadoPestana("Mercado")
+                        EncabezadoPestana("Mercado", subtitulo = "El tianguis del campus") {
+                            BotonCabeza("Vender", onClick = onNavigateToCrearAnuncio, descripcion = "Vender algo")
+                        }
                         MarketplaceListScreen(
                             tokenProvider = { auth.token() },
                             onAnuncioClick = onNavigateToAnuncio,

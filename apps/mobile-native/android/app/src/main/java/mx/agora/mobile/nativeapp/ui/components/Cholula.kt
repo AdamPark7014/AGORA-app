@@ -1,6 +1,15 @@
 package mx.agora.mobile.nativeapp.ui.components
 
 import androidx.compose.foundation.Canvas
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFonts
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.rotate
+import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.heightIn
@@ -198,4 +207,54 @@ fun SelloComunidad(nombre: String, slug: String?, modifier: Modifier = Modifier,
         modifier = modifier,
         alto = alto,
     )
+}
+
+/** Franja de azulejo bajo los encabezados (10 de alto, como `talavera(t, 10)` del artboard). */
+@Composable
+fun FranjaTalavera(modifier: Modifier = Modifier, alto: Dp = 10.dp) {
+    Talavera(modifier.fillMaxWidth().height(alto), lado = alto)
+}
+
+/** Botón corto relleno `boton` de los encabezados («Vender», «Ofrecer»). */
+@Composable
+fun BotonCabeza(texto: String, onClick: () -> Unit, modifier: Modifier = Modifier, descripcion: String? = null) {
+    Box(
+        modifier = modifier
+            .heightIn(min = 40.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(AgoraColors.Boton)
+            .clickable(role = Role.Button, onClick = onClick)
+            .then(if (descripcion != null) Modifier.semantics { contentDescription = descripcion } else Modifier)
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(texto, color = AgoraColors.SobreBoton, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    }
+}
+
+/** Etiqueta de precio del tianguis: punta a la izquierda, adobe con texto blanco, girada. */
+@Composable
+fun EtiquetaPrecio(texto: String, modifier: Modifier = Modifier, giro: Float = -6f) {
+    Text(
+        texto,
+        color = Color.White,
+        fontFamily = AgoraFonts.titulo,
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 15.sp,
+        maxLines = 1,
+        modifier = modifier
+            .rotate(giro)
+            .background(AgoraColors.Adobe, FormaEtiqueta)
+            .padding(start = 14.dp, end = 10.dp, top = 5.dp, bottom = 5.dp),
+    )
+}
+
+private val FormaEtiqueta = GenericShape { tam, _ ->
+    val punta = 10f * (tam.height / 30f).coerceAtLeast(1f)
+    moveTo(punta, 0f)
+    lineTo(tam.width, 0f)
+    lineTo(tam.width, tam.height)
+    lineTo(punta, tam.height)
+    lineTo(0f, tam.height / 2)
+    close()
 }

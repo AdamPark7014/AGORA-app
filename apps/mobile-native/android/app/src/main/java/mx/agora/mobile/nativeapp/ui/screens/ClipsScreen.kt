@@ -1,5 +1,11 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFonts
+import mx.agora.mobile.nativeapp.ui.components.nombreSello
+import mx.agora.mobile.nativeapp.ui.components.textoSobreComunidad
+import mx.agora.mobile.nativeapp.ui.components.colorComunidad
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.rotate
 import android.net.Uri
 import android.view.View
 import android.widget.Toast
@@ -703,7 +709,6 @@ private fun PaginaClip(
                 .padding(start = 16.dp, end = 84.dp, bottom = reservaInferior + 18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            ChipComunidadClip(post.comunidad)
             AutorClip(autor = post.autor, createdAt = post.createdAt, onAutor = onAutor)
             if (post.texto.isNotBlank()) {
                 TextoClip(id = post.id, texto = post.texto)
@@ -749,17 +754,34 @@ private fun PaginaClip(
             )
         }
 
-        // Progreso fino; se dibuja en la fase de dibujo para no recomponer cada 100 ms.
+        // B «Cholula» (WowB-Clip): sello redondo de la comunidad arriba a la izquierda.
+        SelloRedondoClip(
+            post.comunidad,
+            Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 16.dp, top = 118.dp),
+        )
+
+        // Avance en cinco escalones que se llenan; se dibuja en la fase de dibujo para no
+        // recomponer cada 100 ms.
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(start = 16.dp, end = 16.dp, bottom = reservaInferior)
-                .fillMaxWidth()
-                .height(3.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(Color.White.copy(alpha = 0.25f))
+                .align(Alignment.BottomStart)
+                .padding(start = 16.dp, bottom = reservaInferior)
+                .size(140.dp, 12.dp)
                 .drawBehind {
-                    drawRect(Color.White, size = Size(size.width * progreso.floatValue, size.height))
+                    val altos = floatArrayOf(6f, 9f, 12f, 9f, 6f)
+                    val hueco = 3.dp.toPx()
+                    val ancho = (size.width - hueco * (altos.size - 1)) / altos.size
+                    altos.forEachIndexed { i, alto ->
+                        val h = alto.dp.toPx()
+                        drawRoundRect(
+                            color = if (progreso.floatValue * altos.size > i) Color.White else Color.White.copy(alpha = 0.3f),
+                            topLeft = Offset(i * (ancho + hueco), size.height - h),
+                            size = Size(ancho, h),
+                            cornerRadius = CornerRadius(3.dp.toPx()),
+                        )
+                    }
                 }
                 .clearAndSetSemantics {},
         )
@@ -1006,29 +1028,33 @@ private fun AccionClip(
     }
 }
 
-/** Chip de comunidad sobre el video: ícono por tipo y nombre. */
+/** Sello redondo de la comunidad, un poco girado, con un aro claro por dentro (WowB-Clip). */
 @Composable
-private fun ChipComunidadClip(comunidad: ComunidadDto) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.16f))
-            .padding(horizontal = 10.dp, vertical = 5.dp)
-            .clearAndSetSemantics { contentDescription = "Comunidad: ${comunidad.nombre}" },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+private fun SelloRedondoClip(comunidad: ComunidadDto, modifier: Modifier = Modifier) {
+    val fondo = colorComunidad(comunidad.slug)
+    val tinta = textoSobreComunidad(comunidad.slug)
+    Box(
+        modifier = modifier
+            .rotate(-8f)
+            .size(78.dp)
+            .clip(CircleShape)
+            .background(fondo)
+            .padding(4.dp)
+            .border(1.dp, tinta.copy(alpha = 0.7f), CircleShape)
+            .padding(4.dp)
+            .clearAndSetSemantics { contentDescription = "En ${comunidad.nombre}" },
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            iconoComunidad(tipoComunidad(comunidad.slug)),
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(13.dp),
-        )
         Text(
-            comunidad.nombre,
-            color = Color.White,
-            style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
+            nombreSello(comunidad.nombre, comunidad.slug),
+            color = tinta,
+            fontFamily = AgoraFonts.titulo,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 11.sp,
+            lineHeight = 12.sp,
+            letterSpacing = 0.3.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }

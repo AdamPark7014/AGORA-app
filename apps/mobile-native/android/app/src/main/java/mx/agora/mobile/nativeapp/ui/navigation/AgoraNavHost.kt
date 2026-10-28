@@ -1,5 +1,23 @@
 package mx.agora.mobile.nativeapp.ui.navigation
 
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFonts
+import mx.agora.mobile.nativeapp.ui.components.FranjaTalavera
+import mx.agora.mobile.nativeapp.ui.components.BotonCabeza
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -311,7 +329,11 @@ fun AgoraNavHost(
 
         // Campus (Feed B): se abre desde el menú ☰ de la pestaña Tu perfil.
         composable(AgoraRoutes.CAMPUS) {
-            SecondaryScaffold(title = "Campus", onBack = { navController.popBackStack() }) { padding ->
+            SecondaryScaffold(
+                title = "Campus",
+                onBack = { navController.popBackStack() },
+                subtitulo = "Todo lo de la UDLAP, a un toque",
+            ) { padding ->
                 CampusScreen(
                     onMarketplace = { navController.navigate(AgoraRoutes.MARKETPLACE) },
                     onAventones = { navController.navigate(AgoraRoutes.AVENTONES) },
@@ -384,7 +406,14 @@ fun AgoraNavHost(
         }
 
         composable(AgoraRoutes.MARKETPLACE) {
-            SecondaryScaffold(title = "Mercado", onBack = { navController.popBackStack() }) { padding ->
+            SecondaryScaffold(
+                title = "Mercado",
+                onBack = { navController.popBackStack() },
+                subtitulo = "El tianguis del campus",
+                acciones = {
+                    BotonCabeza("Vender", onClick = { navController.navigate(AgoraRoutes.MARKETPLACE_CREAR) }, descripcion = "Vender algo")
+                },
+            ) { padding ->
                 MarketplaceListScreen(
                     tokenProvider = { auth.token() },
                     onAnuncioClick = { id -> navController.navigate(AgoraRoutes.marketplaceDetalle(id)) },
@@ -426,7 +455,11 @@ fun AgoraNavHost(
         }
 
         composable(AgoraRoutes.AVENTONES) {
-            SecondaryScaffold(title = "Aventones", onBack = { navController.popBackStack() }) { padding ->
+            SecondaryScaffold(
+                title = "Aventones",
+                onBack = { navController.popBackStack() },
+                subtitulo = "Boletos de ida y vuelta",
+            ) { padding ->
                 AventonesScreen(
                     tokenProvider = { auth.token() },
                     onPerfilClick = { handle -> navController.navigate(AgoraRoutes.perfil(handle)) },
@@ -529,32 +562,65 @@ fun AgoraNavHost(
     }
 }
 
+/**
+ * Cabeza de B «Cholula» para las pantallas que se abren encima (CabezaCholula de iOS): volver,
+ * título Bricolage 28, subtítulo opcional, acciones a la derecha y la franja de Talavera debajo.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SecondaryScaffold(
     title: String,
     onBack: () -> Unit,
+    subtitulo: String? = null,
+    acciones: @Composable RowScope.() -> Unit = {},
     content: @Composable (padding: androidx.compose.foundation.layout.PaddingValues) -> Unit,
 ) {
-    // Diseño D: la barra se funde con el fondo cálido; el título va en la letra de títulos.
     Scaffold(
         containerColor = AgoraColors.Fondo,
         topBar = {
-            TopAppBar(
-                title = { Text(title, style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = {
+            Column(
+                Modifier
+                    .background(AgoraColors.Fondo)
+                    .windowInsetsPadding(TopAppBarDefaults.windowInsets),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 60.dp)
+                        .padding(start = 4.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = AgoraColors.Texto)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AgoraColors.Fondo,
-                    scrolledContainerColor = AgoraColors.Fondo,
-                    titleContentColor = AgoraColors.Texto,
-                    navigationIconContentColor = AgoraColors.Texto,
-                    actionIconContentColor = AgoraColors.Texto,
-                ),
-            )
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            title,
+                            fontFamily = AgoraFonts.titulo,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 28.sp,
+                            lineHeight = 30.sp,
+                            letterSpacing = (-0.6).sp,
+                            color = AgoraColors.Texto,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.semantics { heading() },
+                        )
+                        if (subtitulo != null) {
+                            Text(
+                                subtitulo,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = AgoraColors.TextoMedio,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                    acciones()
+                }
+                FranjaTalavera()
+            }
         },
         content = content,
     )
