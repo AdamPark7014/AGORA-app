@@ -1,6 +1,32 @@
 package mx.agora.mobile.nativeapp.ui.screens
 
 import androidx.activity.compose.BackHandler
+import mx.agora.mobile.nativeapp.ui.theme.AgoraFonts
+import mx.agora.mobile.nativeapp.ui.components.nombreCortoComunidad
+import mx.agora.mobile.nativeapp.ui.components.Talavera
+import mx.agora.mobile.nativeapp.push.PushRegistration
+import androidx.core.app.NotificationManagerCompat
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.material.icons.automirrored.outlined.ArrowBackIos
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.foundation.layout.width
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.os.Build
+import android.Manifest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -107,7 +133,14 @@ import mx.agora.mobile.nativeapp.ui.util.mensajeDe
 /** Texto legal abierto encima del registro (aún no hay NavHost: la sesión no tiene perfil). */
 private enum class LegalRegistro { TERMINOS, REGLAS }
 
-/** Tu nombre y tu @ → carrera y generación → colegio → revisar y aceptar las reglas. */
+/*
+ * «Sube a tu campus» (B «Cholula», artboard WowB-Arranque): el correo ya es el primer escalón al
+ * entrar; aquí se suben tu carrera (con tu @, nombre y generación), tu colegio y tus avisos, que
+ * también es donde se aceptan las reglas y se crea el perfil. Paridad con `RegistroView.swift`.
+ */
+private const val PASO_CARRERA = 2
+private const val PASO_COLEGIO = 3
+private const val PASO_AVISOS = 4
 private const val TOTAL_PASOS = 4
 
 private val FormaCampo = RoundedCornerShape(16.dp)
@@ -171,7 +204,7 @@ fun RegistroScreen(
 ) {
     var catalogo by remember { mutableStateOf<CatalogoDto?>(null) }
     var cargandoCatalogo by remember { mutableStateOf(true) }
-    var paso by remember { mutableIntStateOf(1) }
+    var paso by remember { mutableIntStateOf(PASO_CARRERA) }
     var handle by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
     var apellidos by remember { mutableStateOf("") }
@@ -198,6 +231,22 @@ fun RegistroScreen(
     var legalAbierto by remember { mutableStateOf<LegalRegistro?>(null) }
     /** Sube con «Reintentar» y vuelve a pedir el catálogo. */
     var intentoCatalogo by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
+    val correo = remember { auth.loadSession()?.email.orEmpty().lowercase(Locale.ROOT) }
+    fun avisosPermitidos() = NotificationManagerCompat.from(context).areNotificationsEnabled()
+    /** El último escalón: el permiso del sistema se pide aquí y en Ajustes, nunca antes. */
+    var avisosActivos by remember { mutableStateOf(avisosPermitidos()) }
+    val pedirPermiso = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { concedido ->
+        avisosActivos = concedido
+    }
+
+    fun activarAvisos() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !avisosPermitidos()) {
+            pedirPermiso.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            avisosActivos = avisosPermitidos()
+        }
+    }
 
     LaunchedEffect(intentoCatalogo) {
         cargandoCatalogo = true
@@ -220,7 +269,7 @@ fun RegistroScreen(
     val colegioElegido = catalogo?.colegios?.firstOrNull { it.slug == colegioSlug }
 
     fun irAPaso(nuevo: Int) {
-        paso = nuevo.coerceIn(1, TOTAL_PASOS)
+        paso = nuevo.coerceIn(PASO_CARRERA, TOTAL_PASOS)
         error = null
         focusManager.clearFocus()
     }
@@ -243,6 +292,8 @@ fun RegistroScreen(
                 )
                 usuarioCreado = user
                 exito = true
+                // El token ya se registró al abrir la sesión; con el permiso recién dado se refresca.
+                if (avisosActivos) PushRegistration.registerCurrentDeviceAsync(context.applicationContext)
             } catch (e: Exception) {
                 error = mensajeDe(e)
             } finally {
@@ -254,7 +305,7 @@ fun RegistroScreen(
     // Encima del formulario y no en otra ruta: así no se pierde lo ya capturado.
     BackHandler(enabled = legalAbierto != null) { legalAbierto = null }
     // Pasado el primero, «atrás» del sistema regresa un paso como la flecha de arriba; antes cerraba la app.
-    BackHandler(enabled = paso > 1 && legalAbierto == null && !exito) { irAPaso(paso - 1) }
+    BackHandler(enabled = paso > PASO_CARRERA && legalAbierto == null && !exito) { irAPaso(paso - 1) }
     when (legalAbierto) {
         LegalRegistro.TERMINOS -> {
             TerminosScreen(onBack = { legalAbierto = null })
@@ -293,46 +344,123 @@ fun RegistroScreen(
             }
         }
         else -> {
+            val carreraCorta = carreraElegida?.let { nombreCortoComunidad(it.carrera.nombre, "carrera:") }
+            val colegioCorto = colegioElegido?.let { nombreCortoComunidad(it.nombre, "colegio:") }
+            val escalones = listOf(
+                Escalon(
+                    if (correo.endsWith("@udlap.mx")) "Tu correo UDLAP" else "Tu correo",
+                    EstadoEscalon.HECHO,
+                    AgoraColors.Adobe,
+                ),
+                Escalon(
+                    if (paso > PASO_CARRERA) "Tu carrera · ${carreraCorta ?: "lista"}" else "Tu carrera",
+                    if (paso > PASO_CARRERA) EstadoEscalon.HECHO else EstadoEscalon.AHORA,
+                    AgoraColors.Talavera,
+                ),
+                Escalon(
+                    when {
+                        paso <= PASO_COLEGIO -> "Tu colegio"
+                        colegioCorto != null -> "Tu colegio · $colegioCorto"
+                        else -> "Sin colegio"
+                    },
+                    when {
+                        paso > PASO_COLEGIO -> EstadoEscalon.HECHO
+                        paso == PASO_COLEGIO -> EstadoEscalon.AHORA
+                        else -> EstadoEscalon.FALTA
+                    },
+                    if (colegioCorto == null) AgoraColors.TextoMedio else AgoraColors.Maiz,
+                    if (colegioCorto == null) Color.White else AgoraColors.SobreMaiz,
+                ),
+                Escalon(
+                    "Tus avisos",
+                    when {
+                        avisosActivos -> EstadoEscalon.HECHO
+                        paso == PASO_AVISOS -> EstadoEscalon.AHORA
+                        else -> EstadoEscalon.FALTA
+                    },
+                    AgoraColors.Jade,
+                ),
+            )
+            val subtitulo = when (paso) {
+                PASO_CARRERA -> "Cada escalón te junta con más gente tuya. Primero, tu carrera."
+                PASO_COLEGIO -> "Cada escalón te junta con más gente tuya. Ahora, tu colegio."
+                else -> "Último escalón: te avisamos cuando caiga la pregunta del día y cuando te escriban."
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(AgoraColors.Fondo)
                     .safeDrawingPadding(),
             ) {
-                BarraPasos(
-                    paso = paso,
-                    onAtras = if (paso > 1) ({ irAPaso(paso - 1) }) else null,
+                Talavera(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(12.dp),
+                    lado = 12.dp,
                 )
-
-                val (titulo, subtitulo) = when (paso) {
-                    1 -> "¿Cómo te llamas?" to "Así te van a encontrar en el campus."
-                    2 -> "¿Qué estudias?" to "Te metemos en las comunidades de tu carrera, tu escuela y tu generación."
-                    3 -> "¿Vives en un colegio?" to
-                        "Si vives en un colegio residencial, entras también a su comunidad. Es opcional."
-                    else -> "Revisa y entra" to "Mira que todo esté bien antes de crear tu perfil."
-                }
 
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = AgoraSpacing.Pantalla, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    item(key = "titulo-$paso") {
-                        Column(
-                            modifier = Modifier.padding(bottom = 6.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
+                    item(key = "titulo") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (paso > PASO_CARRERA) {
+                                Row(
+                                    modifier = Modifier
+                                        .heightIn(min = 44.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable(role = Role.Button, onClickLabel = "Regresar") { irAPaso(paso - 1) }
+                                        .semantics { contentDescription = "Escalón anterior" }
+                                        .padding(end = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Outlined.ArrowBackIos,
+                                        contentDescription = null,
+                                        tint = AgoraColors.TextoMedio,
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                    Text(
+                                        "Atrás",
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                        color = AgoraColors.TextoMedio,
+                                    )
+                                }
+                            } else {
+                                Spacer(Modifier.height(12.dp))
+                            }
                             Text(
-                                titulo,
-                                style = MaterialTheme.typography.headlineLarge,
+                                "PASO $paso DE $TOTAL_PASOS",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    letterSpacing = 1.4.sp,
+                                ),
+                                color = AgoraColors.NaranjaTinta,
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                            )
+                            Text(
+                                "Sube a tu campus",
+                                fontFamily = AgoraFonts.titulo,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 36.sp,
+                                lineHeight = 38.sp,
+                                letterSpacing = (-0.8).sp,
                                 color = AgoraColors.Texto,
                                 modifier = Modifier.semantics { heading() },
                             )
-                            Text(subtitulo, style = MaterialTheme.typography.bodyMedium, color = AgoraColors.TextoMedio)
+                            Text(subtitulo, style = MaterialTheme.typography.bodyLarge, color = AgoraColors.TextoMedio)
                         }
                     }
+                    item(key = "piramide") {
+                        PiramideCampus(escalones, Modifier.padding(top = 14.dp, bottom = 16.dp))
+                    }
                     when (paso) {
-                        1 -> {
+                        PASO_CARRERA -> {
                             item(key = "handle") {
                                 OutlinedTextField(
                                     value = handle,
@@ -388,8 +516,32 @@ fun RegistroScreen(
                                     keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                                 )
                             }
-                        }
-                        2 -> {
+                            item(key = "generacion") {
+                                Column(
+                                    modifier = Modifier.padding(top = 6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    EtiquetaSeccion("¿DE QUÉ GENERACIÓN ERES?")
+                                    Text(
+                                        "El año en que entraste a la UDLAP",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = AgoraColors.TextoMedio,
+                                    )
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(generaciones, key = { it }) { anio ->
+                                            ChipD(
+                                                texto = anio.toString(),
+                                                activo = generacion == anio,
+                                                onClick = { generacion = anio },
+                                                descripcion = "Generación $anio",
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            item(key = "etiqueta-carrera") {
+                                EtiquetaSeccion("TU CARRERA", modifier = Modifier.padding(top = 6.dp))
+                            }
                             item(key = "buscador") {
                                 OutlinedTextField(
                                     value = busquedaCarrera,
@@ -424,7 +576,6 @@ fun RegistroScreen(
                             // Sin búsqueda no se lista nada (son 52 carreras): solo la ya elegida, si hay.
                             if (busquedaCarrera.isBlank()) {
                                 if (carreraElegida != null) {
-                                    item(key = "etiqueta-elegida") { EtiquetaSeccion("TU CARRERA") }
                                     item(key = "elegida") {
                                         FilaOpcion(
                                             titulo = AnnotatedString(carreraElegida.carrera.nombre),
@@ -437,7 +588,7 @@ fun RegistroScreen(
                                 } else {
                                     item(key = "pista") {
                                         Text(
-                                            "Escribe parte del nombre de tu carrera.",
+                                            "Escribe parte del nombre de tu carrera: Sistemas, Derecho, Arquitectura…",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = AgoraColors.TextoMedio,
                                         )
@@ -467,70 +618,45 @@ fun RegistroScreen(
                                         elegida = carreraSlug == c.opcion.carrera.slug,
                                         onClick = {
                                             carreraSlug = c.opcion.carrera.slug
+                                            busquedaCarrera = ""
                                             error = null
-                                            // Sin teclado se ve la generación, que va debajo.
                                             focusManager.clearFocus()
                                         },
                                     )
                                 }
                             }
-                            item(key = "generacion") {
-                                Column(
-                                    modifier = Modifier.padding(top = 10.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                ) {
-                                    EtiquetaSeccion("¿DE QUÉ GENERACIÓN ERES?")
-                                    Text(
-                                        "El año en que entraste a la UDLAP",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = AgoraColors.TextoMedio,
-                                    )
-                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        items(generaciones, key = { it }) { anio ->
-                                            ChipD(
-                                                texto = anio.toString(),
-                                                activo = generacion == anio,
-                                                onClick = { generacion = anio },
-                                                descripcion = "Generación $anio",
-                                            )
-                                        }
-                                    }
-                                }
-                            }
                             // «N de tu generación en <carrera> ya están aquí» (diseño D) espera un
                             // conteo que la API aún no da: sin el dato, no se muestra.
                         }
-                        3 -> {
-                            items(catalogo!!.colegios, key = { "colegio-${it.slug}" }) { colegio ->
-                                FilaOpcion(
-                                    titulo = AnnotatedString(colegio.nombre),
-                                    detalle = null,
-                                    icono = Icons.Outlined.House,
-                                    elegida = colegioSlug == colegio.slug,
-                                    // Tocar el elegido lo quita: el colegio es opcional.
-                                    onClick = {
-                                        colegioSlug = if (colegioSlug == colegio.slug) null else colegio.slug
-                                    },
-                                )
+                        PASO_COLEGIO -> {
+                            val opciones = catalogo!!.colegios.map { colegio ->
+                                Triple(colegio.slug as String?, nombreCortoComunidad(colegio.nombre, "colegio:"), AgoraColors.Maiz)
+                            } + Triple(null, "No vivo en colegio", AgoraColors.TextoMedio)
+                            items(opciones.chunked(2), key = { fila -> "colegios-${fila.first().first ?: "ninguno"}" }) { fila ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    fila.forEach { (slug, texto, color) ->
+                                        OpcionColegio(
+                                            texto = texto,
+                                            color = color,
+                                            elegido = colegioSlug == slug,
+                                            onClick = { colegioSlug = slug },
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                    }
+                                    if (fila.size == 1) Spacer(Modifier.weight(1f))
+                                }
                             }
                         }
                         else -> {
-                            item(key = "resumen") {
-                                ResumenRegistro(
-                                    handle = handle.trim().lowercase(),
-                                    nombreCompleto = "${nombre.trim()} ${apellidos.trim()}",
-                                    carrera = carreraElegida?.carrera?.nombre.orEmpty(),
-                                    generacion = generacion,
-                                    colegio = colegioElegido?.nombre,
-                                    onCambiar = ::irAPaso,
-                                )
+                            item(key = "avisos") {
+                                BotonAvisos(activos = avisosActivos, onActivar = ::activarAvisos)
                             }
                         }
                     }
                 }
 
                 // Fuera de la lista para que se vea junto al botón.
-                if (paso == TOTAL_PASOS) {
+                if (paso == PASO_AVISOS) {
                     AceptarReglas(
                         aceptado = aceptaReglas,
                         onCambio = { aceptaReglas = it },
@@ -551,87 +677,29 @@ fun RegistroScreen(
                     )
                 }
 
-                AgoraPrimaryButton(
-                    text = when {
-                        enviando -> "Creando…"
-                        paso < TOTAL_PASOS -> "Continuar"
-                        else -> "Crear perfil"
-                    },
-                    onClick = {
-                        if (paso < TOTAL_PASOS) irAPaso(paso + 1) else crearPerfil()
-                    },
-                    enabled = when (paso) {
-                        1 -> handle.length >= 3 && nombre.trim().length >= 2 && apellidos.trim().length >= 2
-                        2 -> carreraSlug != null
-                        3 -> true
-                        else -> carreraSlug != null && aceptaReglas
-                    },
-                    loading = enviando,
-                    modifier = Modifier
-                        .padding(start = AgoraSpacing.Pantalla, end = AgoraSpacing.Pantalla, top = 12.dp, bottom = 20.dp)
-                        .heightIn(min = 54.dp),
-                )
+                val margenBoton = Modifier
+                    .padding(start = AgoraSpacing.Pantalla, end = AgoraSpacing.Pantalla, top = 12.dp, bottom = 20.dp)
+                if (paso < PASO_AVISOS) {
+                    BotonEscalon(
+                        habilitado = when (paso) {
+                            PASO_CARRERA -> handle.length >= 3 && nombre.trim().length >= 2 &&
+                                apellidos.trim().length >= 2 && carreraSlug != null
+                            else -> true
+                        },
+                        onClick = { irAPaso(paso + 1) },
+                        modifier = margenBoton,
+                    )
+                } else {
+                    AgoraPrimaryButton(
+                        text = if (enviando) "Creando…" else "Crear perfil",
+                        onClick = { crearPerfil() },
+                        enabled = carreraSlug != null && aceptaReglas,
+                        loading = enviando,
+                        modifier = margenBoton.heightIn(min = 54.dp),
+                    )
+                }
             }
         }
-    }
-}
-
-/** Flecha para regresar, barra de progreso en cuatro tramos y «Paso n de 4». */
-@Composable
-private fun BarraPasos(
-    paso: Int,
-    onAtras: (() -> Unit)?,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 60.dp)
-            .padding(start = AgoraSpacing.Pantalla, end = AgoraSpacing.Pantalla, top = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        if (onAtras != null) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(AgoraColors.Superficie)
-                    .border(1.dp, AgoraColors.Borde, RoundedCornerShape(14.dp))
-                    .clickable(role = Role.Button, onClickLabel = "Regresar", onClick = onAtras)
-                    .semantics { contentDescription = "Paso anterior" },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = null,
-                    tint = AgoraColors.Texto,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-        // El texto de al lado ya dice el paso: los tramos son solo dibujo.
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .clearAndSetSemantics {},
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            repeat(TOTAL_PASOS) { i ->
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(if (i < paso) AgoraColors.Naranja else AgoraColors.Borde),
-                )
-            }
-        }
-        Text(
-            "Paso $paso de $TOTAL_PASOS",
-            style = MaterialTheme.typography.bodySmall,
-            color = AgoraColors.TextoMedio,
-            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-        )
     }
 }
 
@@ -706,66 +774,6 @@ private fun FilaOpcion(
                 modifier = Modifier.size(22.dp),
             )
         }
-    }
-}
-
-/** Último paso: lo capturado, con «Cambiar» para volver al paso de cada dato. */
-@Composable
-private fun ResumenRegistro(
-    handle: String,
-    nombreCompleto: String,
-    carrera: String,
-    generacion: Int,
-    colegio: String?,
-    onCambiar: (Int) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(AgoraCardShape)
-            .background(AgoraColors.Superficie)
-            .border(1.dp, AgoraColors.Borde, AgoraCardShape)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-    ) {
-        FilaResumen("Tu @", "@$handle", "Cambiar tu @") { onCambiar(1) }
-        FilaResumen("Nombre", nombreCompleto, "Cambiar tu nombre") { onCambiar(1) }
-        FilaResumen("Carrera", "$carrera · Generación $generacion", "Cambiar carrera o generación") { onCambiar(2) }
-        FilaResumen("Colegio", colegio ?: "Sin colegio", "Cambiar colegio") { onCambiar(3) }
-    }
-}
-
-@Composable
-private fun FilaResumen(
-    etiqueta: String,
-    valor: String,
-    descripcionCambiar: String,
-    onCambiar: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .semantics(mergeDescendants = true) {},
-        ) {
-            Text(etiqueta, style = MaterialTheme.typography.labelMedium, color = AgoraColors.TextoMedio)
-            Text(valor, style = MaterialTheme.typography.bodyMedium, color = AgoraColors.Texto)
-        }
-        Text(
-            "Cambiar",
-            style = MaterialTheme.typography.labelLarge,
-            color = AgoraColors.NaranjaTinta,
-            modifier = Modifier
-                .heightIn(min = 44.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(role = Role.Button, onClick = onCambiar)
-                .semantics { contentDescription = descripcionCambiar }
-                .padding(horizontal = 8.dp, vertical = 12.dp),
-        )
     }
 }
 
@@ -887,5 +895,233 @@ private fun RegistroExitoView(
             onClick = onContinuar,
             modifier = Modifier.heightIn(min = 54.dp),
         )
+    }
+}
+
+/* ---------- Pirámide «Sube a tu campus» (B «Cholula», WowB-Arranque) ---------- */
+
+/** Hecho: relleno del color con palomita; ahora: punteado naranja con el punto que late; falta: punteado. */
+private enum class EstadoEscalon { HECHO, AHORA, FALTA }
+
+private data class Escalon(
+    val texto: String,
+    val estado: EstadoEscalon,
+    val color: Color,
+    val tinta: Color = Color.White,
+)
+
+/** Anchos del artboard (350, 290, 230, 170 de 390) como fracción del ancho: el correo abajo, el más ancho. */
+private val AnchosEscalon = listOf(0.9f, 0.745f, 0.59f, 0.435f)
+
+/** «Tu campus» arriba y los escalones de abajo hacia arriba: correo, carrera, colegio y avisos. */
+@Composable
+private fun PiramideCampus(escalones: List<Escalon>, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {},
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(96.dp, 40.dp)
+                .border(2.dp, AgoraColors.Naranja, RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                "Tu campus",
+                fontFamily = AgoraFonts.titulo,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 13.sp,
+                color = AgoraColors.NaranjaTinta,
+            )
+        }
+        escalones.withIndex().reversed().forEach { (i, escalon) ->
+            EscalonVista(escalon, Modifier.fillMaxWidth(AnchosEscalon[minOf(i, AnchosEscalon.lastIndex)]))
+        }
+    }
+}
+
+@Composable
+private fun EscalonVista(escalon: Escalon, modifier: Modifier = Modifier) {
+    val forma = RoundedCornerShape(10.dp)
+    val fondo = when (escalon.estado) {
+        EstadoEscalon.HECHO -> escalon.color
+        EstadoEscalon.AHORA -> AgoraColors.Superficie
+        EstadoEscalon.FALTA -> Color.Transparent
+    }
+    val tinta = when (escalon.estado) {
+        EstadoEscalon.HECHO -> escalon.tinta
+        EstadoEscalon.AHORA -> AgoraColors.Texto
+        EstadoEscalon.FALTA -> AgoraColors.TextoMedio
+    }
+    val punteado = when (escalon.estado) {
+        EstadoEscalon.HECHO -> null
+        EstadoEscalon.AHORA -> AgoraColors.Naranja
+        EstadoEscalon.FALTA -> AgoraColors.Borde
+    }
+    val estadoVoz = when (escalon.estado) {
+        EstadoEscalon.HECHO -> "listo"
+        EstadoEscalon.AHORA -> "ahora"
+        EstadoEscalon.FALTA -> "falta"
+    }
+    Row(
+        modifier = modifier
+            .height(58.dp)
+            .clip(forma)
+            .background(fondo)
+            .then(
+                if (punteado != null) {
+                    Modifier.drawBehind {
+                        val grosor = 2.dp.toPx()
+                        drawRoundRect(
+                            color = punteado,
+                            topLeft = Offset(grosor / 2, grosor / 2),
+                            size = Size(size.width - grosor, size.height - grosor),
+                            cornerRadius = CornerRadius(10.dp.toPx()),
+                            style = Stroke(
+                                width = grosor,
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())),
+                            ),
+                        )
+                    }
+                } else {
+                    Modifier
+                },
+            )
+            .clearAndSetSemantics { contentDescription = "${escalon.texto}, $estadoVoz" }
+            .padding(horizontal = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        when (escalon.estado) {
+            EstadoEscalon.HECHO -> Icon(Icons.Filled.Check, contentDescription = null, tint = tinta, modifier = Modifier.size(18.dp))
+            EstadoEscalon.AHORA -> PuntoLatido()
+            EstadoEscalon.FALTA -> Unit
+        }
+        Text(
+            escalon.texto,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            color = tinta,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** El punto naranja del escalón en curso, latiendo. */
+@Composable
+private fun PuntoLatido() {
+    val latido = rememberInfiniteTransition(label = "latido")
+    val escala by latido.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.25f,
+        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
+        label = "escala",
+    )
+    Box(
+        Modifier
+            .size(10.dp)
+            .scale(escala)
+            .clip(CircleShape)
+            .background(AgoraColors.Naranja),
+    )
+}
+
+/** Colegio a elegir: cuadrito de su color y el nombre corto; el elegido lleva borde de tinta de 2. */
+@Composable
+private fun OpcionColegio(
+    texto: String,
+    color: Color,
+    elegido: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val forma = RoundedCornerShape(12.dp)
+    Row(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .clip(forma)
+            .background(AgoraColors.Superficie)
+            .border(if (elegido) 2.dp else 1.dp, if (elegido) AgoraColors.Texto else AgoraColors.Borde, forma)
+            .selectable(selected = elegido, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(10.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(color),
+        )
+        Text(
+            texto,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            color = AgoraColors.Texto,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+        )
+    }
+}
+
+/** «Subir un escalón»: el botón relleno de B «Cholula». */
+@Composable
+private fun BotonEscalon(habilitado: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 54.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (habilitado) AgoraColors.Boton else AgoraColors.Boton.copy(alpha = 0.4f))
+            .clickable(enabled = habilitado, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("Subir un escalón", color = AgoraColors.SobreBoton, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+    }
+}
+
+/** El último escalón: pedir el permiso de avisos, o decir que ya están. */
+@Composable
+private fun BotonAvisos(activos: Boolean, onActivar: () -> Unit) {
+    val forma = RoundedCornerShape(12.dp)
+    if (activos) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clip(forma)
+                .background(AgoraColors.Superficie),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = AgoraColors.Success, modifier = Modifier.size(20.dp))
+            Text("Avisos activados", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = AgoraColors.Success)
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clip(forma)
+                    .background(AgoraColors.Superficie)
+                    .border(2.dp, AgoraColors.Texto, forma)
+                    .clickable(role = Role.Button, onClick = onActivar),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.NotificationsActive, contentDescription = null, tint = AgoraColors.Texto, modifier = Modifier.size(20.dp))
+                Text("Activar avisos", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AgoraColors.Texto)
+            }
+            Text(
+                "Puedes cambiarlo cuando quieras en Ajustes.",
+                style = MaterialTheme.typography.bodySmall,
+                color = AgoraColors.TextoMedio,
+            )
+        }
     }
 }

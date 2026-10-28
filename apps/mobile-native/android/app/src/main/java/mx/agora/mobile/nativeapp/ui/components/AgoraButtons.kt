@@ -1,6 +1,7 @@
 package mx.agora.mobile.nativeapp.ui.components
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
@@ -13,11 +14,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import mx.agora.mobile.nativeapp.ui.theme.AgoraButtonShape
+import androidx.compose.ui.text.font.FontWeight
 import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 
-private val ButtonMinHeight = 48.dp
+private val ButtonMinHeight = 52.dp
 
+/** Botones de B «Cholula» (docs/diseno-cholula.md): radio 12, el primario relleno `boton`. */
+private val FormaBoton = RoundedCornerShape(12.dp)
+
+/** Botón primario relleno `boton` de B «Cholula» (radio 12, 52 de alto). Paridad con `AgoraPrimaryButton.swift`. */
 @Composable
 fun AgoraPrimaryButton(
     text: String,
@@ -33,13 +38,13 @@ fun AgoraPrimaryButton(
             .fillMaxWidth()
             .defaultMinSize(minHeight = ButtonMinHeight),
         enabled = enabled,
-        shape = AgoraButtonShape,
+        shape = FormaBoton,
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = AgoraColors.Naranja,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            disabledContainerColor = AgoraColors.Naranja.copy(alpha = 0.4f),
-            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+            containerColor = AgoraColors.Boton,
+            contentColor = AgoraColors.SobreBoton,
+            disabledContainerColor = AgoraColors.Boton.copy(alpha = 0.4f),
+            disabledContentColor = AgoraColors.SobreBoton.copy(alpha = 0.7f),
         ),
     ) {
         if (loading) {
@@ -49,17 +54,18 @@ fun AgoraPrimaryButton(
                     .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
                     .semantics { contentDescription = text },
                 strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onPrimary,
+                color = AgoraColors.SobreBoton,
             )
         } else {
             androidx.compose.material3.Text(
                 text = text,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
             )
         }
     }
 }
 
+/** Secundario: superficie con borde y texto en tinta. */
 @Composable
 fun AgoraOutlinedButton(
     text: String,
@@ -73,15 +79,15 @@ fun AgoraOutlinedButton(
             .fillMaxWidth()
             .defaultMinSize(minHeight = ButtonMinHeight),
         enabled = enabled,
-        shape = AgoraButtonShape,
+        shape = FormaBoton,
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = AgoraColors.Naranja,
+            containerColor = AgoraColors.Superficie,
+            contentColor = AgoraColors.Texto,
+            disabledContentColor = AgoraColors.TextMuted,
         ),
         border = ButtonDefaults.outlinedButtonBorder(enabled).copy(
-            brush = androidx.compose.ui.graphics.SolidColor(
-                if (enabled) AgoraColors.Naranja else AgoraColors.Borde,
-            ),
+            brush = androidx.compose.ui.graphics.SolidColor(AgoraColors.Borde),
         ),
     ) {
         androidx.compose.material3.Text(
