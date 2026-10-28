@@ -228,6 +228,13 @@ final class CapturasTiendaUITests: XCTestCase {
         let carrera = app.buttons.containing(NSPredicate(format: "label CONTAINS[c] %@", "Ingenier")).firstMatch
         XCTAssertTrue(carrera.waitForExistence(timeout: 10), "No aparecieron las carreras")
         tocar(carrera)
+        // B «Cholula»: «Sube a tu campus» por escalones (carrera → colegio → avisos y entrar).
+        guardar(nombre: "registro-carrera")
+        tocar(app.buttons["registro.aColegio"])
+        let aAvisos = app.buttons["registro.aAvisos"]
+        XCTAssertTrue(aAvisos.waitForExistence(timeout: 10), "No subió al escalón del colegio")
+        guardar(nombre: "registro-colegio")
+        tocar(aAvisos)
 
         let casilla = app.buttons["registro.terminos"]
         let crear = app.buttons["registro.crear"]
