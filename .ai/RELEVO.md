@@ -39,6 +39,34 @@ oscuro:
   Connect `VALID`, `IN_BETA_TESTING`, sin cifrado no exento; «Equipo Ágora» (interno, todos los builds) la recibe.
   Siguiente build de iOS: 11.
 
+## B «Cholula» construida en iOS (28-10)
+
+Mismo contrato (`docs/diseno-cholula.md`), por fases, cada una con `ios.yml` y `ios-capturas.yml` en verde y las
+capturas revisadas en claro y oscuro contra los `WowB-*`:
+- `f6d9914` sistema: tokens cantera/obsidiana en `AgoraDesign.swift`, `UI/Design/Cholula.swift` (`ColorComunidad`,
+  `NombreSello` con la misma regla que Android, `Sello`, `Terrazas`, `Talavera`, `FranjaTalavera`), barra con
+  Publicar relleno `boton` y terrazas en la pestaña activa.
+- `bfdfa04` inicio: encabezado con fecha, franja, historias en terraza con aro del color de su comunidad, píldoras
+  con cuadrito (carrera, generación y colegio), la pregunta como boleto (`PreguntaDelDiaBanner.swift`) y la tarjeta
+  tipográfica con reacciones en chips (`PostCardView.swift`).
+- `447e4ff` + `dfa03bc` «Cartelera» (`CarteleraView.swift`, ya no vive en `ScreenStubs.swift`) y perfil con portada
+  de azulejo, sellos de comunidad y «Sellos» redondos (racha, `semanaPregunta` de `gamificacion/mio` solo en tu
+  perfil, insignias). Capturas nuevas: `cartelera` y `perfil-yo`.
+- `c5c45cc` registro «Sube a tu campus» por escalones (`RegistroView.swift`): la prueba toca `registro.aColegio` y
+  `registro.aAvisos`.
+- `64bd85f` + `521ce28` el resto: `CabezaCholula`, `BotonCabeza`, `EtiquetaPrecio`; Mercado, Mensajes (burbujas
+  Talavera), Avisos agrupados en el cliente (`GrupoAvisos` en `ScreenStubs.swift`), Aventones como boletos, entrada
+  con la pirámide, Ajustes «Cantera / Obsidiana / Sistema» (`AgoraTema` reordenado), Campus, clip con sello
+  redondo y avance en escalones, vacíos punteados, sin conexión maíz, `AgoraPrimaryButton` en `boton`. Capturas
+  nuevas: `avisos` y `registro/entrada`.
+- Trampa de las capturas: buscar «Cerrar sesión» a media animación de Campus da «Activation point invalid» y tumba
+  en cadena registro e inicio vacío (corrida 40751767664); `cerrarSesion()` ya espera.
+- Desviaciones: las pantallas apiladas conservan la barra nativa con «volver» encima de la cabeza B; el sello del
+  clip va abajo (arriba tapaba volver); la cartelera conserva filtros por tipo; la carrera del registro se busca
+  por texto; Avisos sin el mini boleto de la pregunta; Ajustes sin «Color de tu perfil» (sin API); la tarjeta
+  «Tu día» de Campus sigue como estaba.
+- La 1.0.0 (10) salió de este código (ver la sección de Android arriba para su estado en ASC). Siguiente build: 11.
+
 ## Cuenta oficial @agora y bienvenida en producción (28-10)
 
 Adam eligió la opción b («b · Cuenta oficial»): la cuenta del equipo publica la bienvenida para que el inicio de
