@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -66,22 +67,35 @@ import mx.agora.mobile.nativeapp.ui.theme.AgoraSpacing
 fun EncabezadoPestana(
     titulo: String,
     modifier: Modifier = Modifier,
+    /** Línea chica bajo el título («El tianguis del campus»). */
+    subtitulo: String? = null,
     acciones: @Composable RowScope.() -> Unit = {},
 ) {
+    // B «Cholula»: las terrazas de la pirámide a la izquierda del título (docs/diseno-cholula.md §3).
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = AgoraSpacing.Pantalla, end = AgoraSpacing.Pantalla - 4.dp, top = 16.dp, bottom = 10.dp),
+            .padding(start = 14.dp, end = AgoraSpacing.Pantalla - 4.dp, top = 14.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(
-            titulo,
-            style = MaterialTheme.typography.headlineLarge,
-            color = AgoraColors.Texto,
+        Terrazas(
+            color = AgoraColors.Naranja,
             modifier = Modifier
-                .weight(1f)
-                .semantics { heading() },
+                .width(26.dp)
+                .height(17.dp),
         )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                titulo,
+                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 28.sp, lineHeight = 30.sp),
+                color = AgoraColors.Texto,
+                modifier = Modifier.semantics { heading() },
+            )
+            if (subtitulo != null) {
+                Text(subtitulo, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = AgoraColors.TextoMedio)
+            }
+        }
         acciones()
     }
 }

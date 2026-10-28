@@ -26,24 +26,24 @@ object AgoraColors {
     val NaranjaTinta get() = par(0xFF9A3503, 0xFFFFB385)
     val NaranjaOscuro get() = par(0xFFB84004, 0xFFFF8547)
 
-    // Superficies (fondo cálido, no gris frío)
-    val Fondo get() = par(0xFFF4F2EF, 0xFF0F0D0B)
-    val Superficie get() = par(0xFFFFFFFF, 0xFF1B1815)
+    // Superficies: cantera de día y obsidiana de noche (B «Cholula», docs/diseno-cholula.md, 28-10-2026).
+    val Fondo get() = par(0xFFF6F0E7, 0xFF14100D)
+    val Superficie get() = par(0xFFFFFFFF, 0xFF1E1814)
     /** Las tarjetas de la D van en `superficie`. */
-    val SurfaceElevated get() = par(0xFFFFFFFF, 0xFF1B1815)
-    /** `superficie-2`: segmentos y chips inactivos. */
-    val Superficie2 get() = par(0xFFE9E5DF, 0xFF24201C)
+    val SurfaceElevated get() = par(0xFFFFFFFF, 0xFF1E1814)
+    /** `superficie-2`: segmentos, chips inactivos y el cartel neutro. */
+    val Superficie2 get() = par(0xFFEDE4D6, 0xFF2A221C)
     /** `oscuro`: tarjeta de la pregunta, barra de navegación flotante, barra del evento. */
     val Oscuro get() = par(0xFF14110F, 0xFF24201C)
 
     // Texto (`tinta-media` >= 4.5:1 sobre fondo y superficie en ambos modos)
-    val Texto get() = par(0xFF14110F, 0xFFF4F2EF)
-    val TextoMedio get() = par(0xFF6B625B, 0xFFB3AAA1)
-    val TextMuted get() = par(0xFF6B625B, 0xFFB3AAA1)
+    val Texto get() = par(0xFF1B140F, 0xFFF6F0E7)
+    val TextoMedio get() = par(0xFF6B5D50, 0xFFC2B4A4)
+    val TextMuted get() = par(0xFF6B5D50, 0xFFC2B4A4)
 
     // Bordes
-    val Borde get() = par(0xFFE6E1DB, 0xFF2E2925)
-    val BordeSutil get() = par(0xFFEFEBE6, 0xFF24201C)
+    val Borde get() = par(0xFFE2D6C5, 0xFF3A2F27)
+    val BordeSutil get() = par(0xFFEDE4D6, 0xFF2A221C)
 
     // Semánticos
     // Claro 2A7449: 2E7D4F daba 4.49:1 sobre SuccessSuave.
@@ -64,15 +64,30 @@ object AgoraColors {
     val SkeletonBase get() = par(0xFFE9E5DF, 0xFF24201C)
     val SkeletonHighlight get() = par(0xFFF4F2EF, 0xFF2E2925)
 
-    // Inicio y barra con el Feed B que eligió Adam (docs/diseno-d.md §0, 26-10-2026); en
-    // oscuro, los tonos de la D. Mismos valores que `AgoraDesign.Colors.*Feed` de iOS.
-    val FondoFeed get() = par(0xFFFFFFFF, 0xFF0F0D0B)
-    val TintaFeed get() = par(0xFF0F1419, 0xFFF4F2EF)
-    val SecundarioFeed get() = par(0xFF536471, 0xFFB3AAA1)
-    val BordeFeed get() = par(0xFFEEF0F2, 0xFF2E2925)
+    // Inicio y barra (estructura de Feed B) con la paleta de B «Cholula»: el inicio ya es cantera, no
+    // blanco. Mismos valores que iOS (docs/diseno-cholula.md §1).
+    val FondoFeed get() = Fondo
+    val TintaFeed get() = Texto
+    val SecundarioFeed get() = TextoMedio
+    val BordeFeed get() = Borde
     /** Pregunta del día (artboard Main): fondo naranja muy suave y borde de sus opciones. */
-    val PreguntaFondo get() = par(0xFFFFF1E9, 0xFF2A1509)
-    val PreguntaBorde get() = par(0xFFF3C7AD, 0xFF542E18)
+    val PreguntaFondo get() = par(0xFFFBE6D9, 0xFF2E1A0F)
+    val PreguntaBorde get() = par(0xFFE2D6C5, 0xFF3A2F27)
     /** Anillo de una historia ya vista y borde punteado de «Tu historia». */
-    val AnilloVisto get() = par(0xFFCFD2D6, 0xFF4A433D)
+    val AnilloVisto get() = Borde
+
+    // B «Cholula»: Talavera poblana, adobe, jade y maíz. Llevan texto blanco salvo el maíz.
+    val Talavera get() = Color(0xFF1E3A8A)
+    /** Fondo del azulejo: blanco de día, azul noche en obsidiana (la franja no se vuelve un foco). */
+    val AzulejoFondo get() = par(0xFFFFFFFF, 0xFF16224A)
+    /** Azul Talavera como texto: en obsidiana se aclara para leerse. */
+    val TalaveraTexto get() = par(0xFF1E3A8A, 0xFFA9C0FF)
+    val Adobe get() = Color(0xFFB5400F)
+    val Jade get() = Color(0xFF0F766E)
+    val Maiz get() = Color(0xFFE0A82E)
+    /** Texto sobre maíz. */
+    val SobreMaiz get() = Color(0xFF1B140F)
+    /** Botón primario (Publicar, Vender…): el naranja de marca no llega a 4.5:1 con blanco. */
+    val Boton get() = par(0xFFB83C0B, 0xFFFF7A3D)
+    val SobreBoton get() = par(0xFFFFFFFF, 0xFF1A0E07)
 }

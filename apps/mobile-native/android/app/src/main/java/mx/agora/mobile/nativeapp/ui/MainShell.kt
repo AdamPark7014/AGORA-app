@@ -73,6 +73,7 @@ import mx.agora.mobile.nativeapp.data.api.YoResponse
 import mx.agora.mobile.nativeapp.ui.components.AgoraAvatar
 import mx.agora.mobile.nativeapp.ui.components.AvisoUdlap
 import mx.agora.mobile.nativeapp.ui.components.EncabezadoPestana
+import mx.agora.mobile.nativeapp.ui.components.Terrazas
 import mx.agora.mobile.nativeapp.ui.components.diasParaConfirmarUdlap
 import mx.agora.mobile.nativeapp.ui.navigation.PestanaBus
 import mx.agora.mobile.nativeapp.ui.screens.ClipsScreen
@@ -356,9 +357,9 @@ private fun BotonCrear(descripcion: String, onClick: () -> Unit) {
 }
 
 /**
- * Barra del Feed B: blanca con un filo arriba (no flotante), cinco destinos a lo ancho,
- * Publicar como rectángulo con borde y Tu perfil con tu foto. Solo íconos; el nombre lo
- * lee TalkBack. Paridad con `AgoraAnimatedTabBar` de iOS.
+ * Barra del Feed B con la capa B «Cholula» (docs/diseno-cholula.md §3): cantera con un filo
+ * arriba, cinco destinos, Publicar como rectángulo relleno y la pestaña activa marcada con las
+ * terrazas de la pirámide. Solo íconos; el nombre lo lee TalkBack. Paridad con iOS.
  */
 @Composable
 private fun BarraFeedB(
@@ -403,13 +404,13 @@ private fun BarraFeedB(
                     when (index) {
                         PestanaBus.PUBLICAR -> Box(
                             modifier = Modifier
-                                .width(46.dp)
-                                .height(34.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .border(2.dp, AgoraColors.TintaFeed, RoundedCornerShape(10.dp)),
+                                .width(52.dp)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(AgoraColors.Boton),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(destino.icono, contentDescription = null, tint = AgoraColors.TintaFeed, modifier = Modifier.size(22.dp))
+                            Icon(destino.icono, contentDescription = null, tint = AgoraColors.SobreBoton, modifier = Modifier.size(24.dp))
                         }
                         PestanaBus.PERFIL -> Box(
                             modifier = Modifier
@@ -428,6 +429,17 @@ private fun BarraFeedB(
                             contentDescription = null,
                             tint = AgoraColors.TintaFeed,
                             modifier = Modifier.size(26.dp),
+                        )
+                    }
+                    if (activo && index != PestanaBus.PUBLICAR) {
+                        Terrazas(
+                            color = AgoraColors.Naranja,
+                            niveles = 2,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 2.dp)
+                                .width(22.dp)
+                                .height(6.dp),
                         )
                     }
                 }
