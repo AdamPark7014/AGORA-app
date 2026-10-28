@@ -87,12 +87,14 @@ struct PerfilAjenoView: View {
         }
     }
 
-    /// Perfil del diseño D (docs/diseno-d.md §4): portada, avatar cuadrado que se monta sobre
-    /// ella, solo Seguir y Mensaje a la vista; Retar, Silenciar y Bloquear en «…».
+    /// Perfil B «Cholula» (docs/diseno-cholula.md §4, artboard WowB-Perfil): portada de Talavera en el
+    /// color de la carrera, avatar de 92 con terrazas debajo, nombre Bricolage 28, sellos de sus
+    /// comunidades y «Sellos» (racha, pregunta de la semana e insignias). Solo Seguir y Mensaje a la
+    /// vista; Retar, Silenciar y Bloquear en «…».
     @ViewBuilder
     private func tarjetaPerfil(_ p: PerfilAjenoDto) -> some View {
         let nombreCompleto = "\(p.nombre) \(p.apellidos)".trimmingCharacters(in: .whitespaces)
-        let linea = ["@\(p.handle)", p.carrera, p.generacion.map { "Gen \($0)" }, p.ciudadOrigen]
+        let linea = ["@\(p.handle)", p.ciudadOrigen]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: " · ")
@@ -100,24 +102,34 @@ struct PerfilAjenoView: View {
         VStack(alignment: .leading, spacing: 12) {
             ZStack(alignment: .bottomLeading) {
                 portada(p)
-                    .padding(.bottom, 42)
-                AvatarD(nombre: nombreCompleto, fotoUrl: p.fotoUrl, tamano: 88)
-                    .padding(4)
-                    .background(
-                        AgoraDesign.Colors.fondo,
-                        in: RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    )
-                    .padding(.leading, 10)
+                    .padding(.bottom, 52)
+                VStack(spacing: -6) {
+                    AvatarD(nombre: nombreCompleto, fotoUrl: p.fotoUrl, tamano: 88)
+                        .padding(4)
+                        .background(
+                            AgoraDesign.Colors.fondo,
+                            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
+                        )
+                    Terrazas(niveles: 3)
+                        .fill(AgoraDesign.Colors.naranja)
+                        .frame(width: 70, height: 14)
+                        .accessibilityHidden(true)
+                }
+                .padding(.leading, 16)
             }
             .overlay(alignment: .bottomTrailing) {
                 acciones(p)
-                    .padding(.bottom, 4)
+                    .padding(.bottom, 14)
+                    .padding(.trailing, 16)
             }
+            // La portada va de orilla a orilla, como el artboard.
+            .padding(.horizontal, -14)
+            .padding(.top, -AgoraDesign.Spacing.sm)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(nombreCompleto)
-                        .font(.bricolage(.title2))
+                        .font(.bricolage(28, relativeTo: .title))
                         .foregroundStyle(AgoraDesign.Colors.texto)
                     if p.verificado == true {
                         Image(systemName: "checkmark.seal.fill")
@@ -128,9 +140,11 @@ struct PerfilAjenoView: View {
                 }
                 .accessibilityAddTraits(.isHeader)
                 Text(linea)
-                    .font(.outfit(.subheadline))
+                    .font(.outfit(.footnote))
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
+
+            sellosComunidad(p)
 
             if let bio = p.bio, !bio.isEmpty {
                 Text(bio)
@@ -155,7 +169,7 @@ struct PerfilAjenoView: View {
                     .foregroundStyle(AgoraDesign.Colors.textoMedio)
             }
 
-            GamificacionPublicSection(gamificacion: gamificacion)
+            sellosLogros
 
             if let error {
                 Text(error)
@@ -166,11 +180,12 @@ struct PerfilAjenoView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Portada: la foto que haya subido o, si no, azulejo de Talavera en el color de su carrera.
     @ViewBuilder
     private func portada(_ p: PerfilAjenoDto) -> some View {
-        RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous)
-            .fill(AgoraDesign.Colors.superficie2)
+        Talavera(fondo: AgoraDesign.Colors.talavera, trazo: AgoraDesign.Colors.azulejoClaro)
             .frame(height: 150)
+            .frame(maxWidth: .infinity)
             .overlay {
                 if let url = ApiClient.shared.resolveUrl(p.portadaUrl) {
                     AsyncImage(url: url) { phase in
@@ -180,7 +195,7 @@ struct PerfilAjenoView: View {
                     }
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
+            .clipped()
             .accessibilityHidden(true)
     }
 
@@ -189,11 +204,15 @@ struct PerfilAjenoView: View {
         if esMio {
             Button(action: onAjustes) {
                 Text("Editar perfil")
-                    .font(.outfit(.subheadline, .bold))
-                    .foregroundStyle(AgoraDesign.Colors.fondo)
+                    .font(.outfit(.footnote, .semibold))
+                    .foregroundStyle(AgoraDesign.Colors.texto)
                     .padding(.horizontal, 16)
-                    .frame(minHeight: 44)
-                    .background(AgoraDesign.Colors.texto, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
+                    .frame(minHeight: 40)
+                    .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+                    }
             }
             .buttonStyle(.agoraPlain)
         } else if p.restringido != true {
@@ -326,22 +345,14 @@ struct PerfilAjenoView: View {
             }
             .buttonStyle(.agoraPlain)
             .disabled(p.restringido == true)
-            if let racha = gamificacion?.rachaActual, racha > 0 {
-                cifra(racha, racha == 1 ? "día de racha" : "días de racha")
-            }
         }
-        .padding(.vertical, 12)
-        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
-        }
+        .padding(.vertical, 6)
     }
 
     private func cifra(_ n: Int, _ etiqueta: String) -> some View {
         VStack(spacing: 0) {
             Text("\(n)")
-                .font(.bricolage(.title3))
+                .font(.bricolage(22, relativeTo: .title3))
                 .foregroundStyle(AgoraDesign.Colors.texto)
                 .monospacedDigit()
             Text(etiqueta)
@@ -352,6 +363,59 @@ struct PerfilAjenoView: View {
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
+    }
+
+    /// Sellos de sus comunidades (carrera y generación), en el color de cada una.
+    @ViewBuilder
+    private func sellosComunidad(_ p: PerfilAjenoDto) -> some View {
+        let carrera = p.carrera.flatMap { $0.isEmpty ? nil : $0 }
+        if carrera != nil || p.generacion != nil {
+            HStack(spacing: 6) {
+                if let carrera {
+                    Sello(texto: NombreSello.de(nombre: carrera, slug: "carrera:"),
+                          fondo: ColorComunidad.de(slug: "carrera:").fondo)
+                }
+                if let generacion = p.generacion {
+                    Sello(texto: "GEN \(generacion)", fondo: ColorComunidad.de(slug: "generacion:").fondo)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel([carrera, p.generacion.map { "Generación \($0)" }].compactMap { $0 }.joined(separator: ", "))
+        }
+    }
+
+    /// «Sellos»: racha (adobe), la pregunta de la semana si es tu perfil (talavera) y las insignias
+    /// que ya tenga (jade). Sin datos, no aparece.
+    @ViewBuilder
+    private var sellosLogros: some View {
+        let racha = gamificacion?.rachaActual ?? 0
+        let semana = esMio ? gamificacion?.semanaPregunta : nil
+        let insignias = gamificacion?.badges ?? []
+        if racha > 0 || (semana?.respondidas ?? 0) > 0 || !insignias.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Sellos")
+                    .font(.bricolage(17, relativeTo: .headline))
+                    .foregroundStyle(AgoraDesign.Colors.texto)
+                    .accessibilityAddTraits(.isHeader)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        if racha > 0 {
+                            SelloRedondo(cifra: "\(racha)", texto: racha == 1 ? "día de racha" : "días de racha",
+                                         color: AgoraDesign.Colors.adobe)
+                        }
+                        if let semana, semana.respondidas > 0 {
+                            SelloRedondo(cifra: "\(semana.respondidas)/\(semana.meta)", texto: "preguntas esta semana",
+                                         color: AgoraDesign.Colors.talavera)
+                        }
+                        ForEach(insignias) { insignia in
+                            SelloRedondo(cifra: insignia.emoji, texto: insignia.etiqueta, color: AgoraDesign.Colors.jade)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+            .padding(.top, 4)
+        }
     }
 
     /// «Lo siguen Renata e Isabella»: gente que sigues y que sigue a este perfil.
@@ -664,7 +728,12 @@ struct PerfilAjenoView: View {
                 publicaciones = []
                 cursor = nil
             }
-            gamificacion = try? await AgoraApi.gamificacionPorHandle(handle)
+            // La tuya trae además la pregunta de la semana (privada); la de otros, solo lo público.
+            if esMio {
+                gamificacion = try? await AgoraApi.gamificacionMio()
+            } else {
+                gamificacion = try? await AgoraApi.gamificacionPorHandle(handle)
+            }
             if !esMio, datos.restringido != true {
                 puedeRetar = (try? await AgoraApi.retosPuede(handle: handle).puedeRetar) ?? false
             } else {
@@ -769,6 +838,38 @@ struct PerfilAjenoView: View {
 /// Tarjeta de una publicación en el perfil: texto, fotos/videos y contadores.
 /// Todo abre el detalle; el carrusel va fuera del `Button` para que se pueda
 /// deslizar y reproducir video (como en `PostCardView`).
+/// Sello redondo de 92 (B «Cholula»): cifra en Bricolage y texto corto, con un aro claro adentro.
+private struct SelloRedondo: View {
+    let cifra: String
+    let texto: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(cifra)
+                .font(.bricolage(26, relativeTo: .title2))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(texto)
+                .font(.outfit(.caption2, .semibold))
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: 64)
+        }
+        .foregroundStyle(.white)
+        .frame(width: 92, height: 92)
+        .background(color, in: Circle())
+        .overlay {
+            Circle()
+                .stroke(Color.white.opacity(0.7), lineWidth: 1)
+                .padding(5)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(cifra) \(texto)")
+    }
+}
+
 private struct PublicacionPerfilCard: View {
     let pub: PerfilPublicacionDto
     let onTap: () -> Void

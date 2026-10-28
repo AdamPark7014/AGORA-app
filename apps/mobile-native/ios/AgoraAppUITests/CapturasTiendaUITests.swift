@@ -72,7 +72,11 @@ final class CapturasTiendaUITests: XCTestCase {
         historia.tap()
         capturar("clips", tema: tema, esperando: ["Recta", "cascarita", "brazo robótico"])
 
-        tocar(app.buttons["tab.1"])
+        // Cartelera (B «Cholula»): la pestaña dos veces para volver a su raíz en la segunda vuelta.
+        let eventos = app.buttons["tab.1"]
+        tocar(eventos)
+        eventos.tap()
+        capturar("cartelera", tema: tema, esperando: ["Cartelera"])
         tocarTexto("Fiesta de fin de parciales")
         capturar("evento", tema: tema, esperando: ["quedar a dormir", "bocinas y alberca"])
 
@@ -81,6 +85,12 @@ final class CapturasTiendaUITests: XCTestCase {
 
         tocar(app.buttons["tab.3"])
         capturar("mercado", tema: tema, esperando: ["Laptop", "Stewart", "Escritorio"])
+
+        // Tu perfil con sus sellos (B «Cholula»): la pestaña dos veces para volver a su raíz.
+        let perfilPropio = app.buttons["tab.4"]
+        tocar(perfilPropio)
+        perfilPropio.tap()
+        capturar("perfil-yo", tema: tema, esperando: ["Editar perfil"])
 
         // Campus: accesos, «Tu día» y tu cuenta (artboard por aprobar del 26-10).
         irAMas(nil)

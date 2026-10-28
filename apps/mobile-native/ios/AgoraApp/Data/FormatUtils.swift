@@ -1,7 +1,7 @@
 import Foundation
 
 enum FormatUtils {
-  private static let zona = TimeZone(identifier: "America/Mexico_City") ?? .current
+  static let zona = TimeZone(identifier: "America/Mexico_City") ?? .current
 
   private static let fechaCorta: DateFormatter = {
     let f = DateFormatter()

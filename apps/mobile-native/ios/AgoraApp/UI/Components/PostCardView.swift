@@ -364,7 +364,8 @@ struct PostCardView: View {
                     .foregroundStyle(color.tinta)
                     .multilineTextAlignment(.leading)
                     .lineLimit(8)
-                    .padding(.trailing, 44)
+                    // Que no se meta bajo la esquina de Talavera (86 de ancho).
+                    .padding(.trailing, 66)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Text(respuestas == 0 ? "Responder" : respuestas == 1 ? "Ver la respuesta" : "Ver las \(respuestas) respuestas")
                     .font(.outfit(.footnote, .semibold))

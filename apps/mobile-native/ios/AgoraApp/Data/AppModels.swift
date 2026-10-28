@@ -521,7 +521,7 @@ struct PreguntaOpcionDto: Decodable, Identifiable {
     let votos: Int?
 }
 
-struct SemanaPreguntaDto: Decodable {
+struct SemanaPreguntaDto: Codable {
     let respondidas: Int
     let meta: Int
 }
@@ -844,6 +844,8 @@ struct GamificacionDto: Codable {
     let comparacionCampus: ComparacionCampusDto?
     let retoSemanal: RetoSemanalDto?
     let duelosGanados: Int?
+    /// Días con la pregunta contestada esta semana (solo en `gamificacion/mio`).
+    var semanaPregunta: SemanaPreguntaDto? = nil
 }
 
 struct GamificacionPingDto: Codable {
