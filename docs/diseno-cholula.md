@@ -82,3 +82,11 @@ el nombre completo truncado).
 Presencia («214 en el campus»), «X de tu carrera ya contestaron / van / les late / vieron», notas sobre historias,
 «escribiendo…», lugar y vistas de clips, semana del semestre, tiempo de respuesta del vendedor. En la app se quita el
 elemento; no va un número de relleno.
+
+Salieron al construir (28-10), también fuera:
+- **«A tiempo» de la semana**: `gamificacion/mio` da `semanaPregunta.respondidas`, no cuántas fueron a tiempo; el
+  sello del perfil dice «n/7 preguntas esta semana».
+- **«3.º en tu carrera»** (Campus, «Tu día»): no hay ranking por carrera, solo el de racha general.
+- **Color de tu perfil** (Ajustes): no hay campo en el perfil; la portada sale en el color de la carrera.
+- **Comunidad de la otra persona** en Mensajes y del vendedor en Mercado (aro y cuadrito de color): `AutorDto` y
+  el participante no la traen; el aro es naranja si hay nuevos y el vendedor va sin cuadrito.
