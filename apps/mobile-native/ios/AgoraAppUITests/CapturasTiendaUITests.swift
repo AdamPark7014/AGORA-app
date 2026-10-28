@@ -100,6 +100,10 @@ final class CapturasTiendaUITests: XCTestCase {
         tocarTexto("Diego")
         capturar("mensajes", tema: tema, esperando: ["biblio", "Arquitecturas"])
 
+        // Avisos (B «Cholula»): sellos por tipo y agrupados; cuelgan de la campana del inicio.
+        irAInicioYTocar("inicio.avisos")
+        capturar("avisos", tema: tema, esperando: ["Avisos"])
+
         irAMas("directorio")
         escribir("Diego", en: app.textFields["Nombre o @handle"])
         bajarTeclado()
@@ -114,6 +118,18 @@ final class CapturasTiendaUITests: XCTestCase {
         let inicio = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
         let fin = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
         inicio.press(forDuration: 0.1, thenDragTo: fin, withVelocity: .default, thenHoldForDuration: 0.4)
+    }
+
+    /// Un botón del encabezado del inicio (la campana o el avión): Inicio, a su raíz, y el botón.
+    private func irAInicioYTocar(_ identificador: String) {
+        let inicio = app.buttons["tab.0"]
+        tocar(inicio)
+        inicio.tap()
+        inicio.tap()
+        let boton = app.buttons[identificador]
+        XCTAssertTrue(boton.waitForExistence(timeout: 10), "El inicio no subió al encabezado")
+        sleep(1)
+        boton.tap()
     }
 
     /// Mensajes cuelga del encabezado del inicio (diseño D): Inicio, de vuelta a su raíz, y el botón.
@@ -200,6 +216,9 @@ final class CapturasTiendaUITests: XCTestCase {
         let correo = entorno["AGORA_REGISTRO_CORREO"] ?? "prueba.registro@udlap.mx"
         let maestro = entorno["AGORA_DEMO_MAESTRO"] ?? "123456"
 
+        // La entrada (B «Cholula»): azulejo, pirámide y «Ágora».
+        XCTAssertTrue(app.buttons["login.crearCuenta"].waitForExistence(timeout: 20), "No está la entrada")
+        guardar(nombre: "entrada")
         tocar(app.buttons["login.crearCuenta"])
         escribir(correo, en: app.textFields["login.correo"])
         tocar(app.buttons["pedir.enviar"])

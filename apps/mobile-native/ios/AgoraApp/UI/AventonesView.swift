@@ -28,7 +28,8 @@ private struct NuevoAventonForm {
     var nota = ""
 }
 
-/// Aventones compartidos — paridad con `AventonesScreen.kt`.
+/// Aventones de B «Cholula» (artboard WowB-Aventones): «Boletos de ida y vuelta», cada viaje como un
+/// boleto con talón de color, precio y apartar — paridad con `AventonesScreen.kt`.
 struct AventonesView: View {
     var onPerfil: (String) -> Void = { _ in }
     /// Abre el chat con el conductor (id de conversación de `POST mensajes/abrir`).
@@ -45,21 +46,21 @@ struct AventonesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(filtrosSentido) { filtro in
-                            filtroChip(filtro.etiqueta, selected: sentido == filtro.valor) {
-                                sentido = filtro.valor
-                            }
+            CabezaCholula(titulo: "Aventones", subtitulo: "Boletos de ida y vuelta") {
+                BotonCabeza(titulo: "Ofrecer") { mostrarModal = true }
+                    .accessibilityLabel("Ofrecer un aventón")
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(filtrosSentido) { filtro in
+                        filtroChip(filtro.etiqueta, selected: sentido == filtro.valor) {
+                            sentido = filtro.valor
                         }
                     }
                 }
-                Button("+ Ofrecer") { mostrarModal = true }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AgoraDesign.Colors.naranja)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
-            .padding(AgoraDesign.Spacing.sm)
 
             Group {
                 if cargando && aventones.isEmpty {
@@ -72,7 +73,7 @@ struct AventonesView: View {
                         }
                     } else {
                         AgoraEmptyState(
-                            emoji: "🚗",
+                            emoji: "",
                             title: AgoraCopy.aventonesEmptyTitle,
                             subtitle: AgoraCopy.aventonesEmptySubtitle,
                             actionLabel: AgoraCopy.ctaPublicarAlgo,
@@ -89,12 +90,7 @@ struct AventonesView: View {
                             onContactar: { handle in Task { await contactar(handle: handle, aventonId: aventon.id) } },
                             contactando: contactando == aventon.id
                         )
-                        .listRowInsets(EdgeInsets(
-                            top: AgoraDesign.Spacing.xxs,
-                            leading: AgoraDesign.Spacing.sm,
-                            bottom: AgoraDesign.Spacing.xxs,
-                            trailing: AgoraDesign.Spacing.sm
-                        ))
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 12, trailing: 16))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                     }
@@ -104,7 +100,8 @@ struct AventonesView: View {
             }
         }
         .background(AgoraDesign.Colors.fondo)
-        .navigationTitle("Aventones")
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .refreshable { await cargar() }
         .onChange(of: sentido) { _ in Task { await cargar() } }
         .task { await cargar() }
@@ -200,20 +197,23 @@ struct AventonesView: View {
     }
 
     private func filtroChip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        // Píldora de B «Cholula»: radio 10, activa en `tinta`.
         Button(action: action) {
             Text(label)
-                .font(.outfit(.subheadline))
-                .padding(.horizontal, AgoraDesign.Spacing.sm)
-                .padding(.vertical, AgoraDesign.Spacing.xs)
-                .background(selected ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
-                .foregroundStyle(selected ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.texto)
-                .clipShape(Capsule())
+                .font(.outfit(.footnote, .semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 34)
+                .foregroundStyle(selected ? AgoraDesign.Colors.fondo : AgoraDesign.Colors.texto)
+                .background(selected ? AgoraDesign.Colors.texto : AgoraDesign.Colors.superficie,
+                            in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay {
-                    Capsule()
-                        .stroke(selected ? AgoraDesign.Colors.naranja.opacity(0.3) : AgoraDesign.Colors.borde, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(selected ? AgoraDesign.Colors.texto : AgoraDesign.Colors.borde, lineWidth: 1)
                 }
         }
         .buttonStyle(.agoraPlain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func cargar() async {
@@ -304,69 +304,182 @@ private struct AventonCardView: View {
     let onPerfil: (String) -> Void
     var onContactar: (String) -> Void = { _ in }
     var contactando = false
+    @Environment(\.colorScheme) private var esquema
+
+    private var libres: Int { max(0, aventon.lugares - aventon.ocupados) }
+
+    /// Talón por sentido: al campus Talavera, desde el campus adobe, otro maíz.
+    private var colorTalon: (fondo: Color, tinta: Color) {
+        switch aventon.sentido {
+        case "A_CAMPUS": return (AgoraDesign.Colors.talavera, .white)
+        case "DESDE_CAMPUS": return (AgoraDesign.Colors.adobe, .white)
+        default: return (AgoraDesign.Colors.maiz, AgoraDesign.Colors.sobreMaiz)
+        }
+    }
+
+    /// «MAR 27 OCT · 7:00» con la hora del campus.
+    private var salida: String {
+        guard let fecha = FormatUtils.parseISO(aventon.salidaAt) else { return FormatUtils.formatearFecha(aventon.salidaAt) }
+        let formato = DateFormatter()
+        formato.locale = Locale(identifier: "es_MX")
+        formato.timeZone = FormatUtils.zona
+        formato.dateFormat = "EEE d MMM"
+        let dia = formato.string(from: fecha).replacingOccurrences(of: ".", with: "").uppercased()
+        formato.dateFormat = "H:mm"
+        return "\(dia) · \(formato.string(from: fecha))"
+    }
+
+    private var precio: String { aventon.cuotaMxn > 0 ? "$\(aventon.cuotaMxn)" : "Gratis" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("\(aventon.origen) → \(aventon.destino)")
-                .font(.outfit(.headline))
-            Text("\(FormatUtils.formatearFecha(aventon.salidaAt)) · $\(aventon.cuotaMxn) · \(aventon.ocupados)/\(aventon.lugares) lugares")
-                .font(.outfit(.caption))
-                .foregroundStyle(AgoraDesign.Colors.textoMedio)
-            if let nota = aventon.nota, !nota.isEmpty {
-                Text(nota)
-                    .font(.outfit(.subheadline))
-            }
-            if let conductor = aventon.conductor {
-                Button(conductor.nombre ?? conductor.handle ?? "Conductor") {
-                    if let handle = conductor.handle { onPerfil(handle) }
-                }
-                .font(.outfit(.subheadline))
-                .foregroundStyle(AgoraDesign.Colors.naranja)
-            }
-            if aventon.esMio != true, let handle = aventon.conductor?.handle {
-                Button {
-                    onContactar(handle)
-                } label: {
-                    HStack {
-                        Spacer()
-                        if contactando {
-                            ProgressView()
-                        } else {
-                            Label("Contactar", systemImage: "bubble.left")
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(salida)
+                    .font(.outfit(.caption2, .bold))
+                    .tracking(1)
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                (Text(aventon.origen) + Text("\n→ ").foregroundColor(AgoraDesign.Colors.naranjaTinta) + Text(aventon.destino))
+                    .font(.bricolage(20, relativeTo: .title3))
+                    .foregroundStyle(AgoraDesign.Colors.texto)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("De \(aventon.origen) a \(aventon.destino)")
+                HStack(spacing: 8) {
+                    if let conductor = aventon.conductor {
+                        Button {
+                            if let handle = conductor.handle { onPerfil(handle) }
+                        } label: {
+                            HStack(spacing: 6) {
+                                AvatarD(nombre: conductor.nombre ?? conductor.handle ?? "?", fotoUrl: conductor.fotoUrl, tamano: 26)
+                                Text(conductor.handle ?? conductor.nombre ?? "Conductor")
+                                    .font(.outfit(.caption, .medium))
+                                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                                    .lineLimit(1)
+                            }
                         }
-                        Spacer()
+                        .buttonStyle(.agoraPlain)
                     }
+                    Spacer(minLength: 4)
+                    lugaresVista
                 }
-                .buttonStyle(.bordered)
-                .disabled(contactando)
-            }
-            if aventon.esMio == true {
-                Button("Cancelar aventón", role: .destructive, action: onCancelar)
-                    .frame(maxWidth: .infinity)
-                    .buttonStyle(.bordered)
-            } else if aventon.ocupados < aventon.lugares {
-                if aventon.voyYo == true {
-                    // Texto corto a la vista; VoiceOver sí dice que tocar suelta el lugar.
-                    Button("✓ Vas en este", action: onApartar)
-                        .frame(maxWidth: .infinity)
-                        .buttonStyle(.bordered)
-                        .accessibilityHint("Toca para soltar tu lugar")
-                } else {
-                    Button("Apartar lugar", action: onApartar)
-                        .frame(maxWidth: .infinity)
-                        .buttonStyle(.borderedProminent)
-                        .tint(AgoraDesign.Colors.naranja)
+                if let nota = aventon.nota, !nota.isEmpty {
+                    Text(nota)
+                        .font(.outfit(.footnote))
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if aventon.esMio == true {
+                    Button("Cancelar aventón", role: .destructive, action: onCancelar)
+                        .font(.outfit(.footnote, .semibold))
+                        .frame(minHeight: 32)
+                } else if let handle = aventon.conductor?.handle {
+                    Button {
+                        onContactar(handle)
+                    } label: {
+                        HStack(spacing: 6) {
+                            if contactando {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "bubble.left")
+                                Text("Contactar")
+                            }
+                        }
+                        .font(.outfit(.footnote, .semibold))
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 32)
+                        .background(AgoraDesign.Colors.superficie2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    .buttonStyle(.agoraPlain)
+                    .disabled(contactando)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+
+            talon
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
         .background(AgoraDesign.Colors.superficie)
-        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
-        .overlay {
-            RoundedRectangle(cornerRadius: AgoraDesign.Radii.card)
-                .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: .black.opacity(esquema == .dark ? 0.5 : 0.10), radius: 9, y: 6)
+    }
+
+    /// Barras de lugares, cada vez más altas; las libres en el color del talón.
+    private var lugaresVista: some View {
+        HStack(alignment: .bottom, spacing: 2) {
+            ForEach(0..<max(aventon.lugares, 1), id: \.self) { i in
+                UnevenEscalon()
+                    .fill(i >= aventon.ocupados ? colorTalon.fondo : AgoraDesign.Colors.borde)
+                    .frame(width: 14, height: CGFloat(6 + min(i, 5) * 3))
+            }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(libres == 1 ? "1 lugar libre" : "\(libres) lugares libres")
+    }
+
+    /// Talón de 84 con el precio y lo que toca: apartar, soltar tu lugar, lleno o tuyo.
+    @ViewBuilder
+    private var talon: some View {
+        let accion: String = {
+            if aventon.esMio == true { return "Tuyo" }
+            if aventon.voyYo == true { return "Vas ✓" }
+            return libres > 0 ? "Apartar" : "Lleno"
+        }()
+        let puedeTocar = aventon.esMio != true && (aventon.voyYo == true || libres > 0)
+        Button(action: onApartar) {
+            VStack(spacing: 4) {
+                Text(precio)
+                    .font(.bricolage(22, relativeTo: .title3))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Text(accion)
+                    .font(.outfit(.caption, .semibold))
+            }
+            .foregroundStyle(colorTalon.tinta)
+            .padding(.horizontal, 6)
+            .frame(width: 84)
+            .frame(maxHeight: .infinity)
+            .background(colorTalon.fondo)
+            .overlay(alignment: .leading) {
+                GeometryReader { geo in
+                    Path { p in
+                        p.move(to: CGPoint(x: 1, y: 0))
+                        p.addLine(to: CGPoint(x: 1, y: geo.size.height))
+                    }
+                    .stroke(Color.white.opacity(0.55), style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
+                }
+                .frame(width: 2)
+            }
+            .overlay(alignment: .topLeading) { muesca.offset(x: -8, y: -8) }
+            .overlay(alignment: .bottomLeading) { muesca.offset(x: -8, y: 8) }
+        }
+        .buttonStyle(.agoraPlain)
+        .disabled(!puedeTocar)
+        .accessibilityLabel("\(precio), \(accion)")
+        .accessibilityHint(aventon.voyYo == true ? "Toca para soltar tu lugar" : "")
+    }
+
+    private var muesca: some View {
+        Circle()
+            .fill(AgoraDesign.Colors.fondo)
+            .frame(width: 16, height: 16)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Barra de lugar con las esquinas de arriba redondas.
+private struct UnevenEscalon: Shape {
+    func path(in r: CGRect) -> Path {
+        let k = min(3, r.width / 2, r.height)
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.minY + k))
+        p.addQuadCurve(to: CGPoint(x: r.minX + k, y: r.minY), control: CGPoint(x: r.minX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX - k, y: r.minY))
+        p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.minY + k), control: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        p.closeSubpath()
+        return p
     }
 }
 

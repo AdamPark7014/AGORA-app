@@ -69,23 +69,35 @@ struct MensajeDetalleView: View {
             HStack(alignment: .bottom, spacing: AgoraDesign.Spacing.xs) {
                 TextField("Escribe a \(con?.nombre ?? "…")", text: $texto, axis: .vertical)
                     .lineLimit(1...5)
-                    .textFieldStyle(.roundedBorder)
+                    .font(.outfit(.body))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .background(AgoraDesign.Colors.superficie2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .onChange(of: texto) { nuevo in
                         if nuevo.count > 4000 { texto = String(nuevo.prefix(4000)) }
                     }
 
+                // B «Cholula»: enviar es un cuadro `boton` de 44 con el avión de papel.
                 Button {
                     Task { await enviar() }
                 } label: {
-                    Text(enviando ? "…" : "Enviar")
-                        .fontWeight(.semibold)
+                    Image(systemName: enviando ? "ellipsis" : "paperplane.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(AgoraDesign.Colors.sobreBoton)
+                        .frame(width: 44, height: 44)
+                        .background(AgoraDesign.Colors.boton, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .opacity(texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AgoraDesign.Colors.naranja)
+                .buttonStyle(.agoraPlain)
                 .disabled(texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || enviando)
+                .accessibilityLabel("Enviar")
             }
-            .padding(AgoraDesign.Spacing.sm)
-            .background(AgoraDesign.Colors.superficie)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(AgoraDesign.Colors.fondo)
+            .overlay(alignment: .top) {
+                AgoraDesign.Colors.borde.frame(height: 1)
+            }
         }
         .navigationTitle(con?.nombre ?? "Chat")
         .navigationBarTitleDisplayMode(.inline)
@@ -177,20 +189,43 @@ private struct BurbujaMensajeView: View {
     var body: some View {
         HStack {
             if mensaje.mio { Spacer(minLength: 48) }
+            // B «Cholula»: las mías en Talavera, las suyas en `superficie2`, con la esquina de quien habla.
             Text(mensaje.texto)
                 .font(.outfit(.body))
                 .foregroundStyle(mensaje.mio ? .white : AgoraDesign.Colors.texto)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(mensaje.mio ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.superficie)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay {
-                    if !mensaje.mio {
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(AgoraDesign.Colors.bordeSutil, lineWidth: 1)
-                    }
-                }
+                .background(mensaje.mio ? AgoraDesign.Colors.talavera : AgoraDesign.Colors.superficie2,
+                            in: BurbujaForma(mia: mensaje.mio))
             if !mensaje.mio { Spacer(minLength: 48) }
         }
+    }
+}
+
+/// Burbuja de radio 16 con la esquina de abajo (del lado de quien habla) en 4.
+private struct BurbujaForma: Shape {
+    let mia: Bool
+
+    func path(in r: CGRect) -> Path {
+        let grande = min(16, r.height / 2, r.width / 2)
+        let chica = min(4, grande)
+        let abajoIzq = mia ? grande : chica
+        let abajoDer = mia ? chica : grande
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX + grande, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX - grande, y: r.minY))
+        p.addArc(center: CGPoint(x: r.maxX - grande, y: r.minY + grande), radius: grande,
+                 startAngle: .degrees(-90), endAngle: .degrees(0), clockwise: false)
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY - abajoDer))
+        p.addArc(center: CGPoint(x: r.maxX - abajoDer, y: r.maxY - abajoDer), radius: abajoDer,
+                 startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
+        p.addLine(to: CGPoint(x: r.minX + abajoIzq, y: r.maxY))
+        p.addArc(center: CGPoint(x: r.minX + abajoIzq, y: r.maxY - abajoIzq), radius: abajoIzq,
+                 startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false)
+        p.addLine(to: CGPoint(x: r.minX, y: r.minY + grande))
+        p.addArc(center: CGPoint(x: r.minX + grande, y: r.minY + grande), radius: grande,
+                 startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
+        p.closeSubpath()
+        return p
     }
 }

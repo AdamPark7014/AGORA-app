@@ -6,17 +6,21 @@ private struct AccesoCampus: Identifiable {
     let icono: String
     let titulo: String
     let nota: String
+    /// Color del cuadro del ícono y de las terrazas (B «Cholula»).
+    let color: Color
+    var tinta: Color = .white
 }
 
 /// Cuadrícula de la pestaña Campus (docs/diseno-d.md §3). Los identificadores `mas.<ruta>` se
 /// quedan: las pruebas de UI los usan.
 private let accesosCampus: [AccesoCampus] = [
-    AccesoCampus(ruta: "marketplace", icono: "bag", titulo: "Mercado", nota: "Compra y vende"),
-    AccesoCampus(ruta: "aventones", icono: "car", titulo: "Aventones", nota: "Viajes a Cholula y Puebla"),
-    AccesoCampus(ruta: "directorio", icono: "person.2", titulo: "Directorio", nota: "Gente por carrera"),
-    AccesoCampus(ruta: "anonimo", icono: "eye.slash", titulo: "Sin nombre", nota: "Publica sin firmar"),
-    AccesoCampus(ruta: "buscar", icono: "magnifyingglass", titulo: "Buscar", nota: "Personas y publicaciones"),
-    AccesoCampus(ruta: "guardados", icono: "bookmark", titulo: "Guardados", nota: "Para ver después"),
+    AccesoCampus(ruta: "marketplace", icono: "bag", titulo: "Mercado", nota: "El tianguis del campus", color: AgoraDesign.Colors.adobe),
+    AccesoCampus(ruta: "aventones", icono: "car", titulo: "Aventones", nota: "Viajes a Cholula y Puebla", color: AgoraDesign.Colors.jade),
+    AccesoCampus(ruta: "directorio", icono: "person.2", titulo: "Directorio", nota: "Gente por carrera", color: AgoraDesign.Colors.talavera),
+    AccesoCampus(ruta: "anonimo", icono: "eye.slash", titulo: "Sin nombre", nota: "Publica sin firmar",
+                 color: AgoraDesign.Colors.maiz, tinta: AgoraDesign.Colors.sobreMaiz),
+    AccesoCampus(ruta: "buscar", icono: "magnifyingglass", titulo: "Buscar", nota: "Personas y publicaciones", color: AgoraDesign.Colors.talavera),
+    AccesoCampus(ruta: "guardados", icono: "bookmark", titulo: "Guardados", nota: "Para ver después", color: AgoraDesign.Colors.adobe),
 ]
 
 /// Campus (antes «Más»), artboard «Campus · accesos y "Tu día"»: los accesos del campus, la racha y
@@ -39,22 +43,9 @@ struct MasView: View {
 
     var body: some View {
         ScrollView {
+            CabezaCholula(titulo: "Campus", subtitulo: "Todo lo de la UDLAP, a un toque")
             VStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Campus")
-                        .font(.bricolage(30, relativeTo: .largeTitle))
-                        .tracking(-0.6)
-                        .foregroundStyle(AgoraDesign.Colors.texto)
-                        .accessibilityAddTraits(.isHeader)
-                    Text("Mercado, aventones, gente y tu día")
-                        .font(.outfit(.footnote))
-                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
-                }
-                .padding(.horizontal, 4)
-                .padding(.top, 8)
-                .padding(.bottom, 14)
-
-                LazyVGrid(columns: columnas, spacing: 8) {
+                LazyVGrid(columns: columnas, spacing: 10) {
                     ForEach(accesosCampus) { acceso in
                         tile(acceso)
                     }
@@ -124,6 +115,7 @@ struct MasView: View {
                 .padding(.top, 20)
             }
             .padding(.horizontal, 14)
+            .padding(.top, 12)
             .padding(.bottom, 16)
         }
         .background(AgoraDesign.Colors.fondo)
@@ -146,14 +138,17 @@ struct MasView: View {
         Button {
             onNavigate(acceso.ruta)
         } label: {
+            // B «Cholula»: cuadro de color con el ícono y terrazas del mismo color de fondo.
             VStack(alignment: .leading, spacing: 0) {
                 Image(systemName: acceso.icono)
-                    .font(.system(size: 22, weight: .regular))
-                    .foregroundStyle(AgoraDesign.Colors.naranjaOscuro)
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(acceso.tinta)
+                    .frame(width: 40, height: 40)
+                    .background(acceso.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .accessibilityHidden(true)
-                Spacer(minLength: 12)
+                Spacer(minLength: 10)
                 Text(acceso.titulo)
-                    .font(.outfit(.callout, .bold))
+                    .font(.bricolage(16, relativeTo: .callout))
                     .foregroundStyle(AgoraDesign.Colors.texto)
                 Text(acceso.nota)
                     .font(.outfit(.caption))
@@ -161,9 +156,20 @@ struct MasView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
-            .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 90, alignment: .leading)
             .padding(14)
-            .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
+            .background(alignment: .bottomTrailing) {
+                Terrazas(niveles: 3)
+                    .fill(acceso.color.opacity(0.18))
+                    .frame(width: 90, height: 48)
+                    .offset(x: 6, y: 4)
+            }
+            .background(AgoraDesign.Colors.superficie)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+            }
         }
         .buttonStyle(.agoraPlain)
         .accessibilityIdentifier("mas.\(acceso.ruta)")

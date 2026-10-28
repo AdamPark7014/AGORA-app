@@ -76,6 +76,7 @@ struct AjustesView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
+                    CabezaCholula(titulo: "Ajustes")
                     // Agrupado: en iOS 16 un ViewBuilder admite como máximo 10 hijos por bloque.
                     VStack(alignment: .leading, spacing: AgoraDesign.Spacing.sm) {
                         Group {
@@ -145,7 +146,8 @@ struct AjustesView: View {
                                 .padding(.vertical, 14)
                             }
                             .buttonStyle(.borderedProminent)
-                            .tint(AgoraDesign.Colors.naranja)
+                            .tint(AgoraDesign.Colors.boton)
+                            .foregroundStyle(AgoraDesign.Colors.sobreBoton)
                             .disabled(guardando)
 
                             seccionEliminarCuenta
@@ -156,7 +158,8 @@ struct AjustesView: View {
             }
         }
         .background(AgoraDesign.Colors.fondo)
-        .navigationTitle("Ajustes")
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .task { await cargar() }
         .onChange(of: selectedPhoto) { item in
             Task { await subirFoto(item) }
@@ -328,17 +331,39 @@ struct AjustesView: View {
         return diasPorMes[cumpleMes - 1]
     }
 
+    /// B «Cholula»: Cantera / Obsidiana / Sistema en una caja, el elegido en `tinta`.
     private var seccionApariencia: some View {
         VStack(alignment: .leading, spacing: AgoraDesign.Spacing.xs) {
-            Text("Apariencia")
-                .font(.outfit(.headline))
+            Text("APARIENCIA")
+                .font(.outfit(.caption, .bold))
+                .tracking(1.2)
+                .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 .padding(.top, AgoraDesign.Spacing.xs)
-            Picker("Apariencia", selection: $apariencia) {
+                .accessibilityAddTraits(.isHeader)
+            HStack(spacing: 4) {
                 ForEach(AgoraTema.allCases) { tema in
-                    Text(tema.etiqueta).tag(tema.rawValue)
+                    let elegido = apariencia == tema.rawValue
+                    Button {
+                        apariencia = tema.rawValue
+                    } label: {
+                        Text(tema.etiqueta)
+                            .font(.outfit(.subheadline, .semibold))
+                            .foregroundStyle(elegido ? AgoraDesign.Colors.fondo : AgoraDesign.Colors.texto)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(elegido ? AgoraDesign.Colors.texto : Color.clear,
+                                        in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .buttonStyle(.agoraPlain)
+                    .accessibilityAddTraits(elegido ? .isSelected : [])
+                    .accessibilityIdentifier("ajustes.apariencia.\(tema.rawValue)")
                 }
             }
-            .pickerStyle(.segmented)
+            .padding(8)
+            .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+            }
             Text("Se aplica al instante.")
                 .font(.outfit(.caption))
                 .foregroundStyle(AgoraDesign.Colors.textoMedio)

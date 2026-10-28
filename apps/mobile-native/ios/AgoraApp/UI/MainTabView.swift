@@ -397,9 +397,12 @@ struct MainTabView: View {
                 }
             )
         case .mensajes:
-            MensajesListView { conversacionId in
-                path.wrappedValue.append(AppRoute.mensajeDetalle(conversacionId))
-            }
+            MensajesListView(
+                onConversacionTap: { conversacionId in
+                    path.wrappedValue.append(AppRoute.mensajeDetalle(conversacionId))
+                },
+                onDirectorio: { path.wrappedValue.append(AppRoute.directorio) }
+            )
         case .mensajeDetalle(let id):
             MensajeDetalleView(conversacionId: id)
         case .buscar:
@@ -473,7 +476,8 @@ struct MainTabView: View {
         case .marketplace:
             MarketplaceListView(
                 onAnuncio: { id in path.wrappedValue.append(AppRoute.marketplaceDetalle(id)) },
-                onCrear: { path.wrappedValue.append(AppRoute.marketplaceCrear) }
+                onCrear: { path.wrappedValue.append(AppRoute.marketplaceCrear) },
+                esRaiz: false
             )
         case .marketplaceDetalle(let id):
             MarketplaceDetailView(

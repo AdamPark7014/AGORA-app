@@ -79,11 +79,9 @@ struct LoginView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
+                // B «Cholula» (artboard WowB-Entrada): azulejo de Talavera con la pirámide y «Ágora».
+                heroEntrada
                 VStack(alignment: .leading, spacing: 0) {
-                    header
-                        .padding(.top, AgoraDesign.Spacing.xl)
-                        .padding(.bottom, AgoraDesign.Spacing.lg)
-
                     Text(titulo)
                         .font(.bricolage(.title2, extra: false))
                         .foregroundStyle(AgoraDesign.Colors.texto)
@@ -125,9 +123,12 @@ struct LoginView: View {
                     AgoraCreditoLegal()
                         .padding(.top, AgoraDesign.Spacing.xl)
                 }
-                .padding(AgoraDesign.Spacing.lg)
+                .padding(.horizontal, 22)
+                .padding(.top, 18)
+                .padding(.bottom, AgoraDesign.Spacing.lg)
                 .animation(AgoraDesign.Animation.spring, value: paso)
             }
+            .ignoresSafeArea(edges: .top)
             // Arrastrar la pantalla baja el teclado: con él arriba, el botón y
             // los enlaces de abajo quedaban tapados en iPhone pequeños.
             .scrollDismissesKeyboard(.interactively)
@@ -149,8 +150,26 @@ struct LoginView: View {
         }
     }
 
-    private var header: some View {
-        AgoraMarca(tamano: 80, conNombre: true, conLema: paso == .entrar)
+    /// Talavera de orilla a orilla con la pirámide escalonada del color del fondo y «Ágora» en ella;
+    /// más baja después del primer paso para dejar sitio al formulario.
+    private var heroEntrada: some View {
+        let alto: CGFloat = paso == .entrar ? 300 : 190
+        return ZStack(alignment: .bottom) {
+            Talavera(fondo: AgoraDesign.Colors.talavera, trazo: AgoraDesign.Colors.azulejoClaro)
+            Terrazas(niveles: 5)
+                .fill(AgoraDesign.Colors.fondo)
+                .frame(width: 330, height: paso == .entrar ? 150 : 100)
+            Text(AgoraCopy.appName)
+                .font(.bricolage(paso == .entrar ? 52 : 40, relativeTo: .largeTitle))
+                .tracking(-1.4)
+                .foregroundStyle(AgoraDesign.Colors.texto)
+                .padding(.bottom, paso == .entrar ? 62 : 38)
+                .accessibilityAddTraits(.isHeader)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: alto)
+        .clipped()
+        .animation(AgoraDesign.Animation.spring, value: paso)
     }
 
     // MARK: Pasos

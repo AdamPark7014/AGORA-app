@@ -83,9 +83,10 @@ enum EnlacesWeb {
 // MARK: - Apariencia (Ajustes → Sistema / Claro / Oscuro)
 
 enum AgoraTema: String, CaseIterable, Identifiable {
-    case sistema
+    // En este orden en Ajustes (B «Cholula»): Cantera, Obsidiana, Sistema.
     case claro
     case oscuro
+    case sistema
 
     /// Clave de `@AppStorage` compartida entre la raíz y Ajustes.
     static let claveAlmacen = "agora.apariencia"
@@ -98,8 +99,8 @@ enum AgoraTema: String, CaseIterable, Identifiable {
     var etiqueta: String {
         switch self {
         case .sistema: return "Sistema"
-        case .claro: return "Claro"
-        case .oscuro: return "Oscuro"
+        case .claro: return "Cantera"
+        case .oscuro: return "Obsidiana"
         }
     }
 

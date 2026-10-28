@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Botón primario naranja — paridad con `AgoraPrimaryButton.kt`.
+/// Botón primario relleno `boton` de B «Cholula» (radio 12, 52 de alto) — paridad con `AgoraPrimaryButton.kt`.
 struct AgoraPrimaryButton: View {
     let title: String
     let action: () -> Void
@@ -13,22 +13,22 @@ struct AgoraPrimaryButton: View {
                 Spacer()
                 if loading {
                     ProgressView()
-                        .tint(.white)
+                        .tint(AgoraDesign.Colors.sobreBoton)
                 } else {
                     Text(title)
-                        .fontWeight(.semibold)
+                        .font(.outfit(.body, .bold))
                 }
                 Spacer()
             }
             .padding(.vertical, AgoraDesign.Spacing.sm + 2)
-            .frame(minHeight: 48)
+            .frame(minHeight: 52)
         }
         .buttonStyle(AgoraScaleButtonStyle())
         .background(
-            (enabled && !loading ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.naranja.opacity(0.4))
-                .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.button))
+            (enabled && !loading ? AgoraDesign.Colors.boton : AgoraDesign.Colors.boton.opacity(0.4))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         )
-        .foregroundStyle(.white)
+        .foregroundStyle(AgoraDesign.Colors.sobreBoton)
         .disabled(!enabled || loading)
     }
 }
@@ -47,10 +47,11 @@ struct AgoraOutlinedButton: View {
                 .frame(minHeight: 48)
         }
         .buttonStyle(AgoraScaleButtonStyle())
-        .foregroundStyle(enabled ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.textoMuted)
+        .foregroundStyle(enabled ? AgoraDesign.Colors.texto : AgoraDesign.Colors.textoMuted)
+        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: AgoraDesign.Radii.button)
-                .stroke(enabled ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.borde, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
         }
         .disabled(!enabled)
     }

@@ -196,7 +196,7 @@ jobs:
           cd "$GITHUB_WORKSPACE/capturas-ios" || { echo "::error::No hay capturas"; exit 1; }
           fallo=0
           for tema in claro oscuro; do
-            for nombre in inicio feed clips cartelera evento aventones mercado perfil-yo campus mensajes perfil inicio-vacio inicio-bienvenida inicio-bienvenida-2; do
+            for nombre in inicio feed clips cartelera evento aventones mercado perfil-yo campus mensajes avisos perfil inicio-vacio inicio-bienvenida inicio-bienvenida-2; do
               f="$tema/$nombre.png"
               if [ ! -f "$f" ]; then echo "::error::Falta $f"; fallo=1; continue; fi
               w=$(sips -g pixelWidth "$f" | awk '/pixelWidth/{print $2}')

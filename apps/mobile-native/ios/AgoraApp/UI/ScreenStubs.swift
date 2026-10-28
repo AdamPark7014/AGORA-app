@@ -8,45 +8,48 @@ import UIKit
 
 // MARK: - Notificaciones
 
+/// Avisos de B «Cholula» (artboard WowB-Avisos): sello por tipo a la izquierda y los avisos del mismo
+/// tipo sobre lo mismo agrupados aquí en el cliente («A Diego, Isa y 3 más les gustó tu publicación»).
 struct NotificacionesView: View {
     @State private var notificaciones: [NotificacionDto] = []
     @State private var cargando = true
     @State private var error: String?
 
+    private var grupos: [GrupoAvisos] { GrupoAvisos.agrupar(notificaciones) }
+
     var body: some View {
-        Group {
-            if cargando && notificaciones.isEmpty {
-                AgoraFeedSkeleton(itemCount: 2)
-            } else if let error, notificaciones.isEmpty {
-                AgoraErrorState(message: error) {
-                    Task { await cargar() }
+        VStack(spacing: 0) {
+            CabezaCholula(titulo: "Avisos")
+            Group {
+                if cargando && notificaciones.isEmpty {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let error, notificaciones.isEmpty {
+                    AgoraErrorState(message: error) {
+                        Task { await cargar() }
+                    }
+                } else if notificaciones.isEmpty {
+                    AgoraEmptyState(
+                        emoji: "",
+                        title: AgoraCopy.avisosEmptyTitle,
+                        subtitle: AgoraCopy.avisosEmptySubtitle
+                    )
+                } else {
+                    List(grupos) { grupo in
+                        FilaAviso(grupo: grupo)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .animation(AgoraDesign.Animation.spring, value: grupos.map(\.id))
                 }
-            } else if notificaciones.isEmpty {
-                AgoraEmptyState(
-                    emoji: "🔔",
-                    title: AgoraCopy.avisosEmptyTitle,
-                    subtitle: AgoraCopy.avisosEmptySubtitle
-                )
-            } else {
-                List(notificaciones) { n in
-                    NotificacionCardView(notificacion: n)
-                        .listRowInsets(EdgeInsets(
-                            top: AgoraDesign.Spacing.xxs,
-                            leading: AgoraDesign.Spacing.sm,
-                            bottom: AgoraDesign.Spacing.xxs,
-                            trailing: AgoraDesign.Spacing.sm
-                        ))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .background(AgoraDesign.Colors.fondo)
-                .animation(AgoraDesign.Animation.spring, value: notificaciones.map(\.id))
             }
         }
-        .navigationTitle("Avisos")
+        .background(AgoraDesign.Colors.fondo)
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .refreshable { await cargar() }
         .task { await cargar() }
     }
@@ -65,22 +68,118 @@ struct NotificacionesView: View {
     }
 }
 
-private struct NotificacionCardView: View {
-    let notificacion: NotificacionDto
+/// Avisos del mismo tipo sobre la misma cosa (misma publicación, conversación o, para seguidores, el
+/// mismo día), con quiénes fueron. Uno solo se queda con su texto original.
+private struct GrupoAvisos: Identifiable {
+    let id: String
+    let tipo: String
+    let avisos: [NotificacionDto]
+
+    private var principal: NotificacionDto { avisos[0] }
+    var createdAt: String { principal.createdAt }
+    var leida: Bool { avisos.allSatisfy(\.leida) }
+
+    /// Nombres de pila distintos, del más reciente al más viejo.
+    private var nombres: [String] {
+        var vistos = Set<String>()
+        return avisos.compactMap { aviso -> String? in
+            guard let nombre = aviso.actor?.nombre?.split(separator: " ").first.map(String.init),
+                  vistos.insert(nombre).inserted else { return nil }
+            return nombre
+        }
+    }
+
+    /// «Diego», «Diego e Isa», «Diego, Isa y 3 más».
+    private var quienes: String? {
+        let lista = nombres
+        guard let primero = lista.first else { return nil }
+        if lista.count == 1 { return primero }
+        let segundo = lista[1]
+        if lista.count == 2 {
+            let y = segundo.lowercased().hasPrefix("i") || segundo.lowercased().hasPrefix("hi") ? "e" : "y"
+            return "\(primero) \(y) \(segundo)"
+        }
+        return "\(primero), \(segundo) y \(lista.count - 2) más"
+    }
+
+    /// Texto del grupo; si no hay varias personas, el del aviso tal cual llegó.
+    var texto: String {
+        guard nombres.count > 1, let quienes else { return principal.texto }
+        switch tipo {
+        case "REACCION": return "A \(quienes) les gustó tu publicación"
+        case "COMENTARIO": return "\(quienes) comentaron tu publicación"
+        case "MENCION": return "\(quienes) te mencionaron"
+        case "SEGUIDOR": return "\(quienes) empezaron a seguirte"
+        case "MENSAJE": return "\(quienes) te escribieron"
+        default: return principal.texto
+        }
+    }
+
+    /// Sello por tipo: texto corto en mayúsculas y su color.
+    var sello: (texto: String, fondo: Color, tinta: Color) {
+        switch tipo {
+        case "REACCION": return ("LATE", AgoraDesign.Colors.adobe, .white)
+        case "COMENTARIO": return ("COMENTA", AgoraDesign.Colors.talavera, .white)
+        case "MENCION": return ("TE NOMBRA", AgoraDesign.Colors.talavera, .white)
+        case "MENSAJE": return ("MENSAJE", AgoraDesign.Colors.jade, .white)
+        case "EVENTO_NUEVO", "EVENTO_RECORDATORIO": return ("EVENTO", AgoraDesign.Colors.jade, .white)
+        case "AVENTON_APARTADO", "AVENTON_CANCELADO", "AVENTON_RECORDATORIO":
+            return ("AVENTÓN", AgoraDesign.Colors.maiz, AgoraDesign.Colors.sobreMaiz)
+        case "SEGUIDOR": return ("TE SIGUE", AgoraDesign.Colors.adobe, .white)
+        case "INSIGNIA": return ("SELLO", AgoraDesign.Colors.maiz, AgoraDesign.Colors.sobreMaiz)
+        case "RETO": return ("RETO", AgoraDesign.Colors.adobe, .white)
+        default: return ("AVISO", AgoraDesign.Colors.texto, AgoraDesign.Colors.fondo)
+        }
+    }
+
+    private static let agrupables: Set<String> = ["REACCION", "COMENTARIO", "MENCION", "SEGUIDOR", "MENSAJE"]
+
+    /// Conserva el orden de llegada (el grupo va donde está su aviso más reciente).
+    static func agrupar(_ avisos: [NotificacionDto]) -> [GrupoAvisos] {
+        var orden: [String] = []
+        var porLlave: [String: [NotificacionDto]] = [:]
+        for aviso in avisos {
+            let llave: String
+            if agrupables.contains(aviso.tipo) {
+                let sobre = aviso.tipo == "SEGUIDOR" ? String(aviso.createdAt.prefix(10)) : (aviso.url ?? aviso.id)
+                llave = "\(aviso.tipo)|\(sobre)"
+            } else {
+                llave = aviso.id
+            }
+            if porLlave[llave] == nil { orden.append(llave) }
+            porLlave[llave, default: []].append(aviso)
+        }
+        return orden.compactMap { llave in
+            guard let lista = porLlave[llave], let primero = lista.first else { return nil }
+            return GrupoAvisos(id: primero.id, tipo: primero.tipo, avisos: lista)
+        }
+    }
+}
+
+private struct FilaAviso: View {
+    let grupo: GrupoAvisos
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(notificacion.texto)
-                .font(.outfit(.body))
-                .fontWeight(notificacion.leida ? .regular : .semibold)
-            Text(FormatUtils.formatearFecha(notificacion.createdAt))
-                .font(.outfit(.caption))
-                .foregroundStyle(.secondary)
+        let sello = grupo.sello
+        HStack(alignment: .center, spacing: 12) {
+            Sello(texto: sello.texto, fondo: sello.fondo, tinta: sello.tinta, alto: 22)
+                .frame(width: 84, alignment: .leading)
+            (Text(grupo.texto)
+                .fontWeight(grupo.leida ? .regular : .semibold)
+                .foregroundColor(AgoraDesign.Colors.texto)
+                + Text(" · \(FormatUtils.haceCuanto(grupo.createdAt))")
+                .foregroundColor(AgoraDesign.Colors.textoMedio))
+                .font(.outfit(.subheadline))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(notificacion.leida ? AgoraDesign.Colors.superficie : AgoraDesign.Colors.naranjaSuave)
-        .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.card))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(grupo.leida ? Color.clear : AgoraDesign.Colors.naranjaSuave.opacity(0.45))
+        .overlay(alignment: .bottom) {
+            AgoraDesign.Colors.borde.frame(height: 1)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

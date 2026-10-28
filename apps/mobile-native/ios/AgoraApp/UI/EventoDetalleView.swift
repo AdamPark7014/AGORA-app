@@ -288,7 +288,8 @@ struct EventoDetalleView: View {
         }
     }
 
-    /// Barra oscura fija: Calendario, Me interesa y Voy (docs/diseno-d.md §4).
+    /// Barra fija de B «Cholula»: `superficie` con borde y sombra; Calendario, Me interesa y Voy en `boton`
+    /// (ya vas: Talavera con la palomita).
     private func barraAcciones(_ evento: EventoDetalleDto) -> some View {
         let voy = evento.miRespuesta == "VOY"
         let meInteresa = evento.miRespuesta == "ME_INTERESA"
@@ -298,16 +299,16 @@ struct EventoDetalleView: View {
             } label: {
                 Image(systemName: "calendar.badge.plus")
                     .font(.system(size: 20, weight: .regular))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AgoraDesign.Colors.texto)
                     .frame(width: 50, height: 50)
-                    .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
+                    .background(AgoraDesign.Colors.superficie2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.agoraPlain)
             .accessibilityLabel("Agregar a mi calendario")
             if evento.esMio == true {
                 Text("Tú organizas este evento")
                     .font(.outfit(.subheadline))
-                    .foregroundStyle(Color.white.opacity(0.75))
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
                     .frame(maxWidth: .infinity, minHeight: 50)
             } else {
                 Button {
@@ -315,10 +316,11 @@ struct EventoDetalleView: View {
                 } label: {
                     Label("Me interesa", systemImage: meInteresa ? "checkmark" : "star")
                         .font(.outfit(.subheadline, .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(meInteresa ? AgoraDesign.Colors.naranjaTinta : AgoraDesign.Colors.texto)
                         .padding(.horizontal, 16)
                         .frame(minHeight: 50)
-                        .background(Color.white.opacity(meInteresa ? 0.2 : 0.12), in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
+                        .background(meInteresa ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie2,
+                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.agoraPlain)
                 .accessibilityAddTraits(meInteresa ? .isSelected : [])
@@ -331,9 +333,10 @@ struct EventoDetalleView: View {
                         Text(voy ? "Vas" : "Voy")
                     }
                     .font(.outfit(.body, .bold))
-                    .foregroundStyle(voy ? AgoraDesign.Colors.oscuro : .white)
+                    .foregroundStyle(voy ? Color.white : AgoraDesign.Colors.sobreBoton)
                     .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(voy ? Color.white : AgoraDesign.Colors.naranja, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.foto, style: .continuous))
+                    .background(voy ? AgoraDesign.Colors.talavera : AgoraDesign.Colors.boton,
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.agoraPlain)
                 .accessibilityLabel(voy ? "Vas a este evento. Toca para quitarlo" : "Voy")
@@ -341,7 +344,12 @@ struct EventoDetalleView: View {
         }
         .disabled(respondiendo)
         .padding(8)
-        .background(AgoraDesign.Colors.oscuro, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous))
+        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.12), radius: 9, y: 6)
         .padding(.horizontal, 14)
         .padding(.bottom, 8)
     }

@@ -1,7 +1,10 @@
 import SwiftUI
 
-/// Empty state con emoji y personalidad — paridad con `AgoraEmptyState.kt`.
+/// Vacío de B «Cholula» (docs/diseno-cholula.md §4, artboard WowB-Ajustes): escalones punteados, el de
+/// arriba en naranja, título Bricolage, una línea de qué hacer y, si la pantalla la da, la acción.
+/// Paridad con `AgoraEmptyState.kt`.
 struct AgoraEmptyState: View {
+    /// Ya no se pinta (sin emojis como íconos); se conserva para no tocar a quien lo llama.
     let emoji: String
     let title: String
     let subtitle: String
@@ -9,27 +12,41 @@ struct AgoraEmptyState: View {
     var onAction: (() -> Void)?
 
     var body: some View {
-        VStack(spacing: AgoraDesign.Spacing.md) {
-            // Diseño D: sin emojis como íconos; las pantallas nuevas pasan "".
-            if !emoji.isEmpty {
-                Text(emoji)
-                    .font(.system(size: 48))
+        VStack(spacing: 16) {
+            VStack(spacing: 6) {
+                ForEach(Array([60, 110, 160, 210].enumerated()), id: \.offset) { indice, ancho in
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(indice == 0 ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.borde,
+                                      style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
+                        .frame(width: CGFloat(ancho), height: 26)
+                }
             }
+            .accessibilityHidden(true)
+
             Text(title)
-                .font(.outfit(.title3, .bold))
+                .font(.bricolage(24, relativeTo: .title2))
                 .foregroundStyle(AgoraDesign.Colors.texto)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
             Text(subtitle)
-                .font(.outfit(.subheadline))
-                .foregroundStyle(AgoraDesign.Colors.textoMuted)
+                .font(.outfit(.body))
+                .foregroundStyle(AgoraDesign.Colors.textoMedio)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
             if let actionLabel, let onAction {
-                AgoraPrimaryButton(title: actionLabel, action: onAction)
-                    .frame(maxWidth: 260)
-                    .padding(.top, AgoraDesign.Spacing.xs)
+                Button(action: onAction) {
+                    Text(actionLabel)
+                        .font(.outfit(.body, .bold))
+                        .foregroundStyle(AgoraDesign.Colors.sobreBoton)
+                        .padding(.horizontal, 22)
+                        .frame(minHeight: 52)
+                        .background(AgoraDesign.Colors.boton, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.agoraPlain)
             }
         }
-        .padding(.horizontal, AgoraDesign.Spacing.lg)
+        .padding(.horizontal, 30)
         .padding(.vertical, AgoraDesign.Spacing.xxl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

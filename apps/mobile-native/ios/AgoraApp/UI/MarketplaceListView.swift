@@ -6,24 +6,30 @@ private struct CategoriaAnuncio: Identifiable {
     let etiqueta: String
     /// Sin foto, el ícono de la categoría y no un gris vacío (docs/diseno-d.md §4).
     let icono: String
+    /// Color del sello de la categoría (B «Cholula»).
+    var color: Color = AgoraDesign.Colors.superficie2
+    var tinta: Color = .white
 }
 
 private let categoriasAnuncio: [CategoriaAnuncio] = [
-    CategoriaAnuncio(valor: "", etiqueta: "Todo", icono: "shippingbox"),
-    CategoriaAnuncio(valor: "LIBROS", etiqueta: "Libros", icono: "book"),
-    CategoriaAnuncio(valor: "ELECTRONICA", etiqueta: "Electrónica", icono: "laptopcomputer"),
-    CategoriaAnuncio(valor: "MUEBLES", etiqueta: "Muebles", icono: "sofa"),
-    CategoriaAnuncio(valor: "ROPA", etiqueta: "Ropa", icono: "tshirt"),
-    CategoriaAnuncio(valor: "CUARTO", etiqueta: "Cuarto", icono: "bed.double"),
-    CategoriaAnuncio(valor: "SERVICIOS", etiqueta: "Servicios", icono: "wrench.and.screwdriver"),
-    CategoriaAnuncio(valor: "OTRO", etiqueta: "Otro", icono: "shippingbox"),
+    CategoriaAnuncio(valor: "", etiqueta: "Todo", icono: "shippingbox", color: AgoraDesign.Colors.texto, tinta: AgoraDesign.Colors.fondo),
+    CategoriaAnuncio(valor: "LIBROS", etiqueta: "Libros", icono: "book", color: AgoraDesign.Colors.talavera),
+    CategoriaAnuncio(valor: "ELECTRONICA", etiqueta: "Electrónica", icono: "laptopcomputer", color: AgoraDesign.Colors.jade),
+    CategoriaAnuncio(valor: "MUEBLES", etiqueta: "Muebles", icono: "sofa", color: AgoraDesign.Colors.maiz, tinta: AgoraDesign.Colors.sobreMaiz),
+    CategoriaAnuncio(valor: "ROPA", etiqueta: "Ropa", icono: "tshirt", color: AgoraDesign.Colors.adobe),
+    CategoriaAnuncio(valor: "CUARTO", etiqueta: "Cuarto", icono: "bed.double", color: AgoraDesign.Colors.talavera),
+    CategoriaAnuncio(valor: "SERVICIOS", etiqueta: "Servicios", icono: "wrench.and.screwdriver", color: AgoraDesign.Colors.jade),
+    CategoriaAnuncio(valor: "OTRO", etiqueta: "Otro", icono: "shippingbox", color: AgoraDesign.Colors.adobe),
 ]
 
-/// Mercado del diseño D: buscador, chips de categoría y cuadrícula de 2 columnas con foto,
-/// precio sobre la foto y «Apartado» como etiqueta — paridad con `MarketplaceListScreen.kt`.
+/// Mercado de B «Cholula» (artboard WowB-Mercado): «El tianguis del campus» con la franja de Talavera,
+/// sellos de categoría y la etiqueta de precio adobe girada sobre cada foto — paridad con
+/// `MarketplaceListScreen.kt`.
 struct MarketplaceListView: View {
     var onAnuncio: (String) -> Void = { _ in }
     var onCrear: () -> Void = {}
+    /// En la pestaña Mercado no hay barra; desde Campus se conserva para poder volver.
+    var esRaiz = true
 
     @State private var anuncios: [AnuncioDto] = []
     @State private var cursor: String?
@@ -40,6 +46,11 @@ struct MarketplaceListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            CabezaCholula(titulo: "Mercado", subtitulo: "El tianguis del campus") {
+                BotonCabeza(titulo: "Vender", accion: onCrear)
+                    .accessibilityLabel("Vender algo")
+            }
+
             HStack(spacing: AgoraDesign.Spacing.xs) {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
@@ -55,30 +66,20 @@ struct MarketplaceListView: View {
                     RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous)
                         .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
                 }
-
-                Button(action: onCrear) {
-                    Label("Vender", systemImage: "plus")
-                        .font(.outfit(.subheadline, .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .frame(minHeight: 44)
-                        .background(AgoraDesign.Colors.naranja, in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.button, style: .continuous))
-                }
-                .buttonStyle(.agoraPlain)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, AgoraDesign.Spacing.xs)
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(categoriasAnuncio) { cat in
-                        filtroChip(cat.etiqueta, selected: categoria == cat.valor) {
+                        selloCategoria(cat, elegido: categoria == cat.valor) {
                             categoria = cat.valor
                         }
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.bottom, AgoraDesign.Spacing.xs)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
 
             Group {
@@ -106,8 +107,8 @@ struct MarketplaceListView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.top, 4)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 2)
 
                         if cursor != nil {
                             Button("Cargar más") {
@@ -123,29 +124,42 @@ struct MarketplaceListView: View {
             }
         }
         .background(AgoraDesign.Colors.fondo)
-        .navigationTitle("Mercado")
+        .barraDeEstadoOpaca(AgoraDesign.Colors.fondo)
+        .toolbar(esRaiz ? .hidden : .visible, for: .navigationBar)
+        .navigationBarTitleDisplayMode(.inline)
         .refreshable { await cargar(desde: nil) }
         .onChange(of: categoria) { _ in programarBusqueda() }
         .onChange(of: busqueda) { _ in programarBusqueda() }
         .task { await cargar(desde: nil) }
     }
 
-    private func filtroChip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+    /// Sello de categoría: relleno de su color si está elegida; si no, en `superficie` con el cuadrito.
+    private func selloCategoria(_ cat: CategoriaAnuncio, elegido: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(label)
-                .font(.outfit(.subheadline))
-                .padding(.horizontal, 14)
-                .frame(minHeight: 36)
-                .background(selected ? AgoraDesign.Colors.naranjaSuave : AgoraDesign.Colors.superficie)
-                .foregroundStyle(selected ? AgoraDesign.Colors.naranjaTinta : AgoraDesign.Colors.texto)
-                .clipShape(RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: AgoraDesign.Radii.small, style: .continuous)
-                        .stroke(selected ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.borde, lineWidth: 1)
+            HStack(spacing: 6) {
+                if !elegido {
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(cat.color)
+                        .frame(width: 8, height: 8)
+                        .accessibilityHidden(true)
                 }
+                Text(cat.etiqueta.uppercased())
+                    .font(.outfit(.caption, .bold))
+                    .tracking(0.5)
+            }
+            .foregroundStyle(elegido ? cat.tinta : AgoraDesign.Colors.texto)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 32)
+            .background(elegido ? cat.color : AgoraDesign.Colors.superficie,
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(elegido ? Color.clear : AgoraDesign.Colors.borde, lineWidth: 1)
+            }
         }
         .buttonStyle(.agoraPlain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityLabel(cat.etiqueta)
+        .accessibilityAddTraits(elegido ? .isSelected : [])
     }
 
     private func programarBusqueda() {
@@ -198,24 +212,19 @@ private struct AnuncioCardView: View {
                     foto
                         .frame(maxWidth: .infinity)
                         .aspectRatio(1, contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-                    Text(precio)
-                        .font(.bricolage(.subheadline))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Color.black.opacity(0.78), in: Capsule())
-                        .padding(8)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    EtiquetaPrecio(texto: precio)
+                        .padding(.trailing, 8)
+                        .padding(.bottom, 10)
                 }
                 .overlay(alignment: .topLeading) {
                     if let etiqueta = etiquetaEstado {
-                        Text(etiqueta.uppercased())
-                            .font(.outfit(.caption2, .bold))
-                            .foregroundStyle(Color.black)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.white, in: Capsule())
+                        Sello(texto: etiqueta.uppercased(),
+                              fondo: anuncio.estadoVenta == "VENDIDO" ? AgoraDesign.Colors.texto : AgoraDesign.Colors.maiz,
+                              tinta: anuncio.estadoVenta == "VENDIDO" ? AgoraDesign.Colors.fondo : AgoraDesign.Colors.sobreMaiz,
+                              alto: 24)
                             .padding(8)
                     }
                 }

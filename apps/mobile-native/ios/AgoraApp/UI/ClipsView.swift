@@ -241,19 +241,28 @@ private struct ClipPagina: View {
                     Spacer(minLength: 0)
                     acciones
                 }
-                // Avance del clip (docs/diseno-d.md §4).
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.white.opacity(0.25))
-                        Capsule().fill(.white).frame(width: geo.size.width * progreso)
+                // Avance del clip en escalones (B «Cholula»): cinco peldaños que se llenan.
+                HStack(alignment: .bottom, spacing: 3) {
+                    ForEach(Array([6, 9, 12, 9, 6].enumerated()), id: \.offset) { indice, alto in
+                        let lleno = progreso * 5 > Double(indice)
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(lleno ? Color.white : Color.white.opacity(0.3))
+                            .frame(height: CGFloat(alto))
                     }
                 }
-                .frame(height: 3)
+                .frame(width: 140, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .animation(.linear(duration: 0.2), value: progreso)
                 .accessibilityHidden(true)
             }
             .padding(.horizontal, 16)
             // Por encima de la barra flotante (64 pt) y del indicador de inicio (34 pt).
             .padding(.bottom, 112)
+        }
+        .overlay(alignment: .topLeading) {
+            selloRedondo
+                .padding(.top, 64)
+                .padding(.leading, 16)
         }
         .onAppear {
             miReaccion = post.miReaccion
@@ -262,14 +271,30 @@ private struct ClipPagina: View {
         }
     }
 
+    /// Sello redondo de la comunidad, un poco girado, con un aro claro por dentro (artboard WowB-Clip).
+    private var selloRedondo: some View {
+        let color = ColorComunidad.de(slug: post.comunidad.slug)
+        return Text(NombreSello.de(nombre: post.comunidad.nombre, slug: post.comunidad.slug))
+            .font(.bricolage(12, relativeTo: .caption))
+            .tracking(0.6)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.7)
+            .foregroundStyle(color.tinta)
+            .padding(10)
+            .frame(width: 74, height: 74)
+            .background(color.fondo, in: Circle())
+            .overlay {
+                Circle()
+                    .stroke(color.tinta.opacity(0.7), lineWidth: 1)
+                    .padding(4)
+            }
+            .rotationEffect(.degrees(-8))
+            .accessibilityLabel("En \(post.comunidad.nombre)")
+    }
+
     private var info: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(post.comunidad.nombre, systemImage: "building.columns")
-                .font(.outfit(.caption, .semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Color.white.opacity(0.16), in: Capsule())
             if let autor = post.autor {
                 Button(action: onAutor) {
                     HStack(spacing: 10) {

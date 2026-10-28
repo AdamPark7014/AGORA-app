@@ -187,3 +187,105 @@ struct EsquinaRedonda: Shape {
         return p
     }
 }
+
+/// Encabezado de pantalla de B «Cholula» (artboards del resto): terrazas naranjas, título Bricolage 28 y
+/// subtítulo, lo que la pantalla ponga a la derecha y la franja de Talavera debajo.
+struct CabezaCholula<Derecha: View>: View {
+    let titulo: String
+    var subtitulo: String?
+    let derecha: Derecha
+
+    init(titulo: String, subtitulo: String? = nil, @ViewBuilder derecha: () -> Derecha) {
+        self.titulo = titulo
+        self.subtitulo = subtitulo
+        self.derecha = derecha()
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Terrazas(niveles: 3)
+                    .fill(AgoraDesign.Colors.naranja)
+                    .frame(width: 26, height: 17)
+                    .padding(.horizontal, 4)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(titulo)
+                        .font(.bricolage(28, relativeTo: .largeTitle))
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .accessibilityAddTraits(.isHeader)
+                    if let subtitulo {
+                        Text(subtitulo)
+                            .font(.outfit(.caption, .medium))
+                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 8)
+                derecha
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 10)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
+            FranjaTalavera()
+        }
+    }
+}
+
+extension CabezaCholula where Derecha == EmptyView {
+    init(titulo: String, subtitulo: String? = nil) {
+        self.init(titulo: titulo, subtitulo: subtitulo) { EmptyView() }
+    }
+}
+
+/// Botón corto relleno `boton` de los encabezados («Vender», «Ofrecer»).
+struct BotonCabeza: View {
+    let titulo: String
+    let accion: () -> Void
+
+    var body: some View {
+        Button(action: accion) {
+            Text(titulo)
+                .font(.outfit(.subheadline, .bold))
+                .foregroundStyle(AgoraDesign.Colors.sobreBoton)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 40)
+                .background(AgoraDesign.Colors.boton, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.agoraPlain)
+    }
+}
+
+/// Etiqueta de precio con la punta a la izquierda (tianguis), girada; adobe con texto blanco.
+struct EtiquetaPrecio: View {
+    let texto: String
+    var giro: Double = -6
+
+    var body: some View {
+        Text(texto)
+            .font(.bricolage(15, relativeTo: .subheadline))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .padding(.leading, 14)
+            .padding(.trailing, 10)
+            .padding(.vertical, 5)
+            .background(AgoraDesign.Colors.adobe, in: FormaEtiqueta())
+            .rotationEffect(.degrees(giro))
+    }
+}
+
+private struct FormaEtiqueta: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX + 10, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX + 10, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.midY))
+        p.closeSubpath()
+        return p
+    }
+}
