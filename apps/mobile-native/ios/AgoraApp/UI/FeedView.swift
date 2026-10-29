@@ -340,6 +340,8 @@ struct EncabezadoInicio: View {
     private static func fechaDeHoy() -> String {
         let formato = DateFormatter()
         formato.locale = Locale(identifier: "es_MX")
+        // El día del campus (como la pregunta de hoy), no el de la zona del teléfono.
+        formato.timeZone = FormatUtils.zona
         formato.dateFormat = "EEEE d 'de' MMMM"
         let texto = formato.string(from: Date())
         return texto.prefix(1).uppercased() + texto.dropFirst()

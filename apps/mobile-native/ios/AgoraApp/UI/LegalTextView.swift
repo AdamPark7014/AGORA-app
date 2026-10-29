@@ -208,7 +208,7 @@ struct PrivacidadView: View {
     var body: some View {
         LegalTextView(
             titulo: "Aviso de privacidad",
-            fecha: "Última actualización: 22 de octubre de 2026",
+            fecha: "Última actualización: 29 de octubre de 2026",
             entradilla: "Ágora es una red social independiente para la comunidad de la UDLAP, desarrollada por "
                 + "Zynora Tek. No está afiliada a la Universidad de las Américas Puebla. Para cualquier tema de "
                 + "tus datos escríbenos a \(AgoraContacto.enlaceCorreo).",
@@ -235,6 +235,11 @@ struct PrivacidadView: View {
                     parrafos: [
                         "Para verificar que eres de la comunidad UDLAP, mostrarte el feed, eventos, aventones, "
                             + "mercado y mensajes, mandarte los avisos que eliges y moderar lo que se reporta.",
+                        "Lo que publicas, tu perfil y los mensajes que mandas se revisan de forma automática antes "
+                            + "de que se vean, para detectar lo que prohíben las Reglas (contenido íntimo sin permiso, "
+                            + "datos de otra persona, amenazas, acoso y suplantación). En los mensajes también se miran "
+                            + "los últimos de esa conversación. Si algo cruza una línea roja no se publica; si es "
+                            + "dudoso, se publica y lo puede revisar una persona del equipo de moderación.",
                     ]
                 ),
                 LegalSection(
@@ -244,7 +249,8 @@ struct PrivacidadView: View {
                             + "otros usuarios no ven tu nombre; el equipo de moderación sí puede ligar esas "
                             + "publicaciones a tu cuenta para hacer cumplir las reglas.",
                         "Solo usamos proveedores para que el servicio funcione: Hetzner (servidor), Cloudflare "
-                            + "(HTTPS), Brevo (correos con tu código) y los servicios de notificaciones de Apple, "
+                            + "(HTTPS), Brevo (correos con tu código), Anthropic (la revisión automática; no usa tus "
+                            + "datos para entrenar sus modelos) y los servicios de notificaciones de Apple, "
                             + "Google y tu navegador. Nadie más recibe tus datos, salvo que una autoridad competente "
                             + "lo pida conforme a la ley.",
                     ]
