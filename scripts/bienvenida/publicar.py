@@ -17,6 +17,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from datetime import datetime, timedelta, timezone
 
 AQUI = pathlib.Path(__file__).parent
 MEDIA = AQUI / 'media'
@@ -89,6 +90,20 @@ EVENTO = {
     'finAt': '2026-11-07T20:00:00-06:00',
     'costoMxn': 0,
 }
+
+def evento_vigente(ahora=None):
+    """La semana de bienvenida tiene fechas fijas y la API rechaza un evento que ya empezó («Ese evento ya
+    pasó»). Si el guion corre después del inicio (la tercera pasada de ios-capturas, o al repetirlo en
+    otra base), el evento empieza en la siguiente hora en punto y conserva su cierre si todavía no llega."""
+    ahora = ahora or datetime.now(timezone.utc)
+    inicio = datetime.fromisoformat(EVENTO['inicioAt'])
+    if inicio > ahora:
+        return EVENTO
+    nuevo_inicio = (ahora + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+    fin = datetime.fromisoformat(EVENTO['finAt'])
+    nuevo_fin = fin if fin > nuevo_inicio + timedelta(hours=1) else nuevo_inicio + timedelta(days=7)
+    return {**EVENTO, 'inicioAt': nuevo_inicio.isoformat(), 'finAt': nuevo_fin.isoformat()}
+
 
 MIME = {'.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4'}
 
@@ -170,7 +185,7 @@ def main():
         print(f'publicada: {pub["clave"]} ({creada["id"]}, {creada.get("estado", "?")})')
         time.sleep(1.2)  # orden estable por fecha en el feed
 
-    evento = api.pedir('POST', 'eventos', EVENTO)
+    evento = api.pedir('POST', 'eventos', evento_vigente())
     hecho['evento'] = evento['id']
     print(f'evento creado ({evento["id"]})')
 
