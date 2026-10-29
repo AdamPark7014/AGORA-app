@@ -17,7 +17,7 @@ export default function Privacidad() {
         <Link href="/">← Volver</Link>
       </p>
       <h1>Aviso de privacidad</h1>
-      <p className="tenue">Última actualización: 22 de octubre de 2026</p>
+      <p className="tenue">Última actualización: 29 de octubre de 2026</p>
 
       <p>
         Ágora es una red social independiente para la comunidad de la UDLAP, desarrollada por Zynora
@@ -66,6 +66,14 @@ export default function Privacidad() {
         <li>Mostrarte el feed, tus comunidades, eventos, aventones, mercado y mensajes.</li>
         <li>Mandarte avisos que tú eliges (respuestas, mensajes, eventos a los que vas).</li>
         <li>Moderar lo que se reporta y proteger a la comunidad de abusos.</li>
+        <li>
+          Revisar de forma automática lo que publicas, tu perfil y los mensajes que mandas, antes de
+          que se vean, para detectar lo que prohíben las{' '}
+          <Link href="/reglas">Reglas de la comunidad</Link> (contenido íntimo sin permiso, datos de
+          otra persona, amenazas, acoso y suplantación). En los mensajes también se miran los últimos
+          de esa conversación para entender el contexto. Si algo cruza una línea roja no se publica; si
+          es dudoso, se publica y lo puede revisar una persona del equipo de moderación.
+        </li>
       </ul>
 
       <h2>Quién más los ve</h2>
@@ -79,6 +87,11 @@ export default function Privacidad() {
         <li>Hetzner Online: el servidor donde viven la base de datos y tus fotos (Estados Unidos).</li>
         <li>Cloudflare: entrega la página de forma segura (HTTPS).</li>
         <li>Brevo: envía los correos con tu código de acceso.</li>
+        <li>
+          Anthropic (Claude): recibe el texto y las fotos de lo que publicas, de tu perfil y de tus
+          mensajes —en los mensajes, con los últimos de esa conversación— solo para clasificarlos según
+          las Reglas; no los usa para entrenar sus modelos (Estados Unidos).
+        </li>
         <li>
           Google Firebase Cloud Messaging, Apple Push Notification service y el servicio de avisos
           de tu navegador: entregan las notificaciones en Android, iPhone y la web.

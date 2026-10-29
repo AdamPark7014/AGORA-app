@@ -91,7 +91,7 @@ Coincide con https://udlagora.com/privacidad y con la etiqueta de Apple (`IOS-AP
 | ¿Permite crear una cuenta? | **Sí**: nombre de usuario y contraseña (más un código de un solo uso al registrarse) |
 | URL para pedir la eliminación de la cuenta | https://udlagora.com/eliminar-cuenta |
 | ¿Se puede pedir que se borren datos sin borrar la cuenta? | **Sí**: editar o borrar el perfil y lo publicado desde la app; por correo a contacto@zynoratek.com |
-| ¿Se comparten datos con terceros? | **No** (Hetzner, Cloudflare, Brevo, FCM son proveedores que procesan por cuenta de Ágora; Play no lo cuenta como compartir) |
+| ¿Se comparten datos con terceros? | **No** (Hetzner, Cloudflare, Brevo, FCM y Anthropic —la moderación automática— son proveedores que procesan por cuenta de Ágora; Play no lo cuenta como compartir) |
 | Revisión de seguridad independiente | No |
 
 **Tipos de datos** (todos: recopilados, no compartidos, sin procesamiento efímero):

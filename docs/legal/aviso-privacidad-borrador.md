@@ -29,7 +29,7 @@
 1. Verificar que eres parte de la comunidad UDLAP y abrir tu sesión.
 2. Mostrar tu perfil y tu contenido a las personas que tú elijas.
 3. Mandarte avisos dentro de la app, por correo (tu código de acceso) y push.
-4. Moderar el contenido y hacer cumplir las Reglas de la comunidad, incluida la zona anónima.
+4. Moderar el contenido y hacer cumplir las Reglas de la comunidad, incluida la zona anónima: lo que publicas, tu perfil y tus mensajes pasan por una revisión automática antes de verse, y lo dudoso lo puede revisar una persona del equipo.
 5. Mantener la seguridad del servicio: límites de peticiones, detección de abusos y respaldos.
 
 **Finalidades secundarias** (puedes negarte sin perder la cuenta):
@@ -46,7 +46,7 @@ No vendemos ni rentamos tus datos. Solo los compartimos con proveedores que nos 
 |---|---|---|
 | Hetzner Online | Servidor donde viven la base de datos y los archivos | Unión Europea |
 | Brevo | Enviar el correo con tu código de acceso | Unión Europea |
-| OpenAI | Revisar automáticamente si un texto o una imagen cruza una línea roja | Estados Unidos |
+| Anthropic (Claude) | Revisar automáticamente, antes de que se vean, lo que publicas, tu perfil y tus mensajes (en mensajes, con los últimos de esa conversación) para detectar si cruzan una línea roja; no los usa para entrenar sus modelos | Estados Unidos |
 | Google (Firebase) y Apple | Entregar notificaciones push a tu celular | Estados Unidos |
 | Sentry | Registrar errores técnicos de la app, sin tu nombre ni tu contenido | Estados Unidos |
 

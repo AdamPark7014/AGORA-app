@@ -23,8 +23,11 @@ import mx.agora.mobile.nativeapp.ui.theme.AgoraColors
 
 data class LegalSection(val titulo: String, val parrafos: List<String>)
 
-/** Misma fecha que las páginas de udlagora.com (terminos, privacidad, reglas). */
+/** Misma fecha que las páginas de udlagora.com (terminos y reglas). */
 private const val FECHA_LEGAL = "Última actualización: 22 de octubre de 2026"
+
+/** Misma fecha que udlagora.com/privacidad (cambió con la moderación automática). */
+private const val FECHA_PRIVACIDAD = "Última actualización: 29 de octubre de 2026"
 
 private const val CORREO_CONTACTO = "contacto@zynoratek.com"
 
@@ -87,7 +90,7 @@ fun TerminosScreen(onBack: () -> Unit) {
 fun PrivacidadScreen(onBack: () -> Unit) {
     LegalTextScreen(
         titulo = "Aviso de privacidad",
-        fecha = FECHA_LEGAL,
+        fecha = FECHA_PRIVACIDAD,
         secciones = listOf(
             LegalSection(
                 "Quién es responsable",
@@ -114,6 +117,16 @@ fun PrivacidadScreen(onBack: () -> Unit) {
                 ),
             ),
             LegalSection(
+                "Revisión automática",
+                listOf(
+                    "Lo que publicas, tu perfil y los mensajes que mandas se revisan de forma automática antes de " +
+                        "que se vean, para detectar lo que prohíben las Reglas (contenido íntimo sin permiso, datos " +
+                        "de otra persona, amenazas, acoso y suplantación). En los mensajes también se miran los " +
+                        "últimos de esa conversación. Si algo cruza una línea roja no se publica; si es dudoso, se " +
+                        "publica y lo puede revisar una persona del equipo de moderación.",
+                ),
+            ),
+            LegalSection(
                 "Lo que no hacemos",
                 listOf(
                     "No pedimos tu ubicación, tus contactos, tu calendario ni tu micrófono. No hay publicidad ni " +
@@ -124,9 +137,10 @@ fun PrivacidadScreen(onBack: () -> Unit) {
                 "Con quién los compartimos",
                 listOf(
                     "Solo con los proveedores que hacen funcionar el servicio: Hetzner (servidor y fotos), " +
-                        "Cloudflare (conexión segura), Brevo (correos con tu código) y Firebase Cloud Messaging " +
-                        "y Apple Push Notification service (notificaciones). Nadie más, salvo que una autoridad " +
-                        "lo pida conforme a la ley.",
+                        "Cloudflare (conexión segura), Brevo (correos con tu código), Anthropic (la revisión " +
+                        "automática; no usa tus datos para entrenar sus modelos) y Firebase Cloud Messaging y " +
+                        "Apple Push Notification service (notificaciones). Nadie más, salvo que una autoridad lo " +
+                        "pida conforme a la ley.",
                 ),
             ),
             LegalSection(
