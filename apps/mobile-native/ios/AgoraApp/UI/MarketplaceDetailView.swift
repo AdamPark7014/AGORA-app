@@ -151,10 +151,14 @@ struct MarketplaceDetailView: View {
                 Button {
                     onPerfil(handle)
                 } label: {
+                    // Ancho propio (como el 40 % del artboard); «Escribir a …» toma el resto.
                     Text("Ver perfil")
                         .font(.outfit(.body, .bold))
                         .foregroundStyle(AgoraDesign.Colors.texto)
-                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .padding(.horizontal, 20)
+                        .frame(minHeight: 52)
                         .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -182,7 +186,6 @@ struct MarketplaceDetailView: View {
                 }
                 .buttonStyle(.agoraPlain)
                 .disabled(accionando)
-                .layoutPriority(1)
             }
         }
     }

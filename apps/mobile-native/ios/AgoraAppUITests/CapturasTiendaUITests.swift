@@ -29,6 +29,8 @@ final class CapturasTiendaUITests: XCTestCase {
 
     func test1_capturasDeLaTienda() throws {
         entrarComoDemo()
+        // La bienvenida solo sale la primera vez en el simulador: aquí, no en el registro.
+        if app.buttons["Saltar"].waitForExistence(timeout: 10) { guardar(nombre: "bienvenida") }
         saltarBienvenida()
         cerrarAlertasDelSistema()
         XCTAssertTrue(pestanaFeed.waitForExistence(timeout: 30), "No llegó al feed después de entrar")
@@ -244,7 +246,6 @@ final class CapturasTiendaUITests: XCTestCase {
         escribir(clave, en: app.secureTextFields["Repítela"])
         bajarTeclado()
         tocar(app.buttons["Guardar contraseña"])
-        if app.buttons["Saltar"].waitForExistence(timeout: 10) { guardar(nombre: "bienvenida") }
         saltarBienvenida()
 
         // Perfil.
