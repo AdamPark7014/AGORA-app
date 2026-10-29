@@ -26,6 +26,9 @@ struct ClipsView: View {
     @State private var conSonido = false
     @State private var soloMiCarrera = false
     @State private var miCarrera: String?
+    /// Visible de verdad: `visible` llega de la barra y una vista apilada no siempre se entera del cambio
+    /// de pestaña; sin esto el clip seguía corriendo (y bajando video) con otra pestaña a la vista.
+    @State private var enPantalla = false
 
     var body: some View {
         ZStack {
@@ -47,6 +50,8 @@ struct ClipsView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .environment(\.colorScheme, .dark)
+        .onAppear { enPantalla = true }
+        .onDisappear { enPantalla = false }
         .task(id: soloMiCarrera) { await cargar() }
         .task { await cargarCarrera() }
     }
@@ -82,7 +87,7 @@ struct ClipsView: View {
     private func pagina(_ clip: PostDto) -> some View {
         ClipPagina(
             post: clip,
-            activo: visible && actual == clip.id,
+            activo: visible && enPantalla && actual == clip.id,
             conSonido: conSonido,
             onComentarios: { onPostTap(clip.id) },
             onAutor: {
