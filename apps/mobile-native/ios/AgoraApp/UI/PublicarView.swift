@@ -23,7 +23,9 @@ private struct AdjuntoLocal: Identifiable {
     var esVideo = false
 }
 
-/// Publicar con hasta 4 fotos y encuesta opcional — paridad con `PublicarScreen.kt`.
+/// Publicar como «Postal nueva» (B «Cholula», artboard WowB-Publicar): destinos en sellos y, si es solo
+/// texto, la postal en el color de la comunidad tal como saldrá en el inicio. Hasta 4 fotos y encuesta
+/// opcional — paridad con `PublicarScreen.kt`.
 struct PublicarView: View {
     let onPublicado: () -> Void
 
@@ -68,8 +70,14 @@ struct PublicarView: View {
         return pregunta.count >= 3 && opts.count >= 2 && Set(opts).count == opts.count
     }
 
+    /// Solo texto: se ve (y se publica) como la tarjeta tipográfica del inicio.
+    private var esPostal: Bool { adjuntos.isEmpty && !conEncuesta }
+
+    private var comunidadElegida: ComunidadDto? { comunidades.first { $0.slug == slug } }
+
     var body: some View {
         ScrollView {
+            CabezaCholula(titulo: "Postal nueva", subtitulo: "Lo que publiques lo ve tu gente")
             VStack(alignment: .leading, spacing: 14) {
                 Group {
                     if !network.isOnline {
@@ -81,7 +89,11 @@ struct PublicarView: View {
                             .foregroundStyle(AgoraDesign.Colors.naranja)
                     }
 
-                    Text("Publicar en").font(.outfit(.subheadline, .bold))
+                    Text("PARA")
+                        .font(.outfit(.caption, .bold))
+                        .tracking(1.2)
+                        .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                        .accessibilityAddTraits(.isHeader)
 
                     if cargandoComunidades {
                         ProgressView()
@@ -94,20 +106,7 @@ struct PublicarView: View {
                     }
                 }
 
-                TextEditor(text: $texto)
-                    .frame(minHeight: 140)
-                    .padding(8)
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(alignment: .topLeading) {
-                        if texto.isEmpty {
-                            Text("¿Qué está pasando en el campus?")
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 16)
-                                .allowsHitTesting(false)
-                        }
-                    }
+                editor
                     .onChange(of: texto) { v in
                         if v.count > limiteTextoPublicar { texto = String(v.prefix(limiteTextoPublicar)) }
                     }
@@ -151,19 +150,26 @@ struct PublicarView: View {
                     }
                 }
 
-                if adjuntos.count < maxAdjuntos {
-                    PhotosPicker(selection: $pickerItem, matching: .any(of: [.images, .videos])) {
-                        Label("Añadir foto o video (\(adjuntos.count)/\(maxAdjuntos))", systemImage: "photo.on.rectangle")
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                // Modos del artboard que esta pantalla sí hace: foto o clip, y pregunta (encuesta).
+                HStack(spacing: 8) {
+                    if adjuntos.count < maxAdjuntos {
+                        PhotosPicker(selection: $pickerItem, matching: .any(of: [.images, .videos])) {
+                            modo("Foto o clip (\(adjuntos.count)/\(maxAdjuntos))", icono: "camera", activo: !adjuntos.isEmpty)
+                        }
+                        .buttonStyle(.agoraPlain)
+                        .onChange(of: pickerItem) { item in
+                            Task { await agregarAdjunto(item) }
+                        }
                     }
-                    .buttonStyle(.bordered)
-                    .onChange(of: pickerItem) { item in
-                        Task { await agregarAdjunto(item) }
+                    Button {
+                        withAnimation(AgoraDesign.Animation.spring) { conEncuesta.toggle() }
+                    } label: {
+                        modo(conEncuesta ? "Quitar pregunta" : "Pregunta", icono: "chart.bar", activo: conEncuesta)
                     }
+                    .buttonStyle(.agoraPlain)
+                    .accessibilityAddTraits(conEncuesta ? .isSelected : [])
                 }
 
-                Toggle("Añadir encuesta", isOn: $conEncuesta)
                 if conEncuesta {
                     TextField("Pregunta de la encuesta", text: $preguntaEncuesta)
                         .textFieldStyle(.roundedBorder)
@@ -185,29 +191,26 @@ struct PublicarView: View {
                         .foregroundStyle(restantes < 0 ? .red : .secondary)
                 }
 
-                Button {
-                    Task { await publicar() }
-                } label: {
-                    HStack {
-                        Spacer()
-                        if enviando { ProgressView().tint(.white) }
-                        else { Text(network.isOnline ? "Publicar" : "Guardar para enviar").fontWeight(.semibold) }
-                        Spacer()
-                    }
-                    .padding(.vertical, 14)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(AgoraDesign.Colors.naranja)
-                .disabled(!puedePublicar)
+                AgoraPrimaryButton(
+                    title: network.isOnline ? "Publicar" : "Guardar para enviar",
+                    action: { Task { await publicar() } },
+                    enabled: puedePublicar,
+                    loading: enviando
+                )
+
+                Text("Un filtro revisa cada publicación antes de que salga.")
+                    .font(.outfit(.caption))
+                    .foregroundStyle(AgoraDesign.Colors.textoMedio)
 
                 if let error {
-                    Text(error).font(.outfit(.footnote)).foregroundStyle(.red)
+                    Text(error).font(.outfit(.footnote)).foregroundStyle(AgoraDesign.Colors.danger)
                 }
             }
             .padding(16)
         }
         .agoraScreenBackground()
-        .navigationTitle("Publicar")
+        .barraDeEstadoOpaca(AgoraDesign.Colors.fondo)
+        .toolbar(.hidden, for: .navigationBar)
         .task { await cargarComunidades() }
         .alert(
             avisoPublicacion?.titulo ?? "",
@@ -250,20 +253,123 @@ struct PublicarView: View {
         }
     }
 
+    /// Destinos como sellos: el elegido relleno de su color; los demás en `superficie` con su cuadrito.
     private var comunidadPicker: some View {
         FlowLayout(spacing: 8) {
             ForEach(comunidades, id: \.slug) { c in
+                let elegida = slug == c.slug
+                let color = ColorComunidad.de(slug: c.slug)
                 Button { slug = c.slug } label: {
-                    Text(c.nombre)
-                        .font(.outfit(.subheadline))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(slug == c.slug ? AgoraDesign.Colors.naranjaSuave : Color(.secondarySystemGroupedBackground))
-                        .foregroundStyle(slug == c.slug ? AgoraDesign.Colors.naranja : .primary)
-                        .clipShape(Capsule())
+                    HStack(spacing: 6) {
+                        if !elegida {
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .fill(color.fondo)
+                                .frame(width: 8, height: 8)
+                                .accessibilityHidden(true)
+                        }
+                        Text(NombreSello.de(nombre: c.nombre, slug: c.slug))
+                            .font(.outfit(.caption, .bold))
+                            .tracking(0.5)
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(elegida ? color.tinta : AgoraDesign.Colors.texto)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 34)
+                    .background(elegida ? color.fondo : AgoraDesign.Colors.superficie,
+                                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(elegida ? Color.clear : AgoraDesign.Colors.borde, lineWidth: 1)
+                    }
                 }
                 .buttonStyle(.agoraPlain)
+                .accessibilityLabel(c.nombre)
+                .accessibilityAddTraits(elegida ? .isSelected : [])
             }
+        }
+    }
+
+    /// Solo texto: la postal en el color de la comunidad, con azulejo arriba y abajo, como saldrá en el
+    /// inicio. Con fotos o encuesta, el campo normal.
+    @ViewBuilder
+    private var editor: some View {
+        if esPostal {
+            let color = ColorComunidad.de(slug: comunidadElegida?.slug)
+            VStack(spacing: 0) {
+                Talavera().frame(height: 22).clipped()
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $texto)
+                        .font(.bricolage(26, relativeTo: .title2))
+                        .foregroundStyle(color.tinta)
+                        .tint(color.tinta)
+                        .scrollContentBackground(.hidden)
+                        .frame(minHeight: 190)
+                    if texto.isEmpty {
+                        Text("¿Qué está pasando en el campus?")
+                            .font(.bricolage(26, relativeTo: .title2))
+                            .foregroundStyle(color.tinta.opacity(0.6))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 8)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                if let comunidad = comunidadElegida {
+                    Text("Para \(NombreSello.corto(nombre: comunidad.nombre, slug: comunidad.slug))")
+                        .font(.outfit(.footnote, .semibold))
+                        .foregroundStyle(color.tinta == .white ? AgoraDesign.Colors.sobreColorSuave : color.tinta.opacity(0.8))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 12)
+                }
+                Talavera().frame(height: 22).clipped()
+            }
+            .background(color.fondo)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .animation(AgoraDesign.Animation.spring, value: slug)
+        } else {
+            TextEditor(text: $texto)
+                .font(.outfit(.body))
+                .frame(minHeight: 140)
+                .padding(8)
+                .scrollContentBackground(.hidden)
+                .background(AgoraDesign.Colors.superficie)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(AgoraDesign.Colors.borde, lineWidth: 1)
+                }
+                .overlay(alignment: .topLeading) {
+                    if texto.isEmpty {
+                        Text("¿Qué está pasando en el campus?")
+                            .font(.outfit(.body))
+                            .foregroundStyle(AgoraDesign.Colors.textoMedio)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 16)
+                            .allowsHitTesting(false)
+                    }
+                }
+        }
+    }
+
+    /// Botón de modo (72 de alto): ícono y nombre; activo con borde en `tinta`.
+    private func modo(_ titulo: String, icono: String, activo: Bool) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icono)
+                .font(.system(size: 20, weight: .medium))
+                .accessibilityHidden(true)
+            Text(titulo)
+                .font(.outfit(.caption, .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .foregroundStyle(AgoraDesign.Colors.texto)
+        .frame(maxWidth: .infinity, minHeight: 72)
+        .background(AgoraDesign.Colors.superficie, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(activo ? AgoraDesign.Colors.texto : AgoraDesign.Colors.borde, lineWidth: activo ? 2 : 1)
         }
     }
 

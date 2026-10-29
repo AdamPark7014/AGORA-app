@@ -263,15 +263,17 @@ struct BotonCabeza: View {
 struct EtiquetaPrecio: View {
     let texto: String
     var giro: Double = -6
+    /// 15 en las tarjetas del tianguis; 30 en el detalle del anuncio.
+    var tamano: CGFloat = 15
 
     var body: some View {
         Text(texto)
-            .font(.bricolage(15, relativeTo: .subheadline))
+            .font(.bricolage(tamano, relativeTo: tamano > 20 ? .title : .subheadline))
             .foregroundStyle(.white)
             .lineLimit(1)
-            .padding(.leading, 14)
-            .padding(.trailing, 10)
-            .padding(.vertical, 5)
+            .padding(.leading, tamano > 20 ? 22 : 14)
+            .padding(.trailing, tamano > 20 ? 16 : 10)
+            .padding(.vertical, tamano > 20 ? 8 : 5)
             .background(AgoraDesign.Colors.adobe, in: FormaEtiqueta())
             .rotationEffect(.degrees(giro))
     }

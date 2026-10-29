@@ -72,6 +72,10 @@ final class CapturasTiendaUITests: XCTestCase {
         historia.tap()
         capturar("clips", tema: tema, esperando: ["Recta", "cascarita", "brazo robótico"])
 
+        // Publicar como «Postal nueva» (B «Cholula»).
+        tocar(app.buttons["tab.2"])
+        capturar("publicar", tema: tema, esperando: ["Postal nueva"])
+
         // Cartelera (B «Cholula»): la pestaña dos veces para volver a su raíz en la segunda vuelta.
         let eventos = app.buttons["tab.1"]
         tocar(eventos)
@@ -83,8 +87,13 @@ final class CapturasTiendaUITests: XCTestCase {
         irAMas("aventones")
         capturar("aventones", tema: tema, esperando: ["Angelópolis", "Cholula centro", "Plaza Crystal"])
 
-        tocar(app.buttons["tab.3"])
+        // Mercado y el detalle de un anuncio; la pestaña dos veces para volver a su raíz.
+        let mercado = app.buttons["tab.3"]
+        tocar(mercado)
+        mercado.tap()
         capturar("mercado", tema: tema, esperando: ["Laptop", "Stewart", "Escritorio"])
+        tocarTexto("Laptop")
+        capturar("anuncio", tema: tema, esperando: ["Escribir a", "Ver perfil"])
 
         // Tu perfil con sus sellos (B «Cholula»): la pestaña dos veces para volver a su raíz.
         let perfilPropio = app.buttons["tab.4"]
@@ -107,6 +116,7 @@ final class CapturasTiendaUITests: XCTestCase {
         irAMas("directorio")
         escribir("Diego", en: app.textFields["Nombre o @handle"])
         bajarTeclado()
+        capturar("directorio", tema: tema, esperando: ["Diego"])
         tocarTexto("Diego")
         capturar("perfil", tema: tema, esperando: ["Conmuto"])
     }
@@ -234,6 +244,7 @@ final class CapturasTiendaUITests: XCTestCase {
         escribir(clave, en: app.secureTextFields["Repítela"])
         bajarTeclado()
         tocar(app.buttons["Guardar contraseña"])
+        if app.buttons["Saltar"].waitForExistence(timeout: 10) { guardar(nombre: "bienvenida") }
         saltarBienvenida()
 
         // Perfil.

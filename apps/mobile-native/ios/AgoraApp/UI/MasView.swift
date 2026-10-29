@@ -209,47 +209,55 @@ struct MasView: View {
 }
 
 /// Racha en la tarjeta oscura de «Tu día»: días seguidos, la mejor y cómo va el campus.
+/// «Tu día» de B «Cholula» (artboard WowB-Avisos, derecha): tres mosaicos de color con cifra grande:
+/// tu racha (adobe), la pregunta de la semana (Talavera) y tu lugar en la racha del campus o, sin lugar,
+/// tu mejor racha (jade). Solo datos de `gamificacion/mio` y `gamificacion/leaderboard`.
 private struct TarjetaRachaD: View {
     @State private var datos: GamificacionDto?
+    @State private var miPosicion: Int?
 
     var body: some View {
         VStack(spacing: 0) {
             if let datos {
-                HStack(spacing: 14) {
-                    Image(systemName: "flame.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(Color(red: 1, green: 138 / 255, blue: 76 / 255))
-                        .frame(width: 52, height: 52)
-                        .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(datos.rachaActual) \(datos.rachaActual == 1 ? "día" : "días") de racha")
-                            .font(.bricolage(22, relativeTo: .title2))
-                            .foregroundStyle(.white)
-                        Text(detalle(datos))
-                            .font(.outfit(.footnote))
-                            .foregroundStyle(Color.white.opacity(0.75))
-                            .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                    mosaico(cifra: "\(datos.rachaActual)",
+                            texto: datos.rachaActual == 1 ? "día de racha" : "días de racha",
+                            color: AgoraDesign.Colors.adobe)
+                    if let semana = datos.semanaPregunta {
+                        mosaico(cifra: "\(semana.respondidas)/\(semana.meta)", texto: "preguntas esta semana",
+                                color: AgoraDesign.Colors.talavera)
                     }
-                    Spacer(minLength: 0)
+                    if let miPosicion {
+                        mosaico(cifra: "\(miPosicion).º", texto: "en racha del campus", color: AgoraDesign.Colors.jade)
+                    } else {
+                        mosaico(cifra: "\(datos.rachaMaxima)", texto: "tu mejor racha", color: AgoraDesign.Colors.jade)
+                    }
                 }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 16)
-                .background(
-                    Color(red: 20 / 255, green: 17 / 255, blue: 15 / 255),
-                    in: RoundedRectangle(cornerRadius: AgoraDesign.Radii.card, style: .continuous)
-                )
-                .accessibilityElement(children: .combine)
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .task { datos = try? await AgoraApi.gamificacionMio() }
+        .task {
+            datos = try? await AgoraApi.gamificacionMio()
+            miPosicion = (try? await AgoraApi.gamificacionLeaderboard())?.miPosicion
+        }
     }
 
-    private func detalle(_ datos: GamificacionDto) -> String {
-        var partes = ["Mejor: \(datos.rachaMaxima)"]
-        if let promedio = datos.comparacionCampus?.promedioRacha {
-            partes.append("el campus va en \(Int(promedio.rounded()))")
+    private func mosaico(cifra: String, texto: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(cifra)
+                .font(.bricolage(26, relativeTo: .title2))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(texto)
+                .font(.outfit(.caption, .medium))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
-        return partes.joined(separator: " · ") + ". Contesta la pregunta de hoy para seguir."
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(12)
+        .background(color, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }

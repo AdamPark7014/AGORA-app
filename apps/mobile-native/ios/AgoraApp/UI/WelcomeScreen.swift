@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Onboarding de 3 páginas — paridad con `WelcomeScreen.kt`.
+/// Bienvenida de 3 páginas con B «Cholula»: franja de Talavera, cada página con su color (Talavera, jade,
+/// adobe) y las terrazas, y el botón `boton` — paridad con `WelcomeScreen.kt`.
 struct WelcomeScreen: View {
     let onFinished: () -> Void
 
@@ -10,28 +11,33 @@ struct WelcomeScreen: View {
         let icon: String
         let title: String
         let description: String
+        let color: Color
     }
 
     private let pages: [WelcomePage] = [
         WelcomePage(
             icon: "rectangle.stack",
             title: "Tu feed del campus",
-            description: "Descubre lo que pasa en la UDLAP: posts, encuestas y conversaciones de tu comunidad verificada."
+            description: "Descubre lo que pasa en la UDLAP: posts, encuestas y conversaciones de tu comunidad verificada.",
+            color: AgoraDesign.Colors.talavera
         ),
         WelcomePage(
             icon: "checkmark.seal",
             title: "Comunidades verificadas",
-            description: "Carreras, colegios y grupos oficiales con badge verificado. Solo gente real de la UDLAP."
+            description: "Carreras, colegios y grupos oficiales con badge verificado. Solo gente real de la UDLAP.",
+            color: AgoraDesign.Colors.jade
         ),
         WelcomePage(
             icon: "calendar",
             title: "Eventos en vivo",
-            description: "Fiestas, charlas, torneos y más. RSVP y no te pierdas nada del campus."
+            description: "Fiestas, charlas, torneos y más. Di que vas y no te pierdas nada del campus.",
+            color: AgoraDesign.Colors.adobe
         ),
     ]
 
     var body: some View {
         VStack(spacing: 0) {
+            FranjaTalavera(alto: 12)
             HStack(spacing: AgoraDesign.Spacing.xs) {
                 AgoraIsotipo(tamano: 32)
                 Text(AgoraCopy.appName)
@@ -49,16 +55,19 @@ struct WelcomeScreen: View {
                 ForEach(Array(pages.enumerated()), id: \.offset) { index, item in
                     VStack(spacing: AgoraDesign.Spacing.lg) {
                         Spacer()
-                        ZStack {
-                            Circle()
-                                .fill(AgoraDesign.Colors.naranjaSuave)
-                                .frame(width: 96, height: 96)
+                        VStack(spacing: -4) {
                             Image(systemName: item.icon)
-                                .font(.system(size: 40))
-                                .foregroundStyle(AgoraDesign.Colors.naranja)
+                                .font(.system(size: 40, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 104, height: 104)
+                                .background(item.color, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                            Terrazas(niveles: 3)
+                                .fill(item.color)
+                                .frame(width: 84, height: 16)
                         }
+                        .accessibilityHidden(true)
                         Text(item.title)
-                            .font(.bricolage(.title2, extra: false))
+                            .font(.bricolage(28, relativeTo: .title))
                             .foregroundStyle(AgoraDesign.Colors.texto)
                             .multilineTextAlignment(.center)
                         Text(item.description)
@@ -77,7 +86,7 @@ struct WelcomeScreen: View {
             AgoraProgressDots(pageCount: pages.count, currentPage: page)
                 .padding(.vertical, AgoraDesign.Spacing.lg)
 
-            Button {
+            AgoraPrimaryButton(title: page == pages.count - 1 ? "¡Empezar!" : "Siguiente") {
                 if page == pages.count - 1 {
                     onFinished()
                 } else {
@@ -85,14 +94,7 @@ struct WelcomeScreen: View {
                         page += 1
                     }
                 }
-            } label: {
-                Text(page == pages.count - 1 ? "¡Empezar!" : "Siguiente")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(AgoraDesign.Colors.naranja)
             .padding(.horizontal, AgoraDesign.Spacing.lg)
             .padding(.bottom, AgoraDesign.Spacing.lg)
         }
@@ -107,10 +109,11 @@ struct AgoraProgressDots: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            // Escalones: el de la página actual más ancho y en naranja.
             ForEach(0..<pageCount, id: \.self) { index in
-                Circle()
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
                     .fill(index == currentPage ? AgoraDesign.Colors.naranja : AgoraDesign.Colors.borde)
-                    .frame(width: index == currentPage ? 10 : 8, height: index == currentPage ? 10 : 8)
+                    .frame(width: index == currentPage ? 22 : 10, height: 8)
                     .animation(AgoraDesign.Animation.spring, value: currentPage)
             }
         }

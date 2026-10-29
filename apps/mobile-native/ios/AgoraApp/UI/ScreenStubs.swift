@@ -14,12 +14,22 @@ struct NotificacionesView: View {
     @State private var notificaciones: [NotificacionDto] = []
     @State private var cargando = true
     @State private var error: String?
+    /// La pregunta de hoy, para el boleto de arriba mientras siga abierta y sin contestar.
+    @State private var pregunta: PreguntaHoyDto?
+    @Environment(\.dismiss) private var dismiss
 
     private var grupos: [GrupoAvisos] { GrupoAvisos.agrupar(notificaciones) }
 
     var body: some View {
         VStack(spacing: 0) {
             CabezaCholula(titulo: "Avisos")
+            if let pregunta, pregunta.abierta != false, !pregunta.yaRespondi {
+                // Avisos se abre desde la campana del inicio: volver es llegar al boleto completo.
+                BoletoPreguntaAviso(pregunta: pregunta) { dismiss() }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 6)
+                    .padding(.bottom, 10)
+            }
             Group {
                 if cargando && notificaciones.isEmpty {
                     ProgressView()
@@ -52,6 +62,7 @@ struct NotificacionesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await cargar() }
         .task { await cargar() }
+        .task { pregunta = try? await AgoraApi.preguntaHoy() }
     }
 
     private func cargar() async {
@@ -65,6 +76,75 @@ struct NotificacionesView: View {
         } catch {
             self.error = FormatUtils.mensajeDe(error)
         }
+    }
+}
+
+/// «Cayó la pregunta del día» (artboard WowB-Avisos): boleto chico con talón Talavera y lo que queda para
+/// contestar a tiempo; si ya pasó la ventana, «HOY». Tocarlo regresa al inicio, donde se contesta.
+private struct BoletoPreguntaAviso: View {
+    let pregunta: PreguntaHoyDto
+    let onTocar: () -> Void
+    @Environment(\.colorScheme) private var esquema
+
+    private var hasta: Date? { pregunta.aTiempoHasta.flatMap(FormatUtils.parseISO) }
+
+    var body: some View {
+        Button(action: onTocar) {
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("CAYÓ LA PREGUNTA DEL DÍA")
+                        .font(.outfit(.caption2, .bold))
+                        .tracking(1.1)
+                        .foregroundStyle(AgoraDesign.Colors.naranjaTinta)
+                    Text(pregunta.texto)
+                        .font(.bricolage(17, relativeTo: .headline))
+                        .foregroundStyle(AgoraDesign.Colors.texto)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(3)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+
+                TimelineView(.periodic(from: .now, by: 1)) { contexto in
+                    let falta = hasta.map { $0.timeIntervalSince(contexto.date) } ?? 0
+                    VStack(spacing: 2) {
+                        Text(falta > 0 ? "QUEDAN" : "HOY")
+                            .font(.outfit(.caption2, .bold))
+                            .tracking(1.1)
+                        if falta > 0 {
+                            let s = Int(falta.rounded(.up))
+                            Text("\(s / 60):" + String(format: "%02d", s % 60))
+                                .font(.bricolage(24, relativeTo: .title2).monospacedDigit())
+                        } else {
+                            Image(systemName: "clock")
+                                .font(.system(size: 22, weight: .semibold))
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .frame(width: 80)
+                    .frame(maxHeight: .infinity)
+                    .background(AgoraDesign.Colors.talavera)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { geo in
+                            Path { p in
+                                p.move(to: CGPoint(x: 1, y: 0))
+                                p.addLine(to: CGPoint(x: 1, y: geo.size.height))
+                            }
+                            .stroke(Color.white.opacity(0.5), style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
+                        }
+                        .frame(width: 2)
+                    }
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .background(AgoraDesign.Colors.superficie)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(color: .black.opacity(esquema == .dark ? 0.5 : 0.10), radius: 9, y: 6)
+        }
+        .buttonStyle(.agoraPlain)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Vuelve al inicio para contestarla")
     }
 }
 
