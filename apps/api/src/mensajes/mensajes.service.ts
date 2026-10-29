@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { EnviarMensaje, ListarMensajes } from '@agora/contracts';
-import { DECISIONES, moderarTexto } from '@agora/moderation';
+import { CONTEXTO_MAX_MENSAJES, DECISIONES, moderarTexto } from '@agora/moderation';
 import { esStaff } from '@agora/rbac';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -236,16 +236,30 @@ export class MensajesService {
       }
     }
 
+    // Con los ultimos mensajes del hilo el clasificador ve lo que un mensaje
+    // suelto no muestra: insistir despues de un no, un chantaje que se arma.
+    let estado: 'PUBLICADO' | 'EN_REVISION' = 'PUBLICADO';
     if (moderacionPreviaActiva()) {
-      const veredicto = await moderarTexto(datos.texto, { tipo: 'mensaje' });
+      const anteriores = await this.prisma.message.findMany({
+        where: { conversationId, estado: { in: ['PUBLICADO', 'EN_REVISION'] } },
+        orderBy: { createdAt: 'desc' },
+        take: CONTEXTO_MAX_MENSAJES,
+        select: { autorId: true, texto: true },
+      });
+      const contexto = anteriores
+        .reverse()
+        .map((m) => ({ de: m.autorId === userId ? ('autor' as const) : ('otro' as const), texto: m.texto }));
+      const veredicto = await moderarTexto(datos.texto, { tipo: 'mensaje', contexto });
       if (veredicto.decision === DECISIONES.RETIRAR) {
         throw new BadRequestException(veredicto.motivo ?? 'Ese mensaje cruza una linea roja.');
       }
+      // Se entrega igual (la IA no borra sola); queda marcado para revision.
+      if (veredicto.decision === DECISIONES.PUBLICAR_Y_ENCOLAR) estado = 'EN_REVISION';
     }
 
     const [mensaje] = await this.prisma.$transaction([
       this.prisma.message.create({
-        data: { conversationId, autorId: userId, texto: datos.texto },
+        data: { conversationId, autorId: userId, texto: datos.texto, estado },
         select: {
           id: true,
           createdAt: true,

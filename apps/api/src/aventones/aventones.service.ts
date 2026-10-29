@@ -5,9 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { CrearAventon, ListarAventones } from '@agora/contracts';
+import { DECISIONES, moderarTexto } from '@agora/moderation';
 import { Prisma } from '@agora/db';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { moderacionPreviaActiva } from '../comun/moderacion.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
 import { GamificacionService } from '../gamificacion/gamificacion.service.js';
 
@@ -29,6 +31,16 @@ export class AventonesService {
   ) {}
 
   async crear(userId: string, datos: CrearAventon) {
+    // Seguridad del viaje: datos de otra persona, condiciones sexuales o
+    // hacerse pasar por transporte oficial. Solo una linea roja clara lo frena.
+    if (moderacionPreviaActiva()) {
+      const texto = [`${datos.origen} → ${datos.destino}`, datos.nota ?? ''].filter(Boolean).join('\n');
+      const veredicto = await moderarTexto(texto, { tipo: 'aventon' });
+      if (veredicto.decision === DECISIONES.RETIRAR) {
+        throw new BadRequestException(veredicto.motivo ?? 'Ese aventón cruza una línea roja de las reglas.');
+      }
+    }
+
     const usuario = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { universityId: true },

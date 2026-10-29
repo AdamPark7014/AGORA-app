@@ -84,6 +84,7 @@ export class PostsService {
     // Los archivos deben estar libres y ser tuyos: si no se comprobara,
     // cualquiera podria colgar en su publicacion la foto de otra persona.
     let imagenes: string[] = [];
+    let conVideo = false;
     if (datos.mediaIds.length > 0) {
       const libres = await this.prisma.media.findMany({
         where: { id: { in: datos.mediaIds }, postId: null, anuncioId: null, ownerId: userId },
@@ -92,12 +93,14 @@ export class PostsService {
       if (libres.length !== datos.mediaIds.length) {
         throw new BadRequestException('Alguno de esos archivos ya no esta disponible.');
       }
+      // Del video se juzga su portada: es lo que se ve antes de darle play.
+      conVideo = libres.some((m) => m.mime.startsWith('video/'));
       imagenes = libres
-        .filter((m) => m.mime.startsWith('image/'))
-        .map((m) => m.thumbUrl ?? m.url);
+        .filter((m) => m.mime.startsWith('image/') || (m.mime.startsWith('video/') && m.thumbUrl))
+        .map((m) => (m.mime.startsWith('video/') ? m.thumbUrl! : (m.thumbUrl ?? m.url)));
     }
 
-    const veredicto = await this.moderar(datos.texto, 'publicacion', imagenes);
+    const veredicto = await this.moderar(datos.texto, conVideo ? 'clip' : 'publicacion', imagenes);
     const estado =
       veredicto.decision === DECISIONES.RETIRAR
         ? 'RETIRADO'

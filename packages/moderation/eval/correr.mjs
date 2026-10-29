@@ -24,6 +24,8 @@ const opcion = (nombre) => {
 };
 const solo = opcion('--solo')?.split(',');
 const salida = opcion('--salida');
+// La puerta limita cada proyecto a 60 peticiones por minuto: sin pausa, dos corridas seguidas chocan con el 429.
+const PAUSA_MIN_MS = Number(opcion('--pausa') ?? 1100);
 
 // Haiku 5.5, USD por millon de tokens (IA-CLAUDE.md §4).
 const PRECIO = { entrada: 0.1, salida: 0.5, escribirCache: 0.125, leerCache: 0.01 };
@@ -50,12 +52,16 @@ const costo = (u) =>
   1e6;
 
 const resultados = [];
+let ultimaLlamada = 0;
 for (const caso of casos) {
   const imagenes = caso.imagenes ?? [];
+  const espera = ultimaLlamada + PAUSA_MIN_MS - performance.now();
+  if (espera > 0) await new Promise((listo) => setTimeout(listo, espera));
+  ultimaLlamada = performance.now();
   const inicio = performance.now();
   let r;
   try {
-    const m = await cliente.messages.create(peticionModeracion(caso.texto, imagenes, caso.tipo), {
+    const m = await cliente.messages.create(peticionModeracion(caso.texto, imagenes, caso.tipo, caso.contexto ?? []), {
       headers: { 'x-proceso': 'eval-agora-moderar' },
     });
     const ms = Math.round(performance.now() - inicio);
@@ -93,6 +99,12 @@ for (const caso of casos) {
     (caso.esperado === 'retirar' && r.decision === 'publicar')
       ? true
       : false;
+  // Falso positivo: algo que se debia publicar y se marco o retiro sin que el caso lo acepte.
+  r.falsoPositivo =
+    caso.esperado === 'publicar' && r.valido === true && r.decision !== 'publicar' && !aceptable.includes(r.decision);
+  // Falso negativo: algo que se debia marcar o retirar y paso como publicar.
+  r.falsoNegativo = caso.esperado !== 'publicar' && r.decision === 'publicar' && !aceptable.includes('publicar');
+  r.tipo = caso.tipo;
   r.tarde = r.ms > (imagenes.length > 0 ? TIEMPO_PRODUCTO_MS.imagen : TIEMPO_PRODUCTO_MS.texto);
   resultados.push(r);
 
@@ -112,6 +124,14 @@ const resumen = {
   acierto: resultados.filter((r) => r.acierto).length / n,
   exacto: resultados.filter((r) => r.exacto).length / n,
   criticos: resultados.filter((r) => r.critico).map((r) => r.id),
+  falsos_positivos: resultados.filter((r) => r.falsoPositivo).map((r) => r.id),
+  falsos_negativos: resultados.filter((r) => r.falsoNegativo).map((r) => r.id),
+  por_tipo: Object.fromEntries(
+    [...new Set(resultados.map((r) => r.tipo))].map((t) => {
+      const delTipo = resultados.filter((r) => r.tipo === t);
+      return [t, `${delTipo.filter((r) => r.acierto).length}/${delTipo.length}`];
+    }),
+  ),
   errores: resultados.filter((r) => r.error || !r.valido).map((r) => r.id),
   tarde: resultados.filter((r) => r.tarde).map((r) => r.id),
   p50_ms: pct(50),

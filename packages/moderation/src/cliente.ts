@@ -32,7 +32,26 @@ export type TipoContenido =
   | 'sin-nombre'
   | 'mensaje'
   | 'evento'
-  | 'anuncio';
+  | 'anuncio'
+  /** Pie de una publicacion con video. */
+  | 'clip'
+  | 'aventon'
+  /** Nombre, usuario, bio, intereses y lo que busca. */
+  | 'perfil';
+
+/** Un mensaje anterior del hilo: `autor` es quien escribe el nuevo; `otro`, quien lo recibe. */
+export interface MensajeContexto {
+  readonly de: 'autor' | 'otro';
+  readonly texto: string;
+}
+
+/**
+ * Cuantos mensajes anteriores ve el clasificador y hasta que largo cada uno.
+ * Poco a proposito: basta para ver una insistencia o un chantaje que se arma,
+ * y el contexto no va en cache (cambia en cada mensaje), asi que se paga entero.
+ */
+export const CONTEXTO_MAX_MENSAJES = 6;
+export const CONTEXTO_MAX_CARACTERES = 300;
 
 type CrearMensaje = (
   cuerpo: Anthropic.MessageCreateParamsNonStreaming,
@@ -41,6 +60,8 @@ type CrearMensaje = (
 
 export interface OpcionesModeracion {
   readonly tipo?: TipoContenido;
+  /** Mensajes anteriores del hilo, del mas viejo al mas nuevo (solo en mensajes). */
+  readonly contexto?: readonly MensajeContexto[];
   /** Milisegundos antes de rendirse. Publicar no puede quedarse colgado. */
   readonly timeoutMs?: number;
   /** Solo para pruebas: reemplaza la llamada a la API. */
@@ -66,11 +87,27 @@ const crearPorOmision: CrearMensaje = (cuerpo, opciones) => {
   return clientePorOmision.messages.create(cuerpo, opciones);
 };
 
+/** Los ultimos mensajes del hilo, recortados, entre etiquetas; vacio si no hay. */
+export const bloqueConversacion = (contexto: readonly MensajeContexto[]): string => {
+  const ultimos = contexto
+    .map((m) => ({ de: m.de, texto: m.texto.trim() }))
+    .filter((m) => m.texto)
+    .slice(-CONTEXTO_MAX_MENSAJES);
+  if (ultimos.length === 0) return '';
+  const lineas = ultimos.map((m) => {
+    const texto =
+      m.texto.length > CONTEXTO_MAX_CARACTERES ? `${m.texto.slice(0, CONTEXTO_MAX_CARACTERES)}…` : m.texto;
+    return `[${m.de === 'autor' ? 'autor' : 'otra persona'}] ${texto}`;
+  });
+  return `<conversacion>\n${lineas.join('\n')}\n</conversacion>\n`;
+};
+
 /** Arma la peticion: politica fija y en cache primero, el contenido del usuario despues. */
 export const peticionModeracion = (
   texto: string,
   imagenes: readonly string[],
   tipo: TipoContenido,
+  contexto: readonly MensajeContexto[] = [],
 ): Anthropic.MessageCreateParamsNonStreaming => ({
   model: MODELO_MODERACION,
   max_tokens: 200,
@@ -86,7 +123,10 @@ export const peticionModeracion = (
         ...imagenes.map(
           (url): Anthropic.ImageBlockParam => ({ type: 'image', source: { type: 'url', url } }),
         ),
-        { type: 'text', text: `Tipo: ${tipo}\n<contenido>\n${texto}\n</contenido>` },
+        {
+          type: 'text',
+          text: `${bloqueConversacion(contexto)}Tipo: ${tipo}\n<contenido>\n${texto}\n</contenido>`,
+        },
       ],
     },
   ],
@@ -114,7 +154,7 @@ export const moderarContenido = async (
   const crear = opciones.crear ?? crearPorOmision;
 
   try {
-    const respuesta = await crear(peticionModeracion(texto, imagenes, tipo), {
+    const respuesta = await crear(peticionModeracion(texto, imagenes, tipo, opciones.contexto ?? []), {
       timeout: timeoutMs,
       headers: { 'x-proceso': `agora-moderar-${tipo}` },
     });

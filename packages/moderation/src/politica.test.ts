@@ -4,7 +4,15 @@ import { test } from 'node:test';
 import type Anthropic from '@anthropic-ai/sdk';
 
 import { DECISIONES, LINEAS_ROJAS, esClasificacion, veredictoDe } from './politica.js';
-import { masSevero, moderarContenido, moderarImagen, moderarTexto } from './cliente.js';
+import {
+  CONTEXTO_MAX_CARACTERES,
+  CONTEXTO_MAX_MENSAJES,
+  bloqueConversacion,
+  masSevero,
+  moderarContenido,
+  moderarImagen,
+  moderarTexto,
+} from './cliente.js';
 
 /**
  * La prueba mas importante del producto.
@@ -114,6 +122,39 @@ test('la peticion va a Haiku, sin thinking, con la politica en cache y el conten
 
   assert.equal(opciones?.timeout, 8000);
   assert.deepEqual(opciones?.headers, { 'x-proceso': 'agora-moderar-comentario' });
+});
+
+test('en mensajes la conversacion va antes del contenido, recortada y sin la politica', async () => {
+  let cuerpo: Anthropic.MessageCreateParamsNonStreaming | undefined;
+  const largo = 'x'.repeat(CONTEXTO_MAX_CARACTERES + 50);
+  await moderarTexto('¿Por qué no me contestas?', {
+    tipo: 'mensaje',
+    contexto: [
+      { de: 'otro', texto: 'mensaje viejo que ya no entra' },
+      ...Array.from({ length: CONTEXTO_MAX_MENSAJES - 2 }, (_, i) => ({ de: 'autor' as const, texto: `hola ${i}` })),
+      { de: 'otro', texto: 'Ya te dije que no.' },
+      { de: 'autor', texto: largo },
+    ],
+    crear: async (c) => {
+      cuerpo = c;
+      return respuesta({ decision: 'revisar', linea_roja: 'acoso_dirigido', razon: 'Insiste tras un no.' });
+    },
+  });
+
+  const contenido = cuerpo?.messages[0]?.content as Anthropic.TextBlockParam[];
+  const texto = contenido[0]?.text ?? '';
+  assert.ok(texto.startsWith('<conversacion>\n'), 'la conversacion va primero');
+  assert.ok(!texto.includes('mensaje viejo'), `solo los ultimos ${CONTEXTO_MAX_MENSAJES}`);
+  assert.ok(texto.includes('[otra persona] Ya te dije que no.'));
+  assert.ok(texto.includes(`[autor] ${'x'.repeat(CONTEXTO_MAX_CARACTERES)}…`), 'cada mensaje se recorta');
+  assert.ok(texto.endsWith('Tipo: mensaje\n<contenido>\n¿Por qué no me contestas?\n</contenido>'));
+  // La politica en cache no cambia con la conversacion.
+  assert.deepEqual((cuerpo?.system as Anthropic.TextBlockParam[])[0]?.cache_control, { type: 'ephemeral' });
+});
+
+test('sin conversacion no se agrega nada', () => {
+  assert.equal(bloqueConversacion([]), '');
+  assert.equal(bloqueConversacion([{ de: 'otro', texto: '   ' }]), '');
 });
 
 test('una respuesta valida se traduce al veredicto de la politica', async () => {

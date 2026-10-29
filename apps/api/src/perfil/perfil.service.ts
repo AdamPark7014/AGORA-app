@@ -3,13 +3,16 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import type { ActualizarPerfil, CrearPerfil } from '@agora/contracts';
+import { DECISIONES, moderarTexto } from '@agora/moderation';
 import { esStaff } from '@agora/rbac';
 
 import type { Prisma } from '@agora/db';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { moderacionPreviaActiva } from '../comun/moderacion.js';
 import { AuthService } from '../auth/auth.service.js';
 import { NotificacionesService } from '../notificaciones/notificaciones.service.js';
 import { hayBloqueo, ocultosPara } from '../bloqueos/bloqueos.js';
@@ -18,6 +21,8 @@ import { aMediaVista } from '../posts/vista-post.js';
 
 @Injectable()
 export class PerfilService {
+  private readonly logger = new Logger(PerfilService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
@@ -54,6 +59,12 @@ export class PerfilService {
     const handleTomado = await this.prisma.profile.findUnique({ where: { handle: datos.handle } });
     if (handleTomado) throw new ConflictException('Ese nombre de usuario ya esta tomado.');
 
+    await this.moderarPerfil([
+      `Nombre: ${datos.nombre} ${datos.apellidos}`,
+      `Usuario: ${datos.handle}`,
+      datos.bio ? `Bio: ${datos.bio}` : '',
+    ]);
+
     await this.prisma.$transaction([
       this.prisma.profile.create({
         data: {
@@ -82,6 +93,23 @@ export class PerfilService {
    * marketplace: se comprueba que este libre para que nadie pueda apropiarse
    * de la imagen de otro.
    */
+  /**
+   * Nombre, usuario, bio y lo que busca pasan por la misma politica que lo que
+   * se publica (suplantar a un profesor o a la universidad, datos de otra
+   * persona). Solo una linea roja clara frena el cambio; lo dudoso se guarda.
+   */
+  private async moderarPerfil(partes: readonly string[]): Promise<void> {
+    const texto = partes.filter(Boolean).join('\n');
+    if (!texto || !moderacionPreviaActiva()) return;
+    const veredicto = await moderarTexto(texto, { tipo: 'perfil' });
+    if (veredicto.decision === DECISIONES.RETIRAR) {
+      throw new BadRequestException(veredicto.motivo ?? 'Eso cruza una linea roja de las reglas.');
+    }
+    if (veredicto.decision === DECISIONES.PUBLICAR_Y_ENCOLAR) {
+      this.logger.warn(`Perfil marcado para revision: ${veredicto.razonIA ?? 'sin razon'}`);
+    }
+  }
+
   async actualizar(userId: string, datos: ActualizarPerfil) {
     const perfil = await this.prisma.profile.findUnique({
       where: { userId },
@@ -105,6 +133,13 @@ export class PerfilService {
       }
       return media.url;
     };
+
+    await this.moderarPerfil([
+      datos.bio ? `Bio: ${datos.bio}` : '',
+      datos.busco ? `Busco: ${datos.busco}` : '',
+      datos.intereses?.length ? `Intereses: ${datos.intereses.join(', ')}` : '',
+      datos.ciudadOrigen ? `Ciudad de origen: ${datos.ciudadOrigen}` : '',
+    ]);
 
     const fotoUrl = await resolver(datos.fotoMediaId);
     const portadaUrl = await resolver(datos.portadaMediaId);
