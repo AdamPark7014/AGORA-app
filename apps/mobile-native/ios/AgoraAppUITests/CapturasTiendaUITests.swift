@@ -30,7 +30,11 @@ final class CapturasTiendaUITests: XCTestCase {
     func test1_capturasDeLaTienda() throws {
         entrarComoDemo()
         // La bienvenida solo sale la primera vez en el simulador: aquí, no en el registro.
-        if app.buttons["Saltar"].waitForExistence(timeout: 10) { guardar(nombre: "bienvenida") }
+        if app.buttons["Saltar"].waitForExistence(timeout: 10) {
+            // El permiso de avisos sale encima de la bienvenida: primero se cierra.
+            cerrarAlertasDelSistema()
+            guardar(nombre: "bienvenida")
+        }
         saltarBienvenida()
         cerrarAlertasDelSistema()
         XCTAssertTrue(pestanaFeed.waitForExistence(timeout: 30), "No llegó al feed después de entrar")

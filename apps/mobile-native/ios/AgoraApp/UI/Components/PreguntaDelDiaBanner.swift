@@ -190,7 +190,7 @@ struct PreguntaDelDiaBanner: View {
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("Quedan \(Self.mmss(falta)) para contestar a tiempo")
                 } else {
-                    VStack(spacing: 2) { talonHoy }
+                    VStack(spacing: 2) { talonFecha }
                 }
             }
         } else if actual.yaRespondi {
@@ -203,7 +203,23 @@ struct PreguntaDelDiaBanner: View {
             cifraTalon("\(semana.respondidas)/\(semana.meta)")
             pieTalon("contestadas")
         } else {
-            talonHoy
+            talonFecha
+        }
+    }
+
+    /// Pregunta abierta sin ventana «a tiempo» (o ya pasada): «HOY» y la fecha, no «sorpresa».
+    private var talonFecha: some View {
+        let formato = DateFormatter()
+        formato.locale = Locale(identifier: "es_MX")
+        formato.timeZone = FormatUtils.zona
+        formato.dateFormat = "d"
+        let dia = formato.string(from: Date())
+        formato.dateFormat = "MMM"
+        let mes = formato.string(from: Date()).replacingOccurrences(of: ".", with: "")
+        return Group {
+            etiquetaTalon("HOY")
+            cifraTalon(dia)
+            pieTalon(mes)
         }
     }
 
