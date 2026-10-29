@@ -4,6 +4,28 @@
 - **Fecha:** 2026-10-28
 - **Rama:** main
 
+## Moderación por tipo y con conversación, en producción (28-10)
+
+Pedido de Adam: «ver cómo mejorar los modelos de cada cosa… que tenga igual conversaciones». `0e5d6fc`:
+- `packages/moderation/src/prompt.ts`: reglas por tipo (publicación/sin nombre, comentario, clip, mensaje,
+  anuncio, evento, aventón, perfil) y la jerga que no es amenaza. `cliente.ts`: tipos `clip`, `aventon`, `perfil`
+  y `contexto` (últimos `CONTEXTO_MAX_MENSAJES` = 6 del hilo, 300 caracteres cada uno, en el mensaje del usuario;
+  la política sigue en caché).
+- API: `mensajes.service` manda el hilo y guarda lo dudoso como `EN_REVISION` (se entrega igual);
+  `perfil.service` modera nombre/usuario/bio al crear y bio/busco/intereses/ciudad al editar; `aventones.service`
+  modera origen/destino/nota; `posts.service` modera los clips como `clip` y con la portada del video. En todos,
+  solo una línea roja clara frena; lo dudoso de anuncio, aventón y perfil no tiene cola humana todavía (no hay
+  campo en `Report`/`ModerationAction` para ellos; el mercado y los aventones solo listan `PUBLICADO`).
+- Eval `packages/moderation/eval`: 152 casos (28 publicación, 24 mensaje con 11 conversaciones, 22 comentario,
+  20 anuncio, 16 evento, 14 perfil, 12 aventón, 8 clip, 8 sin nombre). Antes 95.4 %, 3 críticos, p95 1.96 s,
+  0.000059 USD/llamada; después 100 %, 0 críticos, 0 falsos positivos/negativos, p95 2.03 s, 0.000079 USD.
+  `correr.mjs --pausa` (por omisión 1100 ms): la puerta corta `pruebas` a 60 peticiones/min.
+- Desplegado solo `api` (`git archive` + `build api` + `up -d --no-deps api`), prueba de humo en el contenedor
+  con el token de `agora`. **Disco del Hetzner al 89-90 %** tras el build (se podó la caché de build).
+- **Trampa:** no correr `prettier --write` en este repo: no hay `.prettierrc` y reformatea todo a comillas dobles.
+- **Pendiente de Adam:** el aviso de privacidad no menciona la moderación automática ni a Anthropic como
+  proveedor (ya pasa desde el 26-10); texto propuesto en el reporte de esta sesión, sin aplicar.
+
 ## B «Cholula» construida en Android (28-10)
 
 Decisión de Adam (relayada): la variante B · Cholula de la ronda «capa wow» como base, con el momento de la pregunta
