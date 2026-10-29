@@ -27,8 +27,8 @@ Pedido de Adam: «ver cómo mejorar los modelos de cada cosa… que tenga igual 
   perfil y los mensajes (con los últimos de la conversación) se revisan solos antes de verse, y Anthropic entra en
   proveedores; fecha 29-10. Igual en el resumen de Android (`FECHA_PRIVACIDAD`, términos y reglas siguen en 22-10),
   el borrador legal (decía OpenAI) y `PLAY-STORE.md`. Etiqueta de Apple, `PrivacyInfo.xcprivacy` y Seguridad de
-  los datos no cambian (proveedor que procesa por cuenta de Ágora). iOS: se le pasó el texto a la sesión de la
-  build 11. Web desplegada.
+  los datos no cambian (proveedor que procesa por cuenta de Ágora). iOS: en `c97fd83` (la sesión de iOS); no
+  entró en la 1.0.0 (11), sale en la (12). Web desplegada.
 
 ## B «Cholula» construida en Android (28-10)
 
