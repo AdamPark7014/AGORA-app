@@ -23,8 +23,12 @@ Pedido de Adam: «ver cómo mejorar los modelos de cada cosa… que tenga igual 
 - Desplegado solo `api` (`git archive` + `build api` + `up -d --no-deps api`), prueba de humo en el contenedor
   con el token de `agora`. **Disco del Hetzner al 89-90 %** tras el build (se podó la caché de build).
 - **Trampa:** no correr `prettier --write` en este repo: no hay `.prettierrc` y reformatea todo a comillas dobles.
-- **Pendiente de Adam:** el aviso de privacidad no menciona la moderación automática ni a Anthropic como
-  proveedor (ya pasa desde el 26-10); texto propuesto en el reporte de esta sesión, sin aplicar.
+- **Aviso de privacidad (29-10, aprobado por Adam, `b5b087d`):** «Para qué los usamos» dice que lo publicado, el
+  perfil y los mensajes (con los últimos de la conversación) se revisan solos antes de verse, y Anthropic entra en
+  proveedores; fecha 29-10. Igual en el resumen de Android (`FECHA_PRIVACIDAD`, términos y reglas siguen en 22-10),
+  el borrador legal (decía OpenAI) y `PLAY-STORE.md`. Etiqueta de Apple, `PrivacyInfo.xcprivacy` y Seguridad de
+  los datos no cambian (proveedor que procesa por cuenta de Ágora). iOS: se le pasó el texto a la sesión de la
+  build 11. Web desplegada.
 
 ## B «Cholula» construida en Android (28-10)
 
