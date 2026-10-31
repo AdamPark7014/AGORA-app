@@ -943,3 +943,6 @@ deploy/docker-compose.yml build api web && … up -d --no-deps api web`; antes e
 Remitente de códigos: `Ágora · Zynora Tek <contacto@zynoratek.com>` (respaldo `acceso@udlagora.com`).
 Remotos: `origin` (GitHub, privado) y `hetzner` (`/srv/git/AGORA-app.git`).
 Android: `.\gradlew.bat :app:assembleDebug -PDEBUG_API_BASE_URL=https://udlagora.com/api`, AVD `nexara_phone`.
+
+## Ajuste de reglas compartidas — Codex, 2026-10-31
+Se alinearon instrucciones genericas de Cursor con AGENT-POLICY y LOCAL-DELEGATION: instructores autonomos, main y un escritor por archivo; sin handoff automatico ni worktrees. Solo documentos de reglas; sin cambios de codigo. Se conservan A medias/Siguiente/No tocar anteriores. Verificacion: diff de reglas y comprobacion de rama.
