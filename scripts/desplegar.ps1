@@ -81,7 +81,7 @@ Paso '5/6 Construyendo api y web (tarda varios minutos)'
 # El build corre en el servidor con nohup y aquí solo se consulta: el 19-10 la conexión SSH se cortó tres
 # veces a media construcción (aun con keepalive) y el build moría con ella.
 $log = "/tmp/agora-build-$fecha.log"
-ssh @ssh "cd $Remoto && rm -f $log.exit && nohup sh -c 'docker compose -f deploy/docker-compose.yml up -d --build --no-deps api web > $log 2>&1; echo `$? > $log.exit' > /dev/null 2>&1 &"
+ssh @ssh "cd $Remoto && rm -f $log.exit && nohup sh -c 'APP_VERSION=$commit docker compose -f deploy/docker-compose.yml up -d --build --no-deps api web > $log 2>&1; echo `$? > $log.exit' > /dev/null 2>&1 &"
 if ($LASTEXITCODE -ne 0) { Falla 'No se pudo arrancar la construcción en el servidor.' }
 $salida = $null
 for ($i = 0; $i -lt 120 -and $null -eq $salida; $i++) {

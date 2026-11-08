@@ -136,6 +136,8 @@ services:
       NEXT_PUBLIC_ADMIN_URL: ${NEXT_PUBLIC_ADMIN_URL:-}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
       TRUST_PROXY: 'true'
+      # Commit desplegado; lo pone scripts/desplegar.ps1 y se ve en /api/salud.
+      APP_VERSION: ${APP_VERSION:-dev}
       # Sin default true: el bypass de IA debe ser explicito en deploy/.env.
       # Si falta ANTHROPIC_API_KEY y no hay MODERACION_OPCIONAL=true, la API no arranca.
       MODERACION_OPCIONAL: ${MODERACION_OPCIONAL:-}

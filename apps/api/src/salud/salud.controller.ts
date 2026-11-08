@@ -65,7 +65,7 @@ export class SaludController {
       base: 'ok',
       ...(redis !== 'omitido' ? { redis } : {}),
       latenciaMs: latenciaMs(),
-      version: process.env.npm_package_version ?? 'dev',
+      version: process.env.APP_VERSION ?? process.env.npm_package_version ?? 'dev',
     };
   }
 }
