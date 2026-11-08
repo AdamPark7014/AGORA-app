@@ -1,8 +1,26 @@
 # RELEVO
 
-- **Último turno:** claude-code (sesión de Ágora web/iOS, en la compu de Adam)
-- **Fecha:** 2026-10-28
+- **Último turno:** claude-code (hilo de proyecto, en la compu de Adam)
+- **Fecha:** 2026-11-08
 - **Rama:** main
+
+## Revisión del 08-11: laptop al día, índice del feed y versión visible
+
+Pedido de Adam: «ve cómo mejorar lo que falte y asegúrate de que mi lap tenga el commit más reciente».
+- **Hecho:** `51113b7` desplegado (`prev-20261108-1408` para volver). Índice `posts_createdAt_id_idx`: el feed del campus no
+  filtra por una comunidad y ordenaba sin índice (la nota del 19-10 que decía que no hacía falta estaba mal).
+  `/api/salud` devuelve el commit en `version` (`APP_VERSION` lo pone `desplegar.ps1`); `DESPLEGADO` se quedaba viejo con
+  los despliegues a mano. Verificado en vivo: salud, smoke, índice creado.
+- **Producción medida:** 4 usuarios, 3 perfiles, 5 publicaciones, 0 sesiones nuevas en 14 días. Sin errores en 72 h de logs.
+  De la auditoría del 12-10 ya estaban cerrados: alias con `+`, editar en revisión, bloqueos, CSP.
+- **Verificación:** `lint`, `check-types`, `test` (16 tareas) en verde. `format:check` falla por `packages/config/package.json`,
+  anterior a este turno; no se reformateó.
+- **A medias:** nada. **Disco del Hetzner 81 %:** pasa el umbral del aviso de ntfy.
+- **Siguiente (de Adam):** los 3 datos del responsable para el aviso de privacidad (la página aún no lo nombra), remitente
+  `acceso@udlagora.com` (regla de marcas vs. decisión del 07-10), Sentry y monitor externo, contenido inicial y lanzamiento.
+  Con mockup aprobado: invitaciones por carrera, fotos y visto en mensajes, compartir a historias.
+- **No tocar:** igual que abajo.
+
 
 ## Moderación por tipo y con conversación, en producción (28-10)
 
