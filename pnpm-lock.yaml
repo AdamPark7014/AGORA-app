@@ -396,6 +396,18 @@ importers:
         specifier: ^5.9.2
         version: 5.9.3
 
+  packages/design-tokens:
+    devDependencies:
+      '@agora/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+
   packages/moderation:
     dependencies:
       '@anthropic-ai/sdk':

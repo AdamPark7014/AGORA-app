@@ -1,0 +1,81 @@
+/* Generado por packages/design-tokens (pnpm --filter @agora/design-tokens generar). No editar a mano. */
+
+:root {
+  --c-fondo: #f6f0e7;
+  --c-superficie: #ffffff;
+  --c-superficie-2: #ede4d6;
+  --c-tinta: #1b140f;
+  --c-secundario: #6b5d50;
+  --c-borde: #e2d6c5;
+  --c-borde-sutil: #ede4d6;
+  --c-oscuro: #1b140f;
+  --c-naranja: #e35205;
+  --c-naranja-suave: #fbe6d9;
+  --c-naranja-tinta: #9a3503;
+  --c-boton: #b83c0b;
+  --c-sobre-boton: #ffffff;
+  --c-talavera: #1e3a8a;
+  --c-talavera-texto: #1e3a8a;
+  --c-adobe: #b5400f;
+  --c-jade: #0f766e;
+  --c-maiz: #e0a82e;
+  --c-sobre-maiz: #1b140f;
+  --c-vivo: #15803d;
+  --c-exito: #2a7449;
+  --c-peligro: #c62828;
+  --c-peligro-suave: #fdecea;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --c-fondo: #14100d;
+    --c-superficie: #1e1814;
+    --c-superficie-2: #2a221c;
+    --c-tinta: #f6f0e7;
+    --c-secundario: #c2b4a4;
+    --c-borde: #3a2f27;
+    --c-borde-sutil: #2a221c;
+    --c-oscuro: #2a221c;
+    --c-naranja: #ff6b26;
+    --c-naranja-suave: #2e1a0f;
+    --c-naranja-tinta: #ffb385;
+    --c-boton: #ff7a3d;
+    --c-sobre-boton: #1a0e07;
+    --c-talavera: #1e3a8a;
+    --c-talavera-texto: #a9c0ff;
+    --c-adobe: #b5400f;
+    --c-jade: #0f766e;
+    --c-maiz: #e0a82e;
+    --c-sobre-maiz: #1b140f;
+    --c-vivo: #22c55e;
+    --c-exito: #7fc9a8;
+    --c-peligro: #f26161;
+    --c-peligro-suave: #3a1414;
+  }
+}
+
+:root[data-theme='dark'] {
+  --c-fondo: #14100d;
+  --c-superficie: #1e1814;
+  --c-superficie-2: #2a221c;
+  --c-tinta: #f6f0e7;
+  --c-secundario: #c2b4a4;
+  --c-borde: #3a2f27;
+  --c-borde-sutil: #2a221c;
+  --c-oscuro: #2a221c;
+  --c-naranja: #ff6b26;
+  --c-naranja-suave: #2e1a0f;
+  --c-naranja-tinta: #ffb385;
+  --c-boton: #ff7a3d;
+  --c-sobre-boton: #1a0e07;
+  --c-talavera: #1e3a8a;
+  --c-talavera-texto: #a9c0ff;
+  --c-adobe: #b5400f;
+  --c-jade: #0f766e;
+  --c-maiz: #e0a82e;
+  --c-sobre-maiz: #1b140f;
+  --c-vivo: #22c55e;
+  --c-exito: #7fc9a8;
+  --c-peligro: #f26161;
+  --c-peligro-suave: #3a1414;
+}

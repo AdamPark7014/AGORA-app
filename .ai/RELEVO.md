@@ -1,8 +1,18 @@
 # RELEVO
 
-- **Último turno:** claude-code (hilo de proyecto, en la compu de Adam)
-- **Fecha:** 2026-11-08
+- **Último turno:** claude-code (hilo de proyecto «Modernizar stack», contenedor en la nube)
+- **Fecha:** 2026-11-09
 - **Rama:** main
+
+## Plan para modernizar el stack y tokens únicos (09-11)
+
+Pedido de Adam: herramientas «más duras y profesionales» para mejorar diseño y natividad. Plan en
+`docs/plan-modernizar-stack.md` (los lenguajes ya son los pro; lo básico es el CSS a mano de la web, la paleta copiada
+en tres lados y el prototipo Expo). Hecho: `packages/design-tokens` (fuente única Cholula → `generado/` CSS, Kotlin,
+Swift; prueba de contraste AA; `revisar` dio 24 diferencias). Nada conectado aún a las apps ni a la web; nada desplegado.
+- **Siguiente:** conectar Android/iOS a `generado/` (verificar con capturas), y etapa 2 (Tailwind v4 + Radix + Motion
+  en la web) solo con visto bueno de Adam.
+- `format:check` sigue fallando por el estilo del repo (comillas simples sin `.prettierrc`); no se reformateó.
 
 ## Revisión del 08-11: laptop al día, índice del feed y versión visible
 
